@@ -1,1 +1,1 @@
-# SENTINEL-Manipulation
+# SENTINEL-Lite
