@@ -34,6 +34,7 @@ from omnigibson.utils.bddl_utils import (
     OmniGibsonBDDLBackend,
     get_processed_bddl,
 )
+from omnigibson.utils.ltl_utils import AtomicPropositionGenerator
 from omnigibson.utils.python_utils import assert_valid_key, classproperty
 from omnigibson.utils.config_utils import TorchEncoder
 from omnigibson.utils.ui_utils import create_module_logger
@@ -143,6 +144,8 @@ class BehaviorTask(BaseTask):
         self.object_scope = None  # Maps str to BDDLEntity
         self.object_instance_to_category = None  # Maps str to str
         self.future_obj_instances = None  # set of str
+        self.proposition_set = None
+        self.proposition_generator = None
 
         # Info for demonstration collection
         self.instruction_order = None  # th.tensor of int
@@ -354,6 +357,22 @@ class BehaviorTask(BaseTask):
             len(satisfied_predicates["satisfied"]) + len(satisfied_predicates["unsatisfied"])
         )
         return -success_score
+
+    # ========================= LTL Proposition API =========================
+
+    def get_ltl_propositions(self, regenerate: bool = False, include_goals: bool = False):
+        if self.proposition_set is None or regenerate:
+            self.proposition_generator = AtomicPropositionGenerator(self, verbose=False)
+            self.proposition_set = self.proposition_generator.generate_all(include_goals=include_goals)
+        return self.proposition_set
+
+    def get_ltl_label(self):
+        prop_set = self.get_ltl_propositions()
+        return prop_set.get_label()
+
+    def get_ltl_label_dict(self):
+        prop_set = self.get_ltl_propositions()
+        return prop_set.get_label_dict()
 
     def initialize_activity(self, env):
         """
