@@ -57,40 +57,40 @@ def _make_env():
     return og.Environment(configs=cfg)
 
 
-# def test_ltl_propositions_generation_behavior_env_demo():
-#     env = None
-#     try:
-#         env = _make_env()
-#         env.reset()
+def test_ltl_propositions_generation_behavior_env_demo():
+    env = None
+    try:
+        env = _make_env()
+        env.reset()
 
-#         if not hasattr(env.task, "get_ltl_propositions"):
-#             raise RuntimeError(
-#                 "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
-#             )
-#         prop_set = env.task.get_ltl_propositions()
-#         _log_line(f"\n=== Atomic propositions ({len(prop_set)}) ===")
-#         for prop in prop_set:
-#             _log_line(
-#                 f"{prop.name} | category={prop.category} | desc={prop.description} | args={prop.args}"
-#             )
-#         grounded = env.task.proposition_generator.get_grounded_goal_options()
-#         if grounded:
-#             _log_line("\n=== Grounded goal options (quantifiers expanded) ===")
-#             for option_idx, option in enumerate(grounded):
-#                 _log_line(f"goal_option[{option_idx}] (conjunction of atoms):")
-#                 for prop_name, negated in option:
-#                     prefix = "not " if negated else ""
-#                     _log_line(f"  {prefix}{prop_name}")
-#         print(f"[ltl-test] propositions total: {len(prop_set)}")
-#         print(f"[ltl-test] categories: {sorted(prop_set.categories.keys())}")
-#         assert len(prop_set) > 0
+        if not hasattr(env.task, "get_ltl_propositions"):
+            raise RuntimeError(
+                "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
+            )
+        prop_set = env.task.get_ltl_propositions()
+        _log_line(f"\n=== Atomic propositions ({len(prop_set)}) ===")
+        for prop in prop_set:
+            _log_line(
+                f"{prop.name} | category={prop.category} | desc={prop.description} | args={prop.args}"
+            )
+        grounded = env.task.proposition_generator.get_grounded_goal_options()
+        if grounded:
+            _log_line("\n=== Grounded goal options (quantifiers expanded) ===")
+            for option_idx, option in enumerate(grounded):
+                _log_line(f"goal_option[{option_idx}] (conjunction of atoms):")
+                for prop_name, negated in option:
+                    prefix = "not " if negated else ""
+                    _log_line(f"  {prefix}{prop_name}")
+        print(f"[ltl-test] propositions total: {len(prop_set)}")
+        print(f"[ltl-test] categories: {sorted(prop_set.categories.keys())}")
+        assert len(prop_set) > 0
 
-#         categories = set(prop_set.categories.keys())
-#         assert "unary_state" in categories
-#         assert "binary_relation" in categories
-#     finally:
-#         if env is not None:
-#             og.clear()
+        categories = set(prop_set.categories.keys())
+        assert "unary_state" in categories
+        assert "binary_relation" in categories
+    finally:
+        if env is not None:
+            og.clear()
 
 
 # def test_ltl_label_consistency_behavior_env_demo():
@@ -156,9 +156,6 @@ def test_ltl_labels_match_bddl_predicates_behavior_env_demo():
             pred_name = prop.args[1]
             pred_cls = SUPPORTED_PREDICATES.get(pred_name)
             assert pred_cls is not None
-            if pred_name == "insource":
-                continue
-
             if len(prop.args) == 2:
                 pred = pred_cls(
                     env.task.object_scope,
@@ -177,8 +174,10 @@ def test_ltl_labels_match_bddl_predicates_behavior_env_demo():
                 )
 
             try:
+                print(f"[ltl-test] evaluating proposition '{prop.name}' against predicate '{pred_name}'")
+                print(f"[ltl-test] proposition results: {label_dict[prop.name]} against predicate results: {pred.evaluate()}")
                 pred_value = bool(pred.evaluate())
-            except (KeyError, AttributeError, AssertionError, TypeError):
+            except (KeyError):
                 continue
             assert label_dict[prop.name] == pred_value
     finally:
