@@ -2,6 +2,7 @@ import os
 import json
 from pathlib import Path
 import random
+import spot
 
 import torch as th
 from bddl.activity import (
@@ -14,6 +15,7 @@ from bddl.activity import (
     get_natural_initial_conditions,
     get_object_scope,
 )
+from bddl.config import ACTIVITY_CONFIGS_PATH
 
 import omnigibson as og
 import omnigibson.utils.transform_utils as T
@@ -26,7 +28,7 @@ from omnigibson.scenes.traversable_scene import TraversableScene
 from omnigibson.tasks.task_base import BaseTask
 from omnigibson.termination_conditions.predicate_goal import PredicateGoal
 from omnigibson.termination_conditions.timeout import Timeout
-from omnigibson.utils.asset_utils import get_dataset_path
+from omnigibson.utils.asset_utils import get_dataset_path, get_scene_path
 from omnigibson.utils.bddl_utils import (
     BEHAVIOR_ACTIVITIES,
     BDDLEntity,
@@ -146,6 +148,8 @@ class BehaviorTask(BaseTask):
         self.future_obj_instances = None  # set of str
         self.proposition_set = None
         self.proposition_generator = None
+        self.safety_constraints = {"task": [], "scene": []}
+        self.safety_validation = None
 
         # Info for demonstration collection
         self.instruction_order = None  # th.tensor of int
@@ -232,6 +236,8 @@ class BehaviorTask(BaseTask):
 
         # Store the scene name
         self.scene_name = env.scene.scene_model if isinstance(env.scene, TraversableScene) else None
+        self._load_safety_constraints(env)
+        self.validate_safety_constraints()
 
         # Highlight any task relevant objects if requested
         if self.highlight_task_relevant_objs:
@@ -273,6 +279,73 @@ class BehaviorTask(BaseTask):
         for obj in self.object_scope.values():
             if obj.exists and isinstance(obj, DatasetObject):
                 obj.wake()
+
+    def _load_safety_constraints(self, env):
+        constraints = {"task": [], "scene": []}
+
+        task_path = os.path.join(ACTIVITY_CONFIGS_PATH, self.activity_name, "ltl_safety.json")
+        if os.path.isfile(task_path):
+            try:
+                with open(task_path, "r") as f:
+                    data = json.load(f)
+                constraints["task"] = data.get("constraints", [])
+            except (OSError, json.JSONDecodeError) as exc:
+                log.warning(f"Failed to load task safety constraints from {task_path}: {exc}")
+
+        scene_model = env.scene.scene_model if isinstance(env.scene, TraversableScene) else None
+        if scene_model is not None:
+            scene_path = os.path.join(get_scene_path(scene_model), "safety", "ltl_safety.json")
+            if os.path.isfile(scene_path):
+                try:
+                    with open(scene_path, "r") as f:
+                        data = json.load(f)
+                    constraints["scene"] = data.get("constraints", [])
+                except (OSError, json.JSONDecodeError) as exc:
+                    log.warning(f"Failed to load scene safety constraints from {scene_path}: {exc}")
+
+        self.safety_constraints = constraints
+
+    def validate_safety_constraints(self):
+
+        prop_set = self.get_ltl_propositions()
+        prop_names = {prop.name for prop in prop_set}
+        results = {"constraints": [], "missing": {}, "combined_ltl": ""}
+        combined_terms = []
+
+        for scope in ("task", "scene"):
+            for constraint in self.safety_constraints.get(scope, []):
+                ltl_str = constraint.get("ltl", "")
+                if not ltl_str:
+                    continue
+                try:
+                    formula = spot.formula(ltl_str)
+                except Exception as exc:
+                    log.warning(f"Failed to parse LTL safety constraint '{ltl_str}': {exc}")
+                    continue
+
+                ap_set = {str(ap) for ap in spot.atomic_prop_collect(formula)}
+                combined_terms.append(f"({ltl_str})")
+                missing = sorted(ap for ap in ap_set if ap not in prop_names)
+                if missing:
+                    constraint_id = constraint.get("id", ltl_str)
+                    results["missing"][constraint_id] = missing
+
+                results["constraints"].append(
+                    {
+                        "scope": scope,
+                        "id": constraint.get("id"),
+                        "ltl": ltl_str,
+                        "atomic_props": sorted(ap_set),
+                    }
+                )
+
+        if results["missing"]:
+            log.warning(f"Safety constraints reference missing atomic propositions: {results['missing']}")
+
+        if combined_terms:
+            results["combined_ltl"] = " & ".join(combined_terms)
+
+        self.safety_validation = results
 
     def _load_non_low_dim_observation_space(self):
         # No non-low dim observations so we return an empty dict

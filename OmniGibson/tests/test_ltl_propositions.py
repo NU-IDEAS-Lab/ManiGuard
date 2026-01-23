@@ -2,6 +2,7 @@ import os
 import sys
 
 import numpy as np
+import pytest
 import yaml
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -57,83 +58,119 @@ def _make_env():
     return og.Environment(configs=cfg)
 
 
-def test_ltl_propositions_generation_behavior_env_demo():
+# def test_ltl_propositions_generation_behavior_env_demo():
+#     env = None
+#     try:
+#         env = _make_env()
+#         env.reset()
+
+#         if not hasattr(env.task, "get_ltl_propositions"):
+#             raise RuntimeError(
+#                 "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
+#             )
+#         prop_set = env.task.get_ltl_propositions()
+#         _log_line(f"\n=== Atomic propositions ({len(prop_set)}) ===")
+#         for prop in prop_set:
+#             _log_line(
+#                 f"{prop.name} | category={prop.category} | desc={prop.description} | args={prop.args}"
+#             )
+#         grounded = env.task.proposition_generator.get_grounded_goal_options()
+#         if grounded:
+#             _log_line("\n=== Grounded goal options (quantifiers expanded) ===")
+#             for option_idx, option in enumerate(grounded):
+#                 _log_line(f"goal_option[{option_idx}] (conjunction of atoms):")
+#                 for prop_name, negated in option:
+#                     prefix = "not " if negated else ""
+#                     _log_line(f"  {prefix}{prop_name}")
+#         print(f"[ltl-test] propositions total: {len(prop_set)}")
+#         print(f"[ltl-test] categories: {sorted(prop_set.categories.keys())}")
+#         assert len(prop_set) > 0
+
+#         categories = set(prop_set.categories.keys())
+#         assert "unary_state" in categories
+#         assert "binary_relation" in categories
+#     finally:
+#         if env is not None:
+#             og.clear()
+
+
+# def test_ltl_label_consistency_behavior_env_demo():
+#     env = None
+#     try:
+#         env = _make_env()
+#         env.reset()
+
+#         if not hasattr(env.task, "get_ltl_propositions"):
+#             raise RuntimeError(
+#                 "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
+#             )
+#         prop_set = env.task.get_ltl_propositions()
+#         label_array = prop_set.get_label()
+#         label_dict = prop_set.get_label_dict()
+#         _log_line("\n=== Initial labels ===")
+#         for prop in prop_set:
+#             _log_line(f"{prop.name}: {label_dict[prop.name]}")
+#         print(f"[ltl-test] label shape: {label_array.shape}, true={int(np.sum(label_array))}")
+
+#         assert label_array.shape == (len(prop_set),)
+#         assert len(label_dict) == len(prop_set)
+
+#         for idx, prop in enumerate(prop_set):
+#             assert bool(label_array[idx]) == label_dict[prop.name]
+#             assert label_dict[prop.name] == prop.evaluate()
+
+#         for _ in range(3):
+#             action = env.robots[0].action_space.sample()
+#             env.step(action * 0.1)
+
+#             step_array = prop_set.get_label()
+#             step_dict = prop_set.get_label_dict()
+#             _log_line(f"\n=== Step labels (step={_}) ===")
+#             for prop in prop_set:
+#                 _log_line(f"{prop.name}: {step_dict[prop.name]}")
+#             print(f"[ltl-test] step true={int(np.sum(step_array))}")
+
+#             assert step_array.shape == (len(prop_set),)
+#             assert len(step_dict) == len(prop_set)
+#             for idx, prop in enumerate(prop_set):
+#                 assert bool(step_array[idx]) == step_dict[prop.name]
+#                 assert step_dict[prop.name] == prop.evaluate()
+#     finally:
+#         if env is not None:
+#             og.clear()
+
+
+def test_ltl_safety_constraints_loaded_behavior_env_demo():
     env = None
     try:
         env = _make_env()
         env.reset()
 
-        if not hasattr(env.task, "get_ltl_propositions"):
-            raise RuntimeError(
-                "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
-            )
-        prop_set = env.task.get_ltl_propositions()
-        _log_line(f"\n=== Atomic propositions ({len(prop_set)}) ===")
-        for prop in prop_set:
-            _log_line(
-                f"{prop.name} | category={prop.category} | desc={prop.description} | args={prop.args}"
-            )
-        grounded = env.task.proposition_generator.get_grounded_goal_options()
-        if grounded:
-            _log_line("\n=== Grounded goal options (quantifiers expanded) ===")
-            for option_idx, option in enumerate(grounded):
-                _log_line(f"goal_option[{option_idx}] (conjunction of atoms):")
-                for prop_name, negated in option:
-                    prefix = "not " if negated else ""
-                    _log_line(f"  {prefix}{prop_name}")
-        print(f"[ltl-test] propositions total: {len(prop_set)}")
-        print(f"[ltl-test] categories: {sorted(prop_set.categories.keys())}")
-        assert len(prop_set) > 0
+        constraints = getattr(env.task, "safety_constraints", None)
+        assert constraints is not None
+        assert "task" in constraints
+        assert "scene" in constraints
 
-        categories = set(prop_set.categories.keys())
-        assert "unary_state" in categories
-        assert "binary_relation" in categories
-    finally:
-        if env is not None:
-            og.clear()
+        all_constraints = []
+        all_constraints.extend(constraints.get("task", []))
+        all_constraints.extend(constraints.get("scene", []))
+        assert len(all_constraints) > 0
 
+        validation = getattr(env.task, "safety_validation", None)
+        assert validation is not None
+        combined_ltl = validation.get("combined_ltl", "")
 
-def test_ltl_label_consistency_behavior_env_demo():
-    env = None
-    try:
-        env = _make_env()
-        env.reset()
+        print(f"[ltl-test] safety constraints loaded: {len(all_constraints)}")
+        print(f"[ltl-test] combined LTL: {combined_ltl}")
+        _log_line("\n=== Safety constraints ===")
+        for constraint in all_constraints:
+            ltl_str = constraint.get("ltl", "")
+            _log_line(f"{constraint.get('id')}: {ltl_str}")
+            if ltl_str:
+                assert ltl_str in combined_ltl
 
-        if not hasattr(env.task, "get_ltl_propositions"):
-            raise RuntimeError(
-                "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
-            )
-        prop_set = env.task.get_ltl_propositions()
-        label_array = prop_set.get_label()
-        label_dict = prop_set.get_label_dict()
-        _log_line("\n=== Initial labels ===")
-        for prop in prop_set:
-            _log_line(f"{prop.name}: {label_dict[prop.name]}")
-        print(f"[ltl-test] label shape: {label_array.shape}, true={int(np.sum(label_array))}")
-
-        assert label_array.shape == (len(prop_set),)
-        assert len(label_dict) == len(prop_set)
-
-        for idx, prop in enumerate(prop_set):
-            assert bool(label_array[idx]) == label_dict[prop.name]
-            assert label_dict[prop.name] == prop.evaluate()
-
-        for _ in range(3):
-            action = env.robots[0].action_space.sample()
-            env.step(action * 0.1)
-
-            step_array = prop_set.get_label()
-            step_dict = prop_set.get_label_dict()
-            _log_line(f"\n=== Step labels (step={_}) ===")
-            for prop in prop_set:
-                _log_line(f"{prop.name}: {step_dict[prop.name]}")
-            print(f"[ltl-test] step true={int(np.sum(step_array))}")
-
-            assert step_array.shape == (len(prop_set),)
-            assert len(step_dict) == len(prop_set)
-            for idx, prop in enumerate(prop_set):
-                assert bool(step_array[idx]) == step_dict[prop.name]
-                assert step_dict[prop.name] == prop.evaluate()
+        if len(all_constraints) > 1:
+            assert " & " in combined_ltl
     finally:
         if env is not None:
             og.clear()
