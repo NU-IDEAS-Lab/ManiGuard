@@ -600,6 +600,10 @@ class Environment(gym.Env, GymObservable, Recreatable):
         reward, done, info = self.task.step(self, action)
         self._populate_info(info)
         info["obs_info"] = obs_info
+        if hasattr(self.task, "update_ltl_monitor"):
+            ltl_info = self.task.update_ltl_monitor()
+            if ltl_info is not None:
+                info["ltl"] = ltl_info
 
         if done and self._automatic_reset:
             # Add lost observation to our information dict, and reset
@@ -701,6 +705,10 @@ class Environment(gym.Env, GymObservable, Recreatable):
                 og.sim.render()
             # Grab and return observations
             obs, info = self.get_obs()
+            if hasattr(self.task, "update_ltl_monitor"):
+                ltl_info = self.task.update_ltl_monitor()
+                if ltl_info is not None:
+                    info["ltl"] = ltl_info
 
             if self._loaded:
                 # Sanity check to make sure received observations match expected observation space

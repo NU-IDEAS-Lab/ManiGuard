@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Tuple
+import spot
 
 import numpy as np
 
@@ -224,3 +225,77 @@ class LTLLabelingFunction:
 
     def __repr__(self):
         return f"LTLLabeler({self.num_propositions} propositions)"
+
+
+class LTLMonitor:
+    def __init__(self, formula: str, translate_opts: Optional[Tuple[str, ...]] = ("LDBA",)):
+        self.formula_str = formula
+        self.translate_opts = translate_opts
+        self._formula = None
+        self._automaton = None
+        self._dict = None
+        self._ap_list: List[str] = []
+        self._state = None
+
+        self._initialize_spot()
+
+    @property
+    def ap_list(self) -> List[str]:
+        return list(self._ap_list)
+
+    @property
+    def state(self):
+        return self._state
+
+    def _initialize_spot(self) -> None:
+        
+        self._formula = spot.formula(self.formula_str)
+        self._ap_list = sorted(str(ap) for ap in spot.atomic_prop_collect(self._formula))
+
+        try:
+            if self.translate_opts:
+                self._automaton = spot.translate(self._formula, *self.translate_opts)
+            else:
+                self._automaton = spot.translate(self._formula)
+        except Exception:
+            self._automaton = spot.translate(self._formula)
+
+        self._dict = self._automaton.get_dict()
+        for ap in self._ap_list:
+            self._dict.register_ap(ap)
+
+        self._state = self._automaton.get_init_state_number()
+
+    def extract_ap_labels(self, label_dict: Dict[str, bool]) -> Dict[str, bool]:
+        return {ap: bool(label_dict.get(ap, False)) for ap in self._ap_list}
+
+    def _build_condition_bdd(self, label_dict: Dict[str, bool]):
+        cond = spot.bddtrue
+        for ap in self._ap_list:
+            var = self._dict.varnum(ap)
+            if var < 0:
+                var = self._dict.register_ap(ap)
+            val = bool(label_dict.get(ap, False))
+            cond = cond & (spot.bdd_ithvar(var) if val else spot.bdd_nithvar(var))
+        return cond
+
+    def step(self, label_dict: Dict[str, bool]) -> Dict[str, object]:
+        if self._automaton is None:
+            return {"state": None, "accepting": False}
+
+        cond = self._build_condition_bdd(label_dict)
+        next_state = None
+        for transition in self._automaton.out(self._state):
+            if spot.bdd_implies(cond, transition.cond):
+                next_state = transition.dst
+                break
+
+        if next_state is None:
+            return {"state": self._state, "accepting": False, "dead_end": True}
+
+        self._state = next_state
+        accepting = False
+        if hasattr(self._automaton, "state_is_accepting"):
+            accepting = bool(self._automaton.state_is_accepting(self._state))
+
+        return {"state": self._state, "accepting": accepting, "ap": self.extract_ap_labels(label_dict)}

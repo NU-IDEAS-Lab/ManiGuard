@@ -36,7 +36,7 @@ from omnigibson.utils.bddl_utils import (
     OmniGibsonBDDLBackend,
     get_processed_bddl,
 )
-from omnigibson.utils.ltl_utils import AtomicPropositionGenerator
+from omnigibson.utils.ltl_utils import AtomicPropositionGenerator, LTLMonitor
 from omnigibson.utils.python_utils import assert_valid_key, classproperty
 from omnigibson.utils.config_utils import TorchEncoder
 from omnigibson.utils.ui_utils import create_module_logger
@@ -150,6 +150,7 @@ class BehaviorTask(BaseTask):
         self.proposition_generator = None
         self.safety_constraints = {"task": [], "scene": []}
         self.safety_validation = None
+        self.ltl_monitor = None
 
         # Info for demonstration collection
         self.instruction_order = None  # th.tensor of int
@@ -321,9 +322,10 @@ class BehaviorTask(BaseTask):
                     formula = spot.formula(ltl_str)
                 except Exception as exc:
                     log.warning(f"Failed to parse LTL safety constraint '{ltl_str}': {exc}")
-                    continue
+                    return
 
                 ap_set = {str(ap) for ap in spot.atomic_prop_collect(formula)}
+                
                 combined_terms.append(f"({ltl_str})")
                 missing = sorted(ap for ap in ap_set if ap not in prop_names)
                 if missing:
@@ -345,7 +347,23 @@ class BehaviorTask(BaseTask):
         if combined_terms:
             results["combined_ltl"] = " & ".join(combined_terms)
 
+        if results["combined_ltl"]:
+            try:
+                self.ltl_monitor = LTLMonitor(results["combined_ltl"])
+            except RuntimeError as exc:
+                log.warning(f"Failed to initialize LTLMonitor: {exc}")
+                self.ltl_monitor = None
+
         self.safety_validation = results
+
+    def get_ltl_monitor(self):
+        return self.ltl_monitor
+
+    def update_ltl_monitor(self):
+        if self.ltl_monitor is None:
+            return None
+        label_dict = self.get_ltl_label_dict()
+        return self.ltl_monitor.step(label_dict)
 
     def _load_non_low_dim_observation_space(self):
         # No non-low dim observations so we return an empty dict
