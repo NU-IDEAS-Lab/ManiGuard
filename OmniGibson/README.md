@@ -34,6 +34,7 @@
 
 Check out [**`OmniGibson`**'s documentation](https://behavior.stanford.edu/omnigibson/getting_started/installation.html) to get started!
 
+
 ### Citation
 If you use **`OmniGibson`** or its assets and models, please cite:
 
