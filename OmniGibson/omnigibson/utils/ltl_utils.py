@@ -258,7 +258,7 @@ class LTLMonitor:
             else:
                 self._automaton = spot.translate(self._formula)
         except Exception:
-            self._automaton = spot.translate(self._formula)
+            raise ValueError(f"Failed to translate LTL formula: {self.formula_str} into automaton.")
 
         self._dict = self._automaton.get_dict()
         for ap in self._ap_list:
@@ -274,7 +274,7 @@ class LTLMonitor:
         for ap in self._ap_list:
             var = self._dict.varnum(ap)
             if var < 0:
-                var = self._dict.register_ap(ap)
+                raise ValueError(f"AP '{ap}' not found in automaton dictionary.")
             val = bool(label_dict.get(ap, False))
             cond = cond & (spot.bdd_ithvar(var) if val else spot.bdd_nithvar(var))
         return cond
