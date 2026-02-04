@@ -237,6 +237,7 @@ class LTLMonitor:
             self.translate_opts = tuple(opts)
         else:
             self.translate_opts = translate_opts
+        self._monitor_mode = False
         self._formula = None
         self._automaton = None
         self._dict = None
@@ -264,6 +265,8 @@ class LTLMonitor:
         
         self._formula = spot.formula(self.formula_str)
         self._ap_list = sorted(str(ap) for ap in spot.atomic_prop_collect(self._formula))
+        if self.translate_opts:
+            self._runtime_check = any(str(opt).lower() == "monitor" for opt in self.translate_opts)
 
         try:
             if self.translate_opts:
@@ -330,9 +333,20 @@ class LTLMonitor:
     def is_doomed_state(self) -> bool:
         if self._automaton is None or self._state is None:
             return False
+        if self._runtime_check:
+            return self._is_monitor_bad_state()
         if self._can_reach_accepting is None:
             self._can_reach_accepting = self._compute_accepting_reachability()
         return not self._can_reach_accepting.get(self._state, False)
+
+    def _is_monitor_bad_state(self) -> bool:
+        # For monitor automata, treat a rejecting sink as a bad state.
+        if self._automaton.state_is_accepting(self._state):
+            return False
+        outgoing = list(self._automaton.out(self._state))
+        if not outgoing:
+            return True
+        return all(t.dst == self._state for t in outgoing)
 
 
     def _compute_accepting_reachability(self) -> Dict[int, bool]:

@@ -16,7 +16,7 @@ from omnigibson.utils.ltl_utils import LTLMonitor
 
 def test_ltl_monitor_ap_extraction():
     monitor = LTLMonitor("G (!a & !b)")
-    print(monitor.ap_list)
+    # print(monitor.ap_list)
     assert set(monitor.ap_list) == {"a", "b"}
 
 
@@ -33,7 +33,8 @@ def test_ltl_monitor_step_and_reset():
     result_after = monitor.step({"a": True})
     assert "state" in result_after
     assert monitor.state is not None
-
+    # breakpoint()
+    
     monitor.reset()
     assert monitor.state is not None
     assert monitor.state != prior_state or monitor.state == monitor._automaton.get_init_state_number()
