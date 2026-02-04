@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Tuple
 import spot
-
+import buddy
 import numpy as np
 
 from bddl.logic_base import BinaryAtomicFormula, UnaryAtomicFormula
@@ -228,7 +228,7 @@ class LTLLabelingFunction:
 
 
 class LTLMonitor:
-    def __init__(self, formula: str, translate_opts: Optional[Tuple[str, ...]] = ("LDBA", "complete")):
+    def __init__(self, formula: str, translate_opts: Optional[Tuple[str, ...]] = ('monitor', 'det', 'complete')):
         self.formula_str = formula
         if translate_opts:
             opts = list(translate_opts)
@@ -259,6 +259,7 @@ class LTLMonitor:
             self._state = self._automaton.get_init_state_number()
             self._can_reach_accepting = None
 
+
     def _initialize_spot(self) -> None:
         
         self._formula = spot.formula(self.formula_str)
@@ -272,30 +273,38 @@ class LTLMonitor:
         except Exception:
             raise ValueError(f"Failed to translate LTL formula: {self.formula_str} into automaton.")
 
-        # Ensure a complete automaton if possible to avoid dead_end on unmatched valuations
-        # if hasattr(self._automaton, "complete"):
-        #     self._automaton = self._automaton.complete()
-        # elif hasattr(spot, "complete"):
-        #     self._automaton = spot.complete(self._automaton)
-
         self._dict = self._automaton.get_dict()
-        for ap in self._ap_list:
-            self._dict.register_ap(ap)
-
+        # for ap in self._ap_list:
+        #     self._register_ap(ap)
         self._state = self._automaton.get_init_state_number()
-
+        
+        
+    def _check_ap_in_dict(self, ap: str) -> int:
+        var = self._dict.varnum(ap)
+        if var < 0:
+            self._register_ap(ap)
+            var = self._dict.varnum(ap)
+        if var < 0:
+            raise RuntimeError(f"Failed to register AP {ap}")
+        return var
+    
+    
     def extract_ap_labels(self, label_dict: Dict[str, bool]) -> Dict[str, bool]:
         return {ap: bool(label_dict.get(ap, False)) for ap in self._ap_list}
 
+
     def _build_condition_bdd(self, label_dict: Dict[str, bool]):
-        cond = spot.bddtrue
+        cond = buddy.bddtrue
         for ap in self._ap_list:
-            var = self._dict.varnum(ap)
-            if var < 0:
-                raise ValueError(f"AP '{ap}' not found in automaton dictionary.")
+            var = self._check_ap_in_dict(ap)
             val = bool(label_dict.get(ap, False))
-            cond = cond & (spot.bdd_ithvar(var) if val else spot.bdd_nithvar(var))
+            cond = cond & (buddy.bdd_ithvar(var) if val else buddy.bdd_nithvar(var))
         return cond
+
+
+    def _register_ap(self, ap: str) -> None:
+        self._dict.register_proposition(spot.formula(ap), self)
+        
 
     def step(self, label_dict: Dict[str, bool]) -> Dict[str, object]:
         if self._automaton is None:
@@ -304,20 +313,12 @@ class LTLMonitor:
         cond = self._build_condition_bdd(label_dict)
         next_state = None
         for transition in self._automaton.out(self._state):
-            if spot.bdd_implies(cond, transition.cond):
+            # Simplification of implies: A -> B  is equivalent to A & ~B == False
+            if (cond & buddy.bdd_not(transition.cond)) == buddy.bddfalse:
                 next_state = transition.dst
                 break
-        
-        # Automata is complete, so next_state should always be found
-        # if next_state is None:
-        #     # With complete automata, this should not happen. Keep behavior minimal.
-        #     return {"state": self._state, "accepting": False}
-
         self._state = next_state
-        accepting = False
-        if hasattr(self._automaton, "state_is_accepting"):
-            accepting = bool(self._automaton.state_is_accepting(self._state))
-
+        accepting = self._automaton.state_is_accepting(self._state)
         return {
             "state": self._state,
             "accepting": accepting,
@@ -344,10 +345,9 @@ class LTLMonitor:
                 reverse[t.dst].append(s)
 
         accepting_states = set()
-        if hasattr(self._automaton, "state_is_accepting"):
-            for s in range(num_states):
-                if self._automaton.state_is_accepting(s):
-                    accepting_states.add(s)
+        for s in range(num_states):
+            if self._automaton.state_is_accepting(s):
+                accepting_states.add(s)
 
         # Tarjan SCC
         index = 0
