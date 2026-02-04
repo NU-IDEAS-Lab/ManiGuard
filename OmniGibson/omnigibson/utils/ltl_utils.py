@@ -228,14 +228,21 @@ class LTLLabelingFunction:
 
 
 class LTLMonitor:
-    def __init__(self, formula: str, translate_opts: Optional[Tuple[str, ...]] = ("LDBA",)):
+    def __init__(self, formula: str, translate_opts: Optional[Tuple[str, ...]] = ("LDBA", "complete")):
         self.formula_str = formula
-        self.translate_opts = translate_opts
+        if translate_opts:
+            opts = list(translate_opts)
+            if "complete" not in opts:
+                opts.append("complete")
+            self.translate_opts = tuple(opts)
+        else:
+            self.translate_opts = translate_opts
         self._formula = None
         self._automaton = None
         self._dict = None
         self._ap_list: List[str] = []
         self._state = None
+        self._can_reach_accepting = None
 
         self._initialize_spot()
 
@@ -246,6 +253,11 @@ class LTLMonitor:
     @property
     def state(self):
         return self._state
+
+    def reset(self) -> None:
+        if self._automaton is not None:
+            self._state = self._automaton.get_init_state_number()
+            self._can_reach_accepting = None
 
     def _initialize_spot(self) -> None:
         
@@ -259,6 +271,12 @@ class LTLMonitor:
                 self._automaton = spot.translate(self._formula)
         except Exception:
             raise ValueError(f"Failed to translate LTL formula: {self.formula_str} into automaton.")
+
+        # Ensure a complete automaton if possible to avoid dead_end on unmatched valuations
+        # if hasattr(self._automaton, "complete"):
+        #     self._automaton = self._automaton.complete()
+        # elif hasattr(spot, "complete"):
+        #     self._automaton = spot.complete(self._automaton)
 
         self._dict = self._automaton.get_dict()
         for ap in self._ap_list:
@@ -289,13 +307,98 @@ class LTLMonitor:
             if spot.bdd_implies(cond, transition.cond):
                 next_state = transition.dst
                 break
-
-        if next_state is None:
-            return {"state": self._state, "accepting": False, "dead_end": True}
+        
+        # Automata is complete, so next_state should always be found
+        # if next_state is None:
+        #     # With complete automata, this should not happen. Keep behavior minimal.
+        #     return {"state": self._state, "accepting": False}
 
         self._state = next_state
         accepting = False
         if hasattr(self._automaton, "state_is_accepting"):
             accepting = bool(self._automaton.state_is_accepting(self._state))
 
-        return {"state": self._state, "accepting": accepting, "ap": self.extract_ap_labels(label_dict)}
+        return {
+            "state": self._state,
+            "accepting": accepting,
+            "ap": self.extract_ap_labels(label_dict),
+            "doomed": self.is_doomed_state(),
+        }
+
+
+    def is_doomed_state(self) -> bool:
+        if self._automaton is None or self._state is None:
+            return False
+        if self._can_reach_accepting is None:
+            self._can_reach_accepting = self._compute_accepting_reachability()
+        return not self._can_reach_accepting.get(self._state, False)
+
+
+    def _compute_accepting_reachability(self) -> Dict[int, bool]:
+        num_states = int(self._automaton.num_states())
+        graph = {s: [] for s in range(num_states)}
+        reverse = {s: [] for s in range(num_states)}
+        for s in range(num_states):
+            for t in self._automaton.out(s):
+                graph[s].append(t.dst)
+                reverse[t.dst].append(s)
+
+        accepting_states = set()
+        if hasattr(self._automaton, "state_is_accepting"):
+            for s in range(num_states):
+                if self._automaton.state_is_accepting(s):
+                    accepting_states.add(s)
+
+        # Tarjan SCC
+        index = 0
+        stack = []
+        on_stack = set()
+        indices = {}
+        lowlink = {}
+        sccs = []
+
+        def strongconnect(v):
+            nonlocal index
+            indices[v] = index
+            lowlink[v] = index
+            index += 1
+            stack.append(v)
+            on_stack.add(v)
+
+            for w in graph[v]:
+                if w not in indices:
+                    strongconnect(w)
+                    lowlink[v] = min(lowlink[v], lowlink[w])
+                elif w in on_stack:
+                    lowlink[v] = min(lowlink[v], indices[w])
+
+            if lowlink[v] == indices[v]:
+                comp = []
+                while True:
+                    w = stack.pop()
+                    on_stack.remove(w)
+                    comp.append(w)
+                    if w == v:
+                        break
+                sccs.append(comp)
+
+        for v in range(num_states):
+            if v not in indices:
+                strongconnect(v)
+
+        accepting_scc_states = set()
+        for comp in sccs:
+            if any(s in accepting_states for s in comp):
+                accepting_scc_states.update(comp)
+
+        reachable = {s: False for s in range(num_states)}
+        queue = list(accepting_scc_states)
+        for s in queue:
+            reachable[s] = True
+        while queue:
+            s = queue.pop()
+            for p in reverse[s]:
+                if not reachable[p]:
+                    reachable[p] = True
+                    queue.append(p)
+        return reachable
