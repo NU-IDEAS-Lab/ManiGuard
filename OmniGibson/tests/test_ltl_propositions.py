@@ -176,47 +176,47 @@ def test_ltl_safety_constraints_loaded_behavior_env_demo():
             og.clear()
 
 
-# def test_ltl_labels_match_bddl_predicates_behavior_env_demo():
-#     env = None
-#     try:
-#         env = _make_env()
-#         env.reset()
+def test_ltl_labels_match_bddl_predicates_behavior_env_demo():
+    env = None
+    try:
+        env = _make_env()
+        env.reset()
 
-#         if not hasattr(env.task, "get_ltl_propositions"):
-#             raise RuntimeError(
-#                 "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
-#             )
-#         prop_set = env.task.get_ltl_propositions()
-#         label_dict = prop_set.get_label_dict()
+        if not hasattr(env.task, "get_ltl_propositions"):
+            raise RuntimeError(
+                "BehaviorTask missing get_ltl_propositions; ensure tests use the local OmniGibson checkout."
+            )
+        prop_set = env.task.get_ltl_propositions()
+        label_dict = prop_set.get_label_dict()
 
-#         for prop in prop_set:
-#             pred_name = prop.args[1]
-#             pred_cls = SUPPORTED_PREDICATES.get(pred_name)
-#             assert pred_cls is not None
-#             if len(prop.args) == 2:
-#                 pred = pred_cls(
-#                     env.task.object_scope,
-#                     env.task.backend,
-#                     [prop.args[0]],
-#                     env.task.activity_conditions.parsed_objects,
-#                     generate_ground_options=False,
-#                 )
-#             else:
-#                 pred = pred_cls(
-#                     env.task.object_scope,
-#                     env.task.backend,
-#                     [prop.args[0], prop.args[2]],
-#                     env.task.activity_conditions.parsed_objects,
-#                     generate_ground_options=False,
-#                 )
+        for prop in prop_set:
+            pred_name = prop.args[1]
+            pred_cls = SUPPORTED_PREDICATES.get(pred_name)
+            assert pred_cls is not None
+            if len(prop.args) == 2:
+                pred = pred_cls(
+                    env.task.object_scope,
+                    env.task.backend,
+                    [prop.args[0]],
+                    env.task.activity_conditions.parsed_objects,
+                    generate_ground_options=False,
+                )
+            else:
+                pred = pred_cls(
+                    env.task.object_scope,
+                    env.task.backend,
+                    [prop.args[0], prop.args[2]],
+                    env.task.activity_conditions.parsed_objects,
+                    generate_ground_options=False,
+                )
 
-#             try:
-#                 print(f"[ltl-test] evaluating proposition '{prop.name}' against predicate '{pred_name}'")
-#                 print(f"[ltl-test] proposition results: {label_dict[prop.name]} against predicate results: {pred.evaluate()}")
-#                 pred_value = bool(pred.evaluate())
-#             except (KeyError):
-#                 continue
-#             assert label_dict[prop.name] == pred_value
-#     finally:
-#         if env is not None:
-#             og.clear()
+            try:
+                print(f"[ltl-test] evaluating proposition '{prop.name}' against predicate '{pred_name}'")
+                print(f"[ltl-test] proposition results: {label_dict[prop.name]} against predicate results: {pred.evaluate()}")
+                pred_value = bool(pred.evaluate())
+            except (KeyError):
+                continue
+            assert label_dict[prop.name] == pred_value
+    finally:
+        if env is not None:
+            og.clear()
