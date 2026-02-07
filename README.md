@@ -17,6 +17,14 @@ Where to add / edit constraints:
 Note: Spot is optional. If Spot is unavailable, safety validation and monitor init are skipped with a warning.
 
 
+## RL Training (Grasping)
+
+```bash
+OMNIGIBSON_HEADLESS=1 python OmniGibson/omnigibson/examples/learning/grasp_policy_demo.py
+```
+
+
+
 ## BEHAVIOR Server Configuration 
 
 The current workspace has already cloned the BEHAVIOR repository, so you can directly start working on the following setup steps.
