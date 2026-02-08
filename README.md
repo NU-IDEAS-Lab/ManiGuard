@@ -83,3 +83,28 @@ cd SENTINEL-Lite
 ```
 
 Normally, you should see `=== Installation Complete! ===` message from the setup script.
+
+
+### Debug Tips
+
+- Specifying the GPU device with `CUDA_VISIBLE_DEVICES=0` can help when transitioning between multi-GPU tasks. Typical error message:
+```bash
+[Error] [omni.physx.plugin] PhysX error: PhysX Internal CUDA error. Simulation cannot continue! Error code 700!
+FILE /builds/omniverse/physics/physx/source/physx/src/NpScene.cpp, LINE 2994
+[Error] [omni.physx.plugin] Cuda context manager error, simulation will be stopped and new cuda context manager will be created.
+```
+- `typing_extensions` error: `TypeError: Type parameter ~_T without a default follows type parameter with a default` (especially with torch=2.6.0, cuda=12.4)
+	- Reason: the `_dynamo` module from torch 2.6.0 will trigger Python's typing check. But IsaacSim 4.5 has a very outdated `typing_extensions`, which does not support some default settings in Python 3.10+. 
+	- Solution: Forcefully remove the `typing_extensions` in IsaacSim 4.5. In this way, Isaac Sim has to find and load the `typing_extensions` inside the conda env, which is compatible with torch 2.6.0.
+	```bash
+	# 1. go to Isaac Sim -> pip_prebundle directory
+	cd /home/<net_id>/SENTINEL-Lite/OmniGibson/appdata/local/data/Kit/OmniGibson/3.7/exts/3/omni.kit.pip_archive-0.0.0+d02c707b.lx64.cp310/pip_prebundle
+
+	# 2. rename typing_extensions（effectively disabled）
+	mv typing_extensions.py typing_extensions.py.bak
+	# rename the names of directories with typing_extensions (if any)
+	if [ -d "typing_extensions" ]; then mv typing_extensions typing_extensions.bak; fi
+
+	# 3. go back to project workspace
+	cd /home/<net_id>/SENTINEL-Lite
+	```
