@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Tuple
 import spot
-import buddy
+# import buddy  # Removed incorrect import
+from spot import buddy  # Use buddy from spot
 import numpy as np
 
 from bddl.logic_base import BinaryAtomicFormula, UnaryAtomicFormula
