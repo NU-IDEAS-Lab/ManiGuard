@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Tuple
-import spot
-# import buddy  # Removed incorrect import
-from spot import buddy  # Use buddy from spot
+try:
+    import spot
+    from spot import buddy
+except ImportError:
+    spot = None
+    buddy = None
 import numpy as np
 
 from bddl.logic_base import BinaryAtomicFormula, UnaryAtomicFormula
@@ -263,6 +266,8 @@ class LTLMonitor:
 
 
     def _initialize_spot(self) -> None:
+        if spot is None:
+            raise ImportError("The 'spot' library is required for LTLMonitor but could not be imported. Please install it (e.g. via conda install -c conda-forge python-spot).")
         
         self._formula = spot.formula(self.formula_str)
         self._ap_list = sorted(str(ap) for ap in spot.atomic_prop_collect(self._formula))

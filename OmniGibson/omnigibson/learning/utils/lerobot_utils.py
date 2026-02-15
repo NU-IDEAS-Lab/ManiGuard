@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import torch as th
 import torchvision
-from lerobot.datasets.compute_stats import _assert_type_and_shape
+from lerobot.common.datasets.compute_stats import _assert_type_and_shape
 from omnigibson.learning.utils.dataset_utils import get_credentials
 from omnigibson.learning.utils.eval_utils import (
     TASK_NAMES_TO_INDICES,

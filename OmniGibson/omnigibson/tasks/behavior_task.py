@@ -2,7 +2,10 @@ import os
 import json
 from pathlib import Path
 import random
-import spot
+try:
+    import spot
+except ImportError:
+    spot = None
 
 import torch as th
 from bddl.activity import (
@@ -320,6 +323,11 @@ class BehaviorTask(BaseTask):
                 ltl_str = constraint.get("ltl", "")
                 if not ltl_str:
                     continue
+                
+                if spot is None:
+                    log.warning(f"LTL safety constraint '{ltl_str}' found but 'spot' library is not installed. Skipping validation.")
+                    continue
+
                 try:
                     formula = spot.formula(ltl_str)
                 except Exception as exc:

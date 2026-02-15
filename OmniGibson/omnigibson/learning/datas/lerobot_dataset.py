@@ -8,9 +8,9 @@ from collections import defaultdict
 from collections.abc import Callable
 from datasets import load_dataset
 from huggingface_hub import snapshot_download
-from lerobot.constants import HF_LEROBOT_HOME
-from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata, CODEBASE_VERSION
-from lerobot.datasets.utils import (
+from lerobot.common.constants import HF_LEROBOT_HOME
+from lerobot.common.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata, CODEBASE_VERSION
+from lerobot.common.datasets.utils import (
     EPISODES_PATH,
     EPISODES_STATS_PATH,
     STATS_PATH,
@@ -28,7 +28,7 @@ from lerobot.datasets.utils import (
     load_info,
     is_valid_version,
 )
-from lerobot.datasets.video_utils import get_safe_default_codec
+from lerobot.common.datasets.video_utils import get_safe_default_codec
 from omnigibson.learning.utils.eval_utils import TASK_NAMES_TO_INDICES, ROBOT_CAMERA_NAMES
 from omnigibson.learning.utils.lerobot_utils import hf_transform_to_torch, decode_video_frames, aggregate_stats
 from omnigibson.learning.utils.obs_utils import OBS_LOADER_MAP
