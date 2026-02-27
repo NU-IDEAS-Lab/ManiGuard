@@ -227,10 +227,14 @@ uv pip install "https://github.com/Dao-AILab/flash-attention/releases/download/v
 # Install lerobot "forcefully" due to version mismatch (needed for norm stats computation)
 uv pip install lerobot --no-deps
 
-# Fix lerobot imports in OmniGibson (to handle the version mismatch) 
-# (already fixed in our repository. If necessary, follow the steps below)
-# sed -i 's/from lerobot\.datasets/from lerobot.common.datasets/g' ../OmniGibson/omnigibson/learning/datas/lerobot_dataset.py
-# sed -i 's/from lerobot\.constants/from lerobot.common.constants/g' ../OmniGibson/omnigibson/learning/datas/lerobot_dataset.py
+# Lerobot import compatibility (choose one depending on which lerobot you use):
+# - If using a lerobot that HAS lerobot.common (e.g. a fork): patch OmniGibson to use it:
+#   sed -i 's/from lerobot\.datasets/from lerobot.common.datasets/g' OmniGibson/omnigibson/learning/datas/lerobot_dataset.py
+#   sed -i 's/from lerobot\.constants/from lerobot.common.constants/g' OmniGibson/omnigibson/learning/datas/lerobot_dataset.py
+# - If using official PyPI lerobot (no lerobot.common): patch OmniGibson and openpi to use lerobot.*:
+#   sed -i 's/lerobot\.common\./lerobot./g' OmniGibson/omnigibson/learning/datas/lerobot_dataset.py
+#   sed -i 's/lerobot\.common\./lerobot./g' OmniGibson/omnigibson/learning/utils/lerobot_utils.py
+#   sed -i 's/lerobot\.common\./lerobot./g' RLinf/.venv/lib/python3.10/site-packages/openpi/training/data_loader.py
 
 # Symlink standalone Isaac Sim kit folder (if using pip-installed isaacsim)
 # you need to have the standalone Isaac Sim installation first. Refer to IsaacSim official doc for installation.

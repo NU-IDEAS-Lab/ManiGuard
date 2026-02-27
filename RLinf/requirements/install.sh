@@ -345,9 +345,14 @@ install_openpi_from_git() {
         uv pip install \
             "tqdm-loggable>=0.2" "flax" "jax" "jaxlib" "openpi-client" "chex" \
             "augmax" "beartype" "einops" "etils" "filelock" "fsspec[gcs]" \
-            "jaxtyping" "ml-collections" "numpydantic" "optax" "orbax-checkpoint" \
+            "jaxtyping==0.2.34" "lerobot>=0.4.0" "ml-collections" "numpydantic" "optax" "orbax-checkpoint" \
             "safetensors" "sentencepiece" "tyro" "websockets" \
             || true
+        # Official PyPI lerobot has lerobot.datasets, not lerobot.common.datasets; patch openpi to match.
+        openpi_data_loader="$(python -c "import openpi.training.data_loader as m; print(m.__file__)" 2>/dev/null)" || true
+        if [ -n "$openpi_data_loader" ] && [ -f "$openpi_data_loader" ]; then
+            sed -i 's/lerobot\.common\./lerobot./g' "$openpi_data_loader" && echo "Patched openpi data_loader to use lerobot.datasets."
+        fi
         return 0
     fi
     echo "ERROR: OpenPI installation failed (both normal and --no-deps fallback)." >&2
@@ -405,7 +410,8 @@ install_openpi_model() {
             ;;
     esac
 
-    # Replace transformers models with OpenPI's modified versions
+    # Replace transformers models with OpenPI's modified versions (Gemma etc. use masking_utils; need transformers>=4.46)
+    uv pip install "transformers>=4.46.0" || true
     local py_major_minor
     py_major_minor=$(python - <<'EOF'
 import sys
