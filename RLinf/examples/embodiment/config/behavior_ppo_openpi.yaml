@@ -15,9 +15,9 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    env: 1      # simulation envs on GPU 0 1 2 3
-    rollout: 2  # inference rollout on GPU 4 5 6 7
-    actor: 3    # actor (Trainers) on GPU 0 1 2 3 4 5 6 7
+    env: 0      # simulation envs on GPU 0 1 2 3
+    rollout: 1  # inference rollout on GPU 4 5 6 7
+    actor: 1    # actor (Trainers) on GPU 0 1 2 3 4 5 6 7
 
 runner:
   task_type: embodied
@@ -108,7 +108,9 @@ rollout:
   pipeline_stage_num: 1
 
   model:
-    model_path: "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
+    # Quest: model_path: "/gpfs/projects/p33203/checkpoints/pi05_base" or override at CLI
+    # model_path: "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
+    model_path: "/gpfs/projects/p33203/checkpoints/pi05_base"
     precision: ${actor.model.precision}
 
 actor:
@@ -121,7 +123,10 @@ actor:
 
   # Override the default values in model/openpi
   model:
-    model_path: "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
+    # Quest: model_path: "/gpfs/projects/p33203/checkpoints/pi05_base"
+    # model_path: "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
+    model_path: "/gpfs/projects/p33203/checkpoints/pi05_base"
+
     add_value_head: True
     num_images_in_input: 3
     proprio_dim: 32

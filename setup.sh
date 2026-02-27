@@ -248,6 +248,42 @@ if [ "$OMNIGIBSON" = true ]; then
     PYTHON_VERSION=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     [ "$PYTHON_VERSION" != "3.10" ] && { echo "ERROR: Python 3.10 required, found $PYTHON_VERSION"; exit 1; }
     
+    # Primitives (nvidia-curobo) requires CUDA toolkit at *build* time. Ensure CUDA_HOME is set.
+    if [ "$PRIMITIVES" = true ]; then
+        if [ -z "${CUDA_HOME:-}" ] && [ -z "${CUDA_PATH:-}" ]; then
+            # Try loading a CUDA module (common on HPC clusters like Quest).
+            # Quest/NU uses full names from 'module spider cuda' (e.g. cuda/12.4.1-gcc-12.3.0).
+            if command -v module >/dev/null 2>&1; then
+                echo "CUDA_HOME/CUDA_PATH not set. Trying CUDA modules..."
+                for cuda_mod in \
+                    "cuda/12.4.1-gcc-12.3.0" \
+                    "cuda/12.4.0-gcc-12.4.0" \
+                    "cuda/12.4.0-gcc-12.3.0-i6662a7" \
+                    "cuda/12.6.2-gcc-12.4.0" \
+                    "cuda/$CUDA_VERSION" \
+                    "cuda/12.4" "cuda/12.6" "cuda/12" "cuda"; do
+                    if module load "$cuda_mod" 2>/dev/null; then
+                        [ -n "${CUDA_PATH:-}" ] && export CUDA_HOME="${CUDA_HOME:-$CUDA_PATH}"
+                        [ -n "${CUDA_HOME:-}" ] && echo "Loaded: $cuda_mod -> CUDA_HOME=$CUDA_HOME" && break
+                    fi
+                done
+            fi
+        fi
+        if [ -z "${CUDA_HOME:-}" ] && [ -n "${CUDA_PATH:-}" ]; then
+            export CUDA_HOME="$CUDA_PATH"
+            echo "Set CUDA_HOME=$CUDA_HOME from CUDA_PATH."
+        fi
+        if [ -z "${CUDA_HOME:-}" ]; then
+            echo ""
+            echo "ERROR: Primitives support requires the CUDA toolkit and CUDA_HOME to build nvidia-curobo."
+            echo "  - On Quest: run 'module spider cuda' then e.g. 'module load cuda/12.4.1-gcc-12.3.0' before this script."
+            echo "  - Or install without primitives first, then install CUDA via conda and re-run with --primitives."
+            echo "  See: docs/getting_started/installation.md (CuRobo installation failed)"
+            exit 1
+        fi
+        echo "Using CUDA_HOME=$CUDA_HOME for building nvidia-curobo."
+    fi
+    
     # Check for conflicting environment variables
     if [[ -n "$EXP_PATH" || -n "$CARB_APP_PATH" || -n "$ISAAC_PATH" ]]; then
         echo "ERROR: Found existing Isaac Sim environment variables."
@@ -296,9 +332,28 @@ if [ "$OMNIGIBSON" = true ]; then
     else
         echo "Installing Isaac Sim via pip..."
         
-        # Helper functions
+        # Original: explicit glibc 2.31/2.32/2.33 (manylinux_2_34 not supported on those).
         check_glibc_old() {
             ldd --version 2>&1 | grep -qE "2\.(31|32|33)"
+        }
+        # Quest / HPC: manylinux_2_34 requires glibc >= 2.34; auto-detect RHEL7 (2.17), RHEL8 (2.28), etc.
+        is_glibc_older_than_234() {
+            local glibc_ver
+            glibc_ver=$(ldd --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            [ -z "$glibc_ver" ] && return 1
+            [ "$(printf '%s\n' "2.34" "$glibc_ver" | sort -V | head -1)" != "2.34" ]
+        }
+        # Need to rename wheel when glibc < 2.34 (original or Quest-compat).
+        need_older_manylinux_wheel() {
+            check_glibc_old || is_glibc_older_than_234
+        }
+        # Get glibc minor for wheel tag (e.g. 2.17 -> 17, 2.28 -> 28). Pip accepts wheel only if tag <= platform; use system glibc.
+        get_glibc_manylinux_minor() {
+            local glibc_ver
+            glibc_ver=$(ldd --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            [ -z "$glibc_ver" ] && echo "31" && return
+            local minor="${glibc_ver#*.}"
+            echo "${minor:-31}"
         }
         
         install_isaac_packages() {
@@ -316,6 +371,11 @@ if [ "$OMNIGIBSON" = true ]; then
             )
             
             local wheel_files=()
+            local manylinux_tag=""
+            if need_older_manylinux_wheel; then
+                manylinux_tag="manylinux_2_$(get_glibc_manylinux_minor)"
+                echo "Detected glibc < 2.34: using $manylinux_tag wheel tag so pip accepts on this platform."
+            fi
             for pkg in "${packages[@]}"; do
                 local pkg_name=${pkg%-*}
                 local filename="${pkg}-cp310-none-manylinux_2_34_x86_64.whl"
@@ -329,9 +389,9 @@ if [ "$OMNIGIBSON" = true ]; then
                     return 1
                 fi
                 
-                # Rename for older GLIBC
-                if check_glibc_old; then
-                    local new_filepath="${filepath/manylinux_2_34/manylinux_2_31}"
+                # Rename wheel to platform-matching manylinux tag (original or Quest-compat)
+                if [ -n "$manylinux_tag" ]; then
+                    local new_filepath="${filepath/manylinux_2_34/$manylinux_tag}"
                     mv "$filepath" "$new_filepath"
                     filepath="$new_filepath"
                 fi

@@ -86,9 +86,13 @@ embodied = [
     "cloudpickle",
     "gym",
     "av",
-    "open3d",
+    # "open3d" moved to [open3d] extra: no wheel for manylinux_2_28 (Quest/RHEL8); install with rlinf[embodied,open3d] on supported platforms only
     "zarr",
     "openai",
+]
+# Optional: only install on platforms with open3d wheels (e.g. manylinux_2_31+). Omit on Quest/RHEL8 (manylinux_2_28) to avoid resolution errors.
+open3d = [
+    "open3d",
 ]
 franka = [
     "pyyaml",
@@ -113,6 +117,7 @@ conflicts = [
       { extra = "franka" }
     ],
 ]
+# Default versions for uv sync. requirements/install.sh may override (e.g. BEHAVIOR env → torch 2.5.x).
 override-dependencies = [
     "torch==2.6.0",
     "torchvision==0.21.0",
@@ -122,6 +127,7 @@ override-dependencies = [
     "uvloop==0.21.0",
     "tensorflow-addons==0.23.0",
     "hydra-core==1.4.0.dev1",
+    "protobuf>=5.26.0",
 ]
 
 [tool.ruff]

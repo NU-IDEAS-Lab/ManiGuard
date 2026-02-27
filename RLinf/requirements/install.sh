@@ -331,13 +331,36 @@ install_openvla_oft_model() {
     uv pip uninstall pynvml || true
 }
 
+# Try normal openpi install (with deps); on platforms where rerun-sdk has no wheel (e.g. Quest manylinux_2_28),
+# fall back to lerobot --no-deps + openpi --no-deps so the rest of the stack still works.
+install_openpi_from_git() {
+    local openpi_url="git+${GITHUB_PREFIX}https://github.com/RLinf/openpi"
+    if uv pip install "$openpi_url"; then
+        return 0
+    fi
+    echo "OpenPI install with deps failed (e.g. rerun-sdk no wheel on manylinux_2_28). Trying fallback: lerobot --no-deps, then openpi --no-deps..."
+    uv pip install lerobot --no-deps || true
+    if uv pip install "$openpi_url" --no-deps; then
+        echo "OpenPI installed via fallback (--no-deps). Installing runtime deps (openpi imports; not pulled in when --no-deps)..."
+        uv pip install \
+            "tqdm-loggable>=0.2" "flax" "jax" "jaxlib" "openpi-client" "chex" \
+            "augmax" "beartype" "einops" "etils" "filelock" "fsspec[gcs]" \
+            "jaxtyping" "ml-collections" "numpydantic" "optax" "orbax-checkpoint" \
+            "safetensors" "sentencepiece" "tyro" "websockets" \
+            || true
+        return 0
+    fi
+    echo "ERROR: OpenPI installation failed (both normal and --no-deps fallback)." >&2
+    return 1
+}
+
 install_openpi_model() {
     case "$ENV_NAME" in
         behavior)
             PYTHON_VERSION="3.10"
             create_and_sync_venv
             install_common_embodied_deps
-            uv pip install git+${GITHUB_PREFIX}https://github.com/RLinf/openpi
+            install_openpi_from_git || exit 1
             install_behavior_env
             # uv pip install protobuf==6.33.0
             ;;
@@ -345,34 +368,34 @@ install_openpi_model() {
             create_and_sync_venv
             install_common_embodied_deps
             install_maniskill_libero_env
-            uv pip install git+${GITHUB_PREFIX}https://github.com/RLinf/openpi
+            install_openpi_from_git || exit 1
             install_flash_attn
             ;;
         metaworld)
             create_and_sync_venv
             install_common_embodied_deps
-            uv pip install git+${GITHUB_PREFIX}https://github.com/RLinf/openpi
+            install_openpi_from_git || exit 1
             install_flash_attn
             install_metaworld_env
             ;;
         calvin)
             create_and_sync_venv
             install_common_embodied_deps
-            uv pip install git+${GITHUB_PREFIX}https://github.com/RLinf/openpi
+            install_openpi_from_git || exit 1
             install_flash_attn
             install_calvin_env
             ;;
         robocasa)
             create_and_sync_venv
             install_common_embodied_deps
-            uv pip install git+${GITHUB_PREFIX}https://github.com/RLinf/openpi
+            install_openpi_from_git || exit 1
             install_flash_attn
             install_robocasa_env
             ;;
         robotwin)
             create_and_sync_venv
             install_common_embodied_deps
-            uv pip install git+${GITHUB_PREFIX}https://github.com/RLinf/openpi
+            install_openpi_from_git || exit 1
             install_flash_attn
             install_robotwin_env
             ;;
@@ -500,6 +523,7 @@ install_behavior_env() {
     uv pip install ml_dtypes==0.5.3 protobuf==3.20.3
     uv pip install click==8.2.1
     pushd ~ >/dev/null
+    # Override pyproject.toml torch 2.6 → 2.5.x for BEHAVIOR: Isaac Sim / OmniGibson / flash-attn wheels expect 2.5. Final env follows this, not override-dependencies.
     uv pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1
     echo ">>>>>> start to install BEHAVIOR install_flash_attn"
     install_flash_attn
@@ -790,6 +814,8 @@ main() {
     esac
 
     unset_mirror
+    echo ""
+    echo "=== Main configuration pipeline finished ==="
 }
 
 main "$@"

@@ -26,7 +26,7 @@ export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}
 # For headless mode
 export OMNIGIBSON_HEADLESS=1
 export NVIDIA_DRIVER_CAPABILITIES=all
-export VK_ICD_FILENAMES="/home/juc9508/SENTINEL-Lite/RLinf/nvidia_icd_local.json"
+export VK_ICD_FILENAMES="/gpfs/projects/p33203/SENTINEL-Lite/RLinf/nvidia_icd_local.json"
 
 if [ -z "$1" ]; then
     CONFIG_NAME="maniskill_ppo_openvlaoft"

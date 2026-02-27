@@ -15,7 +15,13 @@
 
 import dataclasses
 import difflib
+import os
 from typing import Optional
+
+# Pi0.5 BEHAVIOR checkpoint base path. Default: original path; set SENTINEL_PI05_BASE for Quest (e.g. /gpfs/projects/p33203/checkpoints/pi05_base).
+_DEFAULT_PI05_BEHAVIOR_BASE = os.environ.get(
+    "SENTINEL_PI05_BASE", "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
+)
 
 import openpi.models.pi0_config as pi0_config
 import openpi.training.optimizer as _optimizer
@@ -252,13 +258,11 @@ _CONFIGS = [
         data=LeRobotBehaviorDataConfig(
             repo_id="physical-intelligence/behavior",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(assets_dir="/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base/assets"),
+            assets=AssetsConfig(assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets"),
             extra_delta_transform=True,
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(
-            "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
-        ),
-        pytorch_weight_path="/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base",
+        weight_loader=weight_loaders.CheckpointWeightLoader(_DEFAULT_PI05_BEHAVIOR_BASE),
+        pytorch_weight_path=_DEFAULT_PI05_BEHAVIOR_BASE,
         num_train_steps=30_000,
     ),
     TrainConfig(
