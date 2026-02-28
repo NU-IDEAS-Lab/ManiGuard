@@ -444,6 +444,33 @@ bash examples/embodiment/run_embodiment.sh behavior_ppo_openpi
   - Caused by incorrect `LD_LIBRARY_PATH` interfering with PyTorch's CUDA libs
   - Solution: Use local Vulkan ICD file with absolute paths instead of modifying `LD_LIBRARY_PATH`
 
+
+### RLinf HPC/Quest Deployment Debug Notes
+
+This section documents the specific configurations required to run RLinf with BEHAVIOR/OmniGibson on the Northwestern Quest HPC (H100 GPUs, Headless).
+
+#### 1. Transformers & OpenPi Compatibility
+- **Issue**: `openpi` patches are strictly tied to specific `transformers` internal structures (`LossKwargs`, `masking_utils`). Newer versions (e.g., 5.2.0) or older versions (e.g., 4.40.1) often lead to `ImportError`.
+- **Solution**: Forced `transformers==4.53.2`. This version contains both `AutoModelForVision2Seq` and the modular `masking_utils` required by OpenPi's `modeling_gemma.py`.
+- **Action**: Re-applied patches from `openpi/models_pytorch/transformers_replace/` to the `transformers` installation path in the venv.
+
+#### 2. BEHAVIOR Model Assets
+- **Issue**: Missing `norm_stats.json` for the Pi0.5 model in the expected OpenPi directory.
+- **Solution**: Copied the validated `norm_stats.json` to `/gpfs/projects/p33203/checkpoints/pi05_base/physical-intelligence/behavior/norm_stats.json`.
+
+#### 3. Headless Vulkan Rendering (H100 GPUs)
+- **Issue**: Isaac Sim fails to initialize Vulkan on headless H100 nodes, often reporting `ERROR_INCOMPATIBLE_DRIVER`.
+- **Solution**: Created a local Vulkan ICD configuration (`nvidia_icd_local.json`) and used specific environment variables to bypass device selection issues.
+- **Environment Variables**:
+  - `VK_DRIVER_FILES`: Points to the local ICD JSON.
+  - `MESA_VK_DEVICE_SELECT`: Set to `10de:2330` (H100 PCI ID) to force selection of the NVIDIA hardware.
+  - `OMNIGIBSON_HEADLESS=1`: Mandatory for server deployment.
+
+#### 4. System Library Dependencies
+- **Issue**: Missing `libGLU.so.1` causes segfaults in Omniverse Kit extensions.
+- **Solution**: Loaded the HPC module `mesa-glu` and ensured it is present in `.bashrc` and the startup script.
+
+
 ### Results & Visualization
 
 **TensorBoard**:

@@ -1,5 +1,7 @@
 #! /bin/bash
 
+module load mesa-glu 2>/dev/null || true
+
 export EMBODIED_PATH="$( cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export REPO_PATH=$(dirname $(dirname "$EMBODIED_PATH"))
 export SRC_FILE="${EMBODIED_PATH}/train_embodied_agent.py"
@@ -26,7 +28,9 @@ export CARB_APP_PATH=${CARB_APP_PATH:-$ISAAC_PATH/kit}
 # For headless mode
 export OMNIGIBSON_HEADLESS=1
 export NVIDIA_DRIVER_CAPABILITIES=all
+export VK_DRIVER_FILES="/gpfs/projects/p33203/SENTINEL-Lite/RLinf/nvidia_icd_local.json"
 export VK_ICD_FILENAMES="/gpfs/projects/p33203/SENTINEL-Lite/RLinf/nvidia_icd_local.json"
+export MESA_VK_DEVICE_SELECT=10de:2330
 
 if [ -z "$1" ]; then
     CONFIG_NAME="maniskill_ppo_openvlaoft"
