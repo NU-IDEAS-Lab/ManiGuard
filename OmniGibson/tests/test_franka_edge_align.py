@@ -92,3 +92,26 @@ def test_place_franka_edge_aligned_is_deterministic():
     res_a = mod.place_franka_edge_aligned(req)
     res_b = mod.place_franka_edge_aligned(req)
     assert res_a == res_b
+
+
+def test_place_franka_edge_aligned_honors_preferred_edge():
+    mod = _load_module()
+    objects = (
+        mod.EdgeAlignObject("target", "target", (0.9, 0.0)),
+        mod.EdgeAlignObject("fragile", "fragile", (0.8, 0.1)),
+    )
+    # Nearest edge for this pack is x_max, but runner can force x_min for hardcoded kitchen preset.
+    result = mod.place_franka_edge_aligned(
+        mod.EdgeAlignRequest(
+            table_aabb_xy=((-1.0, -0.5), (1.0, 0.5)),
+            pack_objects_world=objects,
+            role_weights=mod.DEFAULT_ROLE_WEIGHTS,
+            robot_half_extent_xy=(0.24, 0.24),
+            edge_gap_m=0.03,
+            edge_margin_m=0.05,
+            scan_offsets_m=(0.0, 0.05, -0.05),
+            collision_checker=lambda _pose: (),
+            preferred_edge="x_min",
+        )
+    )
+    assert result.edge_label == "x_min"
