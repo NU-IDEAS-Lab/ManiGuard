@@ -126,7 +126,7 @@ def parse_args():
     parser.add_argument("--config", default=None, help="Path to YAML config.")
     parser.add_argument("--activity-name", default=None, help="BehaviorTask activity_name override.")
     parser.add_argument("--episodes", type=int, default=1, help="Number of episodes.")
-    parser.add_argument("--steps", type=int, default=500, help="Max steps per episode.")
+    parser.add_argument("--steps", type=int, default=5000, help="Max steps per episode.")
     parser.add_argument("--seed", type=int, default=0, help="Base seed.")
     parser.add_argument("--mount-gap-m", type=float, default=0.03, help="Desired Franka base gap from fixed edge.")
     parser.add_argument(
@@ -182,6 +182,12 @@ def parse_args():
         type=float,
         default=0.02,
         help="Distance margin above d_min for frontier random candidate pool.",
+    )
+    parser.add_argument(
+        "--pack-tries-per-clearance",
+        type=int,
+        default=10,
+        help="How many randomized layout attempts to try for each clearance level before culling.",
     )
     parser.add_argument(
         "--zone-edge-margin-m",
@@ -257,6 +263,8 @@ def _resolve_clutter_controls(args):
         raise ValueError("grid-step-m must be > 0")
     if args.frontier_noise_margin_m < 0.0:
         raise ValueError("frontier-noise-margin-m must be >= 0")
+    if args.pack_tries_per_clearance <= 0:
+        raise ValueError("pack-tries-per-clearance must be > 0")
     if args.pack_min_scale is not None:
         print(
             "[MVP] WARNING: --pack-min-scale is deprecated and ignored in kitchen-bar runner. "
@@ -270,6 +278,7 @@ def _resolve_clutter_controls(args):
         "pack_clearance_floor_m": float(args.pack_clearance_floor_m),
         "grid_step_m": float(args.grid_step_m),
         "frontier_noise_margin_m": float(args.frontier_noise_margin_m),
+        "pack_tries_per_clearance": int(args.pack_tries_per_clearance),
         "zone_padding": zone_padding,
         "zone_util_cap": util_cap,
         "zone_edge_margin_m": zone_edge_margin_m,
@@ -1141,6 +1150,7 @@ def main():
         f"pack_clearance_floor_m={clutter_controls['pack_clearance_floor_m']:.3f}, "
         f"grid_step_m={clutter_controls['grid_step_m']:.3f}, "
         f"frontier_noise_margin_m={clutter_controls['frontier_noise_margin_m']:.3f}, "
+        f"pack_tries_per_clearance={clutter_controls['pack_tries_per_clearance']}, "
         f"zone_padding={clutter_controls['zone_padding']:.3f}, "
         f"zone_util_cap={clutter_controls['zone_util_cap']:.3f}, "
         f"zone_edge_margin={clutter_controls['zone_edge_margin_m']:.3f}, "
@@ -1290,120 +1300,124 @@ def main():
 
                 solved_this_round = False
                 for level_idx, min_clearance in enumerate(clearance_schedule, start=1):
-                    attempt_idx += 1
-                    jitter_xy = max(0.002, float(clutter_controls["pack_jitter_xy"]))
-                    try:
-                        print(
-                            "[MVP] pack_attempt: "
-                            f"id={attempt_idx}, active_count={len(active_descriptors)}, "
-                            f"level={level_idx}/{len(clearance_schedule)}, "
-                            f"jitter_xy={jitter_xy:.3f}, min_clearance={min_clearance:.3f}"
-                        )
-                        pack_spec_candidate = build_clutter_pack(
-                            table_obj_name=getattr(support, "name", HARDCODE_SUPPORT_NAME),
-                            descriptors=active_descriptors,
-                            seed=args.seed + ep + attempt_idx * 101,
-                            jitter_xy=jitter_xy,
-                            min_clearance=min_clearance,
-                            placement_bounds_local=placement_bounds_local,
-                            grid_step_m=clutter_controls["grid_step_m"],
-                            frontier_noise_margin_m=clutter_controls["frontier_noise_margin_m"],
-                            shuffle_non_target=True,
-                        )
-                        last_pack_for_cull = pack_spec_candidate
-                        pack_spec_candidate, _, origin_xy = _fit_pack_to_zone(
-                            pack_spec=pack_spec_candidate,
-                            descriptor_by_inst=descriptor_by_inst,
-                            red_zone_bounds=zone.red_zone_bounds,
-                        )
-                        pack_origin_candidate = (origin_xy[0], origin_xy[1], table_top_z)
-                        world_positions_candidate = apply_pack_transform(
-                            pack_spec=pack_spec_candidate,
-                            objects_by_inst=active_objects,
-                            pack_origin_world=pack_origin_candidate,
-                            pack_yaw=0.0,
-                            table_top_z=table_top_z,
-                        )
-                        _freeze_objects(active_objects)
-                        for _ in range(3):
-                            og.sim.step()
-                            _freeze_objects(active_objects)
-
-                        invalid_after_settle = _detect_invalid_object_poses(active_objects)
-                        if invalid_after_settle:
-                            recovered = _recover_invalid_objects(
-                                invalid_instances=invalid_after_settle,
-                                active_objects=active_objects,
-                                pack_spec=pack_spec_candidate,
-                                pack_origin_world=pack_origin_candidate,
-                                table_top_z=table_top_z,
-                                pack_yaw=0.0,
+                    for trial_idx in range(1, clutter_controls["pack_tries_per_clearance"] + 1):
+                        attempt_idx += 1
+                        jitter_xy = max(0.002, float(clutter_controls["pack_jitter_xy"]))
+                        try:
+                            print(
+                                "[MVP] pack_attempt: "
+                                f"id={attempt_idx}, active_count={len(active_descriptors)}, "
+                                f"level={level_idx}/{len(clearance_schedule)}, "
+                                f"trial={trial_idx}/{clutter_controls['pack_tries_per_clearance']}, "
+                                f"jitter_xy={jitter_xy:.3f}, min_clearance={min_clearance:.3f}"
                             )
-                            if recovered:
-                                print(
-                                    "[MVP] WARNING: recovered invalid objects after settle "
-                                    f"attempt={attempt_idx}, recovered={recovered}"
-                                )
-                                for _ in range(2):
-                                    og.sim.step()
-                                    _freeze_objects(active_objects)
-                                invalid_after_settle = _detect_invalid_object_poses(active_objects)
+                            pack_spec_candidate = build_clutter_pack(
+                                table_obj_name=getattr(support, "name", HARDCODE_SUPPORT_NAME),
+                                descriptors=active_descriptors,
+                                seed=args.seed + ep + attempt_idx * 101,
+                                jitter_xy=jitter_xy,
+                                min_clearance=min_clearance,
+                                placement_bounds_local=placement_bounds_local,
+                                grid_step_m=clutter_controls["grid_step_m"],
+                                frontier_noise_margin_m=clutter_controls["frontier_noise_margin_m"],
+                                shuffle_non_target=True,
+                            )
+                            last_pack_for_cull = pack_spec_candidate
+                            pack_spec_candidate, _, origin_xy = _fit_pack_to_zone(
+                                pack_spec=pack_spec_candidate,
+                                descriptor_by_inst=descriptor_by_inst,
+                                red_zone_bounds=zone.red_zone_bounds,
+                            )
+                            pack_origin_candidate = (origin_xy[0], origin_xy[1], table_top_z)
+                            world_positions_candidate = apply_pack_transform(
+                                pack_spec=pack_spec_candidate,
+                                objects_by_inst=active_objects,
+                                pack_origin_world=pack_origin_candidate,
+                                pack_yaw=0.0,
+                                table_top_z=table_top_z,
+                            )
+                            _freeze_objects(active_objects)
+                            for _ in range(3):
+                                og.sim.step()
+                                _freeze_objects(active_objects)
+
+                            invalid_after_settle = _detect_invalid_object_poses(active_objects)
                             if invalid_after_settle:
+                                recovered = _recover_invalid_objects(
+                                    invalid_instances=invalid_after_settle,
+                                    active_objects=active_objects,
+                                    pack_spec=pack_spec_candidate,
+                                    pack_origin_world=pack_origin_candidate,
+                                    table_top_z=table_top_z,
+                                    pack_yaw=0.0,
+                                )
+                                if recovered:
+                                    print(
+                                        "[MVP] WARNING: recovered invalid objects after settle "
+                                        f"attempt={attempt_idx}, recovered={recovered}"
+                                    )
+                                    for _ in range(2):
+                                        og.sim.step()
+                                        _freeze_objects(active_objects)
+                                    invalid_after_settle = _detect_invalid_object_poses(active_objects)
+                                if invalid_after_settle:
+                                    last_pack_error = (
+                                        "invalid_object_pose_after_settle:"
+                                        f"attempt={attempt_idx}, objects={invalid_after_settle}"
+                                    )
+                                    print(f"[MVP] WARNING: {last_pack_error}")
+                                    continue
+
+                            penetration_pairs = _count_object_interpenetrations(active_objects, tol=0.001)
+                            if penetration_pairs:
+                                preview = penetration_pairs[:8]
                                 last_pack_error = (
-                                    "invalid_object_pose_after_settle:"
-                                    f"attempt={attempt_idx}, objects={invalid_after_settle}"
+                                    "object_interpenetration_after_settle:"
+                                    f"attempt={attempt_idx}, count={len(penetration_pairs)}, preview={preview}"
                                 )
                                 print(f"[MVP] WARNING: {last_pack_error}")
                                 continue
 
-                        penetration_pairs = _count_object_interpenetrations(active_objects, tol=0.001)
-                        if penetration_pairs:
-                            preview = penetration_pairs[:8]
-                            last_pack_error = (
-                                "object_interpenetration_after_settle:"
-                                f"attempt={attempt_idx}, count={len(penetration_pairs)}, preview={preview}"
-                            )
-                            print(f"[MVP] WARNING: {last_pack_error}")
-                            continue
+                            cross_penetration_pairs = _count_cross_interpenetrations(active_objects, passive_objects, tol=0.001)
+                            if cross_penetration_pairs:
+                                preview = cross_penetration_pairs[:8]
+                                last_pack_error = (
+                                    "active_passive_interpenetration_after_settle:"
+                                    f"attempt={attempt_idx}, count={len(cross_penetration_pairs)}, preview={preview}"
+                                )
+                                print(f"[MVP] WARNING: {last_pack_error}")
+                                continue
 
-                        cross_penetration_pairs = _count_cross_interpenetrations(active_objects, passive_objects, tol=0.001)
-                        if cross_penetration_pairs:
-                            preview = cross_penetration_pairs[:8]
-                            last_pack_error = (
-                                "active_passive_interpenetration_after_settle:"
-                                f"attempt={attempt_idx}, count={len(cross_penetration_pairs)}, preview={preview}"
+                            zone_report_candidate = _evaluate_object_zone_constraints(
+                                objects_by_inst=active_objects,
+                                red_zone_bounds=zone.red_zone_bounds,
+                                sink_keepout_bounds=zone.sink_keepout_bounds,
                             )
-                            print(f"[MVP] WARNING: {last_pack_error}")
-                            continue
+                            if not (
+                                zone_report_candidate.all_in_red_zone and zone_report_candidate.all_outside_sink_keepout
+                            ):
+                                last_pack_error = (
+                                    "zone_constraint_violation_after_pack:"
+                                    f"attempt={attempt_idx}, out_of_zone={list(zone_report_candidate.out_of_zone_instances)}, "
+                                    f"in_keepout={list(zone_report_candidate.in_keepout_instances)}"
+                                )
+                                print(f"[MVP] WARNING: {last_pack_error}")
+                                continue
 
-                        zone_report_candidate = _evaluate_object_zone_constraints(
-                            objects_by_inst=active_objects,
-                            red_zone_bounds=zone.red_zone_bounds,
-                            sink_keepout_bounds=zone.sink_keepout_bounds,
-                        )
-                        if not (
-                            zone_report_candidate.all_in_red_zone and zone_report_candidate.all_outside_sink_keepout
-                        ):
-                            last_pack_error = (
-                                "zone_constraint_violation_after_pack:"
-                                f"attempt={attempt_idx}, out_of_zone={list(zone_report_candidate.out_of_zone_instances)}, "
-                                f"in_keepout={list(zone_report_candidate.in_keepout_instances)}"
-                            )
-                            print(f"[MVP] WARNING: {last_pack_error}")
-                            continue
-
-                        pack_spec = pack_spec_candidate
-                        world_positions = world_positions_candidate
-                        pack_origin = pack_origin_candidate
-                        pack_attempt_used = attempt_idx
-                        chosen_min_clearance = min_clearance
-                        active_objects_by_inst = active_objects
-                        solved = True
-                        solved_this_round = True
+                            pack_spec = pack_spec_candidate
+                            world_positions = world_positions_candidate
+                            pack_origin = pack_origin_candidate
+                            pack_attempt_used = attempt_idx
+                            chosen_min_clearance = min_clearance
+                            active_objects_by_inst = active_objects
+                            solved = True
+                            solved_this_round = True
+                            break
+                        except Exception as e:
+                            last_pack_error = str(e)
+                            print(f"[MVP] WARNING: pack_attempt_failed id={attempt_idx}: {e}")
+                    if solved_this_round:
                         break
-                    except Exception as e:
-                        last_pack_error = str(e)
-                        print(f"[MVP] WARNING: pack_attempt_failed id={attempt_idx}: {e}")
 
                 if solved_this_round:
                     break
@@ -1567,6 +1581,7 @@ def main():
                     "clearance_schedule": list(clearance_schedule),
                     "clearance_floor_m": clutter_controls["pack_clearance_floor_m"],
                     "clearance_step_m": clutter_controls["pack_clearance_step_m"],
+                    "tries_per_clearance": clutter_controls["pack_tries_per_clearance"],
                     "cull_history": cull_history,
                     "final_active_set": [d.instance_id for d in active_descriptors],
                     "active_descriptor_count": len(active_descriptors),
