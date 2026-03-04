@@ -34,6 +34,55 @@ def test_build_clutter_pack_is_deterministic():
     assert pack_a.object_entries == pack_b.object_entries
 
 
+def test_build_clutter_pack_changes_with_seed():
+    mod = _load_module()
+    descriptors = [
+        mod.ClutterObjectDescriptor("coffee_cup.n.01_1", "target", (0.04, 0.04), 0.10),
+        mod.ClutterObjectDescriptor("wineglass.n.01_1", "fragile", (0.03, 0.03), 0.14),
+        mod.ClutterObjectDescriptor("wineglass.n.01_2", "fragile", (0.03, 0.03), 0.14),
+        mod.ClutterObjectDescriptor("bowl.n.01_1", "clutter", (0.06, 0.06), 0.09),
+    ]
+    pack_a = mod.build_clutter_pack("countertop.n.01_1", descriptors, seed=7)
+    pack_b = mod.build_clutter_pack("countertop.n.01_1", descriptors, seed=8)
+    assert pack_a.object_entries != pack_b.object_entries
+
+
+def test_target_is_placed_near_center():
+    mod = _load_module()
+    descriptors = [
+        mod.ClutterObjectDescriptor("coffee_cup.n.01_1", "target", (0.04, 0.04), 0.10),
+        mod.ClutterObjectDescriptor("wineglass.n.01_1", "fragile", (0.03, 0.03), 0.14),
+        mod.ClutterObjectDescriptor("bowl.n.01_1", "clutter", (0.06, 0.06), 0.09),
+    ]
+    pack = mod.build_clutter_pack("countertop.n.01_1", descriptors, seed=19, jitter_xy=0.01)
+    target_entry = [e for e in pack.object_entries if e.role == "target"][0]
+    tx, ty = target_entry.rel_pose[0], target_entry.rel_pose[1]
+    assert abs(tx) <= 0.02
+    assert abs(ty) <= 0.02
+
+
+def test_build_clutter_pack_raises_when_no_feasible_point():
+    mod = _load_module()
+    descriptors = [
+        mod.ClutterObjectDescriptor("coffee_cup.n.01_1", "target", (0.06, 0.06), 0.10),
+        mod.ClutterObjectDescriptor("wineglass.n.01_1", "fragile", (0.06, 0.06), 0.14),
+        mod.ClutterObjectDescriptor("bowl.n.01_1", "clutter", (0.06, 0.06), 0.09),
+    ]
+    try:
+        mod.build_clutter_pack(
+            "countertop.n.01_1",
+            descriptors,
+            seed=0,
+            min_clearance=0.05,
+            placement_bounds_local=((-0.05, -0.05), (0.05, 0.05)),
+            grid_step_m=0.005,
+            frontier_noise_margin_m=0.01,
+        )
+        assert False, "Expected RuntimeError due to no feasible placement"
+    except RuntimeError as e:
+        assert "pack_no_feasible_point" in str(e)
+
+
 def test_apply_pack_transform_and_validate_integrity():
     mod = _load_module()
     descriptors = [

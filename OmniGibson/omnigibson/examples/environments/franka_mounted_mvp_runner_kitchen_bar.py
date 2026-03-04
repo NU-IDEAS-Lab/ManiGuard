@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass
 import json
 import math
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch as th
@@ -16,7 +16,6 @@ from omnigibson.macros import gm
 from omnigibson.utils.asset_utils import get_scene_path
 from omnigibson.utils.clutter_pack_layout import (
     ClutterObjectDescriptor,
-    ClutterPackEntry,
     ClutterPackSpec,
     PackIntegrityReport,
     apply_pack_transform,
@@ -56,6 +55,48 @@ HARDCODE_SINK_NAME = "drop_in_sink_lkklqs_0"
 WORKSPACE_PRESET = "kitchen_bar_sink_left_v1"
 FIXED_EDGE_LABEL = "x_min"
 FIXED_EDGE_SCAN_OFFSETS = (0.0, 0.05, -0.05, 0.10, -0.10, 0.15, -0.15, 0.20, -0.20)
+CLUTTER_DENSITY_PRESETS = {
+    # Wider clearance, lower density.
+    "low": {
+        "pack_jitter_xy": 0.010,
+        "pack_min_clearance": 0.040,
+        "zone_padding": 0.030,
+        "zone_util_cap": 0.70,
+        "zone_edge_margin_m": 0.05,
+        "sink_keepout_margin_m": 0.10,
+        "sink_side_clearance_m": 0.02,
+    },
+    # Balanced baseline.
+    "medium": {
+        "pack_jitter_xy": 0.015,
+        "pack_min_clearance": 0.025,
+        "zone_padding": 0.020,
+        "zone_util_cap": 0.85,
+        "zone_edge_margin_m": 0.05,
+        "sink_keepout_margin_m": 0.10,
+        "sink_side_clearance_m": 0.02,
+    },
+    # Denser packing / more crowded.
+    "high": {
+        "pack_jitter_xy": 0.022,
+        "pack_min_clearance": 0.008,
+        "zone_padding": 0.008,
+        "zone_util_cap": 0.98,
+        "zone_edge_margin_m": 0.04,
+        "sink_keepout_margin_m": 0.08,
+        "sink_side_clearance_m": 0.015,
+    },
+    # Maximum cluttered appearance before explicit stacking.
+    "ultra": {
+        "pack_jitter_xy": 0.026,
+        "pack_min_clearance": 0.004,
+        "zone_padding": 0.004,
+        "zone_util_cap": 1.10,
+        "zone_edge_margin_m": 0.03,
+        "sink_keepout_margin_m": 0.06,
+        "sink_side_clearance_m": 0.010,
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -88,6 +129,78 @@ def parse_args():
     parser.add_argument("--steps", type=int, default=500, help="Max steps per episode.")
     parser.add_argument("--seed", type=int, default=0, help="Base seed.")
     parser.add_argument("--mount-gap-m", type=float, default=0.03, help="Desired Franka base gap from fixed edge.")
+    parser.add_argument(
+        "--clutter-density",
+        choices=("low", "medium", "high", "ultra"),
+        default="high",
+        help="Packing density preset for the same BDDL object set.",
+    )
+    parser.add_argument(
+        "--pack-jitter-xy",
+        type=float,
+        default=None,
+        help="Override pack XY jitter (meters).",
+    )
+    parser.add_argument(
+        "--pack-min-clearance",
+        type=float,
+        default=None,
+        help="Override minimum inter-object XY clearance in clutter pack (meters).",
+    )
+    parser.add_argument(
+        "--zone-utilization-cap",
+        type=float,
+        default=None,
+        help="Override red-zone utilization warning threshold (0~1+).",
+    )
+    parser.add_argument(
+        "--pack-min-scale",
+        type=float,
+        default=None,
+        help="Deprecated; ignored. XY pack scaling is disabled in kitchen-bar runner.",
+    )
+    parser.add_argument(
+        "--pack-clearance-step-m",
+        type=float,
+        default=0.005,
+        help="Minimum-clearance decrement step for dense packing solver.",
+    )
+    parser.add_argument(
+        "--pack-clearance-floor-m",
+        type=float,
+        default=0.002,
+        help="Minimum-clearance lower bound for dense packing solver.",
+    )
+    parser.add_argument(
+        "--grid-step-m",
+        type=float,
+        default=0.005,
+        help="Local dense grid step for clutter pack candidate points.",
+    )
+    parser.add_argument(
+        "--frontier-noise-margin-m",
+        type=float,
+        default=0.02,
+        help="Distance margin above d_min for frontier random candidate pool.",
+    )
+    parser.add_argument(
+        "--zone-edge-margin-m",
+        type=float,
+        default=None,
+        help="Override red-zone edge margin from bar boundary (meters).",
+    )
+    parser.add_argument(
+        "--sink-keepout-margin-m",
+        type=float,
+        default=None,
+        help="Override sink keepout expansion margin (meters).",
+    )
+    parser.add_argument(
+        "--sink-side-clearance-m",
+        type=float,
+        default=None,
+        help="Override extra clearance between sink keepout and red zone (meters).",
+    )
     parser.add_argument("--jitter-scale", type=float, default=0.01, help="Action jitter sigma for zero_jitter mode.")
     parser.add_argument("--showcase-gui", action="store_true", help="Enable manual GUI camera teleoperation.")
     parser.add_argument("--strict-gate", dest="strict_gate", action="store_true", help="Enable strict gate.")
@@ -107,6 +220,62 @@ def _append_jsonl(path, payload):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=True) + "\n")
+
+
+def _resolve_clutter_controls(args):
+    preset = CLUTTER_DENSITY_PRESETS[args.clutter_density]
+    jitter_xy = float(preset["pack_jitter_xy"] if args.pack_jitter_xy is None else args.pack_jitter_xy)
+    min_clearance = float(
+        preset["pack_min_clearance"] if args.pack_min_clearance is None else args.pack_min_clearance
+    )
+    zone_padding = float(preset["zone_padding"])
+    util_cap = float(preset["zone_util_cap"] if args.zone_utilization_cap is None else args.zone_utilization_cap)
+    zone_edge_margin_m = float(
+        preset["zone_edge_margin_m"] if args.zone_edge_margin_m is None else args.zone_edge_margin_m
+    )
+    sink_keepout_margin_m = float(
+        preset["sink_keepout_margin_m"]
+        if args.sink_keepout_margin_m is None
+        else args.sink_keepout_margin_m
+    )
+    sink_side_clearance_m = float(
+        preset["sink_side_clearance_m"]
+        if args.sink_side_clearance_m is None
+        else args.sink_side_clearance_m
+    )
+    if zone_edge_margin_m < 0.0 or sink_keepout_margin_m < 0.0 or sink_side_clearance_m < 0.0:
+        raise ValueError(
+            "zone-edge-margin-m, sink-keepout-margin-m, sink-side-clearance-m must be non-negative"
+        )
+    if args.pack_clearance_step_m <= 0.0:
+        raise ValueError("pack-clearance-step-m must be > 0")
+    if args.pack_clearance_floor_m < 0.0:
+        raise ValueError("pack-clearance-floor-m must be >= 0")
+    if args.pack_clearance_floor_m > min_clearance:
+        raise ValueError("pack-clearance-floor-m cannot be greater than base pack-min-clearance")
+    if args.grid_step_m <= 0.0:
+        raise ValueError("grid-step-m must be > 0")
+    if args.frontier_noise_margin_m < 0.0:
+        raise ValueError("frontier-noise-margin-m must be >= 0")
+    if args.pack_min_scale is not None:
+        print(
+            "[MVP] WARNING: --pack-min-scale is deprecated and ignored in kitchen-bar runner. "
+            "Use clearance/cull solver controls instead."
+        )
+    return {
+        "density": args.clutter_density,
+        "pack_jitter_xy": jitter_xy,
+        "pack_min_clearance": min_clearance,
+        "pack_clearance_step_m": float(args.pack_clearance_step_m),
+        "pack_clearance_floor_m": float(args.pack_clearance_floor_m),
+        "grid_step_m": float(args.grid_step_m),
+        "frontier_noise_margin_m": float(args.frontier_noise_margin_m),
+        "zone_padding": zone_padding,
+        "zone_util_cap": util_cap,
+        "zone_edge_margin_m": zone_edge_margin_m,
+        "sink_keepout_margin_m": sink_keepout_margin_m,
+        "sink_side_clearance_m": sink_side_clearance_m,
+    }
 
 
 def _load_config(args):
@@ -130,6 +299,59 @@ def _load_config(args):
     cfg["task"]["online_object_sampling"] = True
     cfg["task"]["use_presampled_robot_pose"] = False
     return cfg
+
+
+def _validate_bddl_initial_conditions(activity_name, activity_definition_id=0):
+    cond = Conditions(
+        behavior_activity=activity_name,
+        activity_definition=activity_definition_id,
+        simulator_name="omnigibson",
+        predefined_problem=None,
+    )
+    inst_to_synset = {}
+    for synset, insts in cond.parsed_objects.items():
+        for inst in insts:
+            inst_to_synset[inst] = synset
+
+    kinematic_heads = {"ontop", "inside", "under", "attached", "onfloor", "overlaid"}
+    sampleable_with_kinematic = set()
+    errors = []
+
+    for init_cond in cond.parsed_initial_conditions:
+        if not isinstance(init_cond, list) or len(init_cond) < 2:
+            continue
+        head = init_cond[0]
+        if head == "inroom":
+            obj_inst = init_cond[1]
+            synset = inst_to_synset.get(obj_inst, None)
+            if synset is None:
+                continue
+            abilities = _OBJECT_TAXONOMY.get_abilities(synset)
+            if "sceneObject" not in abilities:
+                errors.append(
+                    f"invalid_inroom_for_sampleable: inst={obj_inst}, synset={synset}. "
+                    "Only non-sampleable scene objects can use inroom."
+                )
+        elif head in kinematic_heads:
+            obj_inst = init_cond[1]
+            synset = inst_to_synset.get(obj_inst, None)
+            if synset is None:
+                continue
+            abilities = _OBJECT_TAXONOMY.get_abilities(synset)
+            if "sceneObject" not in abilities:
+                sampleable_with_kinematic.add(obj_inst)
+
+    for inst, synset in sorted(inst_to_synset.items()):
+        abilities = _OBJECT_TAXONOMY.get_abilities(synset)
+        if "sceneObject" in abilities or "substance" in abilities:
+            continue
+        if inst not in sampleable_with_kinematic:
+            errors.append(f"missing_sampleable_kinematic_init: inst={inst}, synset={synset}")
+
+    if errors:
+        raise RuntimeError(
+            "BDDL preflight validation failed:\n- " + "\n- ".join(errors[:20])
+        )
 
 
 def _task_uses_substance_system(activity_name, activity_definition_id=0):
@@ -180,6 +402,213 @@ def _to_float3(x):
     if hasattr(x, "numpy"):
         x = x.numpy()
     return [float(x[0]), float(x[1]), float(x[2])]
+
+
+def _try_get_obj_pose(obj):
+    try:
+        pos, orn = obj.get_position_orientation()
+        pos = _to_float3(pos)
+        orn = [float(v) for v in orn]
+        if not all(math.isfinite(v) for v in pos + orn):
+            return None
+        quat_norm = math.sqrt(sum(v * v for v in orn))
+        if not (math.isfinite(quat_norm) and quat_norm > 1e-6):
+            return None
+        if abs(quat_norm - 1.0) > 5e-2:
+            # tolerate small numeric drift only
+            return None
+        return pos, orn
+    except Exception:
+        return None
+
+
+def _detect_invalid_object_poses(objects_by_inst):
+    invalid = []
+    for inst, obj in objects_by_inst.items():
+        if _try_get_obj_pose(obj) is None:
+            invalid.append(inst)
+    return sorted(invalid)
+
+
+def _freeze_object_motion(obj):
+    try:
+        if hasattr(obj, "keep_still"):
+            obj.keep_still()
+            return
+    except Exception:
+        pass
+    try:
+        obj.set_linear_velocity(th.zeros(3))
+        obj.set_angular_velocity(th.zeros(3))
+    except Exception:
+        pass
+
+
+def _freeze_objects(objects_by_inst):
+    for obj in objects_by_inst.values():
+        _freeze_object_motion(obj)
+
+
+def _park_inactive_objects(passive_objects, floor_z, bar_bounds):
+    if len(passive_objects) == 0:
+        return
+    (bx0, by0), (bx1, by1) = _normalize_bounds_2d(bar_bounds)
+    base_x = bx1 + 1.5
+    base_y = by0 - 1.2
+    spacing = 0.18
+    for idx, inst in enumerate(sorted(passive_objects.keys())):
+        obj = passive_objects[inst]
+        x = base_x + spacing * (idx % 8)
+        y = base_y - spacing * (idx // 8)
+        z = floor_z + 0.06
+        try:
+            obj.set_position_orientation(position=(x, y, z), orientation=(0.0, 0.0, 0.0, 1.0))
+            _freeze_object_motion(obj)
+        except Exception:
+            continue
+
+
+def _entry_world_pose(entry, pack_origin_world, pack_yaw, table_top_z):
+    ox, oy, _ = pack_origin_world
+    cos_y = math.cos(pack_yaw)
+    sin_y = math.sin(pack_yaw)
+    rel_x, rel_y, rel_z, qx, qy, qz, qw = entry.rel_pose
+    wx = ox + cos_y * rel_x - sin_y * rel_y
+    wy = oy + sin_y * rel_x + cos_y * rel_y
+    wz = table_top_z + rel_z
+    rel_yaw = 2.0 * math.atan2(float(qz), float(qw))
+    world_yaw = pack_yaw + rel_yaw
+    wqx, wqy, wqz, wqw = _quat_from_yaw(world_yaw)
+    return (wx, wy, wz), (wqx, wqy, wqz, wqw)
+
+
+def _recover_invalid_objects(
+    invalid_instances,
+    active_objects,
+    pack_spec,
+    pack_origin_world,
+    table_top_z,
+    pack_yaw=0.0,
+):
+    entry_by_inst = {entry.inst_id: entry for entry in pack_spec.object_entries}
+    recovered = []
+    for inst in invalid_instances:
+        obj = active_objects.get(inst, None)
+        entry = entry_by_inst.get(inst, None)
+        if obj is None or entry is None:
+            continue
+        try:
+            pos, quat = _entry_world_pose(
+                entry=entry,
+                pack_origin_world=pack_origin_world,
+                pack_yaw=pack_yaw,
+                table_top_z=table_top_z,
+            )
+            obj.set_position_orientation(position=pos, orientation=quat)
+            _freeze_object_motion(obj)
+            recovered.append(inst)
+        except Exception:
+            continue
+    return recovered
+
+
+def _count_object_interpenetrations(objects_by_inst, tol=0.001):
+    inst_ids = sorted(objects_by_inst.keys())
+    hits = []
+    for i, inst_a in enumerate(inst_ids):
+        obj_a = objects_by_inst[inst_a]
+        try:
+            aabb_a = obj_a.aabb
+        except Exception:
+            continue
+        for inst_b in inst_ids[i + 1 :]:
+            obj_b = objects_by_inst[inst_b]
+            try:
+                aabb_b = obj_b.aabb
+            except Exception:
+                continue
+            if _aabb_overlap_3d(aabb_a, aabb_b, tol=tol):
+                hits.append((inst_a, inst_b))
+    return hits
+
+
+def _count_cross_interpenetrations(objects_a, objects_b, tol=0.001):
+    hits = []
+    for inst_a, obj_a in objects_a.items():
+        try:
+            aabb_a = obj_a.aabb
+        except Exception:
+            continue
+        for inst_b, obj_b in objects_b.items():
+            try:
+                aabb_b = obj_b.aabb
+            except Exception:
+                continue
+            if _aabb_overlap_3d(aabb_a, aabb_b, tol=tol):
+                hits.append((inst_a, inst_b))
+    return hits
+
+
+def _build_min_clearance_schedule(
+    start_clearance: float,
+    floor_clearance: float,
+    step: float,
+) -> Tuple[float, ...]:
+    start = max(0.0, float(start_clearance))
+    floor = max(0.0, float(floor_clearance))
+    decrement = max(1e-6, float(step))
+    if floor > start:
+        raise ValueError("floor_clearance must be <= start_clearance")
+    values = []
+    cur = start
+    while cur > floor + 1e-9:
+        values.append(round(cur, 4))
+        cur -= decrement
+    values.append(round(floor, 4))
+    dedup = []
+    for v in values:
+        if v not in dedup:
+            dedup.append(v)
+    return tuple(dedup)
+
+
+def _local_bounds_from_zone(zone_bounds):
+    (x0, y0), (x1, y1) = _normalize_bounds_2d(zone_bounds)
+    half_x = 0.5 * (x1 - x0)
+    half_y = 0.5 * (y1 - y0)
+    return ((-half_x, -half_y), (half_x, half_y))
+
+
+def _select_cull_candidate(
+    active_descriptors: Sequence[ClutterObjectDescriptor],
+    last_pack_spec: Optional[ClutterPackSpec],
+) -> Optional[Tuple[str, str, float]]:
+    # Never cull target. Prefer outermost clutter, then outermost fragile.
+    if len(active_descriptors) == 0:
+        return None
+    candidates = []
+    if last_pack_spec is not None:
+        for entry in last_pack_spec.object_entries:
+            if entry.role == "target":
+                continue
+            radius = math.hypot(entry.rel_pose[0], entry.rel_pose[1])
+            candidates.append((entry.inst_id, entry.role, radius))
+    else:
+        for d in active_descriptors:
+            if d.role == "target":
+                continue
+            candidates.append((d.instance_id, d.role, 0.0))
+    if len(candidates) == 0:
+        return None
+
+    def _priority(item):
+        inst, role, radius = item
+        role_rank = 0 if role == "clutter" else (1 if role == "fragile" else 9)
+        # Outer objects first for culling.
+        return (role_rank, -float(radius), inst)
+
+    candidates.sort(key=_priority)
+    return candidates[0]
 
 
 def _quat_from_yaw(yaw):
@@ -350,50 +779,17 @@ def _choose_pack_origin_in_zone(zone_bounds, rel_bounds):
 
 
 def _scale_pack_spec_xy(pack_spec: ClutterPackSpec, scale_xy: float) -> ClutterPackSpec:
-    if scale_xy <= 0.0:
-        raise ValueError("scale_xy must be > 0")
-    if scale_xy >= 0.999:
-        return pack_spec
-
-    scaled_entries = []
-    for entry in pack_spec.object_entries:
-        rel_x, rel_y, rel_z, qx, qy, qz, qw = entry.rel_pose
-        scaled_entries.append(
-            ClutterPackEntry(
-                inst_id=entry.inst_id,
-                role=entry.role,
-                rel_pose=(rel_x * scale_xy, rel_y * scale_xy, rel_z, qx, qy, qz, qw),
-            )
-        )
-    return ClutterPackSpec(
-        table_obj_name=pack_spec.table_obj_name,
-        pack_origin_world=pack_spec.pack_origin_world,
-        object_entries=tuple(scaled_entries),
-        seed=pack_spec.seed,
-        template_id=pack_spec.template_id,
-    )
+    # Backward-compat shim. XY scaling is intentionally disabled because it can
+    # compress object centers without shrinking collision geometry.
+    if scale_xy < 0.999:
+        raise RuntimeError("pack_xy_scaling_disabled: scale<1.0 is forbidden in kitchen-bar runner")
+    return pack_spec
 
 
-def _fit_pack_to_zone(pack_spec, descriptor_by_inst, red_zone_bounds, min_scale=0.40):
-    if min_scale <= 0.0 or min_scale > 1.0:
-        raise ValueError("min_scale must be in (0, 1]")
-
-    scale = 1.0
-    last_error = None
-    while scale >= min_scale - 1e-6:
-        candidate_pack = _scale_pack_spec_xy(pack_spec, scale)
-        rel_bounds = _compute_pack_relative_bounds(candidate_pack, descriptor_by_inst)
-        try:
-            origin_xy = _choose_pack_origin_in_zone(red_zone_bounds, rel_bounds)
-            return candidate_pack, rel_bounds, origin_xy, scale
-        except RuntimeError as e:
-            last_error = e
-            scale = round(scale * 0.90, 3)
-
-    raise RuntimeError(
-        "zone_capacity_exceeded: clutter pack cannot fit in fixed red zone after compaction. "
-        f"min_scale={min_scale:.2f}, last_error={last_error}"
-    )
+def _fit_pack_to_zone(pack_spec, descriptor_by_inst, red_zone_bounds):
+    rel_bounds = _compute_pack_relative_bounds(pack_spec, descriptor_by_inst)
+    origin_xy = _choose_pack_origin_in_zone(red_zone_bounds, rel_bounds)
+    return pack_spec, rel_bounds, origin_xy
 
 
 def _aabb_overlap_3d(aabb_a, aabb_b, tol=0.0):
@@ -557,7 +953,11 @@ def _print_object_inventory(env, obj_sets):
         if obj is None:
             print(f"[MVP]   {inst} -> MISSING_WRAPPED_OBJ")
             continue
-        pos = _to_float3(obj.get_position_orientation()[0])
+        pose = _try_get_obj_pose(obj)
+        if pose is None:
+            print(f"[MVP]   {inst} -> {getattr(obj, 'name', 'unknown')} @ INVALID_POSE")
+            continue
+        pos, _ = pose
         print(f"[MVP]   {inst} -> {getattr(obj, 'name', 'unknown')} @ {pos}")
 
 
@@ -611,6 +1011,11 @@ def _set_demo_arm_pose(robot):
         )
     except Exception:
         pass
+
+
+def _sim_step_with_action_only(env, action):
+    env._pre_step(action)
+    og.sim.step()
 
 
 def _evaluate_object_zone_constraints(objects_by_inst, red_zone_bounds, sink_keepout_bounds):
@@ -714,13 +1119,33 @@ def main():
     args = parse_args()
     cfg = _load_config(args)
     _configure_dynamics(cfg)
+    clutter_controls = _resolve_clutter_controls(args)
 
     task_name = cfg["task"]["activity_name"]
+    _validate_bddl_initial_conditions(
+        activity_name=task_name,
+        activity_definition_id=cfg["task"].get("activity_definition_id", 0),
+    )
     task_spec = build_manipulation_task_spec(task_name)
 
     print(
         f"[MVP] Configured: task={task_name}, scene={cfg['scene']['scene_model']}, "
         f"workspace={WORKSPACE_PRESET}, strict_gate={args.strict_gate}, steps={args.steps}"
+    )
+    print(
+        "[MVP] clutter_controls: "
+        f"density={clutter_controls['density']}, "
+        f"pack_jitter_xy={clutter_controls['pack_jitter_xy']:.3f}, "
+        f"pack_min_clearance={clutter_controls['pack_min_clearance']:.3f}, "
+        f"pack_clearance_step_m={clutter_controls['pack_clearance_step_m']:.3f}, "
+        f"pack_clearance_floor_m={clutter_controls['pack_clearance_floor_m']:.3f}, "
+        f"grid_step_m={clutter_controls['grid_step_m']:.3f}, "
+        f"frontier_noise_margin_m={clutter_controls['frontier_noise_margin_m']:.3f}, "
+        f"zone_padding={clutter_controls['zone_padding']:.3f}, "
+        f"zone_util_cap={clutter_controls['zone_util_cap']:.3f}, "
+        f"zone_edge_margin={clutter_controls['zone_edge_margin_m']:.3f}, "
+        f"sink_keepout_margin={clutter_controls['sink_keepout_margin_m']:.3f}, "
+        f"sink_side_clearance={clutter_controls['sink_side_clearance_m']:.3f}"
     )
     env = og.Environment(configs=cfg)
     rng = np.random.default_rng(args.seed)
@@ -743,14 +1168,15 @@ def main():
                 (float(sink_aabb_max[0]), float(sink_aabb_max[1])),
             )
             table_top_z = float(support_aabb_max[2])
+            floor_z = _compute_floor_z(env)
 
             zone = compute_kitchen_bar_zone(
                 bar_bounds_xy=bar_bounds_xy,
                 sink_bounds_xy=sink_bounds_xy,
                 workspace_preset=WORKSPACE_PRESET,
-                edge_margin_m=0.05,
-                sink_keepout_margin_m=0.10,
-                sink_side_clearance_m=0.02,
+                edge_margin_m=clutter_controls["zone_edge_margin_m"],
+                sink_keepout_margin_m=clutter_controls["sink_keepout_margin_m"],
+                sink_side_clearance_m=clutter_controls["sink_side_clearance_m"],
                 min_zone_span_m=0.20,
             )
             _log_workspace_geometry(zone, support, sink)
@@ -758,6 +1184,11 @@ def main():
             obj_sets = _build_task_object_sets(env, task_spec)
             if len(obj_sets["target_ids"]) == 0:
                 raise RuntimeError("No target objects found in object_scope.")
+            if len(obj_sets["clutter_ids"]) == 0:
+                print(
+                    "[MVP] NOTE: clutter_set is empty. Add more objects in BDDL :objects/:init "
+                    "to increase clutter count."
+                )
             target_inst = obj_sets["target_ids"][0]
             target_obj = _get_scope_obj(env, target_inst)
 
@@ -766,53 +1197,29 @@ def main():
                 obj = _get_scope_obj(env, inst)
                 if obj is None:
                     continue
-                descriptors.append(_descriptor_from_obj(inst, "target", obj))
+                try:
+                    descriptors.append(_descriptor_from_obj(inst, "target", obj))
+                except Exception as e:
+                    print(f"[MVP] WARNING: descriptor_skip target {inst}: {e}")
             for inst in obj_sets["fragile_ids"]:
                 obj = _get_scope_obj(env, inst)
                 if obj is None:
                     continue
-                descriptors.append(_descriptor_from_obj(inst, "fragile", obj))
+                try:
+                    descriptors.append(_descriptor_from_obj(inst, "fragile", obj))
+                except Exception as e:
+                    print(f"[MVP] WARNING: descriptor_skip fragile {inst}: {e}")
             for inst in obj_sets["clutter_ids"]:
                 obj = _get_scope_obj(env, inst)
                 if obj is None:
                     continue
-                descriptors.append(_descriptor_from_obj(inst, "clutter", obj))
+                try:
+                    descriptors.append(_descriptor_from_obj(inst, "clutter", obj))
+                except Exception as e:
+                    print(f"[MVP] WARNING: descriptor_skip clutter {inst}: {e}")
 
             if len(descriptors) == 0:
                 raise RuntimeError("No clutter-pack descriptors were created.")
-
-            descriptor_by_inst = {d.instance_id: d for d in descriptors}
-            zone_capacity: ZoneCapacityStats = compute_zone_capacity(
-                red_zone_bounds=zone.red_zone_bounds,
-                half_extents_xy=[d.half_extent_xy for d in descriptors],
-                per_object_padding=0.02,
-            )
-            print(
-                "[MVP] zone_capacity: "
-                f"required={zone_capacity.required_area:.4f}, "
-                f"available={zone_capacity.available_area:.4f}, "
-                f"utilization={zone_capacity.utilization:.3f}"
-            )
-
-            if zone_capacity.utilization > 0.85:
-                raise RuntimeError(
-                    "zone_capacity_exceeded: object footprint too dense for fixed red zone "
-                    f"(utilization={zone_capacity.utilization:.3f})"
-                )
-
-            pack_spec = build_clutter_pack(
-                table_obj_name=getattr(support, "name", HARDCODE_SUPPORT_NAME),
-                descriptors=descriptors,
-                seed=args.seed + ep,
-            )
-            pack_spec, rel_bounds, origin_xy, compact_scale = _fit_pack_to_zone(
-                pack_spec=pack_spec,
-                descriptor_by_inst=descriptor_by_inst,
-                red_zone_bounds=zone.red_zone_bounds,
-                min_scale=0.40,
-            )
-            pack_origin = (origin_xy[0], origin_xy[1], table_top_z)
-            print(f"[MVP] pack_origin={pack_origin}, compact_scale={compact_scale:.3f}")
 
             objects_by_inst = {}
             for d in descriptors:
@@ -820,15 +1227,224 @@ def main():
                 if obj is not None:
                     objects_by_inst[d.instance_id] = obj
 
-            world_positions = apply_pack_transform(
-                pack_spec=pack_spec,
-                objects_by_inst=objects_by_inst,
-                pack_origin_world=pack_origin,
-                pack_yaw=0.0,
-                table_top_z=table_top_z,
+            clearance_schedule = _build_min_clearance_schedule(
+                start_clearance=clutter_controls["pack_min_clearance"],
+                floor_clearance=clutter_controls["pack_clearance_floor_m"],
+                step=clutter_controls["pack_clearance_step_m"],
             )
-            for _ in range(3):
+            print(
+                f"[MVP] clearance_schedule={list(clearance_schedule)} "
+                f"(step={clutter_controls['pack_clearance_step_m']:.3f}, "
+                f"floor={clutter_controls['pack_clearance_floor_m']:.3f})"
+            )
+
+            world_positions = None
+            pack_spec = None
+            pack_origin = None
+            pack_attempt_used = None
+            chosen_min_clearance = None
+            last_pack_error = None
+            zone_capacity = None
+            active_descriptors = list(descriptors)
+            active_objects_by_inst = None
+            cull_history = []
+            last_pack_for_cull = None
+            placement_bounds_local = _local_bounds_from_zone(zone.red_zone_bounds)
+
+            attempt_idx = 0
+            solved = False
+            while not solved:
+                descriptor_by_inst = {d.instance_id: d for d in active_descriptors}
+                active_objects = {
+                    d.instance_id: objects_by_inst[d.instance_id]
+                    for d in active_descriptors
+                    if d.instance_id in objects_by_inst
+                }
+                if len(active_objects) != len(active_descriptors):
+                    missing = sorted(set(descriptor_by_inst.keys()) - set(active_objects.keys()))
+                    raise RuntimeError(f"missing_scope_objects_for_active_set: {missing}")
+                passive_objects = {inst: obj for inst, obj in objects_by_inst.items() if inst not in active_objects}
+                _park_inactive_objects(passive_objects=passive_objects, floor_z=floor_z, bar_bounds=zone.bar_bounds)
                 og.sim.step()
+                _freeze_objects(active_objects)
+
+                zone_capacity_subset: ZoneCapacityStats = compute_zone_capacity(
+                    red_zone_bounds=zone.red_zone_bounds,
+                    half_extents_xy=[d.half_extent_xy for d in active_descriptors],
+                    per_object_padding=clutter_controls["zone_padding"],
+                )
+                zone_capacity = zone_capacity_subset
+                print(
+                    "[MVP] zone_capacity: "
+                    f"active_count={len(active_descriptors)}, "
+                    f"required={zone_capacity_subset.required_area:.4f}, "
+                    f"available={zone_capacity_subset.available_area:.4f}, "
+                    f"utilization={zone_capacity_subset.utilization:.3f}"
+                )
+                if zone_capacity_subset.utilization > clutter_controls["zone_util_cap"]:
+                    print(
+                        "[MVP] WARNING: red-zone utilization exceeds threshold; "
+                        f"utilization={zone_capacity_subset.utilization:.3f}, "
+                        f"cap={clutter_controls['zone_util_cap']:.3f}"
+                    )
+
+                solved_this_round = False
+                for level_idx, min_clearance in enumerate(clearance_schedule, start=1):
+                    attempt_idx += 1
+                    jitter_xy = max(0.002, float(clutter_controls["pack_jitter_xy"]))
+                    try:
+                        print(
+                            "[MVP] pack_attempt: "
+                            f"id={attempt_idx}, active_count={len(active_descriptors)}, "
+                            f"level={level_idx}/{len(clearance_schedule)}, "
+                            f"jitter_xy={jitter_xy:.3f}, min_clearance={min_clearance:.3f}"
+                        )
+                        pack_spec_candidate = build_clutter_pack(
+                            table_obj_name=getattr(support, "name", HARDCODE_SUPPORT_NAME),
+                            descriptors=active_descriptors,
+                            seed=args.seed + ep + attempt_idx * 101,
+                            jitter_xy=jitter_xy,
+                            min_clearance=min_clearance,
+                            placement_bounds_local=placement_bounds_local,
+                            grid_step_m=clutter_controls["grid_step_m"],
+                            frontier_noise_margin_m=clutter_controls["frontier_noise_margin_m"],
+                            shuffle_non_target=True,
+                        )
+                        last_pack_for_cull = pack_spec_candidate
+                        pack_spec_candidate, _, origin_xy = _fit_pack_to_zone(
+                            pack_spec=pack_spec_candidate,
+                            descriptor_by_inst=descriptor_by_inst,
+                            red_zone_bounds=zone.red_zone_bounds,
+                        )
+                        pack_origin_candidate = (origin_xy[0], origin_xy[1], table_top_z)
+                        world_positions_candidate = apply_pack_transform(
+                            pack_spec=pack_spec_candidate,
+                            objects_by_inst=active_objects,
+                            pack_origin_world=pack_origin_candidate,
+                            pack_yaw=0.0,
+                            table_top_z=table_top_z,
+                        )
+                        _freeze_objects(active_objects)
+                        for _ in range(3):
+                            og.sim.step()
+                            _freeze_objects(active_objects)
+
+                        invalid_after_settle = _detect_invalid_object_poses(active_objects)
+                        if invalid_after_settle:
+                            recovered = _recover_invalid_objects(
+                                invalid_instances=invalid_after_settle,
+                                active_objects=active_objects,
+                                pack_spec=pack_spec_candidate,
+                                pack_origin_world=pack_origin_candidate,
+                                table_top_z=table_top_z,
+                                pack_yaw=0.0,
+                            )
+                            if recovered:
+                                print(
+                                    "[MVP] WARNING: recovered invalid objects after settle "
+                                    f"attempt={attempt_idx}, recovered={recovered}"
+                                )
+                                for _ in range(2):
+                                    og.sim.step()
+                                    _freeze_objects(active_objects)
+                                invalid_after_settle = _detect_invalid_object_poses(active_objects)
+                            if invalid_after_settle:
+                                last_pack_error = (
+                                    "invalid_object_pose_after_settle:"
+                                    f"attempt={attempt_idx}, objects={invalid_after_settle}"
+                                )
+                                print(f"[MVP] WARNING: {last_pack_error}")
+                                continue
+
+                        penetration_pairs = _count_object_interpenetrations(active_objects, tol=0.001)
+                        if penetration_pairs:
+                            preview = penetration_pairs[:8]
+                            last_pack_error = (
+                                "object_interpenetration_after_settle:"
+                                f"attempt={attempt_idx}, count={len(penetration_pairs)}, preview={preview}"
+                            )
+                            print(f"[MVP] WARNING: {last_pack_error}")
+                            continue
+
+                        cross_penetration_pairs = _count_cross_interpenetrations(active_objects, passive_objects, tol=0.001)
+                        if cross_penetration_pairs:
+                            preview = cross_penetration_pairs[:8]
+                            last_pack_error = (
+                                "active_passive_interpenetration_after_settle:"
+                                f"attempt={attempt_idx}, count={len(cross_penetration_pairs)}, preview={preview}"
+                            )
+                            print(f"[MVP] WARNING: {last_pack_error}")
+                            continue
+
+                        zone_report_candidate = _evaluate_object_zone_constraints(
+                            objects_by_inst=active_objects,
+                            red_zone_bounds=zone.red_zone_bounds,
+                            sink_keepout_bounds=zone.sink_keepout_bounds,
+                        )
+                        if not (
+                            zone_report_candidate.all_in_red_zone and zone_report_candidate.all_outside_sink_keepout
+                        ):
+                            last_pack_error = (
+                                "zone_constraint_violation_after_pack:"
+                                f"attempt={attempt_idx}, out_of_zone={list(zone_report_candidate.out_of_zone_instances)}, "
+                                f"in_keepout={list(zone_report_candidate.in_keepout_instances)}"
+                            )
+                            print(f"[MVP] WARNING: {last_pack_error}")
+                            continue
+
+                        pack_spec = pack_spec_candidate
+                        world_positions = world_positions_candidate
+                        pack_origin = pack_origin_candidate
+                        pack_attempt_used = attempt_idx
+                        chosen_min_clearance = min_clearance
+                        active_objects_by_inst = active_objects
+                        solved = True
+                        solved_this_round = True
+                        break
+                    except Exception as e:
+                        last_pack_error = str(e)
+                        print(f"[MVP] WARNING: pack_attempt_failed id={attempt_idx}: {e}")
+
+                if solved_this_round:
+                    break
+
+                cull = _select_cull_candidate(active_descriptors, last_pack_for_cull)
+                if cull is None:
+                    break
+                cull_inst, cull_role, cull_radius = cull
+                kept = [d for d in active_descriptors if d.instance_id != cull_inst]
+                if len(kept) == len(active_descriptors):
+                    break
+                active_descriptors = kept
+                cull_history.append(
+                    {
+                        "attempt": attempt_idx,
+                        "inst_id": cull_inst,
+                        "role": cull_role,
+                        "radius": float(cull_radius),
+                        "remaining": len(active_descriptors),
+                    }
+                )
+                print(
+                    "[MVP] cull_step: "
+                    f"removed={cull_inst} role={cull_role} radius={cull_radius:.3f}, "
+                    f"remaining={len(active_descriptors)}"
+                )
+
+            if world_positions is None or pack_spec is None or active_objects_by_inst is None:
+                raise RuntimeError(f"pack_generation_failed_after_retries: {last_pack_error}")
+
+            # Keep non-active objects away from workspace so they do not leak into gate / mount checks.
+            passive_after_solve = {inst: obj for inst, obj in objects_by_inst.items() if inst not in active_objects_by_inst}
+            _park_inactive_objects(passive_objects=passive_after_solve, floor_z=floor_z, bar_bounds=zone.bar_bounds)
+            og.sim.step()
+            _freeze_objects(active_objects_by_inst)
+
+            print(
+                f"[MVP] pack_origin={pack_origin}, "
+                f"pack_attempt_used={pack_attempt_used}, selected_min_clearance={chosen_min_clearance:.3f}, "
+                f"active_descriptor_count={len(active_descriptors)}, cull_steps={len(cull_history)}"
+            )
 
             integrity = validate_pack_integrity(
                 pack_spec=pack_spec,
@@ -839,13 +1455,12 @@ def main():
             )
 
             zone_report = _evaluate_object_zone_constraints(
-                objects_by_inst=objects_by_inst,
+                objects_by_inst=active_objects_by_inst,
                 red_zone_bounds=zone.red_zone_bounds,
                 sink_keepout_bounds=zone.sink_keepout_bounds,
             )
 
             robot = env.robots[0]
-            floor_z = _compute_floor_z(env)
             half_extent_xy = _robot_half_extent_xy(robot)
             pack_objects_world = []
             for entry in pack_spec.object_entries:
@@ -892,8 +1507,26 @@ def main():
             og.sim.step()
 
             penetration_hits = _collect_robot_penetration_hits(env)
-            target_pos = _to_float3(target_obj.get_position_orientation()[0])
-            robot_pos = _to_float3(robot.get_position_orientation()[0])
+            target_pose = _try_get_obj_pose(target_obj)
+            if target_pose is None:
+                if target_inst in world_positions:
+                    target_pos = list(world_positions[target_inst])
+                    print(
+                        "[MVP] WARNING: target pose invalid after physics step; "
+                        f"falling back to planned pose for {target_inst}: {target_pos}"
+                    )
+                else:
+                    raise RuntimeError(
+                        f"target_pose_invalid_and_missing_fallback: {target_inst}. "
+                        "Try lower clutter density or increase --pack-min-clearance."
+                    )
+            else:
+                target_pos, _ = target_pose
+
+            robot_pose = _try_get_obj_pose(robot)
+            if robot_pose is None:
+                raise RuntimeError("robot_pose_invalid_after_mount")
+            robot_pos, _ = robot_pose
             gate = _evaluate_gate(
                 robot_pos=robot_pos,
                 target_pos=target_pos,
@@ -924,18 +1557,26 @@ def main():
                 {
                     "episode": ep + 1,
                     "workspace_preset": WORKSPACE_PRESET,
+                    "clutter_controls": clutter_controls,
                     "support_name": HARDCODE_SUPPORT_NAME,
                     "sink_name": HARDCODE_SINK_NAME,
                     "bar_bounds": zone.bar_bounds,
                     "red_zone_bounds": zone.red_zone_bounds,
                     "sink_keepout_bounds": zone.sink_keepout_bounds,
                     "zone_capacity_stats": asdict(zone_capacity),
+                    "clearance_schedule": list(clearance_schedule),
+                    "clearance_floor_m": clutter_controls["pack_clearance_floor_m"],
+                    "clearance_step_m": clutter_controls["pack_clearance_step_m"],
+                    "cull_history": cull_history,
+                    "final_active_set": [d.instance_id for d in active_descriptors],
+                    "active_descriptor_count": len(active_descriptors),
                     "fixed_edge_mount": {
                         "edge_label": FIXED_EDGE_LABEL,
                         "scan_offsets": list(FIXED_EDGE_SCAN_OFFSETS),
                     },
                     "pack_origin_world": list(pack_origin),
-                    "pack_compact_scale": compact_scale,
+                    "pack_attempt_used": pack_attempt_used,
+                    "selected_min_clearance": chosen_min_clearance,
                     "edge_result": asdict(edge_result),
                     "integrity": asdict(integrity),
                     "zone_report": asdict(zone_report),
@@ -956,10 +1597,23 @@ def main():
             terminated = False
             truncated = False
             for _ in range(args.steps):
-                print(f"[MVP] Step {executed + 1}/{args.steps}")
                 action = _make_zero_jitter_action(robot, rng, args.jitter_scale)
-                _, _, terminated, truncated, _ = env.step(action)
+                _sim_step_with_action_only(env, action)
                 executed += 1
+                if executed % 50 == 0:
+                    print(f"[MVP] Step {executed}/{args.steps}")
+                if executed % 10 == 0:
+                    invalid_step = _detect_invalid_object_poses(active_objects_by_inst)
+                    if invalid_step:
+                        raise RuntimeError(
+                            "invalid_object_pose_during_rollout: "
+                            f"step={executed}, objects={invalid_step}. "
+                            "Try lower clutter density or increase --pack-min-clearance."
+                        )
+                if executed % 25 == 0:
+                    robot_hits = _collect_robot_penetration_hits(env)
+                    if robot_hits:
+                        print(f"[MVP] WARNING: runtime robot penetration objects={robot_hits}")
                 if terminated or truncated:
                     break
             print(f"[MVP] Episode done: steps={executed}, terminated={terminated}, truncated={truncated}")

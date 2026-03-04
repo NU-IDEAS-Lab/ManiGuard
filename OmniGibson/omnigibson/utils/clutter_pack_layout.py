@@ -44,31 +44,65 @@ def build_clutter_pack(
     template_id: str = "cup_first_v1",
     jitter_xy: float = 0.015,
     min_clearance: float = 0.025,
+    placement_bounds_local: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None,
+    grid_step_m: float = 0.005,
+    frontier_noise_margin_m: float = 0.02,
+    shuffle_non_target: bool = True,
 ) -> ClutterPackSpec:
     if not descriptors:
         raise ValueError("descriptors must be non-empty")
+    if grid_step_m <= 0.0:
+        raise ValueError("grid_step_m must be > 0")
+    if frontier_noise_margin_m < 0.0:
+        raise ValueError("frontier_noise_margin_m must be >= 0")
+    if min_clearance < 0.0:
+        raise ValueError("min_clearance must be >= 0")
 
     rng = random.Random(seed)
+    if placement_bounds_local is None:
+        placement_bounds_local = ((-0.45, -0.45), (0.45, 0.45))
+    sorted_points = _generate_sorted_grid_points(
+        bounds=placement_bounds_local,
+        step=grid_step_m,
+    )
+    if len(sorted_points) == 0:
+        raise RuntimeError("No candidate points generated for clutter packing.")
+
     placed: List[Tuple[ClutterObjectDescriptor, float, float]] = []
     entries: List[ClutterPackEntry] = []
 
-    for descriptor in _ordered_descriptors(descriptors):
-        slots = _template_slots(descriptor.role)
+    ordered = _ordered_descriptors(descriptors)
+    target_descriptors = [d for d in ordered if d.role == "target"]
+    non_target_descriptors = [d for d in ordered if d.role != "target"]
+    if shuffle_non_target:
+        rng.shuffle(non_target_descriptors)
+    placement_order = target_descriptors + non_target_descriptors
+
+    for idx, descriptor in enumerate(placement_order):
         chosen_xy = None
-        for slot_idx, (sx, sy) in enumerate(slots):
-            dx = rng.uniform(-jitter_xy, jitter_xy) if slot_idx < 2 else rng.uniform(-0.5 * jitter_xy, 0.5 * jitter_xy)
-            dy = rng.uniform(-jitter_xy, jitter_xy) if slot_idx < 2 else rng.uniform(-0.5 * jitter_xy, 0.5 * jitter_xy)
-            candidate = (sx + dx, sy + dy)
-            if _collides_with_placed(candidate, descriptor, placed, min_clearance=min_clearance):
-                continue
-            chosen_xy = candidate
-            break
+        if idx == 0 and descriptor.role == "target":
+            # Force target near center so surrounding clutter naturally forms a safety-critical neighborhood.
+            cx = rng.uniform(-min(jitter_xy, 0.02), min(jitter_xy, 0.02))
+            cy = rng.uniform(-min(jitter_xy, 0.02), min(jitter_xy, 0.02))
+            candidate = (cx, cy)
+            if not _collides_with_placed(candidate, descriptor, placed, min_clearance=min_clearance):
+                chosen_xy = candidate
 
         if chosen_xy is None:
-            # Last-resort expansion keeps the pack valid even for many objects.
-            ring_radius = 0.28 + 0.05 * len(placed)
-            theta = rng.uniform(-math.pi, math.pi)
-            chosen_xy = (ring_radius * math.cos(theta), ring_radius * math.sin(theta))
+            pool = _frontier_candidate_pool(
+                descriptor=descriptor,
+                placed=placed,
+                sorted_points=sorted_points,
+                min_clearance=min_clearance,
+                noise_margin=frontier_noise_margin_m,
+            )
+            if len(pool) == 0:
+                raise RuntimeError(
+                    "pack_no_feasible_point:"
+                    f"inst={descriptor.instance_id}, role={descriptor.role}, "
+                    f"min_clearance={min_clearance:.4f}"
+                )
+            chosen_xy = rng.choice(pool)
 
         x, y = chosen_xy
         z = max(0.008, 0.5 * max(descriptor.height, 0.01) + 0.004)
@@ -202,28 +236,54 @@ def _collides_with_placed(
     return False
 
 
-def _template_slots(role: str) -> Tuple[Tuple[float, float], ...]:
-    if role == "target":
-        return ((0.0, 0.0), (-0.03, 0.02), (0.03, -0.02))
-    if role == "fragile":
-        return (
-            (-0.14, 0.11),
-            (0.15, 0.10),
-            (-0.13, -0.13),
-            (0.14, -0.12),
-            (0.0, 0.19),
-            (0.0, -0.19),
-        )
-    return (
-        (-0.22, 0.00),
-        (0.22, 0.00),
-        (0.00, 0.22),
-        (0.00, -0.22),
-        (-0.18, -0.18),
-        (0.18, 0.18),
-        (-0.25, 0.14),
-        (0.25, -0.14),
-    )
+def _generate_sorted_grid_points(
+    bounds: Tuple[Tuple[float, float], Tuple[float, float]],
+    step: float,
+) -> Tuple[Tuple[float, float], ...]:
+    (x0, y0), (x1, y1) = bounds
+    x_lo, x_hi = min(x0, x1), max(x0, x1)
+    y_lo, y_hi = min(y0, y1), max(y0, y1)
+    if x_hi - x_lo <= 0.0 or y_hi - y_lo <= 0.0:
+        return tuple()
+
+    points: List[Tuple[float, float]] = []
+    x = x_lo
+    while x <= x_hi + 1e-9:
+        y = y_lo
+        while y <= y_hi + 1e-9:
+            points.append((round(float(x), 6), round(float(y), 6)))
+            y += step
+        x += step
+
+    points.sort(key=lambda p: (math.hypot(p[0], p[1]), abs(p[0]) + abs(p[1]), p[0], p[1]))
+    return tuple(points)
+
+
+def _frontier_candidate_pool(
+    descriptor: ClutterObjectDescriptor,
+    placed: Iterable[Tuple[ClutterObjectDescriptor, float, float]],
+    sorted_points: Sequence[Tuple[float, float]],
+    min_clearance: float,
+    noise_margin: float,
+) -> List[Tuple[float, float]]:
+    best_dist = None
+    pool: List[Tuple[float, float]] = []
+    threshold = None
+    for px, py in sorted_points:
+        candidate = (px, py)
+        if _collides_with_placed(candidate, descriptor, placed, min_clearance=min_clearance):
+            continue
+        dist = math.hypot(px, py)
+        if best_dist is None:
+            best_dist = dist
+            threshold = dist + noise_margin + 1e-12
+            pool.append(candidate)
+            continue
+        if dist <= threshold:
+            pool.append(candidate)
+            continue
+        break
+    return pool
 
 
 def _quat_from_yaw(yaw: float) -> Tuple[float, float, float, float]:
