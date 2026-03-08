@@ -12,8 +12,10 @@ from bddl.activity import Conditions
 from bddl.object_taxonomy import ObjectTaxonomy
 
 import omnigibson as og
+import omnigibson.lazy as lazy
 from omnigibson.macros import gm
-from omnigibson.utils.asset_utils import get_scene_path
+from omnigibson.prims.material_prim import MaterialPrim, OmniPBRMaterialPrim
+from omnigibson.utils.asset_utils import get_dataset_path, get_scene_path
 from omnigibson.utils.clutter_pack_layout import (
     ClutterObjectDescriptor,
     ClutterPackEntry,
@@ -881,6 +883,81 @@ def _resolve_support_and_sink(env):
     return support, sink
 
 
+def _apply_matte_support_material(support):
+    if support is None or getattr(support, "name", None) != HARDCODE_SUPPORT_NAME:
+        return
+
+    model = getattr(support, "model", None)
+    category = getattr(support, "category", None)
+    if not model or not category:
+        raise RuntimeError(f"Support '{HARDCODE_SUPPORT_NAME}' is missing category/model metadata for matte override.")
+
+    material_dir = os.path.join(get_dataset_path("behavior-1k-assets"), "objects", category, model, "material")
+    stage = lazy.isaacsim.core.utils.stage.get_current_stage()
+    looks_path = f"{support.prim_path}/Looks"
+    if not lazy.isaacsim.core.utils.prims.is_prim_path_valid(looks_path):
+        stage.DefinePrim(looks_path, "Scope")
+
+    matte_materials = set()
+    for link_name, link in support.links.items():
+        textures = {}
+        texture_prefix = f"{model}__{link_name}__"
+        if os.path.isdir(material_dir):
+            for fname in os.listdir(material_dir):
+                if not fname.startswith(texture_prefix):
+                    continue
+                texture_key, ext = os.path.splitext(fname[len(texture_prefix) :])
+                if ext.lower() != ".png":
+                    continue
+                textures[texture_key] = os.path.join(material_dir, fname)
+
+        safe_link_name = link_name if link_name and link_name[0].isalpha() else f"link_{link_name}"
+        matte_material_path = f"{looks_path}/matte_{safe_link_name}_pbr"
+        if matte_material_path in MaterialPrim.MATERIALS and not lazy.isaacsim.core.utils.prims.is_prim_path_valid(
+            matte_material_path
+        ):
+            MaterialPrim.MATERIALS.pop(matte_material_path, None)
+
+        matte_material = OmniPBRMaterialPrim.get_material(
+            scene=support.scene,
+            prim_path=matte_material_path,
+            name=f"{support.name}:{link_name}:matte_material",
+        )
+        matte_material.set_input(inp="reflection_roughness_texture_influence", val=0.0)
+        matte_material.set_input(inp="reflection_roughness_constant", val=1.0)
+        matte_material.set_input(inp="metallic_texture_influence", val=0.0)
+        if "metallic_constant" in matte_material.shader_input_names or "metallic_constant" in matte_material.shader_default_input_names:
+            matte_material.set_input(inp="metallic_constant", val=0.0)
+
+        diffuse_path = textures.get("diffuse")
+        if diffuse_path:
+            matte_material.diffuse_texture = diffuse_path
+        else:
+            matte_material.diffuse_color_constant = th.tensor((0.7, 0.7, 0.7), dtype=th.float32)
+
+        normal_path = textures.get("normal")
+        if normal_path:
+            matte_material.set_input(inp="normalmap_texture", val=lazy.pxr.Sdf.AssetPath(normal_path))
+
+        if not link.visual_meshes:
+            matte_materials.add(matte_material)
+            continue
+
+        for visual_mesh in link.visual_meshes.values():
+            current_material = visual_mesh.material
+            if current_material is not None and current_material.prim_path != matte_material.prim_path:
+                try:
+                    current_material.remove_user(visual_mesh)
+                except Exception:
+                    pass
+            visual_mesh.material = matte_material
+            if visual_mesh not in matte_material.users:
+                matte_material.add_user(visual_mesh)
+        matte_materials.add(matte_material)
+
+    support._materials = set(matte_materials)
+
+
 def _iter_scope_objects(env):
     scope = getattr(env.task, "object_scope", {}) or {}
     for inst, ent in scope.items():
@@ -1367,6 +1444,7 @@ def main():
             og.sim.step()
 
             support, sink = _resolve_support_and_sink(env)
+            _apply_matte_support_material(support)
             support_aabb_min, support_aabb_max = support.aabb
             sink_aabb_min, sink_aabb_max = sink.aabb
             bar_bounds_xy = (
