@@ -16,6 +16,7 @@ from omnigibson.macros import gm
 from omnigibson.utils.asset_utils import get_scene_path
 from omnigibson.utils.clutter_pack_layout import (
     ClutterObjectDescriptor,
+    ClutterPackEntry,
     ClutterPackSpec,
     PackIntegrityReport,
     apply_pack_transform,
@@ -477,6 +478,68 @@ def _park_inactive_objects(passive_objects, floor_z, bar_bounds):
             continue
 
 
+def _descriptor_radius_xy(descriptor: ClutterObjectDescriptor):
+    return max(float(descriptor.half_extent_xy[0]), float(descriptor.half_extent_xy[1]))
+
+
+def _generate_sorted_grid_points_local(bounds_local, step):
+    (x0, y0), (x1, y1) = bounds_local
+    x_lo, x_hi = min(x0, x1), max(x0, x1)
+    y_lo, y_hi = min(y0, y1), max(y0, y1)
+    points = []
+    x = x_lo
+    while x <= x_hi + 1e-9:
+        y = y_lo
+        while y <= y_hi + 1e-9:
+            points.append((round(float(x), 6), round(float(y), 6)))
+            y += step
+        x += step
+    points.sort(key=lambda p: (math.hypot(p[0], p[1]), abs(p[0]) + abs(p[1]), p[0], p[1]))
+    return points
+
+
+def _candidate_collides_local(candidate_xy, descriptor, placed_local, descriptor_by_inst, min_clearance):
+    cx, cy = candidate_xy
+    radius = _descriptor_radius_xy(descriptor)
+    for inst_id, px, py in placed_local:
+        other = descriptor_by_inst[inst_id]
+        other_radius = _descriptor_radius_xy(other)
+        min_dist = radius + other_radius + min_clearance
+        if math.hypot(cx - px, cy - py) < min_dist:
+            return True
+    return False
+
+
+def _find_frontier_point_local(
+    descriptor,
+    placed_local,
+    descriptor_by_inst,
+    sorted_points_local,
+    min_clearance,
+    noise_margin,
+    rng,
+):
+    feasible = []
+    for px, py in sorted_points_local:
+        if _candidate_collides_local(
+            candidate_xy=(px, py),
+            descriptor=descriptor,
+            placed_local=placed_local,
+            descriptor_by_inst=descriptor_by_inst,
+            min_clearance=min_clearance,
+        ):
+            continue
+        d = math.hypot(px, py)
+        feasible.append((d, (px, py)))
+    if len(feasible) == 0:
+        return None
+    d_min = feasible[0][0]
+    pool = [xy for d, xy in feasible if d <= d_min + noise_margin + 1e-9]
+    if len(pool) == 0:
+        return feasible[0][1]
+    return pool[int(rng.integers(low=0, high=len(pool)))]
+
+
 def _entry_world_pose(entry, pack_origin_world, pack_yaw, table_top_z):
     ox, oy, _ = pack_origin_world
     cos_y = math.cos(pack_yaw)
@@ -618,6 +681,143 @@ def _select_cull_candidate(
 
     candidates.sort(key=_priority)
     return candidates[0]
+
+
+def _reintroduce_culled_descriptors(
+    culled_descriptors,
+    descriptor_by_inst_all,
+    objects_by_inst_all,
+    active_descriptors,
+    active_objects_by_inst,
+    pack_spec,
+    world_positions,
+    pack_origin,
+    table_top_z,
+    zone,
+    floor_z,
+    clutter_controls,
+    rng,
+):
+    if len(culled_descriptors) == 0:
+        return pack_spec, active_descriptors, active_objects_by_inst, world_positions, []
+
+    # Smaller objects first usually yields better recovery count.
+    pending = sorted(
+        [d for d in culled_descriptors if d.instance_id not in active_objects_by_inst],
+        key=lambda d: (_descriptor_radius_xy(d), d.instance_id),
+    )
+    sorted_points_local = _generate_sorted_grid_points_local(
+        bounds_local=_local_bounds_from_zone(zone.red_zone_bounds),
+        step=clutter_controls["grid_step_m"],
+    )
+    min_clearance = float(clutter_controls["pack_clearance_floor_m"])
+    noise_margin = float(clutter_controls["frontier_noise_margin_m"])
+    readd_history = []
+
+    # Local placements from current pack.
+    placed_local = [
+        (entry.inst_id, float(entry.rel_pose[0]), float(entry.rel_pose[1]))
+        for entry in pack_spec.object_entries
+        if entry.inst_id in active_objects_by_inst
+    ]
+
+    for desc in pending:
+        chosen = _find_frontier_point_local(
+            descriptor=desc,
+            placed_local=placed_local,
+            descriptor_by_inst=descriptor_by_inst_all,
+            sorted_points_local=sorted_points_local,
+            min_clearance=min_clearance,
+            noise_margin=noise_margin,
+            rng=rng,
+        )
+        if chosen is None:
+            readd_history.append(
+                {"inst_id": desc.instance_id, "accepted": False, "reason": "no_feasible_frontier_point"}
+            )
+            continue
+
+        rel_x, rel_y = float(chosen[0]), float(chosen[1])
+        rel_z = max(0.008, 0.5 * max(float(desc.height), 0.01) + 0.004)
+        yaw = 0.0 if desc.role == "target" else float(rng.uniform(-0.18, 0.18))
+        qx, qy, qz, qw = _quat_from_yaw(yaw)
+        entry = ClutterPackEntry(
+            inst_id=desc.instance_id,
+            role=desc.role,
+            rel_pose=(rel_x, rel_y, rel_z, qx, qy, qz, qw),
+        )
+        obj = active_objects_by_inst.get(desc.instance_id, None)
+        if obj is None:
+            obj = objects_by_inst_all.get(desc.instance_id, None)
+            if obj is None:
+                readd_history.append({"inst_id": desc.instance_id, "accepted": False, "reason": "missing_scope_object"})
+                continue
+
+        wx = pack_origin[0] + rel_x
+        wy = pack_origin[1] + rel_y
+        wz = table_top_z + rel_z
+        try:
+            obj.set_position_orientation(position=(wx, wy, wz), orientation=(qx, qy, qz, qw))
+            _freeze_object_motion(obj)
+            for _ in range(2):
+                og.sim.step()
+                _freeze_object_motion(obj)
+        except Exception as e:
+            readd_history.append({"inst_id": desc.instance_id, "accepted": False, "reason": f"set_pose_failed:{e}"})
+            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
+            continue
+
+        invalid = _detect_invalid_object_poses({desc.instance_id: obj})
+        if invalid:
+            readd_history.append({"inst_id": desc.instance_id, "accepted": False, "reason": "invalid_pose"})
+            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
+            continue
+
+        cross = _count_cross_interpenetrations(
+            {desc.instance_id: obj},
+            {k: v for k, v in active_objects_by_inst.items() if k != desc.instance_id},
+            tol=0.001,
+        )
+        if cross:
+            readd_history.append(
+                {
+                    "inst_id": desc.instance_id,
+                    "accepted": False,
+                    "reason": f"cross_interpenetration:{cross[:4]}",
+                }
+            )
+            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
+            continue
+
+        zone_report = _evaluate_object_zone_constraints(
+            objects_by_inst={desc.instance_id: obj},
+            red_zone_bounds=zone.red_zone_bounds,
+            sink_keepout_bounds=zone.sink_keepout_bounds,
+        )
+        if not (zone_report.all_in_red_zone and zone_report.all_outside_sink_keepout):
+            readd_history.append(
+                {"inst_id": desc.instance_id, "accepted": False, "reason": "zone_or_keepout_violation"}
+            )
+            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
+            continue
+
+        # Accept re-add.
+        active_descriptors.append(desc)
+        active_objects_by_inst[desc.instance_id] = obj
+        world_positions[desc.instance_id] = (wx, wy, wz)
+        placed_local.append((desc.instance_id, rel_x, rel_y))
+        pack_spec = ClutterPackSpec(
+            table_obj_name=pack_spec.table_obj_name,
+            pack_origin_world=pack_spec.pack_origin_world,
+            object_entries=tuple(list(pack_spec.object_entries) + [entry]),
+            seed=pack_spec.seed,
+            template_id=pack_spec.template_id,
+        )
+        readd_history.append(
+            {"inst_id": desc.instance_id, "accepted": True, "reason": "ok", "rel_xy": [rel_x, rel_y]}
+        )
+
+    return pack_spec, active_descriptors, active_objects_by_inst, world_positions, readd_history
 
 
 def _quat_from_yaw(yaw):
@@ -1448,6 +1648,31 @@ def main():
             if world_positions is None or pack_spec is None or active_objects_by_inst is None:
                 raise RuntimeError(f"pack_generation_failed_after_retries: {last_pack_error}")
 
+            descriptor_by_inst_all = {d.instance_id: d for d in descriptors}
+            culled_ids = [item["inst_id"] for item in cull_history]
+            culled_descriptors = [descriptor_by_inst_all[i] for i in culled_ids if i in descriptor_by_inst_all]
+            (
+                pack_spec,
+                active_descriptors,
+                active_objects_by_inst,
+                world_positions,
+                readd_history,
+            ) = _reintroduce_culled_descriptors(
+                culled_descriptors=culled_descriptors,
+                descriptor_by_inst_all=descriptor_by_inst_all,
+                objects_by_inst_all=objects_by_inst,
+                active_descriptors=active_descriptors,
+                active_objects_by_inst=active_objects_by_inst,
+                pack_spec=pack_spec,
+                world_positions=world_positions,
+                pack_origin=pack_origin,
+                table_top_z=table_top_z,
+                zone=zone,
+                floor_z=floor_z,
+                clutter_controls=clutter_controls,
+                rng=rng,
+            )
+
             # Keep non-active objects away from workspace so they do not leak into gate / mount checks.
             passive_after_solve = {inst: obj for inst, obj in objects_by_inst.items() if inst not in active_objects_by_inst}
             _park_inactive_objects(passive_objects=passive_after_solve, floor_z=floor_z, bar_bounds=zone.bar_bounds)
@@ -1457,7 +1682,8 @@ def main():
             print(
                 f"[MVP] pack_origin={pack_origin}, "
                 f"pack_attempt_used={pack_attempt_used}, selected_min_clearance={chosen_min_clearance:.3f}, "
-                f"active_descriptor_count={len(active_descriptors)}, cull_steps={len(cull_history)}"
+                f"active_descriptor_count={len(active_descriptors)}, cull_steps={len(cull_history)}, "
+                f"readd_success={sum(1 for r in readd_history if r.get('accepted'))}"
             )
 
             integrity = validate_pack_integrity(
@@ -1583,6 +1809,7 @@ def main():
                     "clearance_step_m": clutter_controls["pack_clearance_step_m"],
                     "tries_per_clearance": clutter_controls["pack_tries_per_clearance"],
                     "cull_history": cull_history,
+                    "readd_history": readd_history,
                     "final_active_set": [d.instance_id for d in active_descriptors],
                     "active_descriptor_count": len(active_descriptors),
                     "fixed_edge_mount": {

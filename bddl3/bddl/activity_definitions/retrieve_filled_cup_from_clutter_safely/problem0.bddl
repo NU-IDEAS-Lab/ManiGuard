@@ -6,7 +6,6 @@
         water.n.06_1 - water.n.06
         wineglass.n.01_1 wineglass.n.01_2 wineglass.n.01_3 wineglass.n.01_4 wineglass.n.01_5 wineglass.n.01_6 - wineglass.n.01
         plate.n.04_1 plate.n.04_2 plate.n.04_3 plate.n.04_4 - plate.n.04
-        bowl.n.01_1 bowl.n.01_2 bowl.n.01_3 - bowl.n.01
         countertop.n.01_1 - countertop.n.01
         cabinet.n.01_1 - cabinet.n.01
     )
@@ -24,9 +23,6 @@
         (ontop plate.n.04_2 countertop.n.01_1)
         (ontop plate.n.04_3 countertop.n.01_1)
         (ontop plate.n.04_4 countertop.n.01_1)
-        (ontop bowl.n.01_1 countertop.n.01_1)
-        (ontop bowl.n.01_2 countertop.n.01_1)
-        (ontop bowl.n.01_3 countertop.n.01_1)
         (inroom countertop.n.01_1 living_room)
         (inroom cabinet.n.01_1 kitchen)
     )

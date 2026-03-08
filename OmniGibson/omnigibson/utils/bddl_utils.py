@@ -733,10 +733,16 @@ class BDDLSampler:
             for obj_cat in self._activity_conditions.parsed_objects
             for obj_inst in self._activity_conditions.parsed_objects[obj_cat]
         }
+        # BehaviorTask always keeps an agent entity in object scope, but custom BDDL tasks may omit explicit
+        # "agent.n.01_1" in :objects. Add a compatibility mapping so downstream sampler logic remains stable.
+        if "agent.n.01_1" in self._object_scope and "agent.n.01_1" not in self._object_instance_to_synset:
+            self._object_instance_to_synset["agent.n.01_1"] = "agent.n.01"
+
         self._substance_instances = {
             obj_inst
             for obj_inst in self._object_scope.keys()
-            if is_substance_synset(self._object_instance_to_synset[obj_inst])
+            if obj_inst in self._object_instance_to_synset
+            and is_substance_synset(self._object_instance_to_synset[obj_inst])
         }
 
         # Initialize other variables that will be filled in later
@@ -750,6 +756,37 @@ class BDDLSampler:
         self._inroom_object_conditions = None  # list of (condition, positive) tuple
         self._inroom_object_scope_filtered_initial = None  # dict mapping str to BDDLEntity
         self._attached_objects = defaultdict(set)  # dict mapping str to set of str
+        self._agent_pre_sampling_pose = None  # tuple(th.Tensor, th.Tensor) or None
+        self._agent_stash_position = th.tensor([300.0, 300.0, 300.0], dtype=th.float32)
+        self._agent_stash_orientation = th.tensor([0.0, 0.0, 0.0, 1.0], dtype=th.float32)
+
+    def _restore_agent_pose_if_needed(self, force=False):
+        """
+        Restore agent pose if it is still left at the temporary off-scene stash location.
+        This can happen for custom tasks that do not include explicit agent placement constraints.
+        """
+        if self._agent_pre_sampling_pose is None:
+            return
+
+        agent_pos, _ = self._agent.get_position_orientation()
+        agent_pos_t = th.as_tensor(agent_pos, dtype=th.float32)
+        stash_pos = self._agent_stash_position.to(agent_pos_t.device)
+        dist_to_stash = th.norm(agent_pos_t - stash_pos).item()
+        should_restore = force or (dist_to_stash < 5.0)
+
+        if should_restore:
+            restore_pos, restore_orn = self._agent_pre_sampling_pose
+            self._agent.set_position_orientation(
+                position=restore_pos.to(agent_pos_t.device),
+                orientation=restore_orn.to(agent_pos_t.device),
+            )
+            if not force:
+                log.warning(
+                    "Agent remained at temporary sampling stash pose; restoring pre-sampling robot pose. "
+                    "Consider adding explicit mount / agent-placement constraints for deterministic starts."
+                )
+
+        self._agent_pre_sampling_pose = None
 
     def sample(self, validate_goal=False, sampling_whitelist=None, sampling_blacklist=None):
         """
@@ -780,10 +817,12 @@ class BDDLSampler:
         # Populate object_scope with sampleable objects and the robot
         accept_scene, feedback = self._prepare_scene_for_sampling()
         if not accept_scene:
+            self._restore_agent_pose_if_needed(force=True)
             return accept_scene, feedback
         # Sample objects to satisfy initial conditions
         accept_scene, feedback = self._sample_all_conditions(validate_goal=validate_goal)
         if not accept_scene:
+            self._restore_agent_pose_if_needed(force=True)
             return accept_scene, feedback
 
         log.info("Sampling succeeded!")
@@ -810,20 +849,24 @@ class BDDLSampler:
 
             error_msg = self._sample_initial_conditions()
             if error_msg:
+                self._restore_agent_pose_if_needed()
                 log.error(error_msg)
                 return False, error_msg
 
             if validate_goal:
                 error_msg = self._sample_goal_conditions()
                 if error_msg:
+                    self._restore_agent_pose_if_needed()
                     log.error(error_msg)
                     return False, error_msg
 
             error_msg = self._sample_initial_conditions_final()
             if error_msg:
+                self._restore_agent_pose_if_needed()
                 log.error(error_msg)
                 return False, error_msg
 
+            self._restore_agent_pose_if_needed()
             self._env.scene.update_initial_file()
 
         return True, None
@@ -1037,10 +1080,8 @@ class BDDLSampler:
             - set.union(*(self._object_sampling_orders["kinematic"] + [set()]))
         )
 
-        # Possibly remove the agent entity if we're in an empty scene -- i.e.: no kinematic sampling needed for the
-        # agent
-        if self._scene_model is None:
-            remaining_kinematic_entities -= {"agent.n.01_1"}
+        # Agent should not be sampled as a regular kinematic object in any scene mode.
+        remaining_kinematic_entities -= {"agent.n.01_1"}
 
         if len(remaining_kinematic_entities) != 0:
             return (
@@ -1378,9 +1419,16 @@ class BDDLSampler:
         """
         assert og.sim.is_stopped(), "Simulator should be stopped when importing sampleable objects"
 
-        # Move the robot object frame to a far away location, similar to other newly imported objects below
+        # Move the robot object frame to a far away location, similar to other newly imported objects below.
+        # Keep pre-sampling pose so we can restore it for tasks with no explicit agent placement constraints.
+        agent_pos, agent_orn = self._agent.get_position_orientation()
+        self._agent_pre_sampling_pose = (
+            th.as_tensor(agent_pos, dtype=th.float32).clone(),
+            th.as_tensor(agent_orn, dtype=th.float32).clone(),
+        )
         self._agent.set_position_orientation(
-            position=th.tensor([300, 300, 300], dtype=th.float32), orientation=th.tensor([0, 0, 0, 1], dtype=th.float32)
+            position=self._agent_stash_position,
+            orientation=self._agent_stash_orientation,
         )
 
         self._sampled_objects = set()

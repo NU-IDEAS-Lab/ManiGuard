@@ -580,14 +580,20 @@ class BehaviorTask(BaseTask):
             env (Environment): The environment containing the scene to update
         """
         env.scene.write_task_metadata(
-            key="inst_to_name", data={inst: entity.name for inst, entity in self.object_scope.items() if entity.exists}
+            key="inst_to_name",
+            data={
+                inst: entity.name
+                for inst, entity in self.object_scope.items()
+                if entity is not None and entity.exists
+            },
         )
 
     def _get_obs(self, env):
         low_dim_obs = dict()
 
         # Batch rpy calculations for much better efficiency
-        objs_exist = {obj: obj.exists for obj in self.object_scope.values() if not obj.is_system}
+        valid_objects = [obj for obj in self.object_scope.values() if obj is not None and not obj.is_system]
+        objs_exist = {obj: obj.exists for obj in valid_objects}
         objs_rpy = T.quat2euler(
             th.stack(
                 [

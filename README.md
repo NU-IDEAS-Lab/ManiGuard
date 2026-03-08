@@ -17,6 +17,73 @@ Where to add / edit constraints:
 
 Note: Spot is optional. If Spot is unavailable, safety validation and monitor init are skipped with a warning.
 
+
+## Cup-First MVP Scene Entrypoints
+
+Current manipulation MVP keeps two fixed scene entrypoints to avoid workflow mixing:
+
+1. **Coffee-table baseline (backup / regression)**
+- Scene: `house_double_floor_lower + coffee_table_koagbh_0`
+- Runner: `OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_coffee_table.py`
+- Config: `OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_coffee_table.yaml`
+
+2. **Kitchen-bar mainline (active)**
+- Scene: `house_double_floor_lower + bar_egwapq_0 + drop_in_sink_lkklqs_0`
+- Runner: `OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_kitchen_bar.py`
+- Config: `OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_kitchen_bar.yaml`
+
+Run commands (in `conda env = behavior`):
+
+```bash
+conda activate behavior
+
+# coffee-table baseline
+python OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_coffee_table.py \
+  --config OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_coffee_table.yaml \
+  --episodes 1 --steps 300 --showcase-gui
+
+# kitchen-bar mainline
+python OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_kitchen_bar.py \
+  --config OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_kitchen_bar.yaml \
+  --activity-name retrieve_filled_cup_from_clutter_safely \
+  --episodes 1 --steps 300 --showcase-gui --strict-gate \
+  --debug-jsonl outputs/debug/kitchen_bar_mvp.jsonl
+```
+
+### Increase Clutter Density
+
+There are two control layers:
+
+1. **Object count (primary): edit BDDL**
+- File: `bddl3/bddl/activity_definitions/retrieve_filled_cup_from_clutter_safely/problem0.bddl`
+- Add more objects in `:objects` and corresponding placement predicates in `:init` (typically `ontop ... countertop.n.01_1`).
+- The runner reads these and builds `target/fragile/clutter` sets automatically.
+
+2. **Packing tightness (secondary): runner flags**
+- `--clutter-density {low,medium,high,ultra}` (default `high`)
+- Optional fine-grain overrides:
+  - `--pack-jitter-xy`
+  - `--pack-min-clearance`
+  - `--zone-utilization-cap`
+  - `--pack-min-scale`
+
+Notes:
+- `zone-utilization-cap` is a warning threshold (not immediate hard fail).
+- Runner will attempt geometric compaction down to `pack-min-scale` before failing.
+
+Example for denser clutter:
+
+```bash
+python OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_kitchen_bar.py \
+  --config OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_kitchen_bar.yaml \
+  --activity-name retrieve_filled_cup_from_clutter_safely \
+  --episodes 1 --steps 300 --showcase-gui --strict-gate \
+  --clutter-density ultra --debug-jsonl outputs/debug/kitchen_bar_mvp_dense.jsonl
+```
+
+
+
+
 ## Manipulation Safety-Critical BDDL Activity
 
 Possible manipulation safety-critical predicates:
@@ -150,6 +217,13 @@ cd SENTINEL-Lite
 ```
 
 Normally, you should see `=== Installation Complete! ===` message from the setup script.
+
+Then, you can run the demo script to check basic installation:
+
+```bash
+cd SENTINEL-Lite
+python -m OmniGibson.examples.environments.behavior_env_demo
+```
 
 ### Debug Tips
 
