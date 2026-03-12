@@ -112,6 +112,60 @@ def test_apply_pack_transform_and_validate_integrity():
     assert report.max_position_error <= 1e-6
 
 
+def test_check_packing_feasibility_accepts_loose():
+    mod = _load_module()
+    descriptors = [
+        mod.ClutterObjectDescriptor("a", "target", (0.04, 0.04), 0.10),
+        mod.ClutterObjectDescriptor("b", "clutter", (0.03, 0.03), 0.09),
+    ]
+    feasible, util = mod.check_packing_feasibility(
+        descriptors, placement_bounds_local=((-0.45, -0.45), (0.45, 0.45)), min_clearance=0.02,
+    )
+    assert feasible
+    assert 0.0 < util < 0.1
+
+
+def test_check_packing_feasibility_rejects_tight():
+    mod = _load_module()
+    descriptors = [
+        mod.ClutterObjectDescriptor("a", "target", (0.04, 0.04), 0.10),
+        mod.ClutterObjectDescriptor("b", "clutter", (0.04, 0.04), 0.09),
+        mod.ClutterObjectDescriptor("c", "clutter", (0.04, 0.04), 0.09),
+    ]
+    feasible, _ = mod.check_packing_feasibility(
+        descriptors, placement_bounds_local=((-0.05, -0.05), (0.05, 0.05)), min_clearance=0.02,
+    )
+    assert not feasible
+
+
+def test_compute_candidate_pool_returns_valid_positions():
+    mod = _load_module()
+    target = mod.ClutterObjectDescriptor("cup", "target", (0.04, 0.04), 0.10)
+    fragile = mod.ClutterObjectDescriptor("glass", "fragile", (0.03, 0.03), 0.14)
+    bounds = ((-0.20, -0.20), (0.20, 0.20))
+    placed = [(target, 0.0, 0.0)]
+    pool = mod.compute_candidate_pool(fragile, placed, bounds, min_clearance=0.02, noise_margin=0.03)
+    assert len(pool) > 0
+    # Every candidate must be collision-free with the placed target.
+    import math
+    for cx, cy in pool:
+        dist = math.hypot(cx, cy)
+        min_sep = 0.04 + 0.03 + 0.02  # target_r + fragile_r + clearance
+        assert dist >= min_sep - 1e-6
+
+
+def test_compute_candidate_pool_empty_placed():
+    mod = _load_module()
+    desc = mod.ClutterObjectDescriptor("cup", "target", (0.04, 0.04), 0.10)
+    bounds = ((-0.20, -0.20), (0.20, 0.20))
+    pool = mod.compute_candidate_pool(desc, placed=[], placement_bounds=bounds, min_clearance=0.02)
+    assert len(pool) > 0
+    # Centre (0, 0) should be in the pool.
+    import math
+    has_center = any(math.hypot(cx, cy) < 0.01 for cx, cy in pool)
+    assert has_center
+
+
 def test_validate_pack_integrity_detects_shift():
     mod = _load_module()
     descriptors = [

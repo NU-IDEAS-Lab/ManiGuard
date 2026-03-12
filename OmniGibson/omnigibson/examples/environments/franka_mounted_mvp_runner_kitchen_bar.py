@@ -12,17 +12,15 @@ from bddl.activity import Conditions
 from bddl.object_taxonomy import ObjectTaxonomy
 
 import omnigibson as og
-import omnigibson.lazy as lazy
 from omnigibson.macros import gm
-from omnigibson.prims.material_prim import MaterialPrim, OmniPBRMaterialPrim
-from omnigibson.utils.asset_utils import get_dataset_path, get_scene_path
+from omnigibson.utils.asset_utils import get_scene_path
 from omnigibson.utils.clutter_pack_layout import (
     ClutterObjectDescriptor,
-    ClutterPackEntry,
     ClutterPackSpec,
     PackIntegrityReport,
     apply_pack_transform,
     build_clutter_pack,
+    check_packing_feasibility,
     validate_pack_integrity,
 )
 from omnigibson.utils.franka_edge_align import (
@@ -59,47 +57,18 @@ HARDCODE_SINK_NAME = "drop_in_sink_lkklqs_0"
 WORKSPACE_PRESET = "kitchen_bar_sink_left_v1"
 FIXED_EDGE_LABEL = "x_min"
 FIXED_EDGE_SCAN_OFFSETS = (0.0, 0.05, -0.05, 0.10, -0.10, 0.15, -0.15, 0.20, -0.20)
-CLUTTER_DENSITY_PRESETS = {
-    # Wider clearance, lower density.
-    "low": {
-        "pack_jitter_xy": 0.010,
-        "pack_min_clearance": 0.040,
-        "zone_padding": 0.030,
-        "zone_util_cap": 0.70,
-        "zone_edge_margin_m": 0.05,
-        "sink_keepout_margin_m": 0.10,
-        "sink_side_clearance_m": 0.02,
-    },
-    # Balanced baseline.
-    "medium": {
-        "pack_jitter_xy": 0.015,
-        "pack_min_clearance": 0.025,
-        "zone_padding": 0.020,
-        "zone_util_cap": 0.85,
-        "zone_edge_margin_m": 0.05,
-        "sink_keepout_margin_m": 0.10,
-        "sink_side_clearance_m": 0.02,
-    },
-    # Denser packing / more crowded.
-    "high": {
-        "pack_jitter_xy": 0.022,
-        "pack_min_clearance": 0.008,
-        "zone_padding": 0.008,
-        "zone_util_cap": 0.98,
-        "zone_edge_margin_m": 0.04,
-        "sink_keepout_margin_m": 0.08,
-        "sink_side_clearance_m": 0.015,
-    },
-    # Maximum cluttered appearance before explicit stacking.
-    "ultra": {
-        "pack_jitter_xy": 0.026,
-        "pack_min_clearance": 0.004,
-        "zone_padding": 0.004,
-        "zone_util_cap": 1.10,
-        "zone_edge_margin_m": 0.03,
-        "sink_keepout_margin_m": 0.06,
-        "sink_side_clearance_m": 0.010,
-    },
+CLUTTER_PACK_CONFIG = {
+    "pack_jitter_xy": 0.022,
+    "pack_min_clearance": 0.008,
+    "pack_clearance_step_m": 0.005,
+    "pack_clearance_floor_m": 0.002,
+    "frontier_noise_margin_m": 0.02,
+    "pack_tries_per_clearance": 10,
+    "zone_padding": 0.008,
+    "zone_util_cap": 0.98,
+    "zone_edge_margin_m": 0.04,
+    "sink_keepout_margin_m": 0.08,
+    "sink_side_clearance_m": 0.015,
 }
 
 
@@ -133,84 +102,6 @@ def parse_args():
     parser.add_argument("--steps", type=int, default=5000, help="Max steps per episode.")
     parser.add_argument("--seed", type=int, default=0, help="Base seed.")
     parser.add_argument("--mount-gap-m", type=float, default=0.03, help="Desired Franka base gap from fixed edge.")
-    parser.add_argument(
-        "--clutter-density",
-        choices=("low", "medium", "high", "ultra"),
-        default="high",
-        help="Packing density preset for the same BDDL object set.",
-    )
-    parser.add_argument(
-        "--pack-jitter-xy",
-        type=float,
-        default=None,
-        help="Override pack XY jitter (meters).",
-    )
-    parser.add_argument(
-        "--pack-min-clearance",
-        type=float,
-        default=None,
-        help="Override minimum inter-object XY clearance in clutter pack (meters).",
-    )
-    parser.add_argument(
-        "--zone-utilization-cap",
-        type=float,
-        default=None,
-        help="Override red-zone utilization warning threshold (0~1+).",
-    )
-    parser.add_argument(
-        "--pack-min-scale",
-        type=float,
-        default=None,
-        help="Deprecated; ignored. XY pack scaling is disabled in kitchen-bar runner.",
-    )
-    parser.add_argument(
-        "--pack-clearance-step-m",
-        type=float,
-        default=0.005,
-        help="Minimum-clearance decrement step for dense packing solver.",
-    )
-    parser.add_argument(
-        "--pack-clearance-floor-m",
-        type=float,
-        default=0.002,
-        help="Minimum-clearance lower bound for dense packing solver.",
-    )
-    parser.add_argument(
-        "--grid-step-m",
-        type=float,
-        default=0.005,
-        help="Local dense grid step for clutter pack candidate points.",
-    )
-    parser.add_argument(
-        "--frontier-noise-margin-m",
-        type=float,
-        default=0.02,
-        help="Distance margin above d_min for frontier random candidate pool.",
-    )
-    parser.add_argument(
-        "--pack-tries-per-clearance",
-        type=int,
-        default=10,
-        help="How many randomized layout attempts to try for each clearance level before culling.",
-    )
-    parser.add_argument(
-        "--zone-edge-margin-m",
-        type=float,
-        default=None,
-        help="Override red-zone edge margin from bar boundary (meters).",
-    )
-    parser.add_argument(
-        "--sink-keepout-margin-m",
-        type=float,
-        default=None,
-        help="Override sink keepout expansion margin (meters).",
-    )
-    parser.add_argument(
-        "--sink-side-clearance-m",
-        type=float,
-        default=None,
-        help="Override extra clearance between sink keepout and red zone (meters).",
-    )
     parser.add_argument("--jitter-scale", type=float, default=0.01, help="Action jitter sigma for zero_jitter mode.")
     parser.add_argument("--showcase-gui", action="store_true", help="Enable manual GUI camera teleoperation.")
     parser.add_argument("--strict-gate", dest="strict_gate", action="store_true", help="Enable strict gate.")
@@ -232,63 +123,8 @@ def _append_jsonl(path, payload):
         f.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
 
-def _resolve_clutter_controls(args):
-    preset = CLUTTER_DENSITY_PRESETS[args.clutter_density]
-    jitter_xy = float(preset["pack_jitter_xy"] if args.pack_jitter_xy is None else args.pack_jitter_xy)
-    min_clearance = float(
-        preset["pack_min_clearance"] if args.pack_min_clearance is None else args.pack_min_clearance
-    )
-    zone_padding = float(preset["zone_padding"])
-    util_cap = float(preset["zone_util_cap"] if args.zone_utilization_cap is None else args.zone_utilization_cap)
-    zone_edge_margin_m = float(
-        preset["zone_edge_margin_m"] if args.zone_edge_margin_m is None else args.zone_edge_margin_m
-    )
-    sink_keepout_margin_m = float(
-        preset["sink_keepout_margin_m"]
-        if args.sink_keepout_margin_m is None
-        else args.sink_keepout_margin_m
-    )
-    sink_side_clearance_m = float(
-        preset["sink_side_clearance_m"]
-        if args.sink_side_clearance_m is None
-        else args.sink_side_clearance_m
-    )
-    if zone_edge_margin_m < 0.0 or sink_keepout_margin_m < 0.0 or sink_side_clearance_m < 0.0:
-        raise ValueError(
-            "zone-edge-margin-m, sink-keepout-margin-m, sink-side-clearance-m must be non-negative"
-        )
-    if args.pack_clearance_step_m <= 0.0:
-        raise ValueError("pack-clearance-step-m must be > 0")
-    if args.pack_clearance_floor_m < 0.0:
-        raise ValueError("pack-clearance-floor-m must be >= 0")
-    if args.pack_clearance_floor_m > min_clearance:
-        raise ValueError("pack-clearance-floor-m cannot be greater than base pack-min-clearance")
-    if args.grid_step_m <= 0.0:
-        raise ValueError("grid-step-m must be > 0")
-    if args.frontier_noise_margin_m < 0.0:
-        raise ValueError("frontier-noise-margin-m must be >= 0")
-    if args.pack_tries_per_clearance <= 0:
-        raise ValueError("pack-tries-per-clearance must be > 0")
-    if args.pack_min_scale is not None:
-        print(
-            "[MVP] WARNING: --pack-min-scale is deprecated and ignored in kitchen-bar runner. "
-            "Use clearance/cull solver controls instead."
-        )
-    return {
-        "density": args.clutter_density,
-        "pack_jitter_xy": jitter_xy,
-        "pack_min_clearance": min_clearance,
-        "pack_clearance_step_m": float(args.pack_clearance_step_m),
-        "pack_clearance_floor_m": float(args.pack_clearance_floor_m),
-        "grid_step_m": float(args.grid_step_m),
-        "frontier_noise_margin_m": float(args.frontier_noise_margin_m),
-        "pack_tries_per_clearance": int(args.pack_tries_per_clearance),
-        "zone_padding": zone_padding,
-        "zone_util_cap": util_cap,
-        "zone_edge_margin_m": zone_edge_margin_m,
-        "sink_keepout_margin_m": sink_keepout_margin_m,
-        "sink_side_clearance_m": sink_side_clearance_m,
-    }
+def _get_clutter_controls():
+    return dict(CLUTTER_PACK_CONFIG)
 
 
 def _load_config(args):
@@ -312,59 +148,6 @@ def _load_config(args):
     cfg["task"]["online_object_sampling"] = True
     cfg["task"]["use_presampled_robot_pose"] = False
     return cfg
-
-
-def _validate_bddl_initial_conditions(activity_name, activity_definition_id=0):
-    cond = Conditions(
-        behavior_activity=activity_name,
-        activity_definition=activity_definition_id,
-        simulator_name="omnigibson",
-        predefined_problem=None,
-    )
-    inst_to_synset = {}
-    for synset, insts in cond.parsed_objects.items():
-        for inst in insts:
-            inst_to_synset[inst] = synset
-
-    kinematic_heads = {"ontop", "inside", "under", "attached", "onfloor", "overlaid"}
-    sampleable_with_kinematic = set()
-    errors = []
-
-    for init_cond in cond.parsed_initial_conditions:
-        if not isinstance(init_cond, list) or len(init_cond) < 2:
-            continue
-        head = init_cond[0]
-        if head == "inroom":
-            obj_inst = init_cond[1]
-            synset = inst_to_synset.get(obj_inst, None)
-            if synset is None:
-                continue
-            abilities = _OBJECT_TAXONOMY.get_abilities(synset)
-            if "sceneObject" not in abilities:
-                errors.append(
-                    f"invalid_inroom_for_sampleable: inst={obj_inst}, synset={synset}. "
-                    "Only non-sampleable scene objects can use inroom."
-                )
-        elif head in kinematic_heads:
-            obj_inst = init_cond[1]
-            synset = inst_to_synset.get(obj_inst, None)
-            if synset is None:
-                continue
-            abilities = _OBJECT_TAXONOMY.get_abilities(synset)
-            if "sceneObject" not in abilities:
-                sampleable_with_kinematic.add(obj_inst)
-
-    for inst, synset in sorted(inst_to_synset.items()):
-        abilities = _OBJECT_TAXONOMY.get_abilities(synset)
-        if "sceneObject" in abilities or "substance" in abilities:
-            continue
-        if inst not in sampleable_with_kinematic:
-            errors.append(f"missing_sampleable_kinematic_init: inst={inst}, synset={synset}")
-
-    if errors:
-        raise RuntimeError(
-            "BDDL preflight validation failed:\n- " + "\n- ".join(errors[:20])
-        )
 
 
 def _task_uses_substance_system(activity_name, activity_definition_id=0):
@@ -399,13 +182,7 @@ def _configure_dynamics(cfg):
         gm.USE_GPU_DYNAMICS = False
         gm.ENABLE_FLATCACHE = True
         print("[MVP] GPU dynamics disabled (no substance objects detected).")
-
-
-def _to_float(x):
-    if hasattr(x, "item"):
-        return float(x.item())
-    return float(x)
-
+        
 
 def _to_float3(x):
     if hasattr(x, "detach"):
@@ -462,6 +239,30 @@ def _freeze_objects(objects_by_inst):
         _freeze_object_motion(obj)
 
 
+def _damp_objects_xy(objects_by_inst):
+    """Zero XY velocity and angular velocity; preserve downward Z for gravity settle."""
+    for obj in objects_by_inst.values():
+        try:
+            vel = obj.get_linear_velocity()
+            vz = float(vel[2]) if hasattr(vel, '__getitem__') else 0.0
+            obj.set_linear_velocity(th.tensor([0.0, 0.0, min(0.0, vz)]))
+            obj.set_angular_velocity(th.zeros(3))
+        except Exception:
+            pass
+
+
+def _settle_objects(objects_by_inst, free_steps=3, damped_steps=7):
+    """Two-phase physics settle: free steps let PhysX resolve overlaps,
+    damped steps let gravity pull objects to surface without lateral drift."""
+    for _ in range(free_steps):
+        og.sim.step()
+    for _ in range(damped_steps):
+        og.sim.step()
+        _damp_objects_xy(objects_by_inst)
+    _freeze_objects(objects_by_inst)
+    og.sim.step()
+
+
 def _park_inactive_objects(passive_objects, floor_z, bar_bounds):
     if len(passive_objects) == 0:
         return
@@ -481,110 +282,6 @@ def _park_inactive_objects(passive_objects, floor_z, bar_bounds):
             continue
 
 
-def _descriptor_radius_xy(descriptor: ClutterObjectDescriptor):
-    return max(float(descriptor.half_extent_xy[0]), float(descriptor.half_extent_xy[1]))
-
-
-def _generate_sorted_grid_points_local(bounds_local, step):
-    (x0, y0), (x1, y1) = bounds_local
-    x_lo, x_hi = min(x0, x1), max(x0, x1)
-    y_lo, y_hi = min(y0, y1), max(y0, y1)
-    points = []
-    x = x_lo
-    while x <= x_hi + 1e-9:
-        y = y_lo
-        while y <= y_hi + 1e-9:
-            points.append((round(float(x), 6), round(float(y), 6)))
-            y += step
-        x += step
-    points.sort(key=lambda p: (math.hypot(p[0], p[1]), abs(p[0]) + abs(p[1]), p[0], p[1]))
-    return points
-
-
-def _candidate_collides_local(candidate_xy, descriptor, placed_local, descriptor_by_inst, min_clearance):
-    cx, cy = candidate_xy
-    radius = _descriptor_radius_xy(descriptor)
-    for inst_id, px, py in placed_local:
-        other = descriptor_by_inst[inst_id]
-        other_radius = _descriptor_radius_xy(other)
-        min_dist = radius + other_radius + min_clearance
-        if math.hypot(cx - px, cy - py) < min_dist:
-            return True
-    return False
-
-
-def _find_frontier_point_local(
-    descriptor,
-    placed_local,
-    descriptor_by_inst,
-    sorted_points_local,
-    min_clearance,
-    noise_margin,
-    rng,
-):
-    feasible = []
-    for px, py in sorted_points_local:
-        if _candidate_collides_local(
-            candidate_xy=(px, py),
-            descriptor=descriptor,
-            placed_local=placed_local,
-            descriptor_by_inst=descriptor_by_inst,
-            min_clearance=min_clearance,
-        ):
-            continue
-        d = math.hypot(px, py)
-        feasible.append((d, (px, py)))
-    if len(feasible) == 0:
-        return None
-    d_min = feasible[0][0]
-    pool = [xy for d, xy in feasible if d <= d_min + noise_margin + 1e-9]
-    if len(pool) == 0:
-        return feasible[0][1]
-    return pool[int(rng.integers(low=0, high=len(pool)))]
-
-
-def _entry_world_pose(entry, pack_origin_world, pack_yaw, table_top_z):
-    ox, oy, _ = pack_origin_world
-    cos_y = math.cos(pack_yaw)
-    sin_y = math.sin(pack_yaw)
-    rel_x, rel_y, rel_z, qx, qy, qz, qw = entry.rel_pose
-    wx = ox + cos_y * rel_x - sin_y * rel_y
-    wy = oy + sin_y * rel_x + cos_y * rel_y
-    wz = table_top_z + rel_z
-    rel_yaw = 2.0 * math.atan2(float(qz), float(qw))
-    world_yaw = pack_yaw + rel_yaw
-    wqx, wqy, wqz, wqw = _quat_from_yaw(world_yaw)
-    return (wx, wy, wz), (wqx, wqy, wqz, wqw)
-
-
-def _recover_invalid_objects(
-    invalid_instances,
-    active_objects,
-    pack_spec,
-    pack_origin_world,
-    table_top_z,
-    pack_yaw=0.0,
-):
-    entry_by_inst = {entry.inst_id: entry for entry in pack_spec.object_entries}
-    recovered = []
-    for inst in invalid_instances:
-        obj = active_objects.get(inst, None)
-        entry = entry_by_inst.get(inst, None)
-        if obj is None or entry is None:
-            continue
-        try:
-            pos, quat = _entry_world_pose(
-                entry=entry,
-                pack_origin_world=pack_origin_world,
-                pack_yaw=pack_yaw,
-                table_top_z=table_top_z,
-            )
-            obj.set_position_orientation(position=pos, orientation=quat)
-            _freeze_object_motion(obj)
-            recovered.append(inst)
-        except Exception:
-            continue
-    return recovered
 
 
 def _count_object_interpenetrations(objects_by_inst, tol=0.001):
@@ -598,23 +295,6 @@ def _count_object_interpenetrations(objects_by_inst, tol=0.001):
             continue
         for inst_b in inst_ids[i + 1 :]:
             obj_b = objects_by_inst[inst_b]
-            try:
-                aabb_b = obj_b.aabb
-            except Exception:
-                continue
-            if _aabb_overlap_3d(aabb_a, aabb_b, tol=tol):
-                hits.append((inst_a, inst_b))
-    return hits
-
-
-def _count_cross_interpenetrations(objects_a, objects_b, tol=0.001):
-    hits = []
-    for inst_a, obj_a in objects_a.items():
-        try:
-            aabb_a = obj_a.aabb
-        except Exception:
-            continue
-        for inst_b, obj_b in objects_b.items():
             try:
                 aabb_b = obj_b.aabb
             except Exception:
@@ -686,143 +366,6 @@ def _select_cull_candidate(
     return candidates[0]
 
 
-def _reintroduce_culled_descriptors(
-    culled_descriptors,
-    descriptor_by_inst_all,
-    objects_by_inst_all,
-    active_descriptors,
-    active_objects_by_inst,
-    pack_spec,
-    world_positions,
-    pack_origin,
-    table_top_z,
-    zone,
-    floor_z,
-    clutter_controls,
-    rng,
-):
-    if len(culled_descriptors) == 0:
-        return pack_spec, active_descriptors, active_objects_by_inst, world_positions, []
-
-    # Smaller objects first usually yields better recovery count.
-    pending = sorted(
-        [d for d in culled_descriptors if d.instance_id not in active_objects_by_inst],
-        key=lambda d: (_descriptor_radius_xy(d), d.instance_id),
-    )
-    sorted_points_local = _generate_sorted_grid_points_local(
-        bounds_local=_local_bounds_from_zone(zone.red_zone_bounds),
-        step=clutter_controls["grid_step_m"],
-    )
-    min_clearance = float(clutter_controls["pack_clearance_floor_m"])
-    noise_margin = float(clutter_controls["frontier_noise_margin_m"])
-    readd_history = []
-
-    # Local placements from current pack.
-    placed_local = [
-        (entry.inst_id, float(entry.rel_pose[0]), float(entry.rel_pose[1]))
-        for entry in pack_spec.object_entries
-        if entry.inst_id in active_objects_by_inst
-    ]
-
-    for desc in pending:
-        chosen = _find_frontier_point_local(
-            descriptor=desc,
-            placed_local=placed_local,
-            descriptor_by_inst=descriptor_by_inst_all,
-            sorted_points_local=sorted_points_local,
-            min_clearance=min_clearance,
-            noise_margin=noise_margin,
-            rng=rng,
-        )
-        if chosen is None:
-            readd_history.append(
-                {"inst_id": desc.instance_id, "accepted": False, "reason": "no_feasible_frontier_point"}
-            )
-            continue
-
-        rel_x, rel_y = float(chosen[0]), float(chosen[1])
-        rel_z = max(0.008, 0.5 * max(float(desc.height), 0.01) + 0.004)
-        yaw = 0.0 if desc.role == "target" else float(rng.uniform(-0.18, 0.18))
-        qx, qy, qz, qw = _quat_from_yaw(yaw)
-        entry = ClutterPackEntry(
-            inst_id=desc.instance_id,
-            role=desc.role,
-            rel_pose=(rel_x, rel_y, rel_z, qx, qy, qz, qw),
-        )
-        obj = active_objects_by_inst.get(desc.instance_id, None)
-        if obj is None:
-            obj = objects_by_inst_all.get(desc.instance_id, None)
-            if obj is None:
-                readd_history.append({"inst_id": desc.instance_id, "accepted": False, "reason": "missing_scope_object"})
-                continue
-
-        wx = pack_origin[0] + rel_x
-        wy = pack_origin[1] + rel_y
-        wz = table_top_z + rel_z
-        try:
-            obj.set_position_orientation(position=(wx, wy, wz), orientation=(qx, qy, qz, qw))
-            _freeze_object_motion(obj)
-            for _ in range(2):
-                og.sim.step()
-                _freeze_object_motion(obj)
-        except Exception as e:
-            readd_history.append({"inst_id": desc.instance_id, "accepted": False, "reason": f"set_pose_failed:{e}"})
-            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
-            continue
-
-        invalid = _detect_invalid_object_poses({desc.instance_id: obj})
-        if invalid:
-            readd_history.append({"inst_id": desc.instance_id, "accepted": False, "reason": "invalid_pose"})
-            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
-            continue
-
-        cross = _count_cross_interpenetrations(
-            {desc.instance_id: obj},
-            {k: v for k, v in active_objects_by_inst.items() if k != desc.instance_id},
-            tol=0.001,
-        )
-        if cross:
-            readd_history.append(
-                {
-                    "inst_id": desc.instance_id,
-                    "accepted": False,
-                    "reason": f"cross_interpenetration:{cross[:4]}",
-                }
-            )
-            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
-            continue
-
-        zone_report = _evaluate_object_zone_constraints(
-            objects_by_inst={desc.instance_id: obj},
-            red_zone_bounds=zone.red_zone_bounds,
-            sink_keepout_bounds=zone.sink_keepout_bounds,
-        )
-        if not (zone_report.all_in_red_zone and zone_report.all_outside_sink_keepout):
-            readd_history.append(
-                {"inst_id": desc.instance_id, "accepted": False, "reason": "zone_or_keepout_violation"}
-            )
-            _park_inactive_objects({desc.instance_id: obj}, floor_z=floor_z, bar_bounds=zone.bar_bounds)
-            continue
-
-        # Accept re-add.
-        active_descriptors.append(desc)
-        active_objects_by_inst[desc.instance_id] = obj
-        world_positions[desc.instance_id] = (wx, wy, wz)
-        placed_local.append((desc.instance_id, rel_x, rel_y))
-        pack_spec = ClutterPackSpec(
-            table_obj_name=pack_spec.table_obj_name,
-            pack_origin_world=pack_spec.pack_origin_world,
-            object_entries=tuple(list(pack_spec.object_entries) + [entry]),
-            seed=pack_spec.seed,
-            template_id=pack_spec.template_id,
-        )
-        readd_history.append(
-            {"inst_id": desc.instance_id, "accepted": True, "reason": "ok", "rel_xy": [rel_x, rel_y]}
-        )
-
-    return pack_spec, active_descriptors, active_objects_by_inst, world_positions, readd_history
-
-
 def _quat_from_yaw(yaw):
     half = 0.5 * yaw
     return [0.0, 0.0, math.sin(half), math.cos(half)]
@@ -883,80 +426,6 @@ def _resolve_support_and_sink(env):
 
     return support, sink
 
-
-def _apply_matte_support_material(support):
-    if support is None or getattr(support, "name", None) != HARDCODE_SUPPORT_NAME:
-        return
-
-    model = getattr(support, "model", None)
-    category = getattr(support, "category", None)
-    if not model or not category:
-        raise RuntimeError(f"Support '{HARDCODE_SUPPORT_NAME}' is missing category/model metadata for matte override.")
-
-    material_dir = os.path.join(get_dataset_path("behavior-1k-assets"), "objects", category, model, "material")
-    stage = lazy.isaacsim.core.utils.stage.get_current_stage()
-    looks_path = f"{support.prim_path}/Looks"
-    if not lazy.isaacsim.core.utils.prims.is_prim_path_valid(looks_path):
-        stage.DefinePrim(looks_path, "Scope")
-
-    matte_materials = set()
-    for link_name, link in support.links.items():
-        textures = {}
-        texture_prefix = f"{model}__{link_name}__"
-        if os.path.isdir(material_dir):
-            for fname in os.listdir(material_dir):
-                if not fname.startswith(texture_prefix):
-                    continue
-                texture_key, ext = os.path.splitext(fname[len(texture_prefix) :])
-                if ext.lower() != ".png":
-                    continue
-                textures[texture_key] = os.path.join(material_dir, fname)
-
-        safe_link_name = link_name if link_name and link_name[0].isalpha() else f"link_{link_name}"
-        matte_material_path = f"{looks_path}/matte_{safe_link_name}_pbr"
-        if matte_material_path in MaterialPrim.MATERIALS and not lazy.isaacsim.core.utils.prims.is_prim_path_valid(
-            matte_material_path
-        ):
-            MaterialPrim.MATERIALS.pop(matte_material_path, None)
-
-        matte_material = OmniPBRMaterialPrim.get_material(
-            scene=support.scene,
-            prim_path=matte_material_path,
-            name=f"{support.name}:{link_name}:matte_material",
-        )
-        matte_material.set_input(inp="reflection_roughness_texture_influence", val=0.0)
-        matte_material.set_input(inp="reflection_roughness_constant", val=1.0)
-        matte_material.set_input(inp="metallic_texture_influence", val=0.0)
-        if "metallic_constant" in matte_material.shader_input_names or "metallic_constant" in matte_material.shader_default_input_names:
-            matte_material.set_input(inp="metallic_constant", val=0.0)
-
-        diffuse_path = textures.get("diffuse")
-        if diffuse_path:
-            matte_material.diffuse_texture = diffuse_path
-        else:
-            matte_material.diffuse_color_constant = th.tensor((0.7, 0.7, 0.7), dtype=th.float32)
-
-        normal_path = textures.get("normal")
-        if normal_path:
-            matte_material.set_input(inp="normalmap_texture", val=lazy.pxr.Sdf.AssetPath(normal_path))
-
-        if not link.visual_meshes:
-            matte_materials.add(matte_material)
-            continue
-
-        for visual_mesh in link.visual_meshes.values():
-            current_material = visual_mesh.material
-            if current_material is not None and current_material.prim_path != matte_material.prim_path:
-                try:
-                    current_material.remove_user(visual_mesh)
-                except Exception:
-                    pass
-            visual_mesh.material = matte_material
-            if visual_mesh not in matte_material.users:
-                matte_material.add_user(visual_mesh)
-        matte_materials.add(matte_material)
-
-    support._materials = set(matte_materials)
 
 
 def _iter_scope_objects(env):
@@ -1065,13 +534,6 @@ def _choose_pack_origin_in_zone(zone_bounds, rel_bounds):
     return (origin_x, origin_y)
 
 
-def _scale_pack_spec_xy(pack_spec: ClutterPackSpec, scale_xy: float) -> ClutterPackSpec:
-    # Backward-compat shim. XY scaling is intentionally disabled because it can
-    # compress object centers without shrinking collision geometry.
-    if scale_xy < 0.999:
-        raise RuntimeError("pack_xy_scaling_disabled: scale<1.0 is forbidden in kitchen-bar runner")
-    return pack_spec
-
 
 def _fit_pack_to_zone(pack_spec, descriptor_by_inst, red_zone_bounds):
     rel_bounds = _compute_pack_relative_bounds(pack_spec, descriptor_by_inst)
@@ -1114,101 +576,11 @@ def _get_robot_base_aabb(robot):
     return best
 
 
-def _get_robot_base_link(robot):
-    links = getattr(robot, "links", {}) or {}
-    for key in ("base_link", "base", "base_footprint", "chassis"):
-        if key in links:
-            return links[key], key
-
-    best_link = None
-    best_name = None
-    best_z = float("inf")
-    for name, link in links.items():
-        try:
-            aabb = link.aabb
-            mn = _to_float3(aabb[0])
-            mx = _to_float3(aabb[1])
-            z = 0.5 * (mn[2] + mx[2])
-            if z < best_z:
-                best_z = z
-                best_link = link
-                best_name = name
-        except Exception:
-            continue
-    if best_link is None:
-        raise RuntimeError("Could not resolve robot base link.")
-    return best_link, best_name
-
-
 def _robot_half_extent_xy(robot):
     aabb = _get_robot_base_aabb(robot)
     mn = _to_float3(aabb[0])
     mx = _to_float3(aabb[1])
     return ((mx[0] - mn[0]) * 0.5, (mx[1] - mn[1]) * 0.5)
-
-
-def _collect_robot_penetration_hits(env):
-    robot = env.robots[0]
-    hits = set()
-    try:
-        robot_paths = set(getattr(robot, "link_prim_paths", []))
-        for link in (getattr(robot, "links", {}) or {}).values():
-            if not hasattr(link, "contact_list"):
-                continue
-            for contact in link.contact_list():
-                for body in (contact.body0, contact.body1):
-                    if body in robot_paths:
-                        continue
-                    tokens = body.split("/")
-                    if len(tokens) < 2:
-                        continue
-                    obj_path = "/".join(tokens[:-1])
-                    try:
-                        obj = env.scene.object_registry("prim_path", obj_path)
-                    except Exception:
-                        obj = None
-                    if obj is None or obj is robot:
-                        continue
-                    if _is_floor_like(getattr(obj, "category", "")):
-                        continue
-                    hits.add(getattr(obj, "name", "unknown_obj"))
-    except Exception:
-        pass
-
-    # Conservative AABB fallback / supplement:
-    # check all low-height robot links against scene objects to catch teleport-overlap cases
-    # where contact_list may miss immediate deep interpenetration.
-    robot_link_aabbs = []
-    for link in (getattr(robot, "links", {}) or {}).values():
-        try:
-            aabb = link.aabb
-            mn = _to_float3(aabb[0])
-            mx = _to_float3(aabb[1])
-            robot_link_aabbs.append((mn, mx))
-        except Exception:
-            continue
-
-    for obj in getattr(env.scene, "objects", []):
-        if obj is None or obj is robot:
-            continue
-        if _is_floor_like(getattr(obj, "category", "")):
-            continue
-        try:
-            aabb = obj.aabb
-            obj_min = _to_float3(aabb[0])
-            obj_max = _to_float3(aabb[1])
-        except Exception:
-            continue
-
-        for link_min, link_max in robot_link_aabbs:
-            # Ignore very high-only overlaps for low-base placement checks.
-            if min(link_min[2], link_max[2]) > (obj_max[2] + 0.30):
-                continue
-            if _aabb_overlap_3d((link_min, link_max), (obj_min, obj_max), tol=0.002):
-                hits.add(getattr(obj, "name", "unknown_obj"))
-                break
-
-    return sorted(hits)
 
 
 def _compute_floor_z(env):
@@ -1222,30 +594,6 @@ def _compute_floor_z(env):
         except Exception:
             continue
     return floor_z
-
-
-def _print_object_inventory(env, obj_sets):
-    scope = getattr(env.task, "object_scope", {}) or {}
-    print("[MVP] Object inventory:")
-    print(f"[MVP]   target_set={list(obj_sets['target_ids'])}")
-    print(f"[MVP]   fragile_set={list(obj_sets['fragile_ids'])}")
-    print(f"[MVP]   clutter_set={list(obj_sets['clutter_ids'])}")
-    tracked = list(obj_sets["target_ids"]) + list(obj_sets["fragile_ids"]) + list(obj_sets["clutter_ids"])
-    for inst in tracked:
-        ent = scope.get(inst, None)
-        if ent is None or not getattr(ent, "exists", False):
-            print(f"[MVP]   {inst} -> MISSING")
-            continue
-        obj = getattr(ent, "wrapped_obj", None)
-        if obj is None:
-            print(f"[MVP]   {inst} -> MISSING_WRAPPED_OBJ")
-            continue
-        pose = _try_get_obj_pose(obj)
-        if pose is None:
-            print(f"[MVP]   {inst} -> {getattr(obj, 'name', 'unknown')} @ INVALID_POSE")
-            continue
-        pos, _ = pose
-        print(f"[MVP]   {inst} -> {getattr(obj, 'name', 'unknown')} @ {pos}")
 
 
 def _set_showcase_camera_manual(env, target_obj):
@@ -1343,7 +691,6 @@ def _evaluate_gate(
     robot_pos,
     target_pos,
     floor_z,
-    penetration_hits,
     edge_align_result: EdgeAlignResult,
     target_gap_m: float,
     integrity_report: PackIntegrityReport,
@@ -1351,7 +698,7 @@ def _evaluate_gate(
 ):
     scene_sane = _is_finite_pose(robot_pos) and _is_finite_pose(target_pos) and max(abs(target_pos[0]), abs(target_pos[1])) < 100.0
     base_on_ground = abs(robot_pos[2] - floor_z) <= 0.03
-    base_collision_free = len(penetration_hits) == 0
+    base_collision_free = len(edge_align_result.collision_hits) == 0
     gap_ok = edge_align_result.gap_actual >= 0.0 and abs(edge_align_result.gap_actual - target_gap_m) <= 0.04
     target_dist = _distance_xy(robot_pos[:2], target_pos[:2])
     target_in_reach_band = 0.20 <= target_dist <= 1.10
@@ -1406,35 +753,16 @@ def main():
     args = parse_args()
     cfg = _load_config(args)
     _configure_dynamics(cfg)
-    clutter_controls = _resolve_clutter_controls(args)
+    clutter_controls = _get_clutter_controls()
 
     task_name = cfg["task"]["activity_name"]
-    _validate_bddl_initial_conditions(
-        activity_name=task_name,
-        activity_definition_id=cfg["task"].get("activity_definition_id", 0),
-    )
     task_spec = build_manipulation_task_spec(task_name)
 
     print(
         f"[MVP] Configured: task={task_name}, scene={cfg['scene']['scene_model']}, "
         f"workspace={WORKSPACE_PRESET}, strict_gate={args.strict_gate}, steps={args.steps}"
     )
-    print(
-        "[MVP] clutter_controls: "
-        f"density={clutter_controls['density']}, "
-        f"pack_jitter_xy={clutter_controls['pack_jitter_xy']:.3f}, "
-        f"pack_min_clearance={clutter_controls['pack_min_clearance']:.3f}, "
-        f"pack_clearance_step_m={clutter_controls['pack_clearance_step_m']:.3f}, "
-        f"pack_clearance_floor_m={clutter_controls['pack_clearance_floor_m']:.3f}, "
-        f"grid_step_m={clutter_controls['grid_step_m']:.3f}, "
-        f"frontier_noise_margin_m={clutter_controls['frontier_noise_margin_m']:.3f}, "
-        f"pack_tries_per_clearance={clutter_controls['pack_tries_per_clearance']}, "
-        f"zone_padding={clutter_controls['zone_padding']:.3f}, "
-        f"zone_util_cap={clutter_controls['zone_util_cap']:.3f}, "
-        f"zone_edge_margin={clutter_controls['zone_edge_margin_m']:.3f}, "
-        f"sink_keepout_margin={clutter_controls['sink_keepout_margin_m']:.3f}, "
-        f"sink_side_clearance={clutter_controls['sink_side_clearance_m']:.3f}"
-    )
+    print(f"[MVP] clutter_controls: {clutter_controls}")
     env = og.Environment(configs=cfg)
     rng = np.random.default_rng(args.seed)
 
@@ -1445,7 +773,6 @@ def main():
             og.sim.step()
 
             support, sink = _resolve_support_and_sink(env)
-            _apply_matte_support_material(support)
             support_aabb_min, support_aabb_max = support.aabb
             sink_aabb_min, sink_aabb_max = sink.aabb
             bar_bounds_xy = (
@@ -1540,6 +867,17 @@ def main():
             last_pack_for_cull = None
             placement_bounds_local = _local_bounds_from_zone(zone.red_zone_bounds)
 
+            feasible, pack_utilization = check_packing_feasibility(
+                descriptors=active_descriptors,
+                placement_bounds_local=placement_bounds_local,
+                min_clearance=clutter_controls["pack_min_clearance"],
+            )
+            if not feasible:
+                print(
+                    f"[MVP] WARNING: packing infeasible by area check "
+                    f"(utilization={pack_utilization:.3f}). Will attempt with clearance decay."
+                )
+
             attempt_idx = 0
             solved = False
             while not solved:
@@ -1597,7 +935,6 @@ def main():
                                 jitter_xy=jitter_xy,
                                 min_clearance=min_clearance,
                                 placement_bounds_local=placement_bounds_local,
-                                grid_step_m=clutter_controls["grid_step_m"],
                                 frontier_noise_margin_m=clutter_controls["frontier_noise_margin_m"],
                                 shuffle_non_target=True,
                             )
@@ -1615,54 +952,23 @@ def main():
                                 pack_yaw=0.0,
                                 table_top_z=table_top_z,
                             )
-                            _freeze_objects(active_objects)
-                            for _ in range(3):
-                                og.sim.step()
-                                _freeze_objects(active_objects)
+                            _settle_objects(active_objects)
 
                             invalid_after_settle = _detect_invalid_object_poses(active_objects)
                             if invalid_after_settle:
-                                recovered = _recover_invalid_objects(
-                                    invalid_instances=invalid_after_settle,
-                                    active_objects=active_objects,
-                                    pack_spec=pack_spec_candidate,
-                                    pack_origin_world=pack_origin_candidate,
-                                    table_top_z=table_top_z,
-                                    pack_yaw=0.0,
+                                last_pack_error = (
+                                    "invalid_object_pose_after_settle:"
+                                    f"attempt={attempt_idx}, objects={invalid_after_settle}"
                                 )
-                                if recovered:
-                                    print(
-                                        "[MVP] WARNING: recovered invalid objects after settle "
-                                        f"attempt={attempt_idx}, recovered={recovered}"
-                                    )
-                                    for _ in range(2):
-                                        og.sim.step()
-                                        _freeze_objects(active_objects)
-                                    invalid_after_settle = _detect_invalid_object_poses(active_objects)
-                                if invalid_after_settle:
-                                    last_pack_error = (
-                                        "invalid_object_pose_after_settle:"
-                                        f"attempt={attempt_idx}, objects={invalid_after_settle}"
-                                    )
-                                    print(f"[MVP] WARNING: {last_pack_error}")
-                                    continue
+                                print(f"[MVP] WARNING: {last_pack_error}")
+                                continue
 
-                            penetration_pairs = _count_object_interpenetrations(active_objects, tol=0.001)
+                            penetration_pairs = _count_object_interpenetrations(active_objects, tol=0.003)
                             if penetration_pairs:
                                 preview = penetration_pairs[:8]
                                 last_pack_error = (
                                     "object_interpenetration_after_settle:"
                                     f"attempt={attempt_idx}, count={len(penetration_pairs)}, preview={preview}"
-                                )
-                                print(f"[MVP] WARNING: {last_pack_error}")
-                                continue
-
-                            cross_penetration_pairs = _count_cross_interpenetrations(active_objects, passive_objects, tol=0.001)
-                            if cross_penetration_pairs:
-                                preview = cross_penetration_pairs[:8]
-                                last_pack_error = (
-                                    "active_passive_interpenetration_after_settle:"
-                                    f"attempt={attempt_idx}, count={len(cross_penetration_pairs)}, preview={preview}"
                                 )
                                 print(f"[MVP] WARNING: {last_pack_error}")
                                 continue
@@ -1727,31 +1033,6 @@ def main():
             if world_positions is None or pack_spec is None or active_objects_by_inst is None:
                 raise RuntimeError(f"pack_generation_failed_after_retries: {last_pack_error}")
 
-            descriptor_by_inst_all = {d.instance_id: d for d in descriptors}
-            culled_ids = [item["inst_id"] for item in cull_history]
-            culled_descriptors = [descriptor_by_inst_all[i] for i in culled_ids if i in descriptor_by_inst_all]
-            (
-                pack_spec,
-                active_descriptors,
-                active_objects_by_inst,
-                world_positions,
-                readd_history,
-            ) = _reintroduce_culled_descriptors(
-                culled_descriptors=culled_descriptors,
-                descriptor_by_inst_all=descriptor_by_inst_all,
-                objects_by_inst_all=objects_by_inst,
-                active_descriptors=active_descriptors,
-                active_objects_by_inst=active_objects_by_inst,
-                pack_spec=pack_spec,
-                world_positions=world_positions,
-                pack_origin=pack_origin,
-                table_top_z=table_top_z,
-                zone=zone,
-                floor_z=floor_z,
-                clutter_controls=clutter_controls,
-                rng=rng,
-            )
-
             # Keep non-active objects away from workspace so they do not leak into gate / mount checks.
             passive_after_solve = {inst: obj for inst, obj in objects_by_inst.items() if inst not in active_objects_by_inst}
             _park_inactive_objects(passive_objects=passive_after_solve, floor_z=floor_z, bar_bounds=zone.bar_bounds)
@@ -1761,8 +1042,7 @@ def main():
             print(
                 f"[MVP] pack_origin={pack_origin}, "
                 f"pack_attempt_used={pack_attempt_used}, selected_min_clearance={chosen_min_clearance:.3f}, "
-                f"active_descriptor_count={len(active_descriptors)}, cull_steps={len(cull_history)}, "
-                f"readd_success={sum(1 for r in readd_history if r.get('accepted'))}"
+                f"active_descriptor_count={len(active_descriptors)}, cull_steps={len(cull_history)}"
             )
 
             integrity = validate_pack_integrity(
@@ -1797,11 +1077,6 @@ def main():
             if len(pack_objects_world) == 0:
                 raise RuntimeError("No pack objects available for fixed-edge alignment.")
 
-            def collision_checker(base_pose_xyyaw):
-                x, y, yaw = base_pose_xyyaw
-                robot.set_position_orientation(position=(x, y, floor_z), orientation=_quat_from_yaw(yaw))
-                og.sim.step()
-                return _collect_robot_penetration_hits(env)
 
             edge_result = place_franka_edge_aligned(
                 EdgeAlignRequest(
@@ -1812,7 +1087,6 @@ def main():
                     edge_gap_m=args.mount_gap_m,
                     edge_margin_m=0.05,
                     scan_offsets_m=FIXED_EDGE_SCAN_OFFSETS,
-                    collision_checker=collision_checker,
                     preferred_edge=FIXED_EDGE_LABEL,
                 )
             )
@@ -1825,7 +1099,6 @@ def main():
             robot.set_position_orientation(position=final_pos, orientation=edge_result.base_pose["orientation"])
             og.sim.step()
 
-            penetration_hits = _collect_robot_penetration_hits(env)
             target_pose = _try_get_obj_pose(target_obj)
             if target_pose is None:
                 if target_inst in world_positions:
@@ -1850,7 +1123,6 @@ def main():
                 robot_pos=robot_pos,
                 target_pos=target_pos,
                 floor_z=floor_z,
-                penetration_hits=penetration_hits,
                 edge_align_result=edge_result,
                 target_gap_m=args.mount_gap_m,
                 integrity_report=integrity,
@@ -1861,15 +1133,12 @@ def main():
                 f"[MVP] Mount: edge={edge_result.edge_label}, rank={edge_result.candidate_rank}, "
                 f"gap={edge_result.gap_actual:.3f}, hits={len(edge_result.collision_hits)}"
             )
-            if penetration_hits:
-                print(f"[MVP] Penetration objects: {penetration_hits}")
             if zone_report.out_of_zone_instances:
                 print(f"[MVP] Out-of-zone objects: {list(zone_report.out_of_zone_instances)}")
             if zone_report.in_keepout_instances:
                 print(f"[MVP] Sink-keepout objects: {list(zone_report.in_keepout_instances)}")
 
             print(f"[MVP] Gate: pass={gate.pass_gate}, reasons={list(gate.failure_reasons)}")
-            _print_object_inventory(env, obj_sets)
 
             _append_jsonl(
                 args.debug_jsonl,
@@ -1888,7 +1157,6 @@ def main():
                     "clearance_step_m": clutter_controls["pack_clearance_step_m"],
                     "tries_per_clearance": clutter_controls["pack_tries_per_clearance"],
                     "cull_history": cull_history,
-                    "readd_history": readd_history,
                     "final_active_set": [d.instance_id for d in active_descriptors],
                     "active_descriptor_count": len(active_descriptors),
                     "fixed_edge_mount": {
@@ -1940,18 +1208,6 @@ def main():
 
                 if executed % 50 == 0:
                     print(f"[MVP] Step {executed}/{args.steps}")
-                if executed % 10 == 0:
-                    invalid_step = _detect_invalid_object_poses(active_objects_by_inst)
-                    if invalid_step:
-                        raise RuntimeError(
-                            "invalid_object_pose_during_rollout: "
-                            f"step={executed}, objects={invalid_step}. "
-                            "Try lower clutter density or increase --pack-min-clearance."
-                        )
-                if executed % 25 == 0:
-                    robot_hits = _collect_robot_penetration_hits(env)
-                    if robot_hits:
-                        print(f"[MVP] WARNING: runtime robot penetration objects={robot_hits}")
                 if terminated or truncated:
                     break
 

@@ -37,6 +37,41 @@ class PackIntegrityReport:
     failure_reasons: Tuple[str, ...]
 
 
+def check_packing_feasibility(
+    descriptors: Sequence[ClutterObjectDescriptor],
+    placement_bounds_local: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None,
+    min_clearance: float = 0.0,
+) -> Tuple[bool, float]:
+    """Area-based feasibility pre-check for circle packing.
+
+    Returns ``(feasible, utilization)`` where *utilization* is the ratio of
+    total padded-circle area to zone area.  A utilization above ~0.85
+    (conservative hexagonal-packing limit for mixed radii in a rectangle)
+    is flagged as infeasible.
+    """
+    if placement_bounds_local is None:
+        placement_bounds_local = ((-0.45, -0.45), (0.45, 0.45))
+    (x0, y0), (x1, y1) = placement_bounds_local
+    x_lo, x_hi = min(x0, x1), max(x0, x1)
+    y_lo, y_hi = min(y0, y1), max(y0, y1)
+    zone_area = (x_hi - x_lo) * (y_hi - y_lo)
+    if zone_area <= 0:
+        return False, float("inf")
+
+    total_circle_area = 0.0
+    max_r = 0.0
+    for d in descriptors:
+        r = _effective_radius(d) + 0.5 * min_clearance
+        total_circle_area += math.pi * r * r
+        max_r = max(max_r, r)
+
+    if 2.0 * max_r > min(x_hi - x_lo, y_hi - y_lo):
+        return False, float("inf")
+
+    utilization = total_circle_area / zone_area
+    return utilization <= 0.85, utilization
+
+
 def build_clutter_pack(
     table_obj_name: str,
     descriptors: Sequence[ClutterObjectDescriptor],
@@ -45,14 +80,13 @@ def build_clutter_pack(
     jitter_xy: float = 0.015,
     min_clearance: float = 0.025,
     placement_bounds_local: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None,
-    grid_step_m: float = 0.005,
     frontier_noise_margin_m: float = 0.02,
     shuffle_non_target: bool = True,
+    # Deprecated: kept for backward compatibility, ignored.
+    grid_step_m: float = 0.005,
 ) -> ClutterPackSpec:
     if not descriptors:
         raise ValueError("descriptors must be non-empty")
-    if grid_step_m <= 0.0:
-        raise ValueError("grid_step_m must be > 0")
     if frontier_noise_margin_m < 0.0:
         raise ValueError("frontier_noise_margin_m must be >= 0")
     if min_clearance < 0.0:
@@ -61,12 +95,6 @@ def build_clutter_pack(
     rng = random.Random(seed)
     if placement_bounds_local is None:
         placement_bounds_local = ((-0.45, -0.45), (0.45, 0.45))
-    sorted_points = _generate_sorted_grid_points(
-        bounds=placement_bounds_local,
-        step=grid_step_m,
-    )
-    if len(sorted_points) == 0:
-        raise RuntimeError("No candidate points generated for clutter packing.")
 
     placed: List[Tuple[ClutterObjectDescriptor, float, float]] = []
     entries: List[ClutterPackEntry] = []
@@ -89,10 +117,10 @@ def build_clutter_pack(
                 chosen_xy = candidate
 
         if chosen_xy is None:
-            pool = _frontier_candidate_pool(
+            pool = compute_candidate_pool(
                 descriptor=descriptor,
                 placed=placed,
-                sorted_points=sorted_points,
+                placement_bounds=placement_bounds_local,
                 min_clearance=min_clearance,
                 noise_margin=frontier_noise_margin_m,
             )
@@ -124,6 +152,75 @@ def build_clutter_pack(
         seed=int(seed),
         template_id=template_id,
     )
+
+
+def compute_candidate_pool(
+    descriptor: ClutterObjectDescriptor,
+    placed: Sequence[Tuple[ClutterObjectDescriptor, float, float]],
+    placement_bounds: Tuple[Tuple[float, float], Tuple[float, float]],
+    min_clearance: float,
+    noise_margin: float = 0.02,
+    n_angles: int = 36,
+) -> List[Tuple[float, float]]:
+    """Greedy ring-based candidate generation.
+
+    Sweeps concentric rings outward from the origin (target centre).  On each
+    ring, *n_angles* evenly-spaced angular slots are tested for collision with
+    already-placed circles and zone bounds.  Returns all valid positions on the
+    innermost ring(s) that contain at least one free slot, including rings
+    within *noise_margin* of the best to add angular variety.
+    """
+    r_new = _effective_radius(descriptor)
+    (x0, y0), (x1, y1) = placement_bounds
+    # Shrink bounds so circle centres stay fully inside.
+    x_lo = min(x0, x1) + r_new
+    x_hi = max(x0, x1) - r_new
+    y_lo = min(y0, y1) + r_new
+    y_hi = max(y0, y1) - r_new
+    if x_lo > x_hi or y_lo > y_hi:
+        return []
+
+    if not placed:
+        cx = min(max(0.0, x_lo), x_hi)
+        cy = min(max(0.0, y_lo), y_hi)
+        return [(cx, cy)]
+
+    # Minimum ring radius: must clear the centre-most placed object.
+    min_ring_r = r_new + min_clearance
+    for d_p, px, py in placed:
+        if math.hypot(px, py) < 0.05:
+            min_ring_r = max(min_ring_r, _effective_radius(d_p) + r_new + min_clearance)
+
+    ring_step = max(0.005, 0.5 * r_new)
+    max_radius = math.hypot(max(abs(x_lo), abs(x_hi)), max(abs(y_lo), abs(y_hi)))
+
+    best_ring_r: Optional[float] = None
+    pool: List[Tuple[float, float]] = []
+    ring_r = min_ring_r
+    while ring_r <= max_radius:
+        ring_valid: List[Tuple[float, float]] = []
+        for i in range(n_angles):
+            theta = 2.0 * math.pi * i / n_angles
+            cx = ring_r * math.cos(theta)
+            cy = ring_r * math.sin(theta)
+            if cx < x_lo or cx > x_hi or cy < y_lo or cy > y_hi:
+                continue
+            if not _collides_with_placed((cx, cy), descriptor, placed, min_clearance):
+                ring_valid.append((cx, cy))
+
+        if ring_valid:
+            if best_ring_r is None:
+                best_ring_r = ring_r
+            if ring_r <= best_ring_r + noise_margin + 1e-12:
+                pool.extend(ring_valid)
+            else:
+                break
+        elif best_ring_r is not None and ring_r > best_ring_r + noise_margin:
+            break
+
+        ring_r += ring_step
+
+    return pool
 
 
 def apply_pack_transform(
@@ -212,6 +309,18 @@ def validate_pack_integrity(
     )
 
 
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _effective_radius(d: ClutterObjectDescriptor) -> float:
+    # Use AABB diagonal so that circle-circle clearance guarantees no
+    # axis-aligned bounding-box overlap — matches the 3D AABB interpenetration
+    # check used during post-placement validation.
+    return math.hypot(d.half_extent_xy[0], d.half_extent_xy[1])
+
+
 def _ordered_descriptors(descriptors: Sequence[ClutterObjectDescriptor]) -> List[ClutterObjectDescriptor]:
     role_priority = {"target": 0, "fragile": 1, "clutter": 2}
     return sorted(
@@ -234,56 +343,6 @@ def _collides_with_placed(
         if math.hypot(cx - ox, cy - oy) < min_dist:
             return True
     return False
-
-
-def _generate_sorted_grid_points(
-    bounds: Tuple[Tuple[float, float], Tuple[float, float]],
-    step: float,
-) -> Tuple[Tuple[float, float], ...]:
-    (x0, y0), (x1, y1) = bounds
-    x_lo, x_hi = min(x0, x1), max(x0, x1)
-    y_lo, y_hi = min(y0, y1), max(y0, y1)
-    if x_hi - x_lo <= 0.0 or y_hi - y_lo <= 0.0:
-        return tuple()
-
-    points: List[Tuple[float, float]] = []
-    x = x_lo
-    while x <= x_hi + 1e-9:
-        y = y_lo
-        while y <= y_hi + 1e-9:
-            points.append((round(float(x), 6), round(float(y), 6)))
-            y += step
-        x += step
-
-    points.sort(key=lambda p: (math.hypot(p[0], p[1]), abs(p[0]) + abs(p[1]), p[0], p[1]))
-    return tuple(points)
-
-
-def _frontier_candidate_pool(
-    descriptor: ClutterObjectDescriptor,
-    placed: Iterable[Tuple[ClutterObjectDescriptor, float, float]],
-    sorted_points: Sequence[Tuple[float, float]],
-    min_clearance: float,
-    noise_margin: float,
-) -> List[Tuple[float, float]]:
-    best_dist = None
-    pool: List[Tuple[float, float]] = []
-    threshold = None
-    for px, py in sorted_points:
-        candidate = (px, py)
-        if _collides_with_placed(candidate, descriptor, placed, min_clearance=min_clearance):
-            continue
-        dist = math.hypot(px, py)
-        if best_dist is None:
-            best_dist = dist
-            threshold = dist + noise_margin + 1e-12
-            pool.append(candidate)
-            continue
-        if dist <= threshold:
-            pool.append(candidate)
-            continue
-        break
-    return pool
 
 
 def _quat_from_yaw(yaw: float) -> Tuple[float, float, float, float]:
