@@ -41,6 +41,7 @@ from omnigibson.utils.kitchen_bar_workspace import (
     contains_point,
 )
 from omnigibson.utils.manipulation_task_spec import build_manipulation_task_spec
+from omnigibson.utils.safety_monitor import TaskLTLMonitor
 import omnigibson.utils.transform_utils as T
 
 
@@ -1913,6 +1914,17 @@ def main():
             _set_demo_arm_pose(robot)
             og.sim.step()
 
+            # -- LTL safety monitor -----------------------------------------
+            ltl_monitor = TaskLTLMonitor(
+                env=env,
+                activity_name=task_name,
+                scene_model=cfg["scene"]["scene_model"],
+                active_objects_by_inst=active_objects_by_inst,
+            )
+            ltl_monitor.reset()
+            ltl_initial = ltl_monitor.step(0)
+            print(f"[LTL] Initial state: {ltl_initial['ap']}")
+
             executed = 0
             terminated = False
             truncated = False
@@ -1920,6 +1932,12 @@ def main():
                 action = _make_zero_jitter_action(robot, rng, args.jitter_scale)
                 _sim_step_with_action_only(env, action)
                 executed += 1
+
+                # LTL check every step
+                ltl_info = ltl_monitor.step(executed)
+                if ltl_monitor.violated:
+                    terminated = True
+
                 if executed % 50 == 0:
                     print(f"[MVP] Step {executed}/{args.steps}")
                 if executed % 10 == 0:
@@ -1936,7 +1954,29 @@ def main():
                         print(f"[MVP] WARNING: runtime robot penetration objects={robot_hits}")
                 if terminated or truncated:
                     break
-            print(f"[MVP] Episode done: steps={executed}, terminated={terminated}, truncated={truncated}")
+
+            ltl_summary = ltl_monitor.summary()
+            print(
+                f"[MVP] Episode done: steps={executed}, terminated={terminated}, "
+                f"truncated={truncated}, ltl_violated={ltl_summary['violated']}"
+            )
+            if ltl_summary["violated"]:
+                print(f"[LTL] Violation at step {ltl_summary['violation_step']}")
+            _append_jsonl(
+                args.debug_jsonl,
+                {
+                    "episode": ep + 1,
+                    "event": "ltl_summary",
+                    "ltl": {
+                        "formula": ltl_summary["formula"],
+                        "violated": ltl_summary["violated"],
+                        "violation_step": ltl_summary["violation_step"],
+                        "violation_count": ltl_summary["violation_count"],
+                        "total_steps_monitored": ltl_summary["total_steps_monitored"],
+                        "log": ltl_summary["log"],
+                    },
+                },
+            )
     finally:
         print("[MVP] Shutdown simulator.")
         try:

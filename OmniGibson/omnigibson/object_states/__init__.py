@@ -8,6 +8,7 @@ from omnigibson.object_states.contains import ContainedParticles, Contains
 from omnigibson.object_states.cooked import Cooked
 from omnigibson.object_states.covered import Covered
 from omnigibson.object_states.draped import Draped
+from omnigibson.object_states.dropped import Dropped
 from omnigibson.object_states.filled import Filled
 from omnigibson.object_states.folded import Folded, FoldedLevel, Unfolded
 from omnigibson.object_states.frozen import Frozen
@@ -34,6 +35,7 @@ from omnigibson.object_states.temperature import Temperature
 from omnigibson.object_states.toggle import ToggledOn
 from omnigibson.object_states.touching import Touching
 from omnigibson.object_states.under import Under
+from omnigibson.object_states.upright import Upright
 
 __all__ = [
     "AABB",
@@ -46,6 +48,7 @@ __all__ = [
     "Cooked",
     "Covered",
     "Draped",
+    "Dropped",
     "Filled",
     "Folded",
     "FoldedLevel",
@@ -78,5 +81,6 @@ __all__ = [
     "Touching",
     "Under",
     "Unfolded",
+    "Upright",
     "VerticalAdjacency",
 ]

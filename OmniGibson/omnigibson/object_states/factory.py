@@ -36,6 +36,8 @@ from omnigibson.object_states import (
     Touching,
     Under,
     Unfolded,
+    Upright,
+    Dropped,
 )
 from omnigibson.object_states.kinematics_mixin import KinematicsMixin
 from omnigibson.object_states.link_based_state_mixin import LinkBasedStateMixin
@@ -79,6 +81,8 @@ _DEFAULT_STATE_SET = frozenset(
         Touching,
         Under,
         Covered,
+        Upright,
+        Dropped,
     ]
 )
 
