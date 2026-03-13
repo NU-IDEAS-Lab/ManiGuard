@@ -1,2 +1,5 @@
 .DS_Store
 .context/
+log_dir/*
+scene_generation/*
+outputs/*

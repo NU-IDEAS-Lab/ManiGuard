@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Sequence, Tuple
+from typing import Iterable, Optional, Sequence, Tuple
 
 
 Bounds2D = Tuple[Tuple[float, float], Tuple[float, float]]
@@ -12,6 +12,14 @@ class ZoneCapacityStats:
     available_area: float
     required_area: float
     utilization: float
+
+
+@dataclass(frozen=True)
+class TabletopZoneSpec:
+    surface_bounds: Bounds2D
+    obstacle_keepout_bounds: Optional[Bounds2D]
+    red_zone_bounds: Bounds2D
+    long_axis: str
 
 
 @dataclass(frozen=True)
@@ -136,6 +144,78 @@ def compute_kitchen_bar_zone(
         workspace_preset=workspace_preset,
         bar_bounds=bar_bounds,
         sink_keepout_bounds=sink_keepout,
+        red_zone_bounds=red_zone,
+        long_axis=long_axis,
+    )
+
+
+def compute_tabletop_zone(
+    surface_bounds_xy: Bounds2D,
+    obstacle_bounds_xy: Optional[Bounds2D] = None,
+    edge_margin_m: float = 0.05,
+    obstacle_keepout_margin_m: float = 0.10,
+    obstacle_side_clearance_m: float = 0.02,
+    min_zone_span_m: float = 0.20,
+) -> TabletopZoneSpec:
+    if edge_margin_m < 0.0 or obstacle_keepout_margin_m < 0.0 or obstacle_side_clearance_m < 0.0:
+        raise ValueError("Margins must be non-negative")
+
+    surface = normalize_bounds(surface_bounds_xy)
+    (sx0, sy0), (sx1, sy1) = surface
+    x_len = sx1 - sx0
+    y_len = sy1 - sy0
+    long_axis = "y" if y_len >= x_len else "x"
+
+    if obstacle_bounds_xy is not None:
+        obstacle_keepout = expand_bounds(obstacle_bounds_xy, obstacle_keepout_margin_m)
+
+        if long_axis == "y":
+            zx0 = sx0 + edge_margin_m
+            zx1 = sx1 - edge_margin_m
+            # Place red zone on whichever side of the obstacle has more room.
+            obs_center_y = 0.5 * (obstacle_keepout[0][1] + obstacle_keepout[1][1])
+            surf_center_y = 0.5 * (sy0 + sy1)
+            if obs_center_y <= surf_center_y:
+                # Obstacle on low-y side → red zone on high-y side.
+                zy0 = max(obstacle_keepout[1][1] + obstacle_side_clearance_m, sy0 + edge_margin_m)
+                zy1 = sy1 - edge_margin_m
+            else:
+                zy0 = sy0 + edge_margin_m
+                zy1 = min(obstacle_keepout[0][1] - obstacle_side_clearance_m, sy1 - edge_margin_m)
+        else:
+            zy0 = sy0 + edge_margin_m
+            zy1 = sy1 - edge_margin_m
+            obs_center_x = 0.5 * (obstacle_keepout[0][0] + obstacle_keepout[1][0])
+            surf_center_x = 0.5 * (sx0 + sx1)
+            if obs_center_x <= surf_center_x:
+                zx0 = max(obstacle_keepout[1][0] + obstacle_side_clearance_m, sx0 + edge_margin_m)
+                zx1 = sx1 - edge_margin_m
+            else:
+                zx0 = sx0 + edge_margin_m
+                zx1 = min(obstacle_keepout[0][0] - obstacle_side_clearance_m, sx1 - edge_margin_m)
+    else:
+        obstacle_keepout = None
+        zx0 = sx0 + edge_margin_m
+        zx1 = sx1 - edge_margin_m
+        zy0 = sy0 + edge_margin_m
+        zy1 = sy1 - edge_margin_m
+
+    if zx1 - zx0 < min_zone_span_m or zy1 - zy0 < min_zone_span_m:
+        raise ValueError(
+            "Red-zone span too small after applying obstacle keepout and margins: "
+            f"span_x={zx1 - zx0:.3f}, span_y={zy1 - zy0:.3f}"
+        )
+
+    red_zone = normalize_bounds(((zx0, zy0), (zx1, zy1)))
+
+    if not _bounds_inside(red_zone, surface):
+        raise ValueError("Red zone falls outside surface bounds")
+    if obstacle_keepout is not None and bounds_overlap(red_zone, obstacle_keepout, tol=1e-6):
+        raise ValueError("Red zone overlaps obstacle keepout")
+
+    return TabletopZoneSpec(
+        surface_bounds=surface,
+        obstacle_keepout_bounds=obstacle_keepout,
         red_zone_bounds=red_zone,
         long_axis=long_axis,
     )
