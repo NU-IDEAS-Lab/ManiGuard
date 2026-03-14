@@ -7,6 +7,8 @@ from omnigibson.utils.surface_discovery import (
     SurfaceCandidate,
     SurfaceObstacle,
     analyze_surface,
+    check_edge_reachability,
+    compute_robot_placement_box,
     detect_obstacles_on_surface,
     is_obstacle_like,
     is_table_like,
@@ -128,6 +130,102 @@ class TestRankApproachEdges:
         assert edges[-1] == "x_max"
 
 
+class TestComputeRobotPlacementBox:
+    def test_x_min_edge(self):
+        surface = ((0.0, 0.0), (2.0, 1.0))
+        box = compute_robot_placement_box("x_min", surface, robot_footprint_xy=(0.4, 0.4), edge_gap_m=0.03)
+        (bx0, by0), (bx1, by1) = box
+        # Robot should be entirely to the left of the surface.
+        assert bx1 < 0.0
+        # Robot box should be robot-sized, not table-sized.
+        assert abs((bx1 - bx0) - 0.4) < 1e-9
+        assert abs((by1 - by0) - 0.4) < 1e-9
+
+    def test_x_max_edge(self):
+        surface = ((0.0, 0.0), (2.0, 1.0))
+        box = compute_robot_placement_box("x_max", surface, robot_footprint_xy=(0.4, 0.4), edge_gap_m=0.03)
+        (bx0, by0), (bx1, by1) = box
+        # Robot should be entirely to the right of the surface.
+        assert bx0 > 2.0
+        assert abs((bx1 - bx0) - 0.4) < 1e-9
+
+    def test_y_min_edge(self):
+        surface = ((0.0, 0.0), (2.0, 1.0))
+        box = compute_robot_placement_box("y_min", surface, robot_footprint_xy=(0.4, 0.4), edge_gap_m=0.03)
+        (bx0, by0), (bx1, by1) = box
+        assert by1 < 0.0
+        assert abs((by1 - by0) - 0.4) < 1e-9
+
+    def test_y_max_edge(self):
+        surface = ((0.0, 0.0), (2.0, 1.0))
+        box = compute_robot_placement_box("y_max", surface, robot_footprint_xy=(0.4, 0.4), edge_gap_m=0.03)
+        (bx0, by0), (bx1, by1) = box
+        assert by0 > 1.0
+        assert abs((by1 - by0) - 0.4) < 1e-9
+
+    def test_tangent_offset(self):
+        surface = ((0.0, 0.0), (2.0, 1.0))
+        box_center = compute_robot_placement_box("x_min", surface, robot_footprint_xy=(0.4, 0.4))
+        box_shifted = compute_robot_placement_box("x_min", surface, robot_footprint_xy=(0.4, 0.4), tangent_offset=0.2)
+        # Shifted box should be 0.2m higher in Y.
+        center_cy = 0.5 * (box_center[0][1] + box_center[1][1])
+        shifted_cy = 0.5 * (box_shifted[0][1] + box_shifted[1][1])
+        assert abs(shifted_cy - center_cy - 0.2) < 1e-9
+
+
+class TestCheckEdgeReachability:
+    def test_open_table_all_edges_reachable(self):
+        surface = ((5.0, 5.0), (7.0, 6.0))
+        # No nearby objects.
+        reachable = check_edge_reachability(surface, scene_object_aabbs=[])
+        assert len(reachable) == 4
+
+    def test_wall_blocks_one_edge(self):
+        surface = ((0.0, 0.0), (2.0, 1.0))
+        # Wall flush against x_min edge (blocks robot placement on that side).
+        wall = ((-0.5, -1.0), (-0.01, 2.0))
+        reachable = check_edge_reachability(surface, scene_object_aabbs=[wall])
+        assert "x_min" not in reachable
+        assert "x_max" in reachable
+
+    def test_corner_table_two_walls(self):
+        surface = ((0.0, 0.0), (1.5, 1.0))
+        # Walls on x_min and y_min.
+        walls = [
+            ((-0.5, -1.0), (-0.01, 2.0)),  # blocks x_min
+            ((-1.0, -0.5), (3.0, -0.01)),   # blocks y_min
+        ]
+        reachable = check_edge_reachability(surface, scene_object_aabbs=walls)
+        assert "x_min" not in reachable
+        assert "y_min" not in reachable
+        assert "x_max" in reachable
+        assert "y_max" in reachable
+
+    def test_fully_enclosed_no_edges(self):
+        surface = ((1.0, 1.0), (2.0, 2.0))
+        # Walls on all four sides, very close.
+        walls = [
+            ((0.5, 0.0), (0.99, 3.0)),   # blocks x_min
+            ((2.01, 0.0), (2.5, 3.0)),    # blocks x_max
+            ((0.0, 0.5), (3.0, 0.99)),    # blocks y_min
+            ((0.0, 2.01), (3.0, 2.5)),    # blocks y_max
+        ]
+        reachable = check_edge_reachability(surface, scene_object_aabbs=walls)
+        assert len(reachable) == 0
+
+
+class TestRankApproachEdgesWithReachability:
+    def test_filters_to_reachable_only(self):
+        aabb = ((0.0, 0.0), (2.0, 1.0))
+        edges = rank_approach_edges(aabb, reachable_edges=["x_max", "y_max"])
+        assert set(edges) == {"x_max", "y_max"}
+
+    def test_empty_reachable_returns_empty(self):
+        aabb = ((0.0, 0.0), (2.0, 1.0))
+        edges = rank_approach_edges(aabb, reachable_edges=[])
+        assert edges == []
+
+
 class TestAnalyzeSurface:
     def test_basic(self):
         scene_objects = [
@@ -139,3 +237,34 @@ class TestAnalyzeSurface:
         assert len(analysis.obstacles) == 1
         assert analysis.free_area > 0
         assert len(analysis.approach_edges) == 4
+
+    def test_unreachable_surface_scores_zero(self):
+        # Table completely enclosed by walls.
+        surface = ((1.0, 1.0), (2.0, 2.0))
+        walls = [
+            ((0.5, 0.0), (0.99, 3.0)),
+            ((2.01, 0.0), (2.5, 3.0)),
+            ((0.0, 0.5), (3.0, 0.99)),
+            ((0.0, 2.01), (3.0, 2.5)),
+        ]
+        scene_objects = [
+            {"name": "wall_1", "category": "wall", "aabb_xy": walls[0], "top_z": 2.5},
+        ]
+        analysis = analyze_surface(
+            "table_1", "table", surface, 0.85, scene_objects,
+            scene_object_aabbs=walls,
+        )
+        assert analysis.surface.score == 0.0
+        assert len(analysis.approach_edges) == 0
+
+    def test_reachable_surface_has_filtered_edges(self):
+        surface = ((0.0, 0.0), (2.0, 1.0))
+        # Wall blocks x_min only.
+        wall = ((-0.5, -1.0), (-0.01, 2.0))
+        analysis = analyze_surface(
+            "bar_1", "bar", surface, 0.85, [],
+            scene_object_aabbs=[wall],
+        )
+        assert analysis.surface.score > 0
+        assert "x_min" not in analysis.approach_edges
+        assert len(analysis.approach_edges) >= 1

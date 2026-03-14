@@ -24,9 +24,9 @@ class BDDLGenConfig:
     activity_name: str
     support_synset: str
     support_room: str
-    goal_synset: str
-    goal_room: str
-    goal_predicate: str = "inside"
+    goal_predicate: str = "grasped"
+    goal_synset: Optional[str] = None
+    goal_room: Optional[str] = None
     objects: List[ObjectSpec] = field(default_factory=list)
 
 
@@ -44,11 +44,23 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
             instances.append(f"{spec.synset}_{i}")
         synset_instances[spec.synset] = instances
 
-    # Ensure support and goal synsets have at least one instance.
+    # Ensure support synset has at least one instance.
     if config.support_synset not in synset_instances:
         synset_instances[config.support_synset] = [f"{config.support_synset}_1"]
-    if config.goal_synset not in synset_instances:
-        synset_instances[config.goal_synset] = [f"{config.goal_synset}_1"]
+
+    # For "grasped" goal the agent is the second entity; for placement goals
+    # (inside, ontop, etc.) a goal furniture piece is required.
+    uses_grasped_goal = config.goal_predicate == "grasped"
+
+    if uses_grasped_goal:
+        # Agent must be in :objects for the grasped predicate.
+        agent_synset = "agent.n.01"
+        if agent_synset not in synset_instances:
+            synset_instances[agent_synset] = [f"{agent_synset}_1"]
+    else:
+        # Placement goal — need a goal furniture piece.
+        if config.goal_synset and config.goal_synset not in synset_instances:
+            synset_instances[config.goal_synset] = [f"{config.goal_synset}_1"]
 
     lines.append("    (:objects")
     for synset, instances in synset_instances.items():
@@ -57,29 +69,36 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
     lines.append("    )")
     lines.append("")
 
-    # Init: place all non-support, non-goal objects ontop the support.
+    # Init: place objects ontop the support, place agent on floor.
     support_inst = synset_instances[config.support_synset][0]
-    goal_inst = synset_instances[config.goal_synset][0]
+    skip_synsets = {config.support_synset}
+    if uses_grasped_goal:
+        skip_synsets.add("agent.n.01")
+    elif config.goal_synset:
+        skip_synsets.add(config.goal_synset)
 
     lines.append("    (:init")
     for synset, instances in synset_instances.items():
-        if synset == config.support_synset or synset == config.goal_synset:
+        if synset in skip_synsets:
             continue
         for inst in instances:
             lines.append(f"        (ontop {inst} {support_inst})")
     lines.append(f"        (inroom {support_inst} {config.support_room})")
-    lines.append(f"        (inroom {goal_inst} {config.goal_room})")
+
+    if not uses_grasped_goal and config.goal_synset and config.goal_room:
+        goal_inst = synset_instances[config.goal_synset][0]
+        lines.append(f"        (inroom {goal_inst} {config.goal_room})")
+
     lines.append("    )")
     lines.append("")
 
-    # Goal: first target object goes to goal destination.
+    # Goal
     target_specs = [s for s in config.objects if s.role == "target"]
     if target_specs:
         target_inst = f"{target_specs[0].synset}_1"
     else:
-        # Fallback: first non-support, non-goal object.
         for synset, instances in synset_instances.items():
-            if synset not in (config.support_synset, config.goal_synset):
+            if synset not in skip_synsets:
                 target_inst = instances[0]
                 break
         else:
@@ -87,7 +106,12 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
 
     lines.append("    (:goal")
     lines.append("        (and")
-    lines.append(f"            ({config.goal_predicate} {target_inst} {goal_inst})")
+    if uses_grasped_goal:
+        agent_inst = synset_instances["agent.n.01"][0]
+        lines.append(f"            (grasped {agent_inst} {target_inst})")
+    else:
+        goal_inst = synset_instances[config.goal_synset][0]
+        lines.append(f"            ({config.goal_predicate} {target_inst} {goal_inst})")
     lines.append("        )")
     lines.append("    )")
     lines.append(")")

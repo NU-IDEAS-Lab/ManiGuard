@@ -215,9 +215,17 @@ def _infer_target_ids(
     targets = set()
 
     for pred in goal_predicates:
-        if pred.negated or pred.name not in movable_goal_preds or len(pred.args) == 0:
+        if pred.negated or len(pred.args) == 0:
             continue
-        subject = pred.args[0]
+
+        # For grasped(agent, obj), the target is the second argument.
+        if pred.name == "grasped" and len(pred.args) >= 2:
+            subject = pred.args[1]
+        elif pred.name in movable_goal_preds:
+            subject = pred.args[0]
+        else:
+            continue
+
         resolved_subjects = _resolve_argument_instances(
             argument=subject,
             quantified_vars=dict(pred.quantified_vars),

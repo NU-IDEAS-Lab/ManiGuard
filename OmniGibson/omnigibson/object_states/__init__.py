@@ -27,7 +27,7 @@ from omnigibson.object_states.particle import ParticleRequirement
 from omnigibson.object_states.particle_modifier import ParticleApplier, ParticleRemover
 from omnigibson.object_states.particle_source_or_sink import ParticleSink, ParticleSource
 from omnigibson.object_states.pose import Pose
-from omnigibson.object_states.robot_related_states import IsGrasping, ObjectsInFOVOfRobot
+from omnigibson.object_states.robot_related_states import Grasped, ObjectsInFOVOfRobot
 from omnigibson.object_states.saturated import Saturated
 from omnigibson.object_states.sliceable import SliceableRequirement
 from omnigibson.object_states.slicer_active import SlicerActive
@@ -57,7 +57,7 @@ __all__ = [
     "HeatSourceOrSink",
     "HorizontalAdjacency",
     "Inside",
-    "IsGrasping",
+    "Grasped",
     "Joint",
     "MaxTemperature",
     "NextTo",

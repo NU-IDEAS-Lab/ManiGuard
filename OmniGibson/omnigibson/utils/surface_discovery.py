@@ -143,14 +143,153 @@ def detect_obstacles_on_surface(
     return obstacles
 
 
+def _overlaps(a: Bounds2D, b: Bounds2D) -> bool:
+    """Check if two 2D AABBs overlap (strict inequality — touching doesn't count)."""
+    (a0x, a0y), (a1x, a1y) = _normalize(a)
+    (b0x, b0y), (b1x, b1y) = _normalize(b)
+    return a0x < b1x and a1x > b0x and a0y < b1y and a1y > b0y
+
+
+def compute_robot_placement_box(
+    edge_label: str,
+    surface_aabb_xy: Bounds2D,
+    robot_footprint_xy: Tuple[float, float] = (0.35, 0.35),
+    edge_gap_m: float = 0.03,
+    tangent_offset: float = 0.0,
+) -> Bounds2D:
+    """Compute the 2D AABB where the robot base would be placed for a given edge.
+
+    The robot is a robot-sized box placed just outside the table edge (normal
+    direction) with a gap, centered along the edge's tangent direction plus
+    an optional offset.
+
+    Args:
+        edge_label: One of "x_min", "x_max", "y_min", "y_max".
+        surface_aabb_xy: The table's 2D bounding box.
+        robot_footprint_xy: (width_x, width_y) of the robot base footprint.
+        edge_gap_m: Gap between robot and table edge.
+        tangent_offset: Offset along the edge from the center (for scanning).
+
+    Returns:
+        2D AABB of the robot placement region.
+    """
+    (sx0, sy0), (sx1, sy1) = _normalize(surface_aabb_xy)
+    half_rx = robot_footprint_xy[0] / 2.0
+    half_ry = robot_footprint_xy[1] / 2.0
+    cx = 0.5 * (sx0 + sx1)
+    cy = 0.5 * (sy0 + sy1)
+
+    if edge_label == "x_min":
+        robot_cx = sx0 - half_rx - edge_gap_m
+        robot_cy = cy + tangent_offset
+        return ((robot_cx - half_rx, robot_cy - half_ry), (robot_cx + half_rx, robot_cy + half_ry))
+    elif edge_label == "x_max":
+        robot_cx = sx1 + half_rx + edge_gap_m
+        robot_cy = cy + tangent_offset
+        return ((robot_cx - half_rx, robot_cy - half_ry), (robot_cx + half_rx, robot_cy + half_ry))
+    elif edge_label == "y_min":
+        robot_cx = cx + tangent_offset
+        robot_cy = sy0 - half_ry - edge_gap_m
+        return ((robot_cx - half_rx, robot_cy - half_ry), (robot_cx + half_rx, robot_cy + half_ry))
+    elif edge_label == "y_max":
+        robot_cx = cx + tangent_offset
+        robot_cy = sy1 + half_ry + edge_gap_m
+        return ((robot_cx - half_rx, robot_cy - half_ry), (robot_cx + half_rx, robot_cy + half_ry))
+    else:
+        raise ValueError(f"Unsupported edge_label: {edge_label}")
+
+
+def _build_scan_offsets(edge_length: float, step: float = 0.15) -> Tuple[float, ...]:
+    """Build scan offsets that cover the full edge length, centered at 0."""
+    offsets = [0.0]
+    half = edge_length / 2.0
+    d = step
+    while d < half:
+        offsets.append(d)
+        offsets.append(-d)
+        d += step
+    return tuple(offsets)
+
+
+def check_edge_reachability(
+    surface_aabb_xy: Bounds2D,
+    scene_object_aabbs: Sequence[Bounds2D],
+    surface_name: str = "",
+    robot_footprint_xy: Tuple[float, float] = (0.35, 0.35),
+    edge_gap_m: float = 0.03,
+) -> List[str]:
+    """Return edges where the robot can be placed without colliding with scene objects.
+
+    For each of the four edges, samples several positions along the edge and
+    checks whether a robot-sized box at that position overlaps any scene object.
+    An edge is reachable if at least one position is collision-free.
+
+    Args:
+        surface_aabb_xy: The table surface AABB.
+        scene_object_aabbs: AABBs of all other scene objects (walls, furniture, etc.).
+        surface_name: Name of this surface (for logging only).
+        robot_footprint_xy: (width_x, width_y) of the robot base.
+        edge_gap_m: Gap between robot and table edge.
+
+    Returns:
+        List of reachable edge labels, ordered by preference (long-side edges first).
+    """
+    (sx0, sy0), (sx1, sy1) = _normalize(surface_aabb_xy)
+    dx = sx1 - sx0
+    dy = sy1 - sy0
+    # Prefer approaching along the long side (robot faces the short side).
+    if dy >= dx:
+        edge_order = ["x_min", "x_max", "y_min", "y_max"]
+    else:
+        edge_order = ["y_min", "y_max", "x_min", "x_max"]
+
+    # Build scan offsets scaled to each edge's length.
+    edge_lengths = {
+        "x_min": dy, "x_max": dy,
+        "y_min": dx, "y_max": dx,
+    }
+
+    reachable = []
+    for edge in edge_order:
+        offsets = _build_scan_offsets(edge_lengths[edge])
+        found_clear = False
+        for offset in offsets:
+            robot_box = compute_robot_placement_box(
+                edge, surface_aabb_xy, robot_footprint_xy, edge_gap_m,
+                tangent_offset=offset,
+            )
+            blocked = False
+            for obj_aabb in scene_object_aabbs:
+                if _overlaps(robot_box, obj_aabb):
+                    blocked = True
+                    break
+            if not blocked:
+                found_clear = True
+                break
+        if found_clear:
+            reachable.append(edge)
+    return reachable
+
+
 def rank_approach_edges(
     surface_aabb_xy: Bounds2D,
     obstacle_aabbs: Sequence[Bounds2D] = (),
     wall_aabbs: Sequence[Bounds2D] = (),
+    reachable_edges: Optional[Sequence[str]] = None,
 ) -> List[str]:
+    """Rank approach edges by clearance, optionally filtering to reachable ones.
+
+    If *reachable_edges* is provided, only those edges are considered.
+    """
     (sx0, sy0), (sx1, sy1) = _normalize(surface_aabb_xy)
     cx = 0.5 * (sx0 + sx1)
     cy = 0.5 * (sy0 + sy1)
+
+    all_edge_labels = ["x_min", "x_max", "y_min", "y_max"]
+    if reachable_edges is not None:
+        all_edge_labels = [e for e in all_edge_labels if e in reachable_edges]
+    if not all_edge_labels:
+        return []
 
     edges = {
         "x_min": (sx0, cy),
@@ -175,13 +314,14 @@ def rank_approach_edges(
         dx = sx1 - sx0
         dy = sy1 - sy0
         if dy >= dx:
-            return ["x_min", "x_max", "y_min", "y_max"]
+            default = ["x_min", "x_max", "y_min", "y_max"]
         else:
-            return ["y_min", "y_max", "x_min", "x_max"]
+            default = ["y_min", "y_max", "x_min", "x_max"]
+        return [e for e in default if e in all_edge_labels]
 
     scored = []
-    for label, point in edges.items():
-        clearance = _min_clearance(point, all_blockers)
+    for label in all_edge_labels:
+        clearance = _min_clearance(edges[label], all_blockers)
         scored.append((label, clearance))
 
     scored.sort(key=lambda x: -x[1])
@@ -194,7 +334,24 @@ def analyze_surface(
     aabb_xy: Bounds2D,
     top_z: float,
     scene_objects: Sequence[Dict],
+    scene_object_aabbs: Optional[Sequence[Bounds2D]] = None,
+    robot_footprint_xy: Tuple[float, float] = (0.35, 0.35),
+    edge_gap_m: float = 0.03,
 ) -> SurfaceAnalysis:
+    """Analyze a surface for suitability, including robot reachability.
+
+    Args:
+        name: Surface object name.
+        category: Surface category string.
+        aabb_xy: 2D bounding box of the surface.
+        top_z: Z-height of the surface top.
+        scene_objects: List of dicts with name/category/aabb_xy/top_z for obstacle detection.
+        scene_object_aabbs: AABBs of *other* scene objects (not this surface) for
+            robot reachability checks.  If None, reachability is not checked (all
+            edges considered reachable).
+        robot_footprint_xy: Robot base footprint (width_x, width_y).
+        edge_gap_m: Gap between robot and table edge.
+    """
     score = score_surface(aabb_xy, top_z, category)
     surface = SurfaceCandidate(
         name=name,
@@ -208,7 +365,33 @@ def analyze_surface(
     obstacle_area = sum(_area(o.aabb_xy) for o in obstacles)
     free_area = max(0.0, surface.area - obstacle_area)
     obstacle_aabbs = [o.aabb_xy for o in obstacles]
-    edges = rank_approach_edges(aabb_xy, obstacle_aabbs=obstacle_aabbs)
+
+    # Determine which edges are reachable by the robot.
+    reachable = None
+    if scene_object_aabbs is not None:
+        reachable = check_edge_reachability(
+            surface_aabb_xy=aabb_xy,
+            scene_object_aabbs=scene_object_aabbs,
+            surface_name=name,
+            robot_footprint_xy=robot_footprint_xy,
+            edge_gap_m=edge_gap_m,
+        )
+        if not reachable:
+            # No reachable edge → surface is unusable, override score to 0.
+            surface = SurfaceCandidate(
+                name=name,
+                category=category,
+                aabb_xy=_normalize(aabb_xy),
+                top_z=top_z,
+                area=_area(aabb_xy),
+                score=0.0,
+            )
+
+    edges = rank_approach_edges(
+        aabb_xy,
+        obstacle_aabbs=obstacle_aabbs,
+        reachable_edges=reachable,
+    )
 
     return SurfaceAnalysis(
         surface=surface,

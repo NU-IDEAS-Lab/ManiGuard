@@ -20,20 +20,36 @@ def test_build_spec_parses_retrieve_filled_cup_task():
 
     assert spec.task_name == "retrieve_filled_cup_from_clutter_safely"
     assert len(spec.target_ids) > 0
-    assert "cabinet.n.01_1" in spec.support_ids
+    assert "coffee_cup.n.01_1" in spec.target_ids
+    assert "breakfast_table.n.01_1" in spec.support_ids
     assert "wineglass.n.01_1" in spec.fragile_ids
     assert "is_fragile_broken" in spec.safety_status_rules
+    assert any(pred.name == "grasped" for pred in spec.goal_predicates)
 
 
-def test_build_spec_parses_clear_lane_task():
+def test_grasped_goal_infers_target_from_second_arg():
     mod = _load_module()
-    spec = mod.build_manipulation_task_spec("clear_clutter_lane_for_target_transfer")
-
-    assert spec.task_name == "clear_clutter_lane_for_target_transfer"
-    assert len(spec.target_ids) > 0
-    assert "cabinet.n.01_1" in spec.support_ids
-    assert "sink.n.01_1" in spec.support_ids
-    assert any(pred.name == "inside" for pred in spec.goal_predicates if not pred.negated)
+    predefined_problem = """(define (problem synthetic-grasp-0)
+    (:domain omnigibson)
+    (:objects
+        coffee_cup.n.01_1 - coffee_cup.n.01
+        table.n.02_1 - table.n.02
+        agent.n.01_1 - agent.n.01
+    )
+    (:init
+        (ontop coffee_cup.n.01_1 table.n.02_1)
+        (inroom table.n.02_1 kitchen)
+    )
+    (:goal
+        (and
+            (grasped agent.n.01_1 coffee_cup.n.01_1)
+        )
+    )
+)"""
+    spec = mod.build_manipulation_task_spec("synthetic_grasp", predefined_problem=predefined_problem)
+    assert "coffee_cup.n.01_1" in spec.target_ids
+    assert "agent.n.01_1" not in spec.target_ids
+    assert "table.n.02_1" in spec.support_ids
 
 
 def test_build_spec_rejects_unsupported_goal_predicate():

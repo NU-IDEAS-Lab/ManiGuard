@@ -18,6 +18,21 @@ from omnigibson.utils.bddl_generator import (
 
 class TestGenerateBDDLProblem:
     def _make_config(self):
+        """Default config uses grasped goal (no cabinet needed)."""
+        return BDDLGenConfig(
+            activity_name="test_task",
+            support_synset="breakfast_table.n.01",
+            support_room="living_room",
+            goal_predicate="grasped",
+            objects=[
+                ObjectSpec(synset="coffee_cup.n.01", count=1, role="target"),
+                ObjectSpec(synset="wineglass.n.01", count=3, role="fragile"),
+                ObjectSpec(synset="plate.n.04", count=2, role="clutter"),
+            ],
+        )
+
+    def _make_placement_config(self):
+        """Placement goal config (inside cabinet) for backward compat."""
         return BDDLGenConfig(
             activity_name="test_task",
             support_synset="countertop.n.01",
@@ -48,22 +63,43 @@ class TestGenerateBDDLProblem:
         assert "wineglass.n.01_1 wineglass.n.01_2 wineglass.n.01_3 - wineglass.n.01" in text
         assert "plate.n.04_1 plate.n.04_2 - plate.n.04" in text
 
+    def test_grasped_goal_includes_agent(self):
+        config = self._make_config()
+        text = generate_bddl_problem(config)
+        assert "agent.n.01_1 - agent.n.01" in text
+        assert "floor" not in text
+
+    def test_grasped_goal_uses_target(self):
+        config = self._make_config()
+        text = generate_bddl_problem(config)
+        assert "(grasped agent.n.01_1 coffee_cup.n.01_1)" in text
+
     def test_init_places_objects_on_support(self):
         config = self._make_config()
         text = generate_bddl_problem(config)
-        assert "(ontop coffee_cup.n.01_1 countertop.n.01_1)" in text
-        assert "(ontop wineglass.n.01_1 countertop.n.01_1)" in text
+        assert "(ontop coffee_cup.n.01_1 breakfast_table.n.01_1)" in text
+        assert "(ontop wineglass.n.01_1 breakfast_table.n.01_1)" in text
 
-    def test_goal_uses_target(self):
+    def test_support_room(self):
         config = self._make_config()
+        text = generate_bddl_problem(config)
+        assert "(inroom breakfast_table.n.01_1 living_room)" in text
+
+    def test_placement_goal_uses_inside(self):
+        config = self._make_placement_config()
         text = generate_bddl_problem(config)
         assert "(inside coffee_cup.n.01_1 cabinet.n.01_1)" in text
 
-    def test_support_and_goal_rooms(self):
-        config = self._make_config()
+    def test_placement_goal_rooms(self):
+        config = self._make_placement_config()
         text = generate_bddl_problem(config)
         assert "(inroom countertop.n.01_1 kitchen)" in text
         assert "(inroom cabinet.n.01_1 kitchen)" in text
+
+    def test_placement_goal_no_agent(self):
+        config = self._make_placement_config()
+        text = generate_bddl_problem(config)
+        assert "agent.n.01" not in text
 
 
 class TestGenerateLTLSafetyJSON:
