@@ -27,6 +27,7 @@ class BDDLGenConfig:
     goal_predicate: str = "grasped"
     goal_synset: Optional[str] = None
     goal_room: Optional[str] = None
+    init_predicate: str = "ontop"
     objects: List[ObjectSpec] = field(default_factory=list)
 
 
@@ -82,7 +83,7 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
         if synset in skip_synsets:
             continue
         for inst in instances:
-            lines.append(f"        (ontop {inst} {support_inst})")
+            lines.append(f"        ({config.init_predicate} {inst} {support_inst})")
     lines.append(f"        (inroom {support_inst} {config.support_room})")
 
     if not uses_grasped_goal and config.goal_synset and config.goal_room:

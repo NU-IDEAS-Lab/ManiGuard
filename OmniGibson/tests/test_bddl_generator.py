@@ -80,6 +80,23 @@ class TestGenerateBDDLProblem:
         assert "(ontop coffee_cup.n.01_1 breakfast_table.n.01_1)" in text
         assert "(ontop wineglass.n.01_1 breakfast_table.n.01_1)" in text
 
+    def test_init_predicate_inside_for_cabinet(self):
+        config = BDDLGenConfig(
+            activity_name="cabinet_task",
+            support_synset="bottom_cabinet.n.01",
+            support_room="kitchen",
+            goal_predicate="grasped",
+            init_predicate="inside",
+            objects=[
+                ObjectSpec(synset="coffee_cup.n.01", count=1, role="target"),
+                ObjectSpec(synset="wineglass.n.01", count=2, role="fragile"),
+            ],
+        )
+        text = generate_bddl_problem(config)
+        assert "(inside coffee_cup.n.01_1 bottom_cabinet.n.01_1)" in text
+        assert "(inside wineglass.n.01_1 bottom_cabinet.n.01_1)" in text
+        assert "(ontop" not in text
+
     def test_support_room(self):
         config = self._make_config()
         text = generate_bddl_problem(config)

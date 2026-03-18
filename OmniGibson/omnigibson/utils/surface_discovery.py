@@ -12,9 +12,12 @@ from typing import Dict, List, Optional, Sequence, Tuple
 Bounds2D = Tuple[Tuple[float, float], Tuple[float, float]]
 
 _TABLE_LIKE_CATEGORIES = frozenset({
-    "bar", "breakfast_table", "coffee_table", "console_table",
-    "counter", "countertop", "desk", "dining_table", "kitchen_table",
-    "nightstand", "side_table", "table", "workbench",
+    "bar", "breakfast_table", "checkout_counter", "coffee_table",
+    "commercial_kitchen_table", "conference_table", "console_table",
+    "counter", "countertop", "desk", "dining_table", "flat_bench",
+    "garden_coffee_table", "kitchen_table", "lab_table", "nightstand",
+    "pedestal_table", "pool_table", "reception_desk", "side_table",
+    "table", "workbench",
 })
 
 _OBSTACLE_CATEGORIES: Dict[str, str] = {
