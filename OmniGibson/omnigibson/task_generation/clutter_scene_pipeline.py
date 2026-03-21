@@ -22,7 +22,9 @@ from omnigibson.task_generation.pipeline_common import (
     clear_perimeter,
     compute_floor_z,
     discover_from_scene_json,
+    estimate_surface_area_from_scene_json,
     generate_activity,
+    generate_randomized_activity,
     get_scene_json_path,
     get_scope_obj,
     make_base_arg_parser,
@@ -50,6 +52,8 @@ _SURFACE_CATEGORY_PRIORITY = {
 
 def parse_args():
     p = make_base_arg_parser(description="Table clutter scene generation pipeline")
+    p.add_argument("--randomize", action="store_true",
+                   help="Randomize target, fragile, and clutter object types each episode")
     return p.parse_args()
 
 
@@ -116,19 +120,33 @@ def run_dry_run(args):
     activity_name = args.activity_name or f"auto_clutter_on_{args.scene_model}"
 
     support_synset, support_room = "breakfast_table.n.01", "living_room"
+    surface_category = None
+    surface_area = None
     try:
         scene_json = get_scene_json_path(args.scene_model)
         discovery = _discover_surface_from_scene_json(scene_json)
         if discovery:
-            support_synset = resolve_synset(discovery[0])
+            surface_category = discovery[0]
+            support_synset = resolve_synset(surface_category)
             support_room = discovery[1]
-            print(f"[Pipeline] Discovered: {discovery[0]} in {support_room}")
-    except Exception:
+            surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
+            area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
+            print(f"[Pipeline] Discovered: {surface_category} in {support_room}, area={area_str}")
+    except Exception as e:
+        print(f"[Pipeline] Surface discovery failed: {e}")
         pass
 
-    bddl_text, ltl_safety, bddl_path, json_path = generate_activity(
-        activity_name, support_synset, support_room, args.clutter_density,
-    )
+    selection = None
+    if args.randomize:
+        rng = np.random.default_rng(args.seed)
+        bddl_text, ltl_safety, bddl_path, json_path, selection = generate_randomized_activity(
+            activity_name, support_synset, support_room, args.clutter_density,
+            rng=rng, available_area_m2=surface_area,
+        )
+    else:
+        bddl_text, ltl_safety, bddl_path, json_path = generate_activity(
+            activity_name, support_synset, support_room, args.clutter_density,
+        )
     print(f"[Pipeline] Dry-run complete:")
     print(f"  BDDL:       {bddl_path}")
     print(f"  ltl_safety: {json_path}")
@@ -139,6 +157,7 @@ def run_dry_run(args):
     append_jsonl(args.debug_jsonl, {
         "event": "dry_run", "activity_name": activity_name,
         "scene_model": args.scene_model, "density": args.clutter_density,
+        **({"selection": selection} if selection else {}),
     })
     return activity_name, bddl_path, json_path
 
@@ -170,14 +189,29 @@ def run_sim(args, activity_name=None):
     if discovery is None:
         raise RuntimeError(f"No table-like surface in scene '{args.scene_model}'.")
 
-    support_synset = resolve_synset(discovery[0])
+    surface_category = discovery[0]
+    support_synset = resolve_synset(surface_category)
     support_room = discovery[1]
-    print(f"[Pipeline] Discovered: category={discovery[0]} synset={support_synset} room={support_room}")
+
+    # Estimate surface area before generating BDDL so randomization can
+    # fit objects to the available space.
+    surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
+    area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
+    print(f"[Pipeline] Discovered: category={surface_category} synset={support_synset} "
+          f"room={support_room} area={area_str}")
 
     # -- Generate BDDL ------------------------------------------------------
-    _, _, bddl_path, _ = generate_activity(
-        activity_name, support_synset, support_room, args.clutter_density,
-    )
+    rng = np.random.default_rng(args.seed)
+    selection = None
+    if args.randomize:
+        _, _, bddl_path, _, selection = generate_randomized_activity(
+            activity_name, support_synset, support_room, args.clutter_density,
+            rng=rng, available_area_m2=surface_area,
+        )
+    else:
+        _, _, bddl_path, _ = generate_activity(
+            activity_name, support_synset, support_room, args.clutter_density,
+        )
     print(f"[Pipeline] Generated BDDL: {bddl_path}")
     refresh_activity_cache()
 
@@ -195,7 +229,6 @@ def run_sim(args, activity_name=None):
 
     print(f"[Pipeline] scene={args.scene_model}, activity={activity_name}, strict_gate={args.strict_gate}")
     env = og.Environment(configs=cfg)
-    rng = np.random.default_rng(args.seed)
 
     try:
         for ep in range(args.episodes):
@@ -346,6 +379,7 @@ def run_sim(args, activity_name=None):
                 "pack_attempt_used": pack_result.attempt_used,
                 "gate_pass": gate_pass, "ltl_violated": summary["violated"],
                 "steps_executed": executed,
+                **({"selection": selection} if selection else {}),
             })
 
     finally:

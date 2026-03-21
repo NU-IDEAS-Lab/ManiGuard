@@ -24,6 +24,36 @@ DENSITY_PRESETS = {
     "ultra": {"fragile_count": 8, "clutter_count": 6},
 }
 
+# ---------------------------------------------------------------------------
+# Object pools for randomized clutter generation
+# ---------------------------------------------------------------------------
+# Each pool entry is (synset, is_breakable).  is_breakable determines whether
+# the object is treated as fragile in LTL safety constraints.
+
+TARGET_POOL = [
+    ("coffee_cup.n.01", True),
+    ("mug.n.04", True),
+    ("teacup.n.02", True),
+    ("bowl.n.01", True),
+    ("goblet.n.01", True),
+]
+
+FRAGILE_POOL = [
+    ("wineglass.n.01", True),
+    ("goblet.n.01", True),
+    ("vase.n.01", True),
+    ("teacup.n.02", True),
+    ("bowl.n.01", True),
+]
+
+CLUTTER_POOL = [
+    ("plate.n.04", True),
+    ("saucer.n.02", True),
+    ("bowl.n.01", True),
+    ("mug.n.04", True),
+    ("coffee_cup.n.01", True),
+]
+
 # Categories of movable furniture that can block robot placement.
 CLEARABLE_CATEGORIES = {
     "chair", "straight_chair", "armchair", "swivel_chair", "folding_chair",
@@ -158,6 +188,164 @@ def generate_activity(activity_name, support_synset, support_room, density_key,
     return bddl_text, ltl_safety, bddl_path, json_path
 
 
+def _load_footprint_catalog():
+    """Load the pre-computed object footprint catalog (category -> model -> footprint)."""
+    catalog_path = os.path.join(os.path.dirname(__file__), "object_footprints.json")
+    with open(catalog_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _synset_to_category(synset):
+    """Extract the asset category name from a synset like 'mug.n.04'."""
+    return synset.split(".")[0]
+
+
+def _median_footprint(catalog, synset):
+    """Return the median footprint (m²) for a synset across all its models."""
+    cat = _synset_to_category(synset)
+    models = catalog.get(cat, {})
+    if not models:
+        return 0.02  # conservative fallback (~14cm × 14cm)
+    areas = sorted(m["footprint_m2"] for m in models.values())
+    mid = len(areas) // 2
+    return areas[mid] if len(areas) % 2 else 0.5 * (areas[mid - 1] + areas[mid])
+
+
+def generate_randomized_activity(
+    activity_name, support_synset, support_room, density_key,
+    rng=None, init_predicate="ontop",
+    target_pool=None, fragile_pool=None, clutter_pool=None,
+    available_area_m2=None,
+):
+    """Generate BDDL + LTL with randomized, area-aware object selection.
+
+    Each instance is sampled independently from its pool, so fragile/clutter
+    objects can be a mix of different categories.
+
+    Constraints:
+    - Exactly 1 target (mandatory).
+    - At least 1 fragile (mandatory).
+    - Clutter is optional.
+    - Total footprint of all objects <= available_area_m2 (when provided).
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+    from omnigibson.utils.bddl_generator import (
+        BDDLGenConfig, ObjectSpec, generate_bddl_problem,
+        generate_ltl_safety_json, write_activity_files,
+    )
+
+    if rng is None:
+        rng = np.random.default_rng()
+    target_pool = target_pool or TARGET_POOL
+    fragile_pool = fragile_pool or FRAGILE_POOL
+    clutter_pool = clutter_pool or CLUTTER_POOL
+
+    catalog = _load_footprint_catalog()
+    density = DENSITY_PRESETS[density_key]
+
+    # --- Pick target (exactly 1, mandatory) ---
+    target_synset, _ = target_pool[rng.integers(len(target_pool))]
+    target_fp = _median_footprint(catalog, target_synset)
+
+    # Track remaining area budget (None = unlimited).
+    remaining = (available_area_m2 - target_fp) if available_area_m2 is not None else None
+
+    # --- Greedy fill: fragile instances (at least 1, each independently sampled) ---
+    fragile_picks = []  # list of synsets
+    fragile_pool_no_target = [s for s in fragile_pool if s[0] != target_synset]
+    if not fragile_pool_no_target:
+        fragile_pool_no_target = list(fragile_pool)
+
+    for i in range(density["fragile_count"]):
+        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
+        fp = _median_footprint(catalog, synset)
+        if remaining is not None and remaining < fp and i >= 1:
+            break  # can't fit, but we already have ≥1 fragile
+        fragile_picks.append(synset)
+        if remaining is not None:
+            remaining = max(0.0, remaining - fp)
+
+    # Guarantee at least 1 fragile even if area is tight.
+    if not fragile_picks:
+        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
+        fragile_picks.append(synset)
+        if remaining is not None:
+            remaining = max(0.0, remaining - _median_footprint(catalog, synset))
+
+    # --- Greedy fill: clutter instances (optional, each independently sampled) ---
+    clutter_picks = []  # list of (synset, is_breakable)
+    for _ in range(density["clutter_count"]):
+        synset, breakable = clutter_pool[rng.integers(len(clutter_pool))]
+        fp = _median_footprint(catalog, synset)
+        if remaining is not None and remaining < fp:
+            break
+        clutter_picks.append((synset, breakable))
+        if remaining is not None:
+            remaining = max(0.0, remaining - fp)
+
+    # --- Log area budget ---
+    if available_area_m2 is not None:
+        used = available_area_m2 - (remaining or 0.0)
+        print(f"[Pipeline] Area budget: available={available_area_m2:.4f} m², "
+              f"used={used:.4f}, remaining={remaining:.4f}, "
+              f"objects=1+{len(fragile_picks)}+{len(clutter_picks)}")
+
+    # --- Build ObjectSpec list (aggregate counts per synset per role) ---
+    # Fragile: count occurrences of each synset.
+    fragile_counts = {}
+    for s in fragile_picks:
+        fragile_counts[s] = fragile_counts.get(s, 0) + 1
+    # Clutter: count occurrences of each synset.
+    clutter_counts = {}
+    clutter_breakable_set = set()
+    for s, brk in clutter_picks:
+        clutter_counts[s] = clutter_counts.get(s, 0) + 1
+        if brk:
+            clutter_breakable_set.add(s)
+
+    objects = [ObjectSpec(synset=target_synset, count=1, role="target")]
+    for synset, count in fragile_counts.items():
+        objects.append(ObjectSpec(synset=synset, count=count, role="fragile"))
+    for synset, count in clutter_counts.items():
+        objects.append(ObjectSpec(synset=synset, count=count, role="clutter"))
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        init_predicate=init_predicate,
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    # All breakable synsets become fragile in LTL constraints.
+    fragile_synsets = set(fragile_counts.keys()) | clutter_breakable_set
+    ltl_safety = generate_ltl_safety_json(
+        activity_name=activity_name,
+        fragile_synsets=sorted(fragile_synsets),
+        target_synsets=[target_synset],
+    )
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "target_synset": target_synset,
+        "fragile_picks": fragile_picks,
+        "clutter_picks": [s for s, _ in clutter_picks],
+        "available_area_m2": available_area_m2,
+    }
+    fragile_desc = ", ".join(f"{s}×{c}" for s, c in fragile_counts.items())
+    clutter_desc = ", ".join(f"{s}×{c}" for s, c in clutter_counts.items()) or "none"
+    print(f"[Pipeline] Randomized: target={target_synset}, "
+          f"fragile=[{fragile_desc}], clutter=[{clutter_desc}]")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
 def get_scene_json_path(scene_model):
     from omnigibson.utils.asset_utils import get_scene_path
     return os.path.join(
@@ -185,6 +373,46 @@ def discover_from_scene_json(scene_json_path, category_filter_fn, priority_map=N
     if priority_map:
         candidates.sort(key=lambda c: priority_map.get(c[0], 0), reverse=True)
     return candidates[0]
+
+
+def estimate_surface_area_from_scene_json(scene_json_path, surface_category):
+    """Estimate the XY surface area (m²) of a table from the scene JSON.
+
+    Reads the model's base AABB from asset metadata, applies the scene scale,
+    and returns the XY footprint.  Returns None if the data is unavailable.
+    """
+    import glob as globmod
+
+    with open(scene_json_path, "r", encoding="utf-8") as f:
+        init_infos = json.load(f).get("objects_info", {}).get("init_info", {})
+
+    # Find the first object matching the surface category.
+    for info in init_infos.values():
+        obj_args = info.get("args", {})
+        if obj_args.get("category", "") != surface_category:
+            continue
+        model = obj_args.get("model", "")
+        scale = obj_args.get("scale", [1.0, 1.0, 1.0])
+        if not model:
+            continue
+
+        # Look up the model's base AABB extent from asset metadata.
+        asset_base = os.path.join(
+            os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..")),
+            "datasets", "behavior-1k-assets", "objects", surface_category,
+        )
+        meta_paths = globmod.glob(os.path.join(asset_base, model, "misc", "metadata.json"))
+        if not meta_paths:
+            continue
+        with open(meta_paths[0], "r", encoding="utf-8") as mf:
+            meta = json.load(mf)
+        try:
+            ext = meta["link_bounding_boxes"]["base_link"]["collision"]["axis_aligned"]["extent"]
+        except (KeyError, TypeError):
+            continue
+        area = (ext[0] * scale[0]) * (ext[1] * scale[1])
+        return area
+    return None
 
 
 # ---------------------------------------------------------------------------

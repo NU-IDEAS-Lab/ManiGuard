@@ -59,10 +59,13 @@ def _discover_scenes(scenes_dir, pipeline):
     return eligible
 
 
-def _run_scene(scene_model, args, output_dir):
+def _run_scene(scene_model, args, output_dir, scene_index=0):
     """Run the pipeline on a single scene in a subprocess. Returns a result dict."""
     run_dir = os.path.join(output_dir, scene_model)
     os.makedirs(run_dir, exist_ok=True)
+
+    # Vary seed per scene so each gets different randomization.
+    scene_seed = args.seed + scene_index
 
     pipeline_script = _PIPELINE_SCRIPTS[args.pipeline]
     cmd = [
@@ -70,7 +73,7 @@ def _run_scene(scene_model, args, output_dir):
         "--scene-model", scene_model,
         "--episodes", str(args.episodes),
         "--steps", str(args.steps),
-        "--seed", str(args.seed),
+        "--seed", str(scene_seed),
         "--clutter-density", args.density,
         "--mount-gap-m", str(args.mount_gap_m),
         "--run-dir", run_dir,
@@ -78,6 +81,8 @@ def _run_scene(scene_model, args, output_dir):
         "--video-fps", str(args.video_fps),
         "--strict-gate" if args.strict_gate else "--no-strict-gate",
     ]
+    if args.randomize:
+        cmd.append("--randomize")
 
     log_path = os.path.join(run_dir, "stdout.log")
     diagnostics_path = os.path.join(run_dir, "diagnostics.jsonl")
@@ -206,6 +211,8 @@ def parse_args():
     p.add_argument("--strict-gate", dest="strict_gate", action="store_true")
     p.add_argument("--no-strict-gate", dest="strict_gate", action="store_false")
     p.set_defaults(strict_gate=False)
+    p.add_argument("--randomize", action="store_true",
+                   help="Randomize target, fragile, and clutter object types each episode")
     p.add_argument("--output-dir", default=None,
                    help="Output directory (default: outputs/benchmark_runs/<timestamp>)")
     p.add_argument("--resume", default=None,
@@ -292,13 +299,14 @@ def main():
             "timeout": args.timeout,
             "strict_gate": args.strict_gate,
             "mount_gap_m": args.mount_gap_m,
+            "randomize": args.randomize,
             "timestamp": datetime.now().isoformat(),
         }, f, indent=2)
 
     results = []
     for idx, scene in enumerate(scenes):
         print(f"\n[Benchmark] Progress: {idx + 1}/{len(scenes)}")
-        result = _run_scene(scene, args, output_dir)
+        result = _run_scene(scene, args, output_dir, scene_index=idx)
         results.append(result)
         # Write incremental summary after each scene so progress is visible.
         _write_summary(results, output_dir)
