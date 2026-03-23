@@ -1568,5 +1568,789 @@
       ],
       "footprint_m2": 0.003214
     }
+  },
+  "tray": {
+    "avotsj": {
+      "extent_xyz": [
+        0.29359,
+        0.16505,
+        0.03474
+      ],
+      "footprint_m2": 0.048456
+    },
+    "coqeme": {
+      "extent_xyz": [
+        0.142,
+        0.22237,
+        0.01796
+      ],
+      "footprint_m2": 0.031575
+    },
+    "glwebh": {
+      "extent_xyz": [
+        0.20654,
+        0.16606,
+        0.02514
+      ],
+      "footprint_m2": 0.034298
+    },
+    "gsxbym": {
+      "extent_xyz": [
+        0.30623,
+        0.43733,
+        0.03051
+      ],
+      "footprint_m2": 0.133923
+    },
+    "hbjdlb": {
+      "extent_xyz": [
+        0.1767,
+        0.39016,
+        0.04206
+      ],
+      "footprint_m2": 0.068941
+    },
+    "hjxczh": {
+      "extent_xyz": [
+        0.2008,
+        0.35013,
+        0.01008
+      ],
+      "footprint_m2": 0.070305
+    },
+    "huwhjg": {
+      "extent_xyz": [
+        0.69104,
+        0.69095,
+        0.05217
+      ],
+      "footprint_m2": 0.477474
+    },
+    "hvlfig": {
+      "extent_xyz": [
+        0.27676,
+        0.43975,
+        0.02153
+      ],
+      "footprint_m2": 0.121705
+    },
+    "iaaiyi": {
+      "extent_xyz": [
+        0.30482,
+        0.30482,
+        0.01478
+      ],
+      "footprint_m2": 0.092913
+    },
+    "incirm": {
+      "extent_xyz": [
+        0.28027,
+        0.50033,
+        0.07969
+      ],
+      "footprint_m2": 0.14023
+    },
+    "jpcflq": {
+      "extent_xyz": [
+        0.166,
+        0.30199,
+        0.01699
+      ],
+      "footprint_m2": 0.050131
+    },
+    "mhhoga": {
+      "extent_xyz": [
+        0.31786,
+        0.46897,
+        0.02643
+      ],
+      "footprint_m2": 0.149069
+    },
+    "mkdcha": {
+      "extent_xyz": [
+        0.44004,
+        0.14867,
+        0.01536
+      ],
+      "footprint_m2": 0.065422
+    },
+    "spopfj": {
+      "extent_xyz": [
+        0.24427,
+        0.3246,
+        0.01696
+      ],
+      "footprint_m2": 0.07929
+    },
+    "thkphg": {
+      "extent_xyz": [
+        0.40517,
+        0.27026,
+        0.02164
+      ],
+      "footprint_m2": 0.109502
+    },
+    "tkgsho": {
+      "extent_xyz": [
+        0.18281,
+        0.27462,
+        0.00959
+      ],
+      "footprint_m2": 0.050204
+    },
+    "txcjux": {
+      "extent_xyz": [
+        0.41637,
+        0.61163,
+        0.09126
+      ],
+      "footprint_m2": 0.254662
+    },
+    "uekqey": {
+      "extent_xyz": [
+        0.39621,
+        0.56503,
+        0.0206
+      ],
+      "footprint_m2": 0.22387
+    },
+    "vxbtax": {
+      "extent_xyz": [
+        0.32656,
+        0.47698,
+        0.09285
+      ],
+      "footprint_m2": 0.155762
+    },
+    "wbwmcs": {
+      "extent_xyz": [
+        0.18805,
+        0.27026,
+        0.02164
+      ],
+      "footprint_m2": 0.050824
+    },
+    "xzcnjq": {
+      "extent_xyz": [
+        0.23433,
+        0.34962,
+        0.0368
+      ],
+      "footprint_m2": 0.081928
+    },
+    "yqtlhy": {
+      "extent_xyz": [
+        0.91057,
+        0.552,
+        0.04618
+      ],
+      "footprint_m2": 0.502636
+    },
+    "zcmnji": {
+      "extent_xyz": [
+        0.33,
+        0.3299,
+        0.01333
+      ],
+      "footprint_m2": 0.108868
+    },
+    "zsddtq": {
+      "extent_xyz": [
+        0.26694,
+        0.26694,
+        0.02564
+      ],
+      "footprint_m2": 0.071258
+    }
+  },
+  "platter": {
+    "csanbr": {
+      "extent_xyz": [
+        0.21794,
+        0.3469,
+        0.01666
+      ],
+      "footprint_m2": 0.075604
+    },
+    "ekjpdj": {
+      "extent_xyz": [
+        0.10065,
+        0.3427,
+        0.02157
+      ],
+      "footprint_m2": 0.034493
+    },
+    "hnlivs": {
+      "extent_xyz": [
+        0.15872,
+        0.34026,
+        0.02446
+      ],
+      "footprint_m2": 0.054005
+    },
+    "iadlti": {
+      "extent_xyz": [
+        0.26161,
+        0.26345,
+        0.03869
+      ],
+      "footprint_m2": 0.06892
+    },
+    "ieoasd": {
+      "extent_xyz": [
+        0.119,
+        0.25521,
+        0.01835
+      ],
+      "footprint_m2": 0.030371
+    },
+    "kiiamx": {
+      "extent_xyz": [
+        0.13843,
+        0.34036,
+        0.02801
+      ],
+      "footprint_m2": 0.047117
+    }
+  },
+  "coaster": {
+    "arjpcz": {
+      "extent_xyz": [
+        0.1036,
+        0.1036,
+        0.00094
+      ],
+      "footprint_m2": 0.010733
+    },
+    "httqaj": {
+      "extent_xyz": [
+        0.08774,
+        0.08576,
+        0.03677
+      ],
+      "footprint_m2": 0.007524
+    }
+  },
+  "lid": {
+    "aybgkm": {
+      "extent_xyz": [
+        0.11392,
+        0.11264,
+        0.01944
+      ],
+      "footprint_m2": 0.012832
+    },
+    "bemtjd": {
+      "extent_xyz": [
+        0.18037,
+        0.18018,
+        0.02304
+      ],
+      "footprint_m2": 0.032498
+    },
+    "chwwdg": {
+      "extent_xyz": [
+        0.12669,
+        0.12663,
+        0.07137
+      ],
+      "footprint_m2": 0.016043
+    },
+    "ckgilb": {
+      "extent_xyz": [
+        0.11877,
+        0.11867,
+        0.0184
+      ],
+      "footprint_m2": 0.014094
+    },
+    "cofhlg": {
+      "extent_xyz": [
+        0.39996,
+        0.4002,
+        0.12259
+      ],
+      "footprint_m2": 0.160064
+    },
+    "dadswa": {
+      "extent_xyz": [
+        0.1875,
+        0.1875,
+        0.06265
+      ],
+      "footprint_m2": 0.035156
+    },
+    "dkncbi": {
+      "extent_xyz": [
+        0.19998,
+        0.19998,
+        0.0322
+      ],
+      "footprint_m2": 0.039991
+    },
+    "egfobe": {
+      "extent_xyz": [
+        0.24482,
+        0.24506,
+        0.04306
+      ],
+      "footprint_m2": 0.059994
+    },
+    "ejywmx": {
+      "extent_xyz": [
+        0.285,
+        0.28433,
+        0.06272
+      ],
+      "footprint_m2": 0.081034
+    },
+    "exiqxa": {
+      "extent_xyz": [
+        0.20152,
+        0.20147,
+        0.05001
+      ],
+      "footprint_m2": 0.040599
+    },
+    "exzfzm": {
+      "extent_xyz": [
+        0.08728,
+        0.08728,
+        0.07
+      ],
+      "footprint_m2": 0.007618
+    },
+    "fnqhbz": {
+      "extent_xyz": [
+        0.2011,
+        0.1844,
+        0.04073
+      ],
+      "footprint_m2": 0.037082
+    },
+    "fvebnu": {
+      "extent_xyz": [
+        0.09267,
+        0.09264,
+        0.01672
+      ],
+      "footprint_m2": 0.008585
+    },
+    "geesvf": {
+      "extent_xyz": [
+        0.22821,
+        0.2282,
+        0.07565
+      ],
+      "footprint_m2": 0.052077
+    },
+    "gerjlh": {
+      "extent_xyz": [
+        0.0834,
+        0.08353,
+        0.03549
+      ],
+      "footprint_m2": 0.006967
+    },
+    "gploju": {
+      "extent_xyz": [
+        0.25263,
+        0.25262,
+        0.0864
+      ],
+      "footprint_m2": 0.063818
+    },
+    "haxrqc": {
+      "extent_xyz": [
+        0.11483,
+        0.20027,
+        0.00811
+      ],
+      "footprint_m2": 0.022997
+    },
+    "iojcmf": {
+      "extent_xyz": [
+        0.09327,
+        0.09324,
+        0.0149
+      ],
+      "footprint_m2": 0.008697
+    },
+    "itwwle": {
+      "extent_xyz": [
+        0.17918,
+        0.17927,
+        0.07175
+      ],
+      "footprint_m2": 0.032121
+    },
+    "iuhvrv": {
+      "extent_xyz": [
+        0.26693,
+        0.19692,
+        0.01208
+      ],
+      "footprint_m2": 0.052565
+    },
+    "jqvurl": {
+      "extent_xyz": [
+        0.1044,
+        0.15725,
+        0.06999
+      ],
+      "footprint_m2": 0.016417
+    },
+    "jvqtqi": {
+      "extent_xyz": [
+        0.16658,
+        0.16654,
+        0.07098
+      ],
+      "footprint_m2": 0.027742
+    },
+    "jvzjzp": {
+      "extent_xyz": [
+        0.11895,
+        0.12001,
+        0.07
+      ],
+      "footprint_m2": 0.014274
+    },
+    "jzwezh": {
+      "extent_xyz": [
+        0.42067,
+        0.42439,
+        0.11387
+      ],
+      "footprint_m2": 0.178525
+    },
+    "kbuqww": {
+      "extent_xyz": [
+        0.17724,
+        0.17724,
+        0.08428
+      ],
+      "footprint_m2": 0.031414
+    },
+    "kdswwr": {
+      "extent_xyz": [
+        0.48143,
+        0.81003,
+        0.02151
+      ],
+      "footprint_m2": 0.389971
+    },
+    "kgjkzr": {
+      "extent_xyz": [
+        0.19162,
+        0.19087,
+        0.03108
+      ],
+      "footprint_m2": 0.036574
+    },
+    "kuibhu": {
+      "extent_xyz": [
+        0.13743,
+        0.13742,
+        0.07111
+      ],
+      "footprint_m2": 0.018886
+    },
+    "lkaasa": {
+      "extent_xyz": [
+        0.17429,
+        0.17424,
+        0.02223
+      ],
+      "footprint_m2": 0.030368
+    },
+    "lryrtt": {
+      "extent_xyz": [
+        0.29603,
+        0.3175,
+        0.05617
+      ],
+      "footprint_m2": 0.093988
+    },
+    "lwyfab": {
+      "extent_xyz": [
+        0.14961,
+        0.14961,
+        0.07153
+      ],
+      "footprint_m2": 0.022383
+    },
+    "mdowoz": {
+      "extent_xyz": [
+        0.22171,
+        0.22171,
+        0.01415
+      ],
+      "footprint_m2": 0.049156
+    },
+    "mlkmlk": {
+      "extent_xyz": [
+        0.20014,
+        0.29778,
+        0.01735
+      ],
+      "footprint_m2": 0.059596
+    },
+    "muczdt": {
+      "extent_xyz": [
+        0.19411,
+        0.2,
+        0.0304
+      ],
+      "footprint_m2": 0.038822
+    },
+    "myrzac": {
+      "extent_xyz": [
+        0.26598,
+        0.26593,
+        0.08862
+      ],
+      "footprint_m2": 0.07073
+    },
+    "ndafok": {
+      "extent_xyz": [
+        0.31909,
+        0.32068,
+        0.0706
+      ],
+      "footprint_m2": 0.102328
+    },
+    "niarsj": {
+      "extent_xyz": [
+        0.2,
+        0.20026,
+        0.02749
+      ],
+      "footprint_m2": 0.040053
+    },
+    "oawddr": {
+      "extent_xyz": [
+        0.52144,
+        0.32088,
+        0.32818
+      ],
+      "footprint_m2": 0.16732
+    },
+    "obuzeh": {
+      "extent_xyz": [
+        0.45692,
+        0.45692,
+        0.0931
+      ],
+      "footprint_m2": 0.208774
+    },
+    "pbmsji": {
+      "extent_xyz": [
+        0.34141,
+        0.34141,
+        0.11214
+      ],
+      "footprint_m2": 0.11656
+    },
+    "picclm": {
+      "extent_xyz": [
+        0.16455,
+        0.16455,
+        0.01513
+      ],
+      "footprint_m2": 0.027076
+    },
+    "ppkjuy": {
+      "extent_xyz": [
+        0.23449,
+        0.23453,
+        0.06393
+      ],
+      "footprint_m2": 0.054995
+    },
+    "pwgbsb": {
+      "extent_xyz": [
+        0.08974,
+        0.08974,
+        0.02248
+      ],
+      "footprint_m2": 0.008053
+    },
+    "qferch": {
+      "extent_xyz": [
+        0.20158,
+        0.20155,
+        0.04681
+      ],
+      "footprint_m2": 0.040628
+    },
+    "qfqccp": {
+      "extent_xyz": [
+        0.20008,
+        0.20017,
+        0.07162
+      ],
+      "footprint_m2": 0.04005
+    },
+    "qhlsdq": {
+      "extent_xyz": [
+        0.09027,
+        0.09027,
+        0.07
+      ],
+      "footprint_m2": 0.008148
+    },
+    "qkogll": {
+      "extent_xyz": [
+        0.2,
+        0.2,
+        0.06102
+      ],
+      "footprint_m2": 0.04
+    },
+    "qkpdih": {
+      "extent_xyz": [
+        0.23957,
+        0.2556,
+        0.04511
+      ],
+      "footprint_m2": 0.061234
+    },
+    "sihkub": {
+      "extent_xyz": [
+        0.11992,
+        0.1199,
+        0.01966
+      ],
+      "footprint_m2": 0.014378
+    },
+    "snklci": {
+      "extent_xyz": [
+        0.17871,
+        0.13338,
+        0.02613
+      ],
+      "footprint_m2": 0.023836
+    },
+    "swszeb": {
+      "extent_xyz": [
+        0.16879,
+        0.19304,
+        0.05916
+      ],
+      "footprint_m2": 0.032583
+    },
+    "tnwisp": {
+      "extent_xyz": [
+        0.09535,
+        0.09609,
+        0.0281
+      ],
+      "footprint_m2": 0.009163
+    },
+    "tzbbeo": {
+      "extent_xyz": [
+        0.11862,
+        0.11862,
+        0.05216
+      ],
+      "footprint_m2": 0.014071
+    },
+    "ugfmpq": {
+      "extent_xyz": [
+        0.08937,
+        0.08926,
+        0.03172
+      ],
+      "footprint_m2": 0.007978
+    },
+    "utfcdx": {
+      "extent_xyz": [
+        0.20117,
+        0.20117,
+        0.07218
+      ],
+      "footprint_m2": 0.040469
+    },
+    "uwzqlf": {
+      "extent_xyz": [
+        0.2,
+        0.2,
+        0.05415
+      ],
+      "footprint_m2": 0.04
+    },
+    "vkepll": {
+      "extent_xyz": [
+        0.13559,
+        0.13503,
+        0.04922
+      ],
+      "footprint_m2": 0.018308
+    },
+    "wjrwer": {
+      "extent_xyz": [
+        0.20072,
+        0.20072,
+        0.01025
+      ],
+      "footprint_m2": 0.040288
+    },
+    "wtjthb": {
+      "extent_xyz": [
+        0.28593,
+        0.28683,
+        0.03925
+      ],
+      "footprint_m2": 0.082012
+    },
+    "wxdxss": {
+      "extent_xyz": [
+        0.14357,
+        0.14366,
+        0.08526
+      ],
+      "footprint_m2": 0.020625
+    },
+    "xdvzpr": {
+      "extent_xyz": [
+        0.28102,
+        0.28096,
+        0.05099
+      ],
+      "footprint_m2": 0.078955
+    },
+    "xdyddo": {
+      "extent_xyz": [
+        0.43453,
+        0.31973,
+        0.02254
+      ],
+      "footprint_m2": 0.13893
+    },
+    "zjtjrn": {
+      "extent_xyz": [
+        0.34366,
+        0.23915,
+        0.06952
+      ],
+      "footprint_m2": 0.082187
+    },
+    "zkderg": {
+      "extent_xyz": [
+        0.07686,
+        0.0766,
+        0.03386
+      ],
+      "footprint_m2": 0.005887
+    },
+    "zxlntj": {
+      "extent_xyz": [
+        0.33061,
+        0.33001,
+        0.08334
+      ],
+      "footprint_m2": 0.109103
+    }
   }
 }

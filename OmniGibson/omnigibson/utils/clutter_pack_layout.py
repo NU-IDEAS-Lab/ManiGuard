@@ -352,3 +352,121 @@ def _quat_from_yaw(yaw: float) -> Tuple[float, float, float, float]:
 
 def _yaw_from_z_w(qz: float, qw: float) -> float:
     return 2.0 * math.atan2(float(qz), float(qw))
+
+
+# ---------------------------------------------------------------------------
+# Stack layout
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StackObjectDescriptor:
+    """Describes one object in a vertical stack."""
+    instance_id: str
+    role: str                       # "target", "stack", "base" (bottom-most)
+    half_extent_xy: Tuple[float, float]
+    height: float
+
+
+@dataclass(frozen=True)
+class StackEntry:
+    """Computed world-relative pose for one stack element."""
+    inst_id: str
+    role: str
+    rel_pose: Tuple[float, float, float, float, float, float, float]  # x,y,z, qx,qy,qz,qw
+    supporter_inst_id: Optional[str]  # inst below this one (None for bottom)
+
+
+@dataclass(frozen=True)
+class StackLayoutSpec:
+    """Complete stack layout specification."""
+    support_obj_name: str           # table / counter the stack sits on
+    stack_origin_world: Tuple[float, float, float]
+    entries: Tuple[StackEntry, ...]
+    seed: int
+
+
+def build_stack_layout(
+    support_obj_name: str,
+    descriptors: Sequence[StackObjectDescriptor],
+    seed: int,
+    z_clearance: float = 0.003,
+    xy_jitter: float = 0.002,
+) -> StackLayoutSpec:
+    """Compute analytical vertical poses for a stack of objects.
+
+    Objects are stacked bottom-to-top in the order given by *descriptors*.
+    Each object is placed centered on the one below with a small z clearance.
+
+    Args:
+        support_obj_name: Name of the furniture the stack sits on.
+        descriptors: Objects ordered bottom-to-top.
+        seed: RNG seed for small xy jitter.
+        z_clearance: Gap (m) between the top of one object and the bottom of the next.
+        xy_jitter: Max random XY offset (m) per object for slight imperfection.
+
+    Returns:
+        StackLayoutSpec with one StackEntry per descriptor.
+    """
+    if not descriptors:
+        raise ValueError("descriptors must be non-empty")
+
+    rng = random.Random(seed)
+    entries: List[StackEntry] = []
+    cumulative_z = 0.0
+
+    for i, desc in enumerate(descriptors):
+        # Centre of object = cumulative_z + half its height
+        obj_z = cumulative_z + 0.5 * desc.height
+        # Small XY jitter to make placement slightly imperfect
+        jx = rng.uniform(-xy_jitter, xy_jitter) if i > 0 else 0.0
+        jy = rng.uniform(-xy_jitter, xy_jitter) if i > 0 else 0.0
+
+        supporter = descriptors[i - 1].instance_id if i > 0 else None
+        entries.append(StackEntry(
+            inst_id=desc.instance_id,
+            role=desc.role,
+            rel_pose=(jx, jy, obj_z, 0.0, 0.0, 0.0, 1.0),
+            supporter_inst_id=supporter,
+        ))
+        # Advance z cursor: top of this object + clearance
+        cumulative_z = obj_z + 0.5 * desc.height + z_clearance
+
+    return StackLayoutSpec(
+        support_obj_name=support_obj_name,
+        stack_origin_world=(0.0, 0.0, 0.0),
+        entries=tuple(entries),
+        seed=seed,
+    )
+
+
+def apply_stack_transform(
+    stack_spec: StackLayoutSpec,
+    objects_by_inst: Dict[str, object],
+    stack_origin_world: Tuple[float, float, float],
+) -> Dict[str, Tuple[float, float, float]]:
+    """Teleport objects to their computed stack positions.
+
+    Args:
+        stack_spec: Layout from build_stack_layout().
+        objects_by_inst: Map of instance_id → OG object.
+        stack_origin_world: (x, y, z) of the support surface top centre.
+
+    Returns:
+        Dict mapping instance_id → (wx, wy, wz) world position.
+    """
+    ox, oy, oz = stack_origin_world
+    placements: Dict[str, Tuple[float, float, float]] = {}
+
+    for entry in stack_spec.entries:
+        obj = objects_by_inst.get(entry.inst_id)
+        if obj is None:
+            continue
+        rx, ry, rz, qx, qy, qz, qw = entry.rel_pose
+        wx = ox + rx
+        wy = oy + ry
+        wz = oz + rz
+        obj.set_position_orientation(position=(wx, wy, wz), orientation=(qx, qy, qz, qw))
+        placements[entry.inst_id] = (wx, wy, wz)
+
+    return placements

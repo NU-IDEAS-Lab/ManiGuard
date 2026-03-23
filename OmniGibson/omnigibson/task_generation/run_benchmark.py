@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Run the clutter scene pipeline on all eligible scenes as a benchmark.
+"""Run a scene generation pipeline on all eligible scenes as a benchmark.
 
 Spawns one subprocess per scene to avoid GPU memory accumulation.
 Records videos, saves scene JSON snapshots, and produces a summary report.
@@ -7,6 +7,8 @@ Records videos, saves scene JSON snapshots, and produces a summary report.
 Usage:
     python -m omnigibson.task_generation.run_benchmark
     python -m omnigibson.task_generation.run_benchmark --pipeline cabinet
+    python -m omnigibson.task_generation.run_benchmark --pipeline transfer --no-strict-gate
+    python -m omnigibson.task_generation.run_benchmark --pipeline stack --stack-height medium
     python -m omnigibson.task_generation.run_benchmark --scenes Rs_int Merom_1_int --timeout 600
     python -m omnigibson.task_generation.run_benchmark --density high --steps 500 --episodes 2
 """
@@ -27,6 +29,8 @@ _DEFAULT_OUTPUT_DIR = os.path.join(_PROJECT_ROOT, "outputs", "benchmark_runs")
 _PIPELINE_SCRIPTS = {
     "table": os.path.join(_SCRIPT_DIR, "clutter_scene_pipeline.py"),
     "cabinet": os.path.join(_SCRIPT_DIR, "cabinet_clutter_pipeline.py"),
+    "transfer": os.path.join(_SCRIPT_DIR, "transfer_scene_pipeline.py"),
+    "stack": os.path.join(_SCRIPT_DIR, "stack_scene_pipeline.py"),
 }
 
 # Scenes excluded per pipeline type.
@@ -44,6 +48,21 @@ _EXCLUDED_SCENES = {
         "hall_arch_wood",     # public restroom
         "hall_train_station", # train station restroom
         "hall_glass_ceiling", # no cabinets
+    }),
+    # Transfer and stack pipelines need the same table-like surfaces as table.
+    "transfer": frozenset({
+        "Benevolence_0_int",
+        "grocery_store_convenience",
+        "hall_arch_wood",
+        "hall_train_station",
+        "school_gym",
+    }),
+    "stack": frozenset({
+        "Benevolence_0_int",
+        "grocery_store_convenience",
+        "hall_arch_wood",
+        "hall_train_station",
+        "school_gym",
     }),
 }
 
@@ -74,15 +93,34 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         "--episodes", str(args.episodes),
         "--steps", str(args.steps),
         "--seed", str(scene_seed),
-        "--clutter-density", args.density,
         "--mount-gap-m", str(args.mount_gap_m),
         "--run-dir", run_dir,
         "--save-video",
         "--video-fps", str(args.video_fps),
         "--strict-gate" if args.strict_gate else "--no-strict-gate",
     ]
-    if args.randomize:
-        cmd.append("--randomize")
+
+    # Pipeline-specific flags.
+    if args.pipeline in ("table", "cabinet"):
+        cmd.extend(["--clutter-density", args.density])
+        if args.randomize:
+            cmd.append("--randomize")
+    if args.pipeline == "transfer":
+        if args.food_synset:
+            cmd.extend(["--food-synset", args.food_synset])
+        if args.source_synset:
+            cmd.extend(["--source-synset", args.source_synset])
+        if args.dest_synset:
+            cmd.extend(["--dest-synset", args.dest_synset])
+        if args.goal_predicate:
+            cmd.extend(["--goal-predicate", args.goal_predicate])
+    if args.pipeline == "stack":
+        if args.stack_height:
+            cmd.extend(["--stack-height", args.stack_height])
+        if args.target_synset:
+            cmd.extend(["--target-synset", args.target_synset])
+        if args.stack_synset:
+            cmd.extend(["--stack-synset", args.stack_synset])
 
     log_path = os.path.join(run_dir, "stdout.log")
     diagnostics_path = os.path.join(run_dir, "diagnostics.jsonl")
@@ -213,6 +251,15 @@ def parse_args():
     p.set_defaults(strict_gate=False)
     p.add_argument("--randomize", action="store_true",
                    help="Randomize target, fragile, and clutter object types each episode")
+    # Transfer pipeline flags.
+    p.add_argument("--food-synset", default=None, help="(transfer) Override food synset")
+    p.add_argument("--source-synset", default=None, help="(transfer) Override source synset")
+    p.add_argument("--dest-synset", default=None, help="(transfer) Override dest synset")
+    p.add_argument("--goal-predicate", default=None, help="(transfer) Override goal predicate")
+    # Stack pipeline flags.
+    p.add_argument("--stack-height", default=None, help="(stack) Stack height preset")
+    p.add_argument("--target-synset", default=None, help="(stack) Override target synset")
+    p.add_argument("--stack-synset", default=None, help="(stack) Override stack synset")
     p.add_argument("--output-dir", default=None,
                    help="Output directory (default: outputs/benchmark_runs/<timestamp>)")
     p.add_argument("--resume", default=None,
@@ -288,20 +335,35 @@ def main():
 
     # Save run config.
     config_path = os.path.join(output_dir, "benchmark_config.json")
+    config_data = {
+        "pipeline": args.pipeline,
+        "scenes": scenes,
+        "episodes": args.episodes,
+        "steps": args.steps,
+        "seed": args.seed,
+        "timeout": args.timeout,
+        "strict_gate": args.strict_gate,
+        "mount_gap_m": args.mount_gap_m,
+        "timestamp": datetime.now().isoformat(),
+    }
+    if args.pipeline in ("table", "cabinet"):
+        config_data["density"] = args.density
+        config_data["randomize"] = args.randomize
+    if args.pipeline == "transfer":
+        config_data.update({
+            "food_synset": args.food_synset,
+            "source_synset": args.source_synset,
+            "dest_synset": args.dest_synset,
+            "goal_predicate": args.goal_predicate,
+        })
+    if args.pipeline == "stack":
+        config_data.update({
+            "stack_height": args.stack_height,
+            "target_synset": args.target_synset,
+            "stack_synset": args.stack_synset,
+        })
     with open(config_path, "w") as f:
-        json.dump({
-            "pipeline": args.pipeline,
-            "scenes": scenes,
-            "episodes": args.episodes,
-            "steps": args.steps,
-            "seed": args.seed,
-            "density": args.density,
-            "timeout": args.timeout,
-            "strict_gate": args.strict_gate,
-            "mount_gap_m": args.mount_gap_m,
-            "randomize": args.randomize,
-            "timestamp": datetime.now().isoformat(),
-        }, f, indent=2)
+        json.dump(config_data, f, indent=2)
 
     results = []
     for idx, scene in enumerate(scenes):

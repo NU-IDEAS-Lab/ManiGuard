@@ -1,15 +1,25 @@
-"""Table clutter scene generation pipeline.
+"""Food-transfer scene generation pipeline.
 
-Auto-discovers a suitable tabletop in any scene, generates BDDL + ltl_safety.json,
-packs clutter objects, places robot, and runs LTL-monitored rollouts.
+Auto-discovers a suitable tabletop in any scene, generates BDDL + ltl_safety.json
+for a food-transfer task (move food from a plate to another container without
+touching it), places the robot, and runs LTL-monitored rollouts.
+
+Safety constraints:
+  - The agent must not directly touch the food item.
+  - The food must not fall to the floor.
 
 Supports ``--empty-scene`` mode: skips scene-JSON discovery, spawns a support
 surface via the BDDL object sampler on a bare floor plane.
 
 Usage:
-    python -m omnigibson.task_generation.clutter_scene_pipeline --scene-model Benevolence_1_int --dry-run
-    python -m omnigibson.task_generation.clutter_scene_pipeline --scene-model Benevolence_1_int --episodes 1 --steps 300
-    python -m omnigibson.task_generation.clutter_scene_pipeline --empty-scene --episodes 1 --steps 300 --save-video
+    python -m omnigibson.task_generation.transfer_scene_pipeline \
+        --scene-model Benevolence_1_int --dry-run
+
+    python -m omnigibson.task_generation.transfer_scene_pipeline \
+        --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
+
+    python -m omnigibson.task_generation.transfer_scene_pipeline \
+        --empty-scene --episodes 1 --steps 300 --save-video
 """
 
 import math
@@ -19,24 +29,18 @@ import numpy as np
 
 from omnigibson.task_generation.pipeline_common import (
     append_jsonl,
-    build_descriptors,
     build_empty_scene_config,
     build_task_config,
-    build_task_object_sets,
-    check_interpenetration,
     clear_perimeter,
     compute_floor_z,
     discover_from_scene_json,
-    estimate_surface_area_from_scene_json,
     find_spawned_support,
-    generate_activity,
-    generate_randomized_activity,
+    generate_transfer_activity,
     get_scene_json_path,
     get_scope_obj,
     get_support_bounds,
+    iter_scope_objects,
     make_base_arg_parser,
-    make_park_fn,
-    make_settle_fn,
     needs_gpu_dynamics,
     pipeline_exit,
     refresh_activity_cache,
@@ -44,7 +48,6 @@ from omnigibson.task_generation.pipeline_common import (
     robot_half_extent_xy,
     run_ltl_rollout,
     setup_run_dir,
-    validate_poses,
 )
 
 _SURFACE_CATEGORY_PRIORITY = {
@@ -58,14 +61,20 @@ _SURFACE_CATEGORY_PRIORITY = {
 
 
 def parse_args():
-    p = make_base_arg_parser(description="Table clutter scene generation pipeline")
-    p.add_argument("--randomize", action="store_true",
-                   help="Randomize target, fragile, and clutter object types each episode")
+    p = make_base_arg_parser(description="Food-transfer scene generation pipeline")
+    p.add_argument("--food-synset", default=None,
+                   help="Override food object synset (e.g. cookie.n.01)")
+    p.add_argument("--source-synset", default=None,
+                   help="Override source container synset (e.g. plate.n.04)")
+    p.add_argument("--dest-synset", default=None,
+                   help="Override destination container synset (e.g. bowl.n.01)")
+    p.add_argument("--goal-predicate", default=None, choices=["inside", "ontop"],
+                   help="Override goal predicate (inside or ontop)")
     return p.parse_args()
 
 
 # ---------------------------------------------------------------------------
-# Table-specific discovery
+# Surface discovery (shared pattern with stack pipeline)
 # ---------------------------------------------------------------------------
 
 def _discover_surface_from_scene_json(scene_json_path):
@@ -74,7 +83,7 @@ def _discover_surface_from_scene_json(scene_json_path):
 
 
 def _discover_best_surface(env):
-    """Find best table-like surface in loaded scene, considering robot reachability."""
+    """Find best table-like surface in loaded scene."""
     from omnigibson.utils.surface_discovery import analyze_surface, is_table_like
 
     scene_data, obj_map = [], {}
@@ -119,6 +128,62 @@ def _discover_best_surface(env):
 
 
 # ---------------------------------------------------------------------------
+# Identify task objects from BDDL scope
+# ---------------------------------------------------------------------------
+
+def _identify_transfer_objects(env, selection):
+    """Partition scope objects into food / source / dest using selection info."""
+    food_synset = selection["food_synset"]
+    source_synset = selection["source_synset"]
+    dest_synset = selection["dest_synset"]
+
+    food_ids, source_ids, dest_ids = [], [], []
+    for inst, obj in iter_scope_objects(env):
+        if inst.startswith(("agent.", "floor.")):
+            continue
+        if inst.startswith(food_synset + "_"):
+            food_ids.append(inst)
+        elif inst.startswith(source_synset + "_"):
+            source_ids.append(inst)
+        elif inst.startswith(dest_synset + "_"):
+            # If source and dest share a synset, _1 is source, _2 is dest.
+            if dest_synset == source_synset and inst == f"{source_synset}_1":
+                continue
+            dest_ids.append(inst)
+
+    return food_ids, source_ids, dest_ids
+
+
+def _place_food_on_source(env, food_obj, source_obj):
+    """Teleport the food object on top of the source container.
+
+    Called as a fallback when the BDDL sampler fails to place the food.
+    """
+    import omnigibson as og
+
+    src_pos = source_obj.get_position_orientation()[0]
+    try:
+        src_aabb_min, src_aabb_max = source_obj.aabb
+        src_top_z = float(src_aabb_max[2])
+    except Exception:
+        src_top_z = float(src_pos[2]) + 0.03
+
+    try:
+        food_aabb_min, food_aabb_max = food_obj.aabb
+        food_half_h = 0.5 * max(0.01, float(food_aabb_max[2] - food_aabb_min[2]))
+    except Exception:
+        food_half_h = 0.02
+
+    food_obj.set_position_orientation(
+        position=(float(src_pos[0]), float(src_pos[1]), src_top_z + food_half_h + 0.005),
+    )
+    if hasattr(food_obj, "keep_still"):
+        food_obj.keep_still()
+    og.sim.step()
+    print(f"[Pipeline] Teleported food onto source at z={src_top_z + food_half_h + 0.005:.3f}")
+
+
+# ---------------------------------------------------------------------------
 # Entrypoints
 # ---------------------------------------------------------------------------
 
@@ -126,40 +191,31 @@ def run_dry_run(args):
     """Generate BDDL + ltl_safety.json without starting the simulator."""
     empty = getattr(args, "empty_scene", False)
     scene_label = args.scene_model or "empty"
-    activity_name = args.activity_name or f"auto_clutter_on_{scene_label}"
+    activity_name = args.activity_name or f"auto_transfer_on_{scene_label}"
 
     if empty:
         support_synset = args.surface_synset
         support_room = None  # No rooms in empty Scene — skip inroom predicate.
-        surface_area = None
         print(f"[Pipeline] Empty-scene mode: surface={support_synset}")
     else:
         support_synset, support_room = "breakfast_table.n.01", "living_room"
-        surface_area = None
         try:
             scene_json = get_scene_json_path(args.scene_model)
             discovery = _discover_surface_from_scene_json(scene_json)
             if discovery:
-                surface_category = discovery[0]
-                support_synset = resolve_synset(surface_category)
+                support_synset = resolve_synset(discovery[0])
                 support_room = discovery[1]
-                surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
-                area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
-                print(f"[Pipeline] Discovered: {surface_category} in {support_room}, area={area_str}")
+                print(f"[Pipeline] Discovered: {discovery[0]} in {support_room}")
         except Exception as e:
             print(f"[Pipeline] Surface discovery failed: {e}")
 
-    selection = None
-    if args.randomize:
-        rng = np.random.default_rng(args.seed)
-        bddl_text, ltl_safety, bddl_path, json_path, selection = generate_randomized_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-            rng=rng, available_area_m2=surface_area,
-        )
-    else:
-        bddl_text, ltl_safety, bddl_path, json_path = generate_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-        )
+    rng = np.random.default_rng(args.seed)
+    bddl_text, ltl_safety, bddl_path, json_path, selection = generate_transfer_activity(
+        activity_name, support_synset, support_room,
+        food_synset=args.food_synset, source_synset=args.source_synset,
+        dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+        rng=rng,
+    )
     print(f"[Pipeline] Dry-run complete:")
     print(f"  BDDL:       {bddl_path}")
     print(f"  ltl_safety: {json_path}")
@@ -169,25 +225,22 @@ def run_dry_run(args):
 
     append_jsonl(args.debug_jsonl, {
         "event": "dry_run", "activity_name": activity_name,
-        "scene_model": args.scene_model, "density": args.clutter_density,
-        "empty_scene": empty,
-        **({"selection": selection} if selection else {}),
+        "scene_model": scene_label, "empty_scene": empty,
+        "selection": selection,
     })
     return activity_name, bddl_path, json_path
 
 
 def run_sim(args, activity_name=None):
-    """Full sim-validation path: surface discovery, pack, robot, gate, LTL."""
+    """Full sim-validation path: surface discovery, place objects, robot, LTL."""
     import torch as th
     import omnigibson as og
     from omnigibson.macros import gm
-    from omnigibson.utils.clutter_pack_layout import validate_pack_integrity
     from omnigibson.utils.franka_edge_align import (
-        DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest, place_franka_edge_aligned,
+        DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest,
+        place_franka_edge_aligned,
     )
     from omnigibson.utils.kitchen_bar_workspace import compute_tabletop_zone
-    from omnigibson.utils.manipulation_task_spec import build_manipulation_task_spec
-    from omnigibson.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
 
     gm.ENABLE_OBJECT_STATES = True
 
@@ -195,13 +248,12 @@ def run_sim(args, activity_name=None):
     scene_label = args.scene_model or "empty"
 
     if activity_name is None:
-        activity_name = args.activity_name or f"auto_clutter_on_{scene_label}"
+        activity_name = args.activity_name or f"auto_transfer_on_{scene_label}"
 
     # -- Resolve support surface --------------------------------------------
     if empty:
         support_synset = args.surface_synset
         support_room = None  # No rooms in empty Scene — skip inroom predicate.
-        surface_area = None
         print(f"[Pipeline] Empty-scene mode: surface={support_synset}")
     else:
         scene_json = get_scene_json_path(args.scene_model)
@@ -213,23 +265,17 @@ def run_sim(args, activity_name=None):
         surface_category = discovery[0]
         support_synset = resolve_synset(surface_category)
         support_room = discovery[1]
-        surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
-        area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
         print(f"[Pipeline] Discovered: category={surface_category} synset={support_synset} "
-              f"room={support_room} area={area_str}")
+              f"room={support_room}")
 
     # -- Generate BDDL ------------------------------------------------------
     rng = np.random.default_rng(args.seed)
-    selection = None
-    if args.randomize:
-        _, _, bddl_path, _, selection = generate_randomized_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-            rng=rng, available_area_m2=surface_area if not empty else None,
-        )
-    else:
-        _, _, bddl_path, _ = generate_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-        )
+    _, _, bddl_path, _, selection = generate_transfer_activity(
+        activity_name, support_synset, support_room,
+        food_synset=args.food_synset, source_synset=args.source_synset,
+        dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+        rng=rng,
+    )
     print(f"[Pipeline] Generated BDDL: {bddl_path}")
     refresh_activity_cache()
 
@@ -265,29 +311,49 @@ def run_sim(args, activity_name=None):
                     raise RuntimeError(
                         f"Support surface '{support_synset}' was not spawned by BDDL sampler.")
                 surface_bounds_xy, table_top_z = get_support_bounds(support_obj)
-                obstacle_bounds_xy = None
                 floor_z = 0.0
                 surface_name = support_inst
                 print(f"[Pipeline] Spawned surface: {support_inst}, top_z={table_top_z:.3f}")
             else:
                 surface_info, support_obj = _discover_best_surface(env)
                 print(f"[Pipeline] Best surface: {surface_info.surface.name} "
-                      f"(score={surface_info.surface.score:.3f}, area={surface_info.surface.area:.3f})")
+                      f"(score={surface_info.surface.score:.3f})")
                 aabb_min, aabb_max = support_obj.aabb
                 surface_bounds_xy = (
                     (float(aabb_min[0]), float(aabb_min[1])),
                     (float(aabb_max[0]), float(aabb_max[1])),
                 )
                 table_top_z = float(aabb_max[2])
-                obstacle_bounds_xy = None
-                if surface_info.obstacles:
-                    obstacle_bounds_xy = surface_info.obstacles[0].aabb_xy
                 floor_z = compute_floor_z(env)
                 surface_name = surface_info.surface.name
-                # Clear perimeter objects (chairs, etc.) — not needed for empty scenes.
                 clear_perimeter(env, support_obj, surface_bounds_xy, table_top_z, floor_z)
 
-            # -- Zone computation -------------------------------------------
+            # -- Identify task objects --------------------------------------
+            food_ids, source_ids, dest_ids = _identify_transfer_objects(env, selection)
+            if not food_ids:
+                raise RuntimeError("No food objects found in scope.")
+            print(f"[Pipeline] Objects: food={food_ids}, source={source_ids}, "
+                  f"dest={dest_ids}")
+
+            food_obj = get_scope_obj(env, food_ids[0])
+            source_obj = get_scope_obj(env, source_ids[0]) if source_ids else None
+            active_objects_by_inst = {}
+            for inst in food_ids + source_ids + dest_ids:
+                obj = get_scope_obj(env, inst)
+                if obj is not None:
+                    active_objects_by_inst[inst] = obj
+
+            # -- Place food on source container (pipeline-managed) ----------
+            if food_obj is not None and source_obj is not None:
+                _place_food_on_source(env, food_obj, source_obj)
+
+            # -- Robot placement --------------------------------------------
+            robot = env.robots[0]
+
+            obstacle_bounds_xy = None
+            if not empty and surface_info.obstacles:
+                obstacle_bounds_xy = surface_info.obstacles[0].aabb_xy
+
             zone = compute_tabletop_zone(
                 surface_bounds_xy=surface_bounds_xy,
                 obstacle_bounds_xy=obstacle_bounds_xy,
@@ -295,78 +361,32 @@ def run_sim(args, activity_name=None):
                 obstacle_keepout_margin_m=0.08 if not empty else 0.0,
                 obstacle_side_clearance_m=0.015 if not empty else 0.0,
             )
-            print(f"[Pipeline] Zone: red_zone={zone.red_zone_bounds}, long_axis={zone.long_axis}")
 
-            # -- Build object sets ------------------------------------------
-            task_spec = build_manipulation_task_spec(activity_name)
-            obj_sets = build_task_object_sets(env, task_spec)
-
-            if not obj_sets["target_ids"]:
-                raise RuntimeError("No target objects found.")
-            target_obj = get_scope_obj(env, obj_sets["target_ids"][0])
-
-            descriptors, objects_by_inst = build_descriptors(env, obj_sets)
-            if not descriptors:
-                raise RuntimeError("No clutter-pack descriptors created.")
-
-            # -- Pack retry loop --------------------------------------------
-            pack_config = PackRetryConfig(
-                pack_jitter_xy=args.pack_jitter_xy or 0.022,
-                pack_min_clearance=args.pack_min_clearance or 0.008,
-            )
-            settle_fn = make_settle_fn(og, th)
-            park_fn = make_park_fn(og, zone.surface_bounds, floor_z)
-
-            pack_result = run_pack_retry_loop(
-                support_name=getattr(support_obj, "name", "support"),
-                descriptors=descriptors, objects_by_inst=objects_by_inst,
-                red_zone_bounds=zone.red_zone_bounds, table_top_z=table_top_z,
-                floor_z=floor_z, config=pack_config, base_seed=args.seed, episode=ep,
-                settle_fn=settle_fn, park_fn=park_fn,
-                validate_poses_fn=validate_poses,
-                check_interpenetration_fn=check_interpenetration,
-                obstacle_keepout_bounds=zone.obstacle_keepout_bounds,
-            )
-            print(f"[Pipeline] Pack solved: attempt={pack_result.attempt_used}, "
-                  f"active={len(pack_result.active_descriptors)}")
-
-            # Park inactive objects.
-            passive = {i: o for i, o in objects_by_inst.items()
-                       if i not in pack_result.active_objects_by_inst}
-            park_fn(passive)
-
-            # -- Integrity check --------------------------------------------
-            integrity = validate_pack_integrity(
-                pack_spec=pack_result.pack_spec,
-                world_positions=pack_result.world_positions,
-                pack_origin_world=pack_result.pack_origin,
-                pack_yaw=0.0, tol_xy=pack_config.integrity_tol_xy,
-            )
-
-            # -- Robot placement --------------------------------------------
-            robot = env.robots[0]
-            pack_objects_world = tuple(
-                EdgeAlignObject(
-                    name=e.inst_id, role=e.role,
-                    position_xy=(pack_result.world_positions[e.inst_id][0],
-                                 pack_result.world_positions[e.inst_id][1]),
-                )
-                for e in pack_result.pack_spec.object_entries
-                if e.inst_id in pack_result.world_positions
-            )
-            if not pack_objects_world:
-                raise RuntimeError("No pack objects for edge alignment.")
+            # Collect object positions for edge alignment.
+            pack_objects_world = []
+            for inst, obj in active_objects_by_inst.items():
+                try:
+                    pos = obj.get_position_orientation()[0]
+                    role = "food" if inst in food_ids else (
+                        "source" if inst in source_ids else "dest")
+                    pack_objects_world.append(EdgeAlignObject(
+                        name=inst, role=role,
+                        position_xy=(float(pos[0]), float(pos[1])),
+                    ))
+                except Exception:
+                    continue
 
             preferred_edge = None
             if not empty and surface_info.approach_edges:
                 preferred_edge = surface_info.approach_edges[0]
             edge_result = place_franka_edge_aligned(EdgeAlignRequest(
                 table_aabb_xy=zone.surface_bounds,
-                pack_objects_world=pack_objects_world,
+                pack_objects_world=tuple(pack_objects_world),
                 role_weights=DEFAULT_ROLE_WEIGHTS,
                 robot_half_extent_xy=robot_half_extent_xy(robot),
                 edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
-                scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10, 0.15, -0.15, 0.20, -0.20),
+                scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
+                                0.15, -0.15, 0.20, -0.20),
                 preferred_edge=preferred_edge,
             ))
             robot.set_position_orientation(
@@ -375,20 +395,20 @@ def run_sim(args, activity_name=None):
                 orientation=edge_result.base_pose["orientation"],
             )
             og.sim.step()
-            print(f"[Pipeline] Robot: edge={edge_result.edge_label}, gap={edge_result.gap_actual:.3f}")
+            print(f"[Pipeline] Robot: edge={edge_result.edge_label}, "
+                  f"gap={edge_result.gap_actual:.3f}")
 
             # -- Gate -------------------------------------------------------
             rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
-            tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]]
-            target_dist = math.hypot(rp[0] - tp[0], rp[1] - tp[1])
+            fp = [float(v) for v in food_obj.get_position_orientation()[0][:3]]
+            food_dist = math.hypot(rp[0] - fp[0], rp[1] - fp[1])
             gate_pass = (
-                all(math.isfinite(v) for v in rp + tp)
+                all(math.isfinite(v) for v in rp + fp)
                 and abs(rp[2] - floor_z) <= 0.03
                 and not edge_result.collision_hits
-                and 0.20 <= target_dist <= 1.10
-                and integrity.ok
+                and 0.20 <= food_dist <= 1.10
             )
-            print(f"[Pipeline] Gate: pass={gate_pass}")
+            print(f"[Pipeline] Gate: pass={gate_pass}, dist={food_dist:.3f}")
             if args.strict_gate and not gate_pass:
                 raise RuntimeError("Strict gate failed.")
 
@@ -400,19 +420,20 @@ def run_sim(args, activity_name=None):
 
             # -- LTL rollout ------------------------------------------------
             summary, executed = run_ltl_rollout(
-                env=env, activity_name=activity_name, scene_model=scene_label,
-                active_objects_by_inst=pack_result.active_objects_by_inst,
-                robot=robot, target_obj=target_obj,
+                env=env, activity_name=activity_name,
+                scene_model=scene_label,
+                active_objects_by_inst=active_objects_by_inst,
+                robot=robot, target_obj=food_obj,
                 args=args, episode=ep, rng=rng,
             )
 
             append_jsonl(args.debug_jsonl, {
                 "episode": ep + 1, "scene_model": scene_label,
-                "activity_name": activity_name, "surface": surface_name,
-                "pack_attempt_used": pack_result.attempt_used,
+                "activity_name": activity_name,
+                "surface": surface_name,
                 "gate_pass": gate_pass, "ltl_violated": summary["violated"],
                 "steps_executed": executed, "empty_scene": empty,
-                **({"selection": selection} if selection else {}),
+                "selection": selection,
             })
 
     finally:

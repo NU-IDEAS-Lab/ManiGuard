@@ -1,15 +1,23 @@
-"""Table clutter scene generation pipeline.
+"""Stack retrieval scene generation pipeline.
 
-Auto-discovers a suitable tabletop in any scene, generates BDDL + ltl_safety.json,
-packs clutter objects, places robot, and runs LTL-monitored rollouts.
+Auto-discovers a suitable tabletop in any scene, generates BDDL + ltl_safety.json
+for a stack-retrieval task (get the target from under a stack), teleports objects
+into a vertical stack, settles physics, validates OnTop state, and runs
+LTL-monitored rollouts.
 
 Supports ``--empty-scene`` mode: skips scene-JSON discovery, spawns a support
 surface via the BDDL object sampler on a bare floor plane.
 
 Usage:
-    python -m omnigibson.task_generation.clutter_scene_pipeline --scene-model Benevolence_1_int --dry-run
-    python -m omnigibson.task_generation.clutter_scene_pipeline --scene-model Benevolence_1_int --episodes 1 --steps 300
-    python -m omnigibson.task_generation.clutter_scene_pipeline --empty-scene --episodes 1 --steps 300 --save-video
+    python -m omnigibson.task_generation.stack_scene_pipeline \
+        --scene-model Benevolence_1_int --dry-run
+
+    python -m omnigibson.task_generation.stack_scene_pipeline \
+        --scene-model Benevolence_1_int --episodes 1 --steps 300 \
+        --stack-height medium --save-video
+
+    python -m omnigibson.task_generation.stack_scene_pipeline \
+        --empty-scene --episodes 1 --steps 300 --stack-height medium --save-video
 """
 
 import math
@@ -18,24 +26,20 @@ import os
 import numpy as np
 
 from omnigibson.task_generation.pipeline_common import (
+    STACK_HEIGHT_PRESETS,
     append_jsonl,
-    build_descriptors,
     build_empty_scene_config,
     build_task_config,
-    build_task_object_sets,
-    check_interpenetration,
     clear_perimeter,
     compute_floor_z,
     discover_from_scene_json,
-    estimate_surface_area_from_scene_json,
     find_spawned_support,
-    generate_activity,
-    generate_randomized_activity,
+    generate_stack_activity,
     get_scene_json_path,
     get_scope_obj,
     get_support_bounds,
+    iter_scope_objects,
     make_base_arg_parser,
-    make_park_fn,
     make_settle_fn,
     needs_gpu_dynamics,
     pipeline_exit,
@@ -44,7 +48,6 @@ from omnigibson.task_generation.pipeline_common import (
     robot_half_extent_xy,
     run_ltl_rollout,
     setup_run_dir,
-    validate_poses,
 )
 
 _SURFACE_CATEGORY_PRIORITY = {
@@ -58,14 +61,19 @@ _SURFACE_CATEGORY_PRIORITY = {
 
 
 def parse_args():
-    p = make_base_arg_parser(description="Table clutter scene generation pipeline")
-    p.add_argument("--randomize", action="store_true",
-                   help="Randomize target, fragile, and clutter object types each episode")
+    p = make_base_arg_parser(description="Stack retrieval scene generation pipeline")
+    p.add_argument("--stack-height", default="medium",
+                   choices=list(STACK_HEIGHT_PRESETS),
+                   help="Number of objects stacked on top of the target")
+    p.add_argument("--target-synset", default=None,
+                   help="Override target object synset")
+    p.add_argument("--stack-synset", default=None,
+                   help="Override stack object synset")
     return p.parse_args()
 
 
 # ---------------------------------------------------------------------------
-# Table-specific discovery
+# Table-specific discovery (shared with clutter pipeline)
 # ---------------------------------------------------------------------------
 
 def _discover_surface_from_scene_json(scene_json_path):
@@ -74,7 +82,7 @@ def _discover_surface_from_scene_json(scene_json_path):
 
 
 def _discover_best_surface(env):
-    """Find best table-like surface in loaded scene, considering robot reachability."""
+    """Find best table-like surface in loaded scene."""
     from omnigibson.utils.surface_discovery import analyze_surface, is_table_like
 
     scene_data, obj_map = [], {}
@@ -119,6 +127,102 @@ def _discover_best_surface(env):
 
 
 # ---------------------------------------------------------------------------
+# Stack layout helpers
+# ---------------------------------------------------------------------------
+
+def _build_stack_descriptors(env, target_ids, stack_ids):
+    """Build StackObjectDescriptors from live env objects, ordered bottom-to-top.
+
+    Order: target (bottom of the "retrieve" stack), then stack objects above it.
+    """
+    from omnigibson.utils.clutter_pack_layout import StackObjectDescriptor
+
+    descriptors = []
+    for inst, role in [(tid, "target") for tid in target_ids] + \
+                      [(sid, "stack") for sid in stack_ids]:
+        obj = get_scope_obj(env, inst)
+        if obj is None:
+            continue
+        try:
+            aabb_min, aabb_max = obj.aabb
+            dx = max(0.01, float(aabb_max[0] - aabb_min[0]))
+            dy = max(0.01, float(aabb_max[1] - aabb_min[1]))
+            dz = max(0.01, float(aabb_max[2] - aabb_min[2]))
+        except Exception:
+            continue
+        descriptors.append(StackObjectDescriptor(
+            instance_id=inst, role=role,
+            half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
+        ))
+    return descriptors
+
+
+def _identify_stack_objects(env, selection):
+    """Partition scope objects into target / stack / support using selection info.
+
+    The *selection* dict (from generate_stack_activity) contains:
+        target_synset, stack_synset, stack_above
+    Instance IDs in the BDDL follow the pattern ``<synset>_<N>``.
+    """
+    target_synset = selection["target_synset"]
+    stack_synset = selection["stack_synset"]
+
+    target_ids, stack_ids = [], []
+    for inst, obj in iter_scope_objects(env):
+        if inst.startswith(("agent.", "floor.")):
+            continue
+        # Match by synset prefix in instance id.
+        if inst.startswith(target_synset + "_"):
+            target_ids.append(inst)
+        elif inst.startswith(stack_synset + "_"):
+            # When target and stack share the same synset, the target is
+            # always _1 (first instance).  Skip it here to avoid double-counting.
+            if stack_synset == target_synset and inst == f"{target_synset}_1":
+                continue
+            stack_ids.append(inst)
+
+    # Sort stack by instance number so ordering is deterministic.
+    stack_ids.sort(key=lambda s: int(s.rsplit("_", 1)[-1]))
+    return target_ids, stack_ids
+
+
+def _validate_ontop_state(env, stack_descriptors, support_obj, objects_by_inst):
+    """Check that each object in the stack is OnTop of the one below it."""
+    from omnigibson.object_states.on_top import OnTop
+
+    chain = []
+    for desc in stack_descriptors:
+        obj = objects_by_inst.get(desc.instance_id)
+        if obj is not None:
+            chain.append((desc.instance_id, obj))
+
+    if not chain:
+        return False, "empty stack"
+
+    # Bottom object should be on the support surface.
+    bottom_inst, bottom_obj = chain[0]
+    try:
+        on_support = bottom_obj.states[OnTop].get_value(support_obj)
+    except Exception:
+        on_support = False
+    if not on_support:
+        return False, f"{bottom_inst} not OnTop support"
+
+    # Each subsequent object should be on the one below.
+    for i in range(1, len(chain)):
+        upper_inst, upper_obj = chain[i]
+        lower_inst, lower_obj = chain[i - 1]
+        try:
+            on_lower = upper_obj.states[OnTop].get_value(lower_obj)
+        except Exception:
+            on_lower = False
+        if not on_lower:
+            return False, f"{upper_inst} not OnTop {lower_inst}"
+
+    return True, "ok"
+
+
+# ---------------------------------------------------------------------------
 # Entrypoints
 # ---------------------------------------------------------------------------
 
@@ -126,40 +230,30 @@ def run_dry_run(args):
     """Generate BDDL + ltl_safety.json without starting the simulator."""
     empty = getattr(args, "empty_scene", False)
     scene_label = args.scene_model or "empty"
-    activity_name = args.activity_name or f"auto_clutter_on_{scene_label}"
+    activity_name = args.activity_name or f"auto_stack_on_{scene_label}"
 
     if empty:
         support_synset = args.surface_synset
         support_room = None  # No rooms in empty Scene — skip inroom predicate.
-        surface_area = None
         print(f"[Pipeline] Empty-scene mode: surface={support_synset}")
     else:
         support_synset, support_room = "breakfast_table.n.01", "living_room"
-        surface_area = None
         try:
             scene_json = get_scene_json_path(args.scene_model)
             discovery = _discover_surface_from_scene_json(scene_json)
             if discovery:
-                surface_category = discovery[0]
-                support_synset = resolve_synset(surface_category)
+                support_synset = resolve_synset(discovery[0])
                 support_room = discovery[1]
-                surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
-                area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
-                print(f"[Pipeline] Discovered: {surface_category} in {support_room}, area={area_str}")
+                print(f"[Pipeline] Discovered: {discovery[0]} in {support_room}")
         except Exception as e:
             print(f"[Pipeline] Surface discovery failed: {e}")
 
-    selection = None
-    if args.randomize:
-        rng = np.random.default_rng(args.seed)
-        bddl_text, ltl_safety, bddl_path, json_path, selection = generate_randomized_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-            rng=rng, available_area_m2=surface_area,
-        )
-    else:
-        bddl_text, ltl_safety, bddl_path, json_path = generate_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-        )
+    rng = np.random.default_rng(args.seed)
+    bddl_text, ltl_safety, bddl_path, json_path, selection = generate_stack_activity(
+        activity_name, support_synset, support_room, args.stack_height,
+        target_synset=args.target_synset, stack_synset=args.stack_synset,
+        rng=rng,
+    )
     print(f"[Pipeline] Dry-run complete:")
     print(f"  BDDL:       {bddl_path}")
     print(f"  ltl_safety: {json_path}")
@@ -169,25 +263,25 @@ def run_dry_run(args):
 
     append_jsonl(args.debug_jsonl, {
         "event": "dry_run", "activity_name": activity_name,
-        "scene_model": args.scene_model, "density": args.clutter_density,
-        "empty_scene": empty,
-        **({"selection": selection} if selection else {}),
+        "scene_model": scene_label, "stack_height": args.stack_height,
+        "empty_scene": empty, "selection": selection,
     })
     return activity_name, bddl_path, json_path
 
 
 def run_sim(args, activity_name=None):
-    """Full sim-validation path: surface discovery, pack, robot, gate, LTL."""
+    """Full sim-validation path: surface discovery, stack, robot, gate, LTL."""
     import torch as th
     import omnigibson as og
     from omnigibson.macros import gm
-    from omnigibson.utils.clutter_pack_layout import validate_pack_integrity
+    from omnigibson.utils.clutter_pack_layout import (
+        build_stack_layout, apply_stack_transform,
+    )
     from omnigibson.utils.franka_edge_align import (
-        DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest, place_franka_edge_aligned,
+        DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest,
+        place_franka_edge_aligned,
     )
     from omnigibson.utils.kitchen_bar_workspace import compute_tabletop_zone
-    from omnigibson.utils.manipulation_task_spec import build_manipulation_task_spec
-    from omnigibson.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
 
     gm.ENABLE_OBJECT_STATES = True
 
@@ -195,13 +289,12 @@ def run_sim(args, activity_name=None):
     scene_label = args.scene_model or "empty"
 
     if activity_name is None:
-        activity_name = args.activity_name or f"auto_clutter_on_{scene_label}"
+        activity_name = args.activity_name or f"auto_stack_on_{scene_label}"
 
     # -- Resolve support surface --------------------------------------------
     if empty:
         support_synset = args.surface_synset
         support_room = None  # No rooms in empty Scene — skip inroom predicate.
-        surface_area = None
         print(f"[Pipeline] Empty-scene mode: surface={support_synset}")
     else:
         scene_json = get_scene_json_path(args.scene_model)
@@ -213,23 +306,16 @@ def run_sim(args, activity_name=None):
         surface_category = discovery[0]
         support_synset = resolve_synset(surface_category)
         support_room = discovery[1]
-        surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
-        area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
         print(f"[Pipeline] Discovered: category={surface_category} synset={support_synset} "
-              f"room={support_room} area={area_str}")
+              f"room={support_room}")
 
     # -- Generate BDDL ------------------------------------------------------
     rng = np.random.default_rng(args.seed)
-    selection = None
-    if args.randomize:
-        _, _, bddl_path, _, selection = generate_randomized_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-            rng=rng, available_area_m2=surface_area if not empty else None,
-        )
-    else:
-        _, _, bddl_path, _ = generate_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-        )
+    _, _, bddl_path, _, selection = generate_stack_activity(
+        activity_name, support_synset, support_room, args.stack_height,
+        target_synset=args.target_synset, stack_synset=args.stack_synset,
+        rng=rng,
+    )
     print(f"[Pipeline] Generated BDDL: {bddl_path}")
     refresh_activity_cache()
 
@@ -248,6 +334,10 @@ def run_sim(args, activity_name=None):
     cfg["task"]["online_object_sampling"] = True
     cfg["task"]["use_presampled_robot_pose"] = False
 
+    # Pin all stack/target instances to the same model so they stack reliably.
+    if selection.get("sampling_whitelist"):
+        cfg["task"]["sampling_whitelist"] = selection["sampling_whitelist"]
+
     print(f"[Pipeline] scene={scene_label}, activity={activity_name}, "
           f"empty={empty}, strict_gate={args.strict_gate}")
     env = og.Environment(configs=cfg)
@@ -265,29 +355,101 @@ def run_sim(args, activity_name=None):
                     raise RuntimeError(
                         f"Support surface '{support_synset}' was not spawned by BDDL sampler.")
                 surface_bounds_xy, table_top_z = get_support_bounds(support_obj)
-                obstacle_bounds_xy = None
                 floor_z = 0.0
                 surface_name = support_inst
                 print(f"[Pipeline] Spawned surface: {support_inst}, top_z={table_top_z:.3f}")
             else:
                 surface_info, support_obj = _discover_best_surface(env)
                 print(f"[Pipeline] Best surface: {surface_info.surface.name} "
-                      f"(score={surface_info.surface.score:.3f}, area={surface_info.surface.area:.3f})")
+                      f"(score={surface_info.surface.score:.3f})")
                 aabb_min, aabb_max = support_obj.aabb
                 surface_bounds_xy = (
                     (float(aabb_min[0]), float(aabb_min[1])),
                     (float(aabb_max[0]), float(aabb_max[1])),
                 )
                 table_top_z = float(aabb_max[2])
-                obstacle_bounds_xy = None
-                if surface_info.obstacles:
-                    obstacle_bounds_xy = surface_info.obstacles[0].aabb_xy
                 floor_z = compute_floor_z(env)
                 surface_name = surface_info.surface.name
-                # Clear perimeter objects (chairs, etc.) — not needed for empty scenes.
                 clear_perimeter(env, support_obj, surface_bounds_xy, table_top_z, floor_z)
 
-            # -- Zone computation -------------------------------------------
+            # -- Identify stack objects -------------------------------------
+            target_ids, stack_ids = _identify_stack_objects(env, selection)
+            if not target_ids:
+                raise RuntimeError("No target objects found in scope.")
+            print(f"[Pipeline] Objects: target={target_ids}, stack={stack_ids}")
+
+            target_obj = get_scope_obj(env, target_ids[0])
+            objects_by_inst = {}
+            for inst in target_ids + stack_ids:
+                obj = get_scope_obj(env, inst)
+                if obj is not None:
+                    objects_by_inst[inst] = obj
+
+            # -- Build stack descriptors (bottom-to-top) --------------------
+            stack_descriptors = _build_stack_descriptors(env, target_ids, stack_ids)
+            if len(stack_descriptors) < 2:
+                raise RuntimeError(f"Need at least 2 objects for a stack, "
+                                   f"got {len(stack_descriptors)}.")
+
+            # -- Compute stack origin (centre of table surface) -------------
+            cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
+            cy = 0.5 * (surface_bounds_xy[0][1] + surface_bounds_xy[1][1])
+            stack_origin = (cx, cy, table_top_z)
+
+            # -- Build and apply stack layout -------------------------------
+            ep_seed = args.seed + ep * 1000
+            stack_spec = build_stack_layout(
+                support_obj_name=getattr(support_obj, "name", "support"),
+                descriptors=stack_descriptors,
+                seed=ep_seed,
+            )
+            placements = apply_stack_transform(
+                stack_spec, objects_by_inst, stack_origin,
+            )
+            print(f"[Pipeline] Stack placed: {len(placements)} objects at "
+                  f"origin=({cx:.3f}, {cy:.3f}, {table_top_z:.3f})")
+
+            # -- Keep still + settle physics --------------------------------
+            for obj in objects_by_inst.values():
+                if hasattr(obj, "keep_still"):
+                    obj.keep_still()
+            settle_fn = make_settle_fn(og, th)
+            settle_fn(objects_by_inst)
+
+            # -- Validate OnTop chain ---------------------------------------
+            max_ontop_attempts = 3
+            ontop_ok = False
+            for attempt in range(max_ontop_attempts):
+                ontop_ok, ontop_msg = _validate_ontop_state(
+                    env, stack_descriptors, support_obj, objects_by_inst,
+                )
+                if ontop_ok:
+                    print(f"[Pipeline] OnTop validation: OK (attempt {attempt + 1})")
+                    break
+                print(f"[Pipeline] OnTop validation failed (attempt {attempt + 1}): "
+                      f"{ontop_msg}")
+                # Re-place with a different seed and settle again.
+                ep_seed += 1
+                stack_spec = build_stack_layout(
+                    support_obj_name=getattr(support_obj, "name", "support"),
+                    descriptors=stack_descriptors,
+                    seed=ep_seed,
+                )
+                placements = apply_stack_transform(
+                    stack_spec, objects_by_inst, stack_origin,
+                )
+                for obj in objects_by_inst.values():
+                    if hasattr(obj, "keep_still"):
+                        obj.keep_still()
+                settle_fn(objects_by_inst)
+
+            # -- Robot placement --------------------------------------------
+            robot = env.robots[0]
+
+            obstacle_bounds_xy = None
+            if not empty and surface_info.obstacles:
+                obstacle_bounds_xy = surface_info.obstacles[0].aabb_xy
+
             zone = compute_tabletop_zone(
                 surface_bounds_xy=surface_bounds_xy,
                 obstacle_bounds_xy=obstacle_bounds_xy,
@@ -295,68 +457,14 @@ def run_sim(args, activity_name=None):
                 obstacle_keepout_margin_m=0.08 if not empty else 0.0,
                 obstacle_side_clearance_m=0.015 if not empty else 0.0,
             )
-            print(f"[Pipeline] Zone: red_zone={zone.red_zone_bounds}, long_axis={zone.long_axis}")
 
-            # -- Build object sets ------------------------------------------
-            task_spec = build_manipulation_task_spec(activity_name)
-            obj_sets = build_task_object_sets(env, task_spec)
-
-            if not obj_sets["target_ids"]:
-                raise RuntimeError("No target objects found.")
-            target_obj = get_scope_obj(env, obj_sets["target_ids"][0])
-
-            descriptors, objects_by_inst = build_descriptors(env, obj_sets)
-            if not descriptors:
-                raise RuntimeError("No clutter-pack descriptors created.")
-
-            # -- Pack retry loop --------------------------------------------
-            pack_config = PackRetryConfig(
-                pack_jitter_xy=args.pack_jitter_xy or 0.022,
-                pack_min_clearance=args.pack_min_clearance or 0.008,
-            )
-            settle_fn = make_settle_fn(og, th)
-            park_fn = make_park_fn(og, zone.surface_bounds, floor_z)
-
-            pack_result = run_pack_retry_loop(
-                support_name=getattr(support_obj, "name", "support"),
-                descriptors=descriptors, objects_by_inst=objects_by_inst,
-                red_zone_bounds=zone.red_zone_bounds, table_top_z=table_top_z,
-                floor_z=floor_z, config=pack_config, base_seed=args.seed, episode=ep,
-                settle_fn=settle_fn, park_fn=park_fn,
-                validate_poses_fn=validate_poses,
-                check_interpenetration_fn=check_interpenetration,
-                obstacle_keepout_bounds=zone.obstacle_keepout_bounds,
-            )
-            print(f"[Pipeline] Pack solved: attempt={pack_result.attempt_used}, "
-                  f"active={len(pack_result.active_descriptors)}")
-
-            # Park inactive objects.
-            passive = {i: o for i, o in objects_by_inst.items()
-                       if i not in pack_result.active_objects_by_inst}
-            park_fn(passive)
-
-            # -- Integrity check --------------------------------------------
-            integrity = validate_pack_integrity(
-                pack_spec=pack_result.pack_spec,
-                world_positions=pack_result.world_positions,
-                pack_origin_world=pack_result.pack_origin,
-                pack_yaw=0.0, tol_xy=pack_config.integrity_tol_xy,
-            )
-
-            # -- Robot placement --------------------------------------------
-            robot = env.robots[0]
             pack_objects_world = tuple(
                 EdgeAlignObject(
-                    name=e.inst_id, role=e.role,
-                    position_xy=(pack_result.world_positions[e.inst_id][0],
-                                 pack_result.world_positions[e.inst_id][1]),
+                    name=inst, role="target" if inst in target_ids else "stack",
+                    position_xy=(placements[inst][0], placements[inst][1]),
                 )
-                for e in pack_result.pack_spec.object_entries
-                if e.inst_id in pack_result.world_positions
+                for inst in placements
             )
-            if not pack_objects_world:
-                raise RuntimeError("No pack objects for edge alignment.")
-
             preferred_edge = None
             if not empty and surface_info.approach_edges:
                 preferred_edge = surface_info.approach_edges[0]
@@ -366,7 +474,8 @@ def run_sim(args, activity_name=None):
                 role_weights=DEFAULT_ROLE_WEIGHTS,
                 robot_half_extent_xy=robot_half_extent_xy(robot),
                 edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
-                scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10, 0.15, -0.15, 0.20, -0.20),
+                scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
+                                0.15, -0.15, 0.20, -0.20),
                 preferred_edge=preferred_edge,
             ))
             robot.set_position_orientation(
@@ -375,7 +484,8 @@ def run_sim(args, activity_name=None):
                 orientation=edge_result.base_pose["orientation"],
             )
             og.sim.step()
-            print(f"[Pipeline] Robot: edge={edge_result.edge_label}, gap={edge_result.gap_actual:.3f}")
+            print(f"[Pipeline] Robot: edge={edge_result.edge_label}, "
+                  f"gap={edge_result.gap_actual:.3f}")
 
             # -- Gate -------------------------------------------------------
             rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
@@ -386,9 +496,10 @@ def run_sim(args, activity_name=None):
                 and abs(rp[2] - floor_z) <= 0.03
                 and not edge_result.collision_hits
                 and 0.20 <= target_dist <= 1.10
-                and integrity.ok
+                and ontop_ok
             )
-            print(f"[Pipeline] Gate: pass={gate_pass}")
+            print(f"[Pipeline] Gate: pass={gate_pass}, ontop={ontop_ok}, "
+                  f"dist={target_dist:.3f}")
             if args.strict_gate and not gate_pass:
                 raise RuntimeError("Strict gate failed.")
 
@@ -400,19 +511,22 @@ def run_sim(args, activity_name=None):
 
             # -- LTL rollout ------------------------------------------------
             summary, executed = run_ltl_rollout(
-                env=env, activity_name=activity_name, scene_model=scene_label,
-                active_objects_by_inst=pack_result.active_objects_by_inst,
+                env=env, activity_name=activity_name,
+                scene_model=scene_label,
+                active_objects_by_inst=objects_by_inst,
                 robot=robot, target_obj=target_obj,
                 args=args, episode=ep, rng=rng,
             )
 
             append_jsonl(args.debug_jsonl, {
                 "episode": ep + 1, "scene_model": scene_label,
-                "activity_name": activity_name, "surface": surface_name,
-                "pack_attempt_used": pack_result.attempt_used,
+                "activity_name": activity_name,
+                "surface": surface_name,
+                "stack_height": args.stack_height,
+                "ontop_valid": ontop_ok,
                 "gate_pass": gate_pass, "ltl_violated": summary["violated"],
                 "steps_executed": executed, "empty_scene": empty,
-                **({"selection": selection} if selection else {}),
+                "selection": selection,
             })
 
     finally:

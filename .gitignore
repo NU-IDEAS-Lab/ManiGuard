@@ -3,3 +3,4 @@
 log_dir/*
 scene_generation/*
 outputs/*
+bddl3/bddl/activity_definitions/*

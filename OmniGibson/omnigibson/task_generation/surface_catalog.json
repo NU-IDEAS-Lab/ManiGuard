@@ -1,0 +1,1154 @@
+{
+  "breakfast_table": {
+    "bhszwe": {
+      "width_m": 0.7134,
+      "depth_m": 1.7626,
+      "height_m": 0.7412,
+      "surface_area_m2": 1.2574
+    },
+    "bmnubh": {
+      "width_m": 0.4974,
+      "depth_m": 1.1938,
+      "height_m": 0.3449,
+      "surface_area_m2": 0.5938
+    },
+    "dcdtsr": {
+      "width_m": 0.953,
+      "depth_m": 2.2669,
+      "height_m": 0.8327,
+      "surface_area_m2": 2.1603
+    },
+    "hggsao": {
+      "width_m": 0.6831,
+      "depth_m": 1.1938,
+      "height_m": 0.4974,
+      "surface_area_m2": 0.8155
+    },
+    "hmzwxn": {
+      "width_m": 0.6942,
+      "depth_m": 1.2135,
+      "height_m": 0.8298,
+      "surface_area_m2": 0.8424
+    },
+    "iaritq": {
+      "width_m": 0.702,
+      "depth_m": 0.7011,
+      "height_m": 0.749,
+      "surface_area_m2": 0.4922
+    },
+    "idnnmz": {
+      "width_m": 0.4884,
+      "depth_m": 1.1938,
+      "height_m": 0.4233,
+      "surface_area_m2": 0.583
+    },
+    "jcqdlx": {
+      "width_m": 1.0017,
+      "depth_m": 1.8011,
+      "height_m": 0.749,
+      "surface_area_m2": 1.8042
+    },
+    "jruvif": {
+      "width_m": 0.7134,
+      "depth_m": 1.3716,
+      "height_m": 1.0505,
+      "surface_area_m2": 0.9785
+    },
+    "kpwegp": {
+      "width_m": 0.6,
+      "depth_m": 1.1937,
+      "height_m": 0.5645,
+      "surface_area_m2": 0.7162
+    },
+    "kwmfdg": {
+      "width_m": 0.6123,
+      "depth_m": 1.1942,
+      "height_m": 0.4138,
+      "surface_area_m2": 0.7312
+    },
+    "lcsizg": {
+      "width_m": 0.7634,
+      "depth_m": 1.1371,
+      "height_m": 0.639,
+      "surface_area_m2": 0.8681
+    },
+    "lnwggc": {
+      "width_m": 0.7505,
+      "depth_m": 0.7495,
+      "height_m": 0.4411,
+      "surface_area_m2": 0.5625
+    },
+    "lwtcfh": {
+      "width_m": 0.7493,
+      "depth_m": 1.0704,
+      "height_m": 0.5148,
+      "surface_area_m2": 0.8021
+    },
+    "mwsyqb": {
+      "width_m": 0.6969,
+      "depth_m": 1.1938,
+      "height_m": 0.6461,
+      "surface_area_m2": 0.8319
+    },
+    "nvoqyl": {
+      "width_m": 0.763,
+      "depth_m": 1.203,
+      "height_m": 0.7412,
+      "surface_area_m2": 0.9179
+    },
+    "pdpkuw": {
+      "width_m": 0.953,
+      "depth_m": 1.5394,
+      "height_m": 0.8322,
+      "surface_area_m2": 1.467
+    },
+    "pllvrt": {
+      "width_m": 0.5842,
+      "depth_m": 1.1938,
+      "height_m": 0.4813,
+      "surface_area_m2": 0.6974
+    },
+    "qjiray": {
+      "width_m": 1.0042,
+      "depth_m": 3.3,
+      "height_m": 0.7485,
+      "surface_area_m2": 3.3138
+    },
+    "rhjoby": {
+      "width_m": 1.1599,
+      "depth_m": 2.8957,
+      "height_m": 0.7811,
+      "surface_area_m2": 3.3588
+    },
+    "rjgmmy": {
+      "width_m": 0.7493,
+      "depth_m": 0.9427,
+      "height_m": 0.5821,
+      "surface_area_m2": 0.7063
+    },
+    "sfxqtk": {
+      "width_m": 0.7493,
+      "depth_m": 0.7493,
+      "height_m": 0.2862,
+      "surface_area_m2": 0.5615
+    },
+    "skczfi": {
+      "width_m": 0.4974,
+      "depth_m": 1.1938,
+      "height_m": 0.4808,
+      "surface_area_m2": 0.5938
+    },
+    "uhrsex": {
+      "width_m": 0.5969,
+      "depth_m": 1.1938,
+      "height_m": 0.4282,
+      "surface_area_m2": 0.7126
+    },
+    "wdbwhc": {
+      "width_m": 0.89,
+      "depth_m": 0.9058,
+      "height_m": 0.7634,
+      "surface_area_m2": 0.8062
+    },
+    "wnrior": {
+      "width_m": 0.8005,
+      "depth_m": 1.5765,
+      "height_m": 0.7122,
+      "surface_area_m2": 1.2621
+    },
+    "xftrki": {
+      "width_m": 0.9306,
+      "depth_m": 1.4903,
+      "height_m": 0.6791,
+      "surface_area_m2": 1.3868
+    },
+    "yaanqr": {
+      "width_m": 0.702,
+      "depth_m": 1.1022,
+      "height_m": 0.749,
+      "surface_area_m2": 0.7737
+    },
+    "yclkbw": {
+      "width_m": 1.1107,
+      "depth_m": 3.5002,
+      "height_m": 0.943,
+      "surface_area_m2": 3.8878
+    },
+    "ylykeh": {
+      "width_m": 1.5,
+      "depth_m": 2.0,
+      "height_m": 0.8,
+      "surface_area_m2": 3.0
+    },
+    "ytelxk": {
+      "width_m": 1.1,
+      "depth_m": 2.3,
+      "height_m": 0.75,
+      "surface_area_m2": 2.53
+    },
+    "zypvuv": {
+      "width_m": 0.7493,
+      "depth_m": 1.1811,
+      "height_m": 0.397,
+      "surface_area_m2": 0.885
+    }
+  },
+  "checkout_counter": {
+    "hhvxxr": {
+      "width_m": 1.012,
+      "depth_m": 3.0231,
+      "height_m": 1.0133,
+      "surface_area_m2": 3.0594
+    },
+    "odcaop": {
+      "width_m": 1.2123,
+      "depth_m": 1.777,
+      "height_m": 1.0341,
+      "surface_area_m2": 2.1542
+    },
+    "sckdal": {
+      "width_m": 1.0171,
+      "depth_m": 3.0914,
+      "height_m": 0.9693,
+      "surface_area_m2": 3.1442
+    },
+    "umnoqh": {
+      "width_m": 0.927,
+      "depth_m": 3.406,
+      "height_m": 0.8124,
+      "surface_area_m2": 3.1573
+    }
+  },
+  "coffee_table": {
+    "aoojzy": {
+      "width_m": 0.4955,
+      "depth_m": 0.9906,
+      "height_m": 0.442,
+      "surface_area_m2": 0.4908
+    },
+    "cjjayg": {
+      "width_m": 0.7493,
+      "depth_m": 0.7493,
+      "height_m": 0.2848,
+      "surface_area_m2": 0.5615
+    },
+    "dnsjnv": {
+      "width_m": 0.7493,
+      "depth_m": 0.7493,
+      "height_m": 0.3381,
+      "surface_area_m2": 0.5614
+    },
+    "ejlbho": {
+      "width_m": 0.6065,
+      "depth_m": 0.6053,
+      "height_m": 0.4719,
+      "surface_area_m2": 0.3671
+    },
+    "elhvfw": {
+      "width_m": 0.5372,
+      "depth_m": 1.5954,
+      "height_m": 0.4616,
+      "surface_area_m2": 0.857
+    },
+    "fhqimf": {
+      "width_m": 0.6042,
+      "depth_m": 1.1925,
+      "height_m": 0.49,
+      "surface_area_m2": 0.7205
+    },
+    "fqluyq": {
+      "width_m": 0.5246,
+      "depth_m": 1.1986,
+      "height_m": 0.4071,
+      "surface_area_m2": 0.6288
+    },
+    "gcollb": {
+      "width_m": 0.4591,
+      "depth_m": 0.9906,
+      "height_m": 0.4244,
+      "surface_area_m2": 0.4548
+    },
+    "gpkbiw": {
+      "width_m": 0.6761,
+      "depth_m": 1.094,
+      "height_m": 0.2719,
+      "surface_area_m2": 0.7397
+    },
+    "hbgcej": {
+      "width_m": 0.7064,
+      "depth_m": 0.7064,
+      "height_m": 0.3723,
+      "surface_area_m2": 0.4991
+    },
+    "hmwkkt": {
+      "width_m": 0.3026,
+      "depth_m": 0.3761,
+      "height_m": 0.4548,
+      "surface_area_m2": 0.1138
+    },
+    "ixvmic": {
+      "width_m": 0.7493,
+      "depth_m": 0.7493,
+      "height_m": 0.1877,
+      "surface_area_m2": 0.5615
+    },
+    "jkhlnp": {
+      "width_m": 0.758,
+      "depth_m": 0.758,
+      "height_m": 0.6638,
+      "surface_area_m2": 0.5746
+    },
+    "koagbh": {
+      "width_m": 0.8,
+      "depth_m": 1.6557,
+      "height_m": 0.4063,
+      "surface_area_m2": 1.3245
+    },
+    "lpwbgm": {
+      "width_m": 0.7128,
+      "depth_m": 0.713,
+      "height_m": 0.2646,
+      "surface_area_m2": 0.5082
+    },
+    "lyhpbr": {
+      "width_m": 0.5901,
+      "depth_m": 0.5901,
+      "height_m": 0.5564,
+      "surface_area_m2": 0.3483
+    },
+    "metubv": {
+      "width_m": 0.7497,
+      "depth_m": 1.1894,
+      "height_m": 0.4365,
+      "surface_area_m2": 0.8916
+    },
+    "mjyitq": {
+      "width_m": 0.6847,
+      "depth_m": 0.6869,
+      "height_m": 0.4549,
+      "surface_area_m2": 0.4704
+    },
+    "mtchfd": {
+      "width_m": 0.7461,
+      "depth_m": 0.7461,
+      "height_m": 0.4456,
+      "surface_area_m2": 0.5566
+    },
+    "osroux": {
+      "width_m": 0.8,
+      "depth_m": 1.4577,
+      "height_m": 0.3558,
+      "surface_area_m2": 1.1662
+    },
+    "puwazg": {
+      "width_m": 0.8496,
+      "depth_m": 0.8393,
+      "height_m": 0.3354,
+      "surface_area_m2": 0.7131
+    },
+    "qlmqyy": {
+      "width_m": 0.508,
+      "depth_m": 0.6391,
+      "height_m": 0.3947,
+      "surface_area_m2": 0.3247
+    },
+    "qplrhv": {
+      "width_m": 0.6065,
+      "depth_m": 0.6053,
+      "height_m": 0.4719,
+      "surface_area_m2": 0.3671
+    },
+    "qtwqqb": {
+      "width_m": 0.8739,
+      "depth_m": 1.7393,
+      "height_m": 0.4686,
+      "surface_area_m2": 1.5199
+    },
+    "rkdwxe": {
+      "width_m": 0.8738,
+      "depth_m": 1.2149,
+      "height_m": 0.3586,
+      "surface_area_m2": 1.0616
+    },
+    "rlsebe": {
+      "width_m": 0.9749,
+      "depth_m": 0.9749,
+      "height_m": 0.2692,
+      "surface_area_m2": 0.9504
+    },
+    "semdkc": {
+      "width_m": 1.3306,
+      "depth_m": 1.3306,
+      "height_m": 0.3668,
+      "surface_area_m2": 1.7704
+    },
+    "skseyx": {
+      "width_m": 0.5951,
+      "depth_m": 1.1933,
+      "height_m": 0.3462,
+      "surface_area_m2": 0.7101
+    },
+    "stocuk": {
+      "width_m": 0.3406,
+      "depth_m": 0.4699,
+      "height_m": 0.4662,
+      "surface_area_m2": 0.1601
+    },
+    "tzmkgq": {
+      "width_m": 0.3626,
+      "depth_m": 0.5009,
+      "height_m": 0.4627,
+      "surface_area_m2": 0.1817
+    },
+    "vcgabn": {
+      "width_m": 0.2019,
+      "depth_m": 0.6744,
+      "height_m": 0.4499,
+      "surface_area_m2": 0.1361
+    },
+    "wgtaip": {
+      "width_m": 1.3257,
+      "depth_m": 3.2741,
+      "height_m": 0.758,
+      "surface_area_m2": 4.3405
+    },
+    "wwgaym": {
+      "width_m": 0.5065,
+      "depth_m": 0.5065,
+      "height_m": 0.4221,
+      "surface_area_m2": 0.2566
+    },
+    "wwsikw": {
+      "width_m": 0.6515,
+      "depth_m": 1.1939,
+      "height_m": 0.4833,
+      "surface_area_m2": 0.7778
+    },
+    "wzyqgx": {
+      "width_m": 0.9842,
+      "depth_m": 1.2621,
+      "height_m": 0.3304,
+      "surface_area_m2": 1.2422
+    },
+    "xshzms": {
+      "width_m": 0.5077,
+      "depth_m": 0.508,
+      "height_m": 0.2319,
+      "surface_area_m2": 0.2579
+    },
+    "ytlgdt": {
+      "width_m": 0.2607,
+      "depth_m": 0.7898,
+      "height_m": 0.4736,
+      "surface_area_m2": 0.2059
+    },
+    "zehult": {
+      "width_m": 0.4988,
+      "depth_m": 0.4359,
+      "height_m": 0.5983,
+      "surface_area_m2": 0.2174
+    },
+    "zisekv": {
+      "width_m": 0.5202,
+      "depth_m": 0.9161,
+      "height_m": 0.4551,
+      "surface_area_m2": 0.4766
+    },
+    "zzqwse": {
+      "width_m": 0.2748,
+      "depth_m": 0.2748,
+      "height_m": 0.4547,
+      "surface_area_m2": 0.0755
+    }
+  },
+  "commercial_kitchen_table": {
+    "bwlfnu": {
+      "width_m": 0.4397,
+      "depth_m": 1.761,
+      "height_m": 0.8543,
+      "surface_area_m2": 0.7743
+    },
+    "hmwzxn": {
+      "width_m": 0.8688,
+      "depth_m": 4.5223,
+      "height_m": 0.8938,
+      "surface_area_m2": 3.929
+    },
+    "nisnrl": {
+      "width_m": 0.7047,
+      "depth_m": 1.1186,
+      "height_m": 0.9435,
+      "surface_area_m2": 0.7882
+    },
+    "vxvtec": {
+      "width_m": 0.8048,
+      "depth_m": 2.8056,
+      "height_m": 0.8668,
+      "surface_area_m2": 2.258
+    },
+    "wodpss": {
+      "width_m": 0.6096,
+      "depth_m": 3.0505,
+      "height_m": 1.1172,
+      "surface_area_m2": 1.8596
+    }
+  },
+  "conference_table": {
+    "fpkmyw": {
+      "width_m": 1.4932,
+      "depth_m": 3.3918,
+      "height_m": 0.6699,
+      "surface_area_m2": 5.0646
+    },
+    "hdomxc": {
+      "width_m": 2.3117,
+      "depth_m": 5.1089,
+      "height_m": 0.77,
+      "surface_area_m2": 11.8105
+    },
+    "jxixdw": {
+      "width_m": 0.9968,
+      "depth_m": 1.9982,
+      "height_m": 0.7313,
+      "surface_area_m2": 1.9917
+    },
+    "qzmjrj": {
+      "width_m": 0.7056,
+      "depth_m": 1.7957,
+      "height_m": 0.7216,
+      "surface_area_m2": 1.2671
+    }
+  },
+  "console_table": {
+    "emeeke": {
+      "width_m": 0.3048,
+      "depth_m": 0.9242,
+      "height_m": 0.526,
+      "surface_area_m2": 0.2817
+    },
+    "fihyuz": {
+      "width_m": 0.3048,
+      "depth_m": 0.878,
+      "height_m": 0.3931,
+      "surface_area_m2": 0.2676
+    },
+    "iuxsao": {
+      "width_m": 0.4536,
+      "depth_m": 1.0116,
+      "height_m": 0.7931,
+      "surface_area_m2": 0.4589
+    },
+    "tvhett": {
+      "width_m": 0.3048,
+      "depth_m": 0.3789,
+      "height_m": 0.4531,
+      "surface_area_m2": 0.1155
+    },
+    "tzkfqa": {
+      "width_m": 0.602,
+      "depth_m": 0.6374,
+      "height_m": 0.7977,
+      "surface_area_m2": 0.3837
+    },
+    "xqlxni": {
+      "width_m": 0.7223,
+      "depth_m": 1.0982,
+      "height_m": 0.6864,
+      "surface_area_m2": 0.7932
+    }
+  },
+  "countertop": {
+    "epaijd": {
+      "width_m": 0.6,
+      "depth_m": 3.5,
+      "height_m": 0.05,
+      "surface_area_m2": 2.1
+    },
+    "fjkase": {
+      "width_m": 0.6505,
+      "depth_m": 2.4492,
+      "height_m": 0.0379,
+      "surface_area_m2": 1.5931
+    },
+    "ikwqer": {
+      "width_m": 0.6505,
+      "depth_m": 4.4678,
+      "height_m": 0.0379,
+      "surface_area_m2": 2.9061
+    },
+    "jveutp": {
+      "width_m": 0.7598,
+      "depth_m": 1.5085,
+      "height_m": 0.0185,
+      "surface_area_m2": 1.1461
+    },
+    "kelker": {
+      "width_m": 0.8625,
+      "depth_m": 3.4457,
+      "height_m": 0.0361,
+      "surface_area_m2": 2.9721
+    },
+    "kelzer": {
+      "width_m": 1.0752,
+      "depth_m": 3.1073,
+      "height_m": 0.0361,
+      "surface_area_m2": 3.3408
+    },
+    "ncqmrq": {
+      "width_m": 2.7971,
+      "depth_m": 1.7955,
+      "height_m": 0.0694,
+      "surface_area_m2": 5.0221
+    },
+    "qfhqhy": {
+      "width_m": 0.82,
+      "depth_m": 2.1002,
+      "height_m": 0.05,
+      "surface_area_m2": 1.7222
+    },
+    "sjxber": {
+      "width_m": 0.443,
+      "depth_m": 0.9754,
+      "height_m": 0.0379,
+      "surface_area_m2": 0.4321
+    },
+    "tpuwys": {
+      "width_m": 0.5571,
+      "depth_m": 1.0215,
+      "height_m": 0.0317,
+      "surface_area_m2": 0.5691
+    },
+    "zkhelh": {
+      "width_m": 0.5285,
+      "depth_m": 4.4418,
+      "height_m": 0.0955,
+      "surface_area_m2": 2.3476
+    }
+  },
+  "desk": {
+    "aduafr": {
+      "width_m": 0.6304,
+      "depth_m": 1.5131,
+      "height_m": 0.7854,
+      "surface_area_m2": 0.9539
+    },
+    "ampuyz": {
+      "width_m": 0.5735,
+      "depth_m": 0.8079,
+      "height_m": 0.7576,
+      "surface_area_m2": 0.4633
+    },
+    "bhkhxo": {
+      "width_m": 0.6484,
+      "depth_m": 1.7979,
+      "height_m": 0.7576,
+      "surface_area_m2": 1.1657
+    },
+    "bptvoy": {
+      "width_m": 0.5969,
+      "depth_m": 1.1938,
+      "height_m": 0.5969,
+      "surface_area_m2": 0.7126
+    },
+    "ccxuey": {
+      "width_m": 0.671,
+      "depth_m": 1.4732,
+      "height_m": 0.8818,
+      "surface_area_m2": 0.9886
+    },
+    "cjhriz": {
+      "width_m": 0.7295,
+      "depth_m": 1.1938,
+      "height_m": 0.5306,
+      "surface_area_m2": 0.8709
+    },
+    "clenrz": {
+      "width_m": 0.5093,
+      "depth_m": 1.6124,
+      "height_m": 0.6018,
+      "surface_area_m2": 0.8212
+    },
+    "cnewsu": {
+      "width_m": 0.4775,
+      "depth_m": 1.1938,
+      "height_m": 0.7168,
+      "surface_area_m2": 0.5701
+    },
+    "ctaxkd": {
+      "width_m": 0.6848,
+      "depth_m": 2.1266,
+      "height_m": 0.8871,
+      "surface_area_m2": 1.4563
+    },
+    "egzdgz": {
+      "width_m": 0.9176,
+      "depth_m": 1.7478,
+      "height_m": 0.6458,
+      "surface_area_m2": 1.6039
+    },
+    "ghtnfq": {
+      "width_m": 1.9998,
+      "depth_m": 2.7938,
+      "height_m": 0.7494,
+      "surface_area_m2": 5.5869
+    },
+    "iotfzl": {
+      "width_m": 0.532,
+      "depth_m": 1.3977,
+      "height_m": 0.7282,
+      "surface_area_m2": 0.7436
+    },
+    "iufjhy": {
+      "width_m": 0.7529,
+      "depth_m": 1.5081,
+      "height_m": 0.7349,
+      "surface_area_m2": 1.1355
+    },
+    "jfhurf": {
+      "width_m": 0.3937,
+      "depth_m": 1.1938,
+      "height_m": 0.6795,
+      "surface_area_m2": 0.47
+    },
+    "juzwaf": {
+      "width_m": 0.6,
+      "depth_m": 1.4868,
+      "height_m": 0.77,
+      "surface_area_m2": 0.8921
+    },
+    "kmmlna": {
+      "width_m": 0.3588,
+      "depth_m": 1.1043,
+      "height_m": 0.7719,
+      "surface_area_m2": 0.3962
+    },
+    "mdhelw": {
+      "width_m": 0.9,
+      "depth_m": 2.7813,
+      "height_m": 0.77,
+      "surface_area_m2": 2.5032
+    },
+    "nafjjg": {
+      "width_m": 0.5292,
+      "depth_m": 1.4006,
+      "height_m": 0.7242,
+      "surface_area_m2": 0.7412
+    },
+    "nbpuns": {
+      "width_m": 0.5455,
+      "depth_m": 1.0901,
+      "height_m": 0.5426,
+      "surface_area_m2": 0.5946
+    },
+    "ntezkg": {
+      "width_m": 0.5573,
+      "depth_m": 1.1271,
+      "height_m": 0.7562,
+      "surface_area_m2": 0.6281
+    },
+    "obvwds": {
+      "width_m": 0.6,
+      "depth_m": 1.4837,
+      "height_m": 0.7699,
+      "surface_area_m2": 0.8902
+    },
+    "ohjotf": {
+      "width_m": 0.5544,
+      "depth_m": 1.6382,
+      "height_m": 0.6683,
+      "surface_area_m2": 0.9082
+    },
+    "pfsjbc": {
+      "width_m": 1.1117,
+      "depth_m": 4.2002,
+      "height_m": 1.0847,
+      "surface_area_m2": 4.6695
+    },
+    "phavlj": {
+      "width_m": 0.6296,
+      "depth_m": 1.1977,
+      "height_m": 0.6865,
+      "surface_area_m2": 0.7541
+    },
+    "pniubv": {
+      "width_m": 0.6507,
+      "depth_m": 2.51,
+      "height_m": 0.85,
+      "surface_area_m2": 1.6333
+    },
+    "puapey": {
+      "width_m": 1.6156,
+      "depth_m": 1.6081,
+      "height_m": 1.0336,
+      "surface_area_m2": 2.5981
+    },
+    "qpuflh": {
+      "width_m": 1.9998,
+      "depth_m": 2.7937,
+      "height_m": 0.75,
+      "surface_area_m2": 5.5869
+    },
+    "rzyfxk": {
+      "width_m": 0.6,
+      "depth_m": 1.4837,
+      "height_m": 0.77,
+      "surface_area_m2": 0.8902
+    },
+    "sfstso": {
+      "width_m": 0.8356,
+      "depth_m": 1.2652,
+      "height_m": 0.4671,
+      "surface_area_m2": 1.0572
+    },
+    "sjugsf": {
+      "width_m": 0.5465,
+      "depth_m": 3.0448,
+      "height_m": 0.4868,
+      "surface_area_m2": 1.664
+    },
+    "slgrxc": {
+      "width_m": 0.8171,
+      "depth_m": 2.269,
+      "height_m": 0.9009,
+      "surface_area_m2": 1.854
+    },
+    "tdhgko": {
+      "width_m": 0.6107,
+      "depth_m": 0.842,
+      "height_m": 0.7631,
+      "surface_area_m2": 0.5142
+    },
+    "tmluxa": {
+      "width_m": 0.5074,
+      "depth_m": 0.7078,
+      "height_m": 0.7001,
+      "surface_area_m2": 0.3591
+    },
+    "tmukzm": {
+      "width_m": 0.4408,
+      "depth_m": 1.1938,
+      "height_m": 0.6883,
+      "surface_area_m2": 0.5262
+    },
+    "uffjvo": {
+      "width_m": 0.6211,
+      "depth_m": 1.194,
+      "height_m": 0.4777,
+      "surface_area_m2": 0.7415
+    },
+    "uqcmzf": {
+      "width_m": 1.6047,
+      "depth_m": 1.6001,
+      "height_m": 0.7151,
+      "surface_area_m2": 2.5675
+    },
+    "uxgyui": {
+      "width_m": 0.4764,
+      "depth_m": 1.265,
+      "height_m": 1.96,
+      "surface_area_m2": 0.6026
+    },
+    "vpwmkm": {
+      "width_m": 0.3383,
+      "depth_m": 1.1335,
+      "height_m": 0.7557,
+      "surface_area_m2": 0.3834
+    },
+    "wtlxfr": {
+      "width_m": 0.8186,
+      "depth_m": 1.3374,
+      "height_m": 0.72,
+      "surface_area_m2": 1.0948
+    },
+    "xhjsub": {
+      "width_m": 1.2126,
+      "depth_m": 1.509,
+      "height_m": 0.7753,
+      "surface_area_m2": 1.8298
+    },
+    "yezrwt": {
+      "width_m": 0.5289,
+      "depth_m": 1.4445,
+      "height_m": 0.8082,
+      "surface_area_m2": 0.764
+    },
+    "zjbhgq": {
+      "width_m": 0.8279,
+      "depth_m": 1.7478,
+      "height_m": 0.5981,
+      "surface_area_m2": 1.4471
+    },
+    "zlyqcq": {
+      "width_m": 0.5,
+      "depth_m": 1.05,
+      "height_m": 0.7525,
+      "surface_area_m2": 0.525
+    },
+    "ztsyqx": {
+      "width_m": 0.6001,
+      "depth_m": 0.744,
+      "height_m": 0.7848,
+      "surface_area_m2": 0.4465
+    }
+  },
+  "flat_bench": {
+    "iisaia": {
+      "width_m": 1.2749,
+      "depth_m": 0.7048,
+      "height_m": 0.5307,
+      "surface_area_m2": 0.8986
+    }
+  },
+  "garden_coffee_table": {
+    "skxdpc": {
+      "width_m": 1.26,
+      "depth_m": 0.71,
+      "height_m": 0.4728,
+      "surface_area_m2": 0.8946
+    }
+  },
+  "lab_table": {
+    "ishrsy": {
+      "width_m": 1.4186,
+      "depth_m": 4.001,
+      "height_m": 1.3757,
+      "surface_area_m2": 5.676
+    },
+    "jkemfk": {
+      "width_m": 0.8183,
+      "depth_m": 2.269,
+      "height_m": 1.3774,
+      "surface_area_m2": 1.8568
+    },
+    "vujgjq": {
+      "width_m": 2.1691,
+      "depth_m": 2.1363,
+      "height_m": 1.0544,
+      "surface_area_m2": 4.6339
+    }
+  },
+  "nightstand": {
+    "aykehx": {
+      "width_m": 0.5,
+      "depth_m": 0.636,
+      "height_m": 0.3025,
+      "surface_area_m2": 0.318
+    },
+    "geeldi": {
+      "width_m": 0.6096,
+      "depth_m": 0.7112,
+      "height_m": 0.7557,
+      "surface_area_m2": 0.4336
+    },
+    "gjwjtj": {
+      "width_m": 0.3667,
+      "depth_m": 0.5239,
+      "height_m": 0.4715,
+      "surface_area_m2": 0.1921
+    },
+    "hessxe": {
+      "width_m": 0.5186,
+      "depth_m": 0.5186,
+      "height_m": 0.5964,
+      "surface_area_m2": 0.269
+    },
+    "kanola": {
+      "width_m": 0.5138,
+      "depth_m": 0.6045,
+      "height_m": 0.7557,
+      "surface_area_m2": 0.3106
+    },
+    "ljtrka": {
+      "width_m": 0.4618,
+      "depth_m": 0.4618,
+      "height_m": 0.7558,
+      "surface_area_m2": 0.2132
+    },
+    "roxnbe": {
+      "width_m": 0.5305,
+      "depth_m": 0.7752,
+      "height_m": 0.7,
+      "surface_area_m2": 0.4113
+    },
+    "uudzva": {
+      "width_m": 0.35,
+      "depth_m": 0.46,
+      "height_m": 0.7,
+      "surface_area_m2": 0.161
+    },
+    "uzxrlg": {
+      "width_m": 0.477,
+      "depth_m": 0.775,
+      "height_m": 0.347,
+      "surface_area_m2": 0.3697
+    },
+    "wbxekb": {
+      "width_m": 0.479,
+      "depth_m": 0.7762,
+      "height_m": 0.347,
+      "surface_area_m2": 0.3718
+    }
+  },
+  "pedestal_table": {
+    "aympln": {
+      "width_m": 0.9,
+      "depth_m": 0.9,
+      "height_m": 0.7213,
+      "surface_area_m2": 0.81
+    },
+    "djflkd": {
+      "width_m": 0.977,
+      "depth_m": 0.9769,
+      "height_m": 0.8041,
+      "surface_area_m2": 0.9544
+    },
+    "dmghrm": {
+      "width_m": 1.0923,
+      "depth_m": 1.0923,
+      "height_m": 0.6932,
+      "surface_area_m2": 1.1932
+    },
+    "gikdir": {
+      "width_m": 0.791,
+      "depth_m": 0.791,
+      "height_m": 0.3597,
+      "surface_area_m2": 0.6257
+    },
+    "gkkxaj": {
+      "width_m": 0.6255,
+      "depth_m": 0.6167,
+      "height_m": 0.7613,
+      "surface_area_m2": 0.3858
+    },
+    "ifmhpn": {
+      "width_m": 1.1318,
+      "depth_m": 1.1317,
+      "height_m": 0.9601,
+      "surface_area_m2": 1.2808
+    },
+    "jdilum": {
+      "width_m": 0.9,
+      "depth_m": 0.8519,
+      "height_m": 0.77,
+      "surface_area_m2": 0.7667
+    },
+    "ktevfe": {
+      "width_m": 0.7493,
+      "depth_m": 0.7493,
+      "height_m": 0.6726,
+      "surface_area_m2": 0.5614
+    },
+    "mbojpo": {
+      "width_m": 0.7332,
+      "depth_m": 0.7332,
+      "height_m": 0.762,
+      "surface_area_m2": 0.5376
+    },
+    "nlfgwe": {
+      "width_m": 1.0738,
+      "depth_m": 1.0738,
+      "height_m": 0.7656,
+      "surface_area_m2": 1.1531
+    },
+    "nyprvh": {
+      "width_m": 0.6232,
+      "depth_m": 0.6219,
+      "height_m": 0.5937,
+      "surface_area_m2": 0.3876
+    },
+    "oqclwq": {
+      "width_m": 0.9075,
+      "depth_m": 0.9067,
+      "height_m": 0.5721,
+      "surface_area_m2": 0.8228
+    },
+    "pljlcn": {
+      "width_m": 0.5883,
+      "depth_m": 0.5883,
+      "height_m": 0.3448,
+      "surface_area_m2": 0.346
+    },
+    "poukwl": {
+      "width_m": 0.9067,
+      "depth_m": 0.9067,
+      "height_m": 0.3043,
+      "surface_area_m2": 0.8221
+    },
+    "pyybeq": {
+      "width_m": 0.6968,
+      "depth_m": 0.6806,
+      "height_m": 0.7594,
+      "surface_area_m2": 0.4742
+    },
+    "ssnzie": {
+      "width_m": 0.6168,
+      "depth_m": 0.6169,
+      "height_m": 0.3594,
+      "surface_area_m2": 0.3805
+    },
+    "swgvxs": {
+      "width_m": 1.0078,
+      "depth_m": 1.0078,
+      "height_m": 0.76,
+      "surface_area_m2": 1.0156
+    },
+    "tdpuit": {
+      "width_m": 0.8824,
+      "depth_m": 1.2494,
+      "height_m": 0.6634,
+      "surface_area_m2": 1.1024
+    },
+    "wnqrci": {
+      "width_m": 0.8262,
+      "depth_m": 0.8261,
+      "height_m": 0.5703,
+      "surface_area_m2": 0.6825
+    },
+    "xcnvsy": {
+      "width_m": 0.3811,
+      "depth_m": 1.524,
+      "height_m": 0.7025,
+      "surface_area_m2": 0.5808
+    },
+    "xrrhik": {
+      "width_m": 0.7802,
+      "depth_m": 0.7802,
+      "height_m": 0.6845,
+      "surface_area_m2": 0.6088
+    }
+  },
+  "pool_table": {
+    "atjfhn": {
+      "width_m": 1.1165,
+      "depth_m": 2.032,
+      "height_m": 0.7639,
+      "surface_area_m2": 2.2688
+    }
+  },
+  "reception_desk": {
+    "kjmhgc": {
+      "width_m": 0.5646,
+      "depth_m": 1.4513,
+      "height_m": 0.8128,
+      "surface_area_m2": 0.8194
+    },
+    "qztpgl": {
+      "width_m": 0.9613,
+      "depth_m": 2.4204,
+      "height_m": 0.8128,
+      "surface_area_m2": 2.3268
+    },
+    "ukonss": {
+      "width_m": 0.6129,
+      "depth_m": 2.5627,
+      "height_m": 1.0063,
+      "surface_area_m2": 1.5708
+    },
+    "vxombm": {
+      "width_m": 0.6,
+      "depth_m": 2.16,
+      "height_m": 0.8,
+      "surface_area_m2": 1.296
+    }
+  }
+}
