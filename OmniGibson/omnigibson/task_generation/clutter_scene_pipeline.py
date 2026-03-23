@@ -3,430 +3,187 @@
 Auto-discovers a suitable tabletop in any scene, generates BDDL + ltl_safety.json,
 packs clutter objects, places robot, and runs LTL-monitored rollouts.
 
-Supports ``--empty-scene`` mode: skips scene-JSON discovery, spawns a support
-surface via the BDDL object sampler on a bare floor plane.
-
 Usage:
-    python -m omnigibson.task_generation.clutter_scene_pipeline --scene-model Benevolence_1_int --dry-run
-    python -m omnigibson.task_generation.clutter_scene_pipeline --scene-model Benevolence_1_int --episodes 1 --steps 300
-    python -m omnigibson.task_generation.clutter_scene_pipeline --empty-scene --episodes 1 --steps 300 --save-video
-"""
+    python -m omnigibson.task_generation.clutter_scene_pipeline \
+        --scene-model Benevolence_1_int --dry-run
 
-import math
-import os
+    python -m omnigibson.task_generation.clutter_scene_pipeline \
+        --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
+"""
 
 import numpy as np
 
 from omnigibson.task_generation.pipeline_common import (
-    append_jsonl,
+    BasePipeline,
     build_descriptors,
-    build_empty_scene_config,
-    build_task_config,
     build_task_object_sets,
     check_interpenetration,
-    clear_perimeter,
-    compute_floor_z,
-    discover_from_scene_json,
     estimate_surface_area_from_scene_json,
-    find_spawned_support,
-    generate_activity,
-    generate_randomized_activity,
     get_scene_json_path,
     get_scope_obj,
-    get_support_bounds,
-    make_base_arg_parser,
     make_park_fn,
     make_settle_fn,
-    needs_gpu_dynamics,
-    pipeline_exit,
-    refresh_activity_cache,
-    resolve_synset,
-    robot_half_extent_xy,
-    run_ltl_rollout,
-    setup_run_dir,
+    remove_objects,
     validate_poses,
 )
-
-_SURFACE_CATEGORY_PRIORITY = {
-    "breakfast_table": 3, "dining_table": 3, "conference_table": 3,
-    "commercial_kitchen_table": 3, "lab_table": 3,
-    "coffee_table": 2, "garden_coffee_table": 2, "pedestal_table": 2,
-    "pool_table": 2, "flat_bench": 2,
-    "desk": 1, "reception_desk": 1, "counter": 1, "countertop": 1,
-    "checkout_counter": 1, "console_table": 1, "nightstand": 1,
-}
+from omnigibson.utils.bddl_generator import generate_clutter_activity
 
 
-def parse_args():
-    p = make_base_arg_parser(description="Table clutter scene generation pipeline")
-    p.add_argument("--randomize", action="store_true",
-                   help="Randomize target, fragile, and clutter object types each episode")
-    return p.parse_args()
+class ClutterPipeline(BasePipeline):
 
+    @classmethod
+    def add_args(cls, parser):
+        parser.add_argument("--randomize", action="store_true",
+                            help="Randomize target, fragile, and clutter object "
+                                 "types each episode")
 
-# ---------------------------------------------------------------------------
-# Table-specific discovery
-# ---------------------------------------------------------------------------
+    def activity_prefix(self):
+        return "auto_clutter_on"
 
-def _discover_surface_from_scene_json(scene_json_path):
-    from omnigibson.utils.surface_discovery import is_table_like
-    return discover_from_scene_json(scene_json_path, is_table_like, _SURFACE_CATEGORY_PRIORITY)
-
-
-def _discover_best_surface(env):
-    """Find best table-like surface in loaded scene, considering robot reachability."""
-    from omnigibson.utils.surface_discovery import analyze_surface, is_table_like
-
-    scene_data, obj_map = [], {}
-    for obj in env.scene.objects:
-        name = getattr(obj, "name", "")
-        cat = str(getattr(obj, "category", ""))
-        try:
-            aabb_min, aabb_max = obj.aabb
-        except Exception:
-            continue
-        scene_data.append({
-            "name": name, "category": cat,
-            "aabb_xy": ((float(aabb_min[0]), float(aabb_min[1])),
-                        (float(aabb_max[0]), float(aabb_max[1]))),
-            "top_z": float(aabb_max[2]),
-            "bottom_z": float(aabb_min[2]),
-        })
-        obj_map[name] = obj
-
-    best_analysis, best_obj = None, None
-    for data in scene_data:
-        if not is_table_like(data["category"]):
-            continue
-        other_aabbs = [
-            d["aabb_xy"] for d in scene_data
-            if d["name"] != data["name"]
-            and d["top_z"] >= 0.15
-            and d.get("bottom_z", 0) <= data["top_z"] + 0.3
-        ]
-        analysis = analyze_surface(
-            data["name"], data["category"], data["aabb_xy"], data["top_z"],
-            scene_data, scene_object_aabbs=other_aabbs,
-        )
-        if analysis.surface.score <= 0:
-            continue
-        if best_analysis is None or analysis.surface.score > best_analysis.surface.score:
-            best_analysis, best_obj = analysis, obj_map[data["name"]]
-
-    if best_analysis is None:
-        raise RuntimeError("No suitable table-like surface found in scene.")
-    return best_analysis, best_obj
-
-
-# ---------------------------------------------------------------------------
-# Entrypoints
-# ---------------------------------------------------------------------------
-
-def run_dry_run(args):
-    """Generate BDDL + ltl_safety.json without starting the simulator."""
-    empty = getattr(args, "empty_scene", False)
-    scene_label = args.scene_model or "empty"
-    activity_name = args.activity_name or f"auto_clutter_on_{scene_label}"
-
-    if empty:
-        support_synset = args.surface_synset
-        support_room = None  # No rooms in empty Scene — skip inroom predicate.
+    def generate_activity(self, activity_name, support_synset, support_room,
+                          args, rng):
+        # Estimate surface area for area-aware object budgeting.
         surface_area = None
-        print(f"[Pipeline] Empty-scene mode: surface={support_synset}")
-    else:
-        support_synset, support_room = "breakfast_table.n.01", "living_room"
-        surface_area = None
-        try:
-            scene_json = get_scene_json_path(args.scene_model)
-            discovery = _discover_surface_from_scene_json(scene_json)
-            if discovery:
-                surface_category = discovery[0]
-                support_synset = resolve_synset(surface_category)
-                support_room = discovery[1]
-                surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
-                area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
-                print(f"[Pipeline] Discovered: {surface_category} in {support_room}, area={area_str}")
-        except Exception as e:
-            print(f"[Pipeline] Surface discovery failed: {e}")
-
-    selection = None
-    if args.randomize:
-        rng = np.random.default_rng(args.seed)
-        bddl_text, ltl_safety, bddl_path, json_path, selection = generate_randomized_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-            rng=rng, available_area_m2=surface_area,
-        )
-    else:
-        bddl_text, ltl_safety, bddl_path, json_path = generate_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-        )
-    print(f"[Pipeline] Dry-run complete:")
-    print(f"  BDDL:       {bddl_path}")
-    print(f"  ltl_safety: {json_path}")
-    print(f"  activity:   {activity_name}")
-    print(f"\nGenerated BDDL:\n{bddl_text}")
-    print(f"\nLTL formula: {ltl_safety['combined_ltl']}")
-
-    append_jsonl(args.debug_jsonl, {
-        "event": "dry_run", "activity_name": activity_name,
-        "scene_model": args.scene_model, "density": args.clutter_density,
-        "empty_scene": empty,
-        **({"selection": selection} if selection else {}),
-    })
-    return activity_name, bddl_path, json_path
-
-
-def run_sim(args, activity_name=None):
-    """Full sim-validation path: surface discovery, pack, robot, gate, LTL."""
-    import torch as th
-    import omnigibson as og
-    from omnigibson.macros import gm
-    from omnigibson.utils.clutter_pack_layout import validate_pack_integrity
-    from omnigibson.utils.franka_edge_align import (
-        DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest, place_franka_edge_aligned,
-    )
-    from omnigibson.utils.kitchen_bar_workspace import compute_tabletop_zone
-    from omnigibson.utils.manipulation_task_spec import build_manipulation_task_spec
-    from omnigibson.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
-
-    gm.ENABLE_OBJECT_STATES = True
-
-    empty = getattr(args, "empty_scene", False)
-    scene_label = args.scene_model or "empty"
-
-    if activity_name is None:
-        activity_name = args.activity_name or f"auto_clutter_on_{scene_label}"
-
-    # -- Resolve support surface --------------------------------------------
-    if empty:
-        support_synset = args.surface_synset
-        support_room = None  # No rooms in empty Scene — skip inroom predicate.
-        surface_area = None
-        print(f"[Pipeline] Empty-scene mode: surface={support_synset}")
-    else:
-        scene_json = get_scene_json_path(args.scene_model)
-        if not os.path.isfile(scene_json):
-            raise RuntimeError(f"Scene JSON not found: {scene_json}")
-        discovery = _discover_surface_from_scene_json(scene_json)
-        if discovery is None:
-            raise RuntimeError(f"No table-like surface in scene '{args.scene_model}'.")
-        surface_category = discovery[0]
-        support_synset = resolve_synset(surface_category)
-        support_room = discovery[1]
-        surface_area = estimate_surface_area_from_scene_json(scene_json, surface_category)
-        area_str = f"{surface_area:.4f} m²" if surface_area else "unknown"
-        print(f"[Pipeline] Discovered: category={surface_category} synset={support_synset} "
-              f"room={support_room} area={area_str}")
-
-    # -- Generate BDDL ------------------------------------------------------
-    rng = np.random.default_rng(args.seed)
-    selection = None
-    if args.randomize:
-        _, _, bddl_path, _, selection = generate_randomized_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-            rng=rng, available_area_m2=surface_area if not empty else None,
-        )
-    else:
-        _, _, bddl_path, _ = generate_activity(
-            activity_name, support_synset, support_room, args.clutter_density,
-        )
-    print(f"[Pipeline] Generated BDDL: {bddl_path}")
-    refresh_activity_cache()
-
-    # -- GPU dynamics --------------------------------------------------------
-    gpu = needs_gpu_dynamics(activity_name)
-    gm.USE_GPU_DYNAMICS = gpu
-    gm.ENABLE_FLATCACHE = not gpu
-
-    # -- Load environment ----------------------------------------------------
-    if empty:
-        cfg = build_empty_scene_config(activity_name)
-    else:
-        cfg = build_task_config(args.scene_model, activity_name)
-        cfg["scene"]["scene_file"] = scene_json
-        cfg["scene"]["scene_instance"] = None
-    cfg["task"]["online_object_sampling"] = True
-    cfg["task"]["use_presampled_robot_pose"] = False
-
-    print(f"[Pipeline] scene={scene_label}, activity={activity_name}, "
-          f"empty={empty}, strict_gate={args.strict_gate}")
-    env = og.Environment(configs=cfg)
-
-    try:
-        for ep in range(args.episodes):
-            print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
-            env.reset()
-            og.sim.step()
-
-            # -- Surface discovery ------------------------------------------
-            if empty:
-                support_inst, support_obj = find_spawned_support(env, support_synset)
-                if support_obj is None:
-                    raise RuntimeError(
-                        f"Support surface '{support_synset}' was not spawned by BDDL sampler.")
-                surface_bounds_xy, table_top_z = get_support_bounds(support_obj)
-                obstacle_bounds_xy = None
-                floor_z = 0.0
-                surface_name = support_inst
-                print(f"[Pipeline] Spawned surface: {support_inst}, top_z={table_top_z:.3f}")
-            else:
-                surface_info, support_obj = _discover_best_surface(env)
-                print(f"[Pipeline] Best surface: {surface_info.surface.name} "
-                      f"(score={surface_info.surface.score:.3f}, area={surface_info.surface.area:.3f})")
-                aabb_min, aabb_max = support_obj.aabb
-                surface_bounds_xy = (
-                    (float(aabb_min[0]), float(aabb_min[1])),
-                    (float(aabb_max[0]), float(aabb_max[1])),
+        if args.scene_model:
+            try:
+                scene_json = get_scene_json_path(args.scene_model)
+                from omnigibson.task_generation.pipeline_common import (
+                    discover_surface_from_scene_json,
                 )
-                table_top_z = float(aabb_max[2])
-                obstacle_bounds_xy = None
-                if surface_info.obstacles:
-                    obstacle_bounds_xy = surface_info.obstacles[0].aabb_xy
-                floor_z = compute_floor_z(env)
-                surface_name = surface_info.surface.name
-                # Clear perimeter objects (chairs, etc.) — not needed for empty scenes.
-                clear_perimeter(env, support_obj, surface_bounds_xy, table_top_z, floor_z)
+                discovery = discover_surface_from_scene_json(scene_json)
+                if discovery:
+                    surface_area = estimate_surface_area_from_scene_json(
+                        scene_json, discovery[0],
+                    )
+            except Exception:
+                pass
 
-            # -- Zone computation -------------------------------------------
-            zone = compute_tabletop_zone(
-                surface_bounds_xy=surface_bounds_xy,
-                obstacle_bounds_xy=obstacle_bounds_xy,
-                edge_margin_m=0.04,
-                obstacle_keepout_margin_m=0.08 if not empty else 0.0,
-                obstacle_side_clearance_m=0.015 if not empty else 0.0,
+        return generate_clutter_activity(
+            activity_name, support_synset, support_room,
+            args.clutter_density, rng=rng,
+            available_area_m2=surface_area,
+        )
+
+    def identify_objects(self, ctx):
+        from omnigibson.utils.manipulation_task_spec import build_manipulation_task_spec
+
+        task_spec = build_manipulation_task_spec(ctx.activity_name)
+        obj_sets = build_task_object_sets(ctx.env, task_spec)
+
+        if not obj_sets["target_ids"]:
+            raise RuntimeError("No target objects found.")
+        print(f"[Pipeline] Objects: target={obj_sets['target_ids']}, "
+              f"fragile={obj_sets.get('fragile_ids', [])}, "
+              f"clutter={obj_sets.get('clutter_ids', [])}")
+
+        ctx.target_obj = get_scope_obj(ctx.env, obj_sets["target_ids"][0])
+        ctx._obj_sets = obj_sets
+
+        descriptors, objects_by_inst = build_descriptors(ctx.env, obj_sets)
+        if not descriptors:
+            raise RuntimeError("No clutter-pack descriptors created.")
+        ctx._descriptors = descriptors
+        ctx._objects_by_inst = objects_by_inst
+
+    def place_objects(self, ctx):
+        import torch as th
+        from omnigibson.utils.clutter_pack_layout import validate_pack_integrity
+        from omnigibson.utils.kitchen_bar_workspace import compute_tabletop_zone
+        from omnigibson.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
+
+        args = ctx.args
+
+        # Compute zone (needed for pack layout).
+        obstacle_bounds_xy = None
+        if ctx.surface_info and ctx.surface_info.obstacles:
+            obstacle_bounds_xy = ctx.surface_info.obstacles[0].aabb_xy
+
+        zone = compute_tabletop_zone(
+            surface_bounds_xy=ctx.surface_bounds_xy,
+            obstacle_bounds_xy=obstacle_bounds_xy,
+            edge_margin_m=0.04,
+            obstacle_keepout_margin_m=0.08,
+            obstacle_side_clearance_m=0.015,
+        )
+        ctx._zone = zone
+        print(f"[Pipeline] Zone: red_zone={zone.red_zone_bounds}, "
+              f"long_axis={zone.long_axis}")
+
+        pack_config = PackRetryConfig(
+            pack_jitter_xy=args.pack_jitter_xy or 0.022,
+            pack_min_clearance=args.pack_min_clearance or 0.008,
+        )
+        settle_fn = make_settle_fn(ctx.og, th)
+        park_fn = make_park_fn(ctx.og, zone.surface_bounds, ctx.floor_z)
+
+        pack_result = run_pack_retry_loop(
+            support_name=getattr(ctx.support_obj, "name", "support"),
+            descriptors=ctx._descriptors,
+            objects_by_inst=ctx._objects_by_inst,
+            red_zone_bounds=zone.red_zone_bounds,
+            table_top_z=ctx.table_top_z,
+            floor_z=ctx.floor_z,
+            config=pack_config,
+            base_seed=args.seed,
+            episode=ctx.episode,
+            settle_fn=settle_fn,
+            park_fn=park_fn,
+            validate_poses_fn=validate_poses,
+            check_interpenetration_fn=check_interpenetration,
+            obstacle_keepout_bounds=zone.obstacle_keepout_bounds,
+        )
+        ctx._pack_result = pack_result
+        print(f"[Pipeline] Pack solved: attempt={pack_result.attempt_used}, "
+              f"active={len(pack_result.active_descriptors)}")
+
+        # Remove inactive objects from the scene (they were parked during retries).
+        passive = {i: o for i, o in ctx._objects_by_inst.items()
+                   if i not in pack_result.active_objects_by_inst}
+        remove_objects(ctx.og, passive)
+
+        # Integrity check.
+        ctx._integrity = validate_pack_integrity(
+            pack_spec=pack_result.pack_spec,
+            world_positions=pack_result.world_positions,
+            pack_origin_world=pack_result.pack_origin,
+            pack_yaw=0.0, tol_xy=pack_config.integrity_tol_xy,
+        )
+
+        # active_objects for the LTL rollout.
+        ctx.active_objects = pack_result.active_objects_by_inst
+
+    def make_edge_objects(self, ctx):
+        from omnigibson.utils.franka_edge_align import EdgeAlignObject
+
+        pack_result = ctx._pack_result
+        objects = tuple(
+            EdgeAlignObject(
+                name=e.inst_id, role=e.role,
+                position_xy=(pack_result.world_positions[e.inst_id][0],
+                             pack_result.world_positions[e.inst_id][1]),
             )
-            print(f"[Pipeline] Zone: red_zone={zone.red_zone_bounds}, long_axis={zone.long_axis}")
+            for e in pack_result.pack_spec.object_entries
+            if e.inst_id in pack_result.world_positions
+        )
+        if not objects:
+            raise RuntimeError("No pack objects for edge alignment.")
+        return objects
 
-            # -- Build object sets ------------------------------------------
-            task_spec = build_manipulation_task_spec(activity_name)
-            obj_sets = build_task_object_sets(env, task_spec)
+    def extra_gate_checks(self, ctx):
+        return getattr(ctx, "_integrity", None) is not None and ctx._integrity.ok
 
-            if not obj_sets["target_ids"]:
-                raise RuntimeError("No target objects found.")
-            target_obj = get_scope_obj(env, obj_sets["target_ids"][0])
-
-            descriptors, objects_by_inst = build_descriptors(env, obj_sets)
-            if not descriptors:
-                raise RuntimeError("No clutter-pack descriptors created.")
-
-            # -- Pack retry loop --------------------------------------------
-            pack_config = PackRetryConfig(
-                pack_jitter_xy=args.pack_jitter_xy or 0.022,
-                pack_min_clearance=args.pack_min_clearance or 0.008,
-            )
-            settle_fn = make_settle_fn(og, th)
-            park_fn = make_park_fn(og, zone.surface_bounds, floor_z)
-
-            pack_result = run_pack_retry_loop(
-                support_name=getattr(support_obj, "name", "support"),
-                descriptors=descriptors, objects_by_inst=objects_by_inst,
-                red_zone_bounds=zone.red_zone_bounds, table_top_z=table_top_z,
-                floor_z=floor_z, config=pack_config, base_seed=args.seed, episode=ep,
-                settle_fn=settle_fn, park_fn=park_fn,
-                validate_poses_fn=validate_poses,
-                check_interpenetration_fn=check_interpenetration,
-                obstacle_keepout_bounds=zone.obstacle_keepout_bounds,
-            )
-            print(f"[Pipeline] Pack solved: attempt={pack_result.attempt_used}, "
-                  f"active={len(pack_result.active_descriptors)}")
-
-            # Park inactive objects.
-            passive = {i: o for i, o in objects_by_inst.items()
-                       if i not in pack_result.active_objects_by_inst}
-            park_fn(passive)
-
-            # -- Integrity check --------------------------------------------
-            integrity = validate_pack_integrity(
-                pack_spec=pack_result.pack_spec,
-                world_positions=pack_result.world_positions,
-                pack_origin_world=pack_result.pack_origin,
-                pack_yaw=0.0, tol_xy=pack_config.integrity_tol_xy,
-            )
-
-            # -- Robot placement --------------------------------------------
-            robot = env.robots[0]
-            pack_objects_world = tuple(
-                EdgeAlignObject(
-                    name=e.inst_id, role=e.role,
-                    position_xy=(pack_result.world_positions[e.inst_id][0],
-                                 pack_result.world_positions[e.inst_id][1]),
-                )
-                for e in pack_result.pack_spec.object_entries
-                if e.inst_id in pack_result.world_positions
-            )
-            if not pack_objects_world:
-                raise RuntimeError("No pack objects for edge alignment.")
-
-            preferred_edge = None
-            if not empty and surface_info.approach_edges:
-                preferred_edge = surface_info.approach_edges[0]
-            edge_result = place_franka_edge_aligned(EdgeAlignRequest(
-                table_aabb_xy=zone.surface_bounds,
-                pack_objects_world=pack_objects_world,
-                role_weights=DEFAULT_ROLE_WEIGHTS,
-                robot_half_extent_xy=robot_half_extent_xy(robot),
-                edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
-                scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10, 0.15, -0.15, 0.20, -0.20),
-                preferred_edge=preferred_edge,
-            ))
-            robot.set_position_orientation(
-                position=(edge_result.base_pose["position"][0],
-                          edge_result.base_pose["position"][1], floor_z),
-                orientation=edge_result.base_pose["orientation"],
-            )
-            og.sim.step()
-            print(f"[Pipeline] Robot: edge={edge_result.edge_label}, gap={edge_result.gap_actual:.3f}")
-
-            # -- Gate -------------------------------------------------------
-            rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
-            tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]]
-            target_dist = math.hypot(rp[0] - tp[0], rp[1] - tp[1])
-            gate_pass = (
-                all(math.isfinite(v) for v in rp + tp)
-                and abs(rp[2] - floor_z) <= 0.03
-                and not edge_result.collision_hits
-                and 0.20 <= target_dist <= 1.10
-                and integrity.ok
-            )
-            print(f"[Pipeline] Gate: pass={gate_pass}")
-            if args.strict_gate and not gate_pass:
-                raise RuntimeError("Strict gate failed.")
-
-            # -- Save scene snapshot ----------------------------------------
-            if gate_pass:
-                scene_save_path = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
-                og.sim.save(json_paths=[scene_save_path])
-                print(f"[Pipeline] Scene saved: {scene_save_path}")
-
-            # -- LTL rollout ------------------------------------------------
-            summary, executed = run_ltl_rollout(
-                env=env, activity_name=activity_name, scene_model=scene_label,
-                active_objects_by_inst=pack_result.active_objects_by_inst,
-                robot=robot, target_obj=target_obj,
-                args=args, episode=ep, rng=rng,
-            )
-
-            append_jsonl(args.debug_jsonl, {
-                "episode": ep + 1, "scene_model": scene_label,
-                "activity_name": activity_name, "surface": surface_name,
-                "pack_attempt_used": pack_result.attempt_used,
-                "gate_pass": gate_pass, "ltl_violated": summary["violated"],
-                "steps_executed": executed, "empty_scene": empty,
-                **({"selection": selection} if selection else {}),
-            })
-
-    finally:
-        print("[Pipeline] Shutdown simulator.")
-        pipeline_exit()
+    def diagnostics_extra(self, ctx):
+        extra = {"density": getattr(ctx.args, "clutter_density", None)}
+        if hasattr(ctx, "_pack_result"):
+            extra["pack_attempt_used"] = ctx._pack_result.attempt_used
+        sel = ctx.selection
+        if sel is not None:
+            extra["selection"] = sel
+        return extra
 
 
 def main():
-    args = parse_args()
-    setup_run_dir(args)
-    if args.dry_run:
-        run_dry_run(args)
-    else:
-        run_sim(args)
+    ClutterPipeline().run()
 
 
 if __name__ == "__main__":

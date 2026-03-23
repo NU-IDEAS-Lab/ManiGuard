@@ -36,6 +36,14 @@ from datetime import datetime
 import numpy as np
 
 from omnigibson.task_generation.pipeline_common import (
+    append_jsonl,
+    make_settle_fn,
+    pipeline_exit,
+    refresh_activity_cache,
+    robot_half_extent_xy,
+    run_ltl_rollout,
+)
+from omnigibson.utils.bddl_generator import (
     CLUTTER_POOL,
     DENSITY_PRESETS,
     FRAGILE_POOL,
@@ -46,16 +54,9 @@ from omnigibson.task_generation.pipeline_common import (
     TRANSFER_DEST_POOL,
     TRANSFER_FOOD_POOL,
     TRANSFER_SOURCE_POOL,
-    append_jsonl,
-    generate_activity,
-    generate_randomized_activity,
+    generate_clutter_activity as generate_activity,
     generate_stack_activity,
     generate_transfer_activity,
-    make_settle_fn,
-    pipeline_exit,
-    refresh_activity_cache,
-    robot_half_extent_xy,
-    run_ltl_rollout,
 )
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -383,10 +384,10 @@ def _build_transfer_objects(rng, food_synset=None, source_synset=None,
 def _generate_bddl(args, activity_name, support_synset, rng):
     support_room = None  # No rooms in empty Scene.
     if args.setup == "clutter":
-        result = generate_activity(
+        return generate_activity(
             activity_name, support_synset, support_room, args.clutter_density,
+            rng=rng,
         )
-        return (*result, None)
     elif args.setup == "stack":
         return generate_stack_activity(
             activity_name, support_synset, support_room, args.stack_height,

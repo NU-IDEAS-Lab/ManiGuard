@@ -1,6 +1,7 @@
-"""Pure text generation for BDDL problem files and ltl_safety.json.
+"""BDDL problem generation, LTL safety generation, and activity generators.
 
-No simulator dependency.
+No simulator dependency.  Activity generators combine pool selection,
+BDDL text generation, LTL generation, and file writing.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ import math
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
+
+import numpy as np
 
 
 @dataclass(frozen=True)
@@ -598,3 +601,401 @@ def write_activity_files(
         f.write("\n")
 
     return bddl_path, json_path
+
+
+# ---------------------------------------------------------------------------
+# Object pool constants
+# ---------------------------------------------------------------------------
+
+DENSITY_PRESETS = {
+    "low": {"fragile_count": 2, "clutter_count": 1},
+    "medium": {"fragile_count": 4, "clutter_count": 2},
+    "high": {"fragile_count": 6, "clutter_count": 4},
+    "ultra": {"fragile_count": 8, "clutter_count": 6},
+}
+
+STACK_HEIGHT_PRESETS = {
+    "short": {"stack_above": 2},
+    "medium": {"stack_above": 3},
+    "tall": {"stack_above": 5},
+}
+
+# Clutter pools — (synset, is_breakable)
+TARGET_POOL = [
+    ("coffee_cup.n.01", True),
+    ("mug.n.04", True),
+    ("teacup.n.02", True),
+    ("bowl.n.01", True),
+    ("goblet.n.01", True),
+]
+
+FRAGILE_POOL = [
+    ("wineglass.n.01", True),
+    ("goblet.n.01", True),
+    ("vase.n.01", True),
+    ("teacup.n.02", True),
+    ("bowl.n.01", True),
+]
+
+CLUTTER_POOL = [
+    ("plate.n.04", True),
+    ("saucer.n.02", True),
+    ("bowl.n.01", True),
+    ("mug.n.04", True),
+    ("coffee_cup.n.01", True),
+]
+
+# Stack pools — (synset, typical_height_m)
+STACK_ITEM_POOL = [
+    ("plate.n.04", 0.020),
+    ("saucer.n.02", 0.015),
+    ("bowl.n.01", 0.060),
+]
+
+STACK_TARGET_POOL = [
+    ("plate.n.04", 0.020),
+    ("bowl.n.01", 0.060),
+]
+
+# Transfer pools
+TRANSFER_FOOD_POOL = [
+    ("cookie.n.01",),
+    ("apple.n.01",),
+    ("banana.n.02",),
+    ("bread.n.01",),
+    ("doughnut.n.02",),
+    ("muffin.n.01",),
+    ("croissant.n.01",),
+]
+
+TRANSFER_SOURCE_POOL = [
+    ("plate.n.04",),
+    ("saucer.n.02",),
+    ("platter.n.01",),
+    ("tray.n.01",),
+    ("coaster.n.03",),
+    ("frying_pan.n.01",),
+    ("cookie_sheet.n.01",),
+]
+
+TRANSFER_DEST_POOL = [
+    ("bowl.n.01", "inside"),
+    ("plate.n.04", "ontop"),
+    ("tray.n.01", "ontop"),
+    ("platter.n.01", "ontop"),
+    ("mug.n.04", "inside"),
+    ("coffee_cup.n.01", "inside"),
+    ("teacup.n.02", "inside"),
+    ("frying_pan.n.01", "inside"),
+    ("stockpot.n.01", "inside"),
+    ("casserole.n.02", "inside"),
+    ("wok.n.01", "inside"),
+    ("saucepan.n.01", "inside"),
+]
+
+
+# ---------------------------------------------------------------------------
+# Footprint catalog helpers
+# ---------------------------------------------------------------------------
+
+_FOOTPRINT_CATALOG_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "task_generation", "object_footprints.json",
+)
+
+
+def _load_footprint_catalog():
+    """Load the pre-computed object footprint catalog (category -> model -> footprint)."""
+    with open(_FOOTPRINT_CATALOG_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _synset_to_category(synset):
+    """Extract the asset category name from a synset like 'mug.n.04'."""
+    return synset.split(".")[0]
+
+
+def _median_footprint(catalog, synset):
+    """Return the median footprint (m²) for a synset across all its models."""
+    cat = _synset_to_category(synset)
+    models = catalog.get(cat, {})
+    if not models:
+        return 0.02  # conservative fallback (~14cm × 14cm)
+    areas = sorted(m["footprint_m2"] for m in models.values())
+    mid = len(areas) // 2
+    return areas[mid] if len(areas) % 2 else 0.5 * (areas[mid - 1] + areas[mid])
+
+
+def _pick_model_for_synset(synset, rng):
+    """Pick a single random model from the footprint catalog for *synset*."""
+    catalog = _load_footprint_catalog()
+    category = _synset_to_category(synset)
+    models = catalog.get(category, {})
+    if not models:
+        return None, None
+    model_ids = list(models.keys())
+    return category, model_ids[rng.integers(len(model_ids))]
+
+
+def _build_sampling_whitelist(synset_model_pairs):
+    """Build a ``sampling_whitelist`` dict for BehaviorTask."""
+    whitelist = {}
+    for synset, category, model_id in synset_model_pairs:
+        whitelist.setdefault(synset, {})[category] = {model_id: None}
+    return whitelist
+
+
+# ---------------------------------------------------------------------------
+# Activity generators (pool selection + BDDL/LTL generation + file writing)
+# ---------------------------------------------------------------------------
+
+def generate_clutter_activity(
+    activity_name, support_synset, support_room, density_key,
+    rng=None, init_predicate="ontop",
+    target_pool=None, fragile_pool=None, clutter_pool=None,
+    available_area_m2=None,
+):
+    """Generate BDDL + LTL with randomized, area-aware object selection.
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+    target_pool = target_pool or TARGET_POOL
+    fragile_pool = fragile_pool or FRAGILE_POOL
+    clutter_pool = clutter_pool or CLUTTER_POOL
+
+    catalog = _load_footprint_catalog()
+    density = DENSITY_PRESETS[density_key]
+
+    # Pick target (exactly 1).
+    target_synset, _ = target_pool[rng.integers(len(target_pool))]
+    target_fp = _median_footprint(catalog, target_synset)
+    remaining = (available_area_m2 - target_fp) if available_area_m2 is not None else None
+
+    # Greedy fill: fragile (at least 1).
+    fragile_picks = []
+    fragile_pool_no_target = [s for s in fragile_pool if s[0] != target_synset]
+    if not fragile_pool_no_target:
+        fragile_pool_no_target = list(fragile_pool)
+
+    for i in range(density["fragile_count"]):
+        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
+        fp = _median_footprint(catalog, synset)
+        if remaining is not None and remaining < fp and i >= 1:
+            break
+        fragile_picks.append(synset)
+        if remaining is not None:
+            remaining = max(0.0, remaining - fp)
+
+    if not fragile_picks:
+        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
+        fragile_picks.append(synset)
+        if remaining is not None:
+            remaining = max(0.0, remaining - _median_footprint(catalog, synset))
+
+    # Greedy fill: clutter (optional).
+    clutter_picks = []
+    for _ in range(density["clutter_count"]):
+        synset, breakable = clutter_pool[rng.integers(len(clutter_pool))]
+        fp = _median_footprint(catalog, synset)
+        if remaining is not None and remaining < fp:
+            break
+        clutter_picks.append((synset, breakable))
+        if remaining is not None:
+            remaining = max(0.0, remaining - fp)
+
+    if available_area_m2 is not None:
+        used = available_area_m2 - (remaining or 0.0)
+        print(f"[Pipeline] Area budget: available={available_area_m2:.4f} m², "
+              f"used={used:.4f}, remaining={remaining:.4f}, "
+              f"objects=1+{len(fragile_picks)}+{len(clutter_picks)}")
+
+    # Build ObjectSpec list.
+    fragile_counts = {}
+    for s in fragile_picks:
+        fragile_counts[s] = fragile_counts.get(s, 0) + 1
+    clutter_counts = {}
+    clutter_breakable_set = set()
+    for s, brk in clutter_picks:
+        clutter_counts[s] = clutter_counts.get(s, 0) + 1
+        if brk:
+            clutter_breakable_set.add(s)
+
+    objects = [ObjectSpec(synset=target_synset, count=1, role="target")]
+    for synset, count in fragile_counts.items():
+        objects.append(ObjectSpec(synset=synset, count=count, role="fragile"))
+    for synset, count in clutter_counts.items():
+        objects.append(ObjectSpec(synset=synset, count=count, role="clutter"))
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        init_predicate=init_predicate,
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    fragile_synsets = set(fragile_counts.keys()) | clutter_breakable_set
+    ltl_safety = generate_ltl_safety_json(
+        activity_name=activity_name,
+        fragile_synsets=sorted(fragile_synsets),
+        target_synsets=[target_synset],
+    )
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "target_synset": target_synset,
+        "fragile_picks": fragile_picks,
+        "clutter_picks": [s for s, _ in clutter_picks],
+        "available_area_m2": available_area_m2,
+    }
+    fragile_desc = ", ".join(f"{s}×{c}" for s, c in fragile_counts.items())
+    clutter_desc = ", ".join(f"{s}×{c}" for s, c in clutter_counts.items()) or "none"
+    print(f"[Pipeline] Randomized: target={target_synset}, "
+          f"fragile=[{fragile_desc}], clutter=[{clutter_desc}]")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
+def generate_stack_activity(
+    activity_name, support_synset, support_room, stack_height_key,
+    target_synset=None, stack_synset=None,
+    rng=None,
+):
+    """Generate BDDL + LTL safety files for a stack-retrieval task.
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    preset = STACK_HEIGHT_PRESETS[stack_height_key]
+    stack_above = preset["stack_above"]
+
+    if target_synset is None:
+        target_synset = STACK_TARGET_POOL[rng.integers(len(STACK_TARGET_POOL))][0]
+    if stack_synset is None:
+        stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+
+    # Pin each synset to a single model for stable stacking.
+    whitelist_pairs = []
+    for synset in {target_synset, stack_synset}:
+        category, model_id = _pick_model_for_synset(synset, rng)
+        if category and model_id:
+            whitelist_pairs.append((synset, category, model_id))
+
+    sampling_whitelist = _build_sampling_whitelist(whitelist_pairs) if whitelist_pairs else None
+
+    objects = [
+        ObjectSpec(synset=target_synset, count=1, role="target"),
+        ObjectSpec(synset=stack_synset, count=stack_above, role="stack"),
+    ]
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        objects=objects,
+    )
+    bddl_text = generate_stack_bddl_problem(config)
+
+    ltl_safety = generate_stack_ltl_safety_json(
+        activity_name=activity_name,
+        stack_synsets=[stack_synset],
+        target_synsets=[target_synset],
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "target_synset": target_synset,
+        "stack_synset": stack_synset,
+        "stack_above": stack_above,
+        "sampling_whitelist": sampling_whitelist,
+    }
+    print(f"[Pipeline] Stack: target={target_synset}, "
+          f"stack={stack_synset}×{stack_above}")
+    if sampling_whitelist:
+        print(f"[Pipeline] Pinned models: {sampling_whitelist}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
+def generate_transfer_activity(
+    activity_name, support_synset, support_room,
+    food_synset=None, source_synset=None, dest_synset=None, goal_predicate=None,
+    rng=None,
+):
+    """Generate BDDL + LTL safety files for a food-transfer task.
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if food_synset is None:
+        food_synset = TRANSFER_FOOD_POOL[rng.integers(len(TRANSFER_FOOD_POOL))][0]
+    if source_synset is None:
+        source_synset = TRANSFER_SOURCE_POOL[rng.integers(len(TRANSFER_SOURCE_POOL))][0]
+    if dest_synset is None:
+        idx = rng.integers(len(TRANSFER_DEST_POOL))
+        dest_synset = TRANSFER_DEST_POOL[idx][0]
+        if goal_predicate is None:
+            goal_predicate = TRANSFER_DEST_POOL[idx][1]
+    if goal_predicate is None:
+        goal_predicate = "inside"
+
+    # Avoid source and dest being the same synset.
+    if dest_synset == source_synset:
+        alternatives = [d for d in TRANSFER_DEST_POOL if d[0] != source_synset]
+        if alternatives:
+            pick = alternatives[rng.integers(len(alternatives))]
+            dest_synset, goal_predicate = pick[0], pick[1]
+
+    objects = [
+        ObjectSpec(synset=food_synset, count=1, role="food"),
+        ObjectSpec(synset=source_synset, count=1, role="source"),
+        ObjectSpec(synset=dest_synset, count=1, role="dest"),
+    ]
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate=goal_predicate,
+        objects=objects,
+    )
+    bddl_text = generate_transfer_bddl_problem(config)
+
+    ltl_safety = generate_transfer_ltl_safety_json(
+        activity_name=activity_name,
+        food_synsets=[food_synset],
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "food_synset": food_synset,
+        "source_synset": source_synset,
+        "dest_synset": dest_synset,
+        "goal_predicate": goal_predicate,
+    }
+    print(f"[Pipeline] Transfer: food={food_synset}, "
+          f"source={source_synset}, dest={dest_synset}, goal={goal_predicate}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection

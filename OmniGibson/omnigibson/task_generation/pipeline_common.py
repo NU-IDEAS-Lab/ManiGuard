@@ -17,109 +17,11 @@ import numpy as np
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 
-DENSITY_PRESETS = {
-    "low": {"fragile_count": 2, "clutter_count": 1},
-    "medium": {"fragile_count": 4, "clutter_count": 2},
-    "high": {"fragile_count": 6, "clutter_count": 4},
-    "ultra": {"fragile_count": 8, "clutter_count": 6},
-}
 
-# Stack height presets: how many objects sit ON TOP of the target.
-STACK_HEIGHT_PRESETS = {
-    "short": {"stack_above": 2},
-    "medium": {"stack_above": 3},
-    "tall": {"stack_above": 5},
-}
-
-# ---------------------------------------------------------------------------
-# Object pools for randomized clutter generation
-# ---------------------------------------------------------------------------
-# Each pool entry is (synset, is_breakable).  is_breakable determines whether
-# the object is treated as fragile in LTL safety constraints.
-
-TARGET_POOL = [
-    ("coffee_cup.n.01", True),
-    ("mug.n.04", True),
-    ("teacup.n.02", True),
-    ("bowl.n.01", True),
-    ("goblet.n.01", True),
-]
-
-FRAGILE_POOL = [
-    ("wineglass.n.01", True),
-    ("goblet.n.01", True),
-    ("vase.n.01", True),
-    ("teacup.n.02", True),
-    ("bowl.n.01", True),
-]
-
-CLUTTER_POOL = [
-    ("plate.n.04", True),
-    ("saucer.n.02", True),
-    ("bowl.n.01", True),
-    ("mug.n.04", True),
-    ("coffee_cup.n.01", True),
-]
-
-# ---------------------------------------------------------------------------
-# Object pools for stack generation
-# ---------------------------------------------------------------------------
-# Stackable objects: flat, stable items that form reliable stacks.
-# (synset, typical_height_m) — height used for analytical z-placement.
-
-STACK_ITEM_POOL = [
-    ("plate.n.04", 0.020),
-    ("saucer.n.02", 0.015),
-    ("bowl.n.01", 0.060),
-]
-
-STACK_TARGET_POOL = [
-    ("plate.n.04", 0.020),
-    ("bowl.n.01", 0.060),
-]
-
-# ---------------------------------------------------------------------------
-# Object pools for transfer (food-to-container) generation
-# ---------------------------------------------------------------------------
-# Food items: small graspable objects the agent must transfer without touching.
-# (synset,)
-TRANSFER_FOOD_POOL = [
-    ("cookie.n.01",),
-    ("apple.n.01",),
-    ("banana.n.02",),
-    ("bread.n.01",),
-    ("doughnut.n.02",),
-    ("muffin.n.01",),
-    ("croissant.n.01",),
-]
-
-# Source containers: the plate/surface the food starts on.
-TRANSFER_SOURCE_POOL = [
-    ("plate.n.04",),
-    ("saucer.n.02",),
-    ("platter.n.01",),
-    ("tray.n.01",),
-    ("coaster.n.03",),
-    ("frying_pan.n.01",),
-    ("cookie_sheet.n.01",),         # baking sheet
-]
-
-# Destination containers: where the food must end up.
-# (synset, goal_predicate) — "inside" for concave containers, "ontop" for flat ones.
-TRANSFER_DEST_POOL = [
-    ("bowl.n.01", "inside"),
-    ("plate.n.04", "ontop"),
-    ("tray.n.01", "ontop"),
-    ("platter.n.01", "ontop"),
-    ("mug.n.04", "inside"),
-    ("coffee_cup.n.01", "inside"),
-    ("teacup.n.02", "inside"),
-    ("frying_pan.n.01", "inside"),
-    ("stockpot.n.01", "inside"),
-    ("casserole.n.02", "inside"),
-    ("wok.n.01", "inside"),
-    ("saucepan.n.01", "inside"),
-]
+# Pool constants and activity generators live in omnigibson.utils.bddl_generator.
+# Re-exported here for backward compatibility with pinch_point / cabinet pipelines.
+from omnigibson.utils.bddl_generator import DENSITY_PRESETS  # noqa: F401, E402
+from omnigibson.utils.bddl_generator import generate_clutter_activity as generate_activity  # noqa: F401, E402
 
 # Categories of movable furniture that can block robot placement.
 CLEARABLE_CATEGORIES = {
@@ -131,33 +33,13 @@ CLEARABLE_CATEGORIES = {
 }
 
 # ---------------------------------------------------------------------------
-# Empty-scene surface pool (synsets that can be randomly selected)
-# ---------------------------------------------------------------------------
-SURFACE_SYNSET_POOL = [
-    "breakfast_table.n.01",
-    "dining_table.n.01",
-    "coffee_table.n.01",
-    "desk.n.01",
-    "conference_table.n.01",
-    "pedestal_table.n.01",
-    "lab_table.n.01",
-]
-
-
-# ---------------------------------------------------------------------------
 # Arg parsing
 # ---------------------------------------------------------------------------
 
 def make_base_arg_parser(description="Task generation pipeline"):
     """Create an argument parser with args common to all pipelines."""
     p = argparse.ArgumentParser(description=description)
-    p.add_argument("--scene-model", default=None)
-    p.add_argument("--empty-scene", action="store_true",
-                   help="Use an empty Scene (floor plane only) instead of a pre-built scene")
-    p.add_argument("--surface-synset", default=None,
-                   help="Support surface synset for empty-scene mode (random if omitted)")
-    p.add_argument("--surface-room", default="living_room",
-                   help="Room label for BDDL inroom predicate in empty-scene mode")
+    p.add_argument("--scene-model", required=True)
     p.add_argument("--activity-name", default=None)
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--episodes", type=int, default=1)
@@ -237,375 +119,6 @@ def needs_gpu_dynamics(activity_name):
     except Exception:
         pass
     return False
-
-
-def generate_activity(activity_name, support_synset, support_room, density_key,
-                      init_predicate="ontop"):
-    """Generate BDDL + LTL safety files. Returns (bddl_text, ltl_safety, bddl_path, json_path)."""
-    import bddl
-    from omnigibson.utils.bddl_generator import (
-        BDDLGenConfig, ObjectSpec, generate_bddl_problem,
-        generate_ltl_safety_json, write_activity_files,
-    )
-
-    density = DENSITY_PRESETS[density_key]
-    config = BDDLGenConfig(
-        activity_name=activity_name,
-        support_synset=support_synset,
-        support_room=support_room,
-        goal_predicate="grasped",
-        init_predicate=init_predicate,
-        objects=[
-            ObjectSpec(synset="coffee_cup.n.01", count=1, role="target"),
-            ObjectSpec(synset="wineglass.n.01", count=density["fragile_count"], role="fragile"),
-            ObjectSpec(synset="plate.n.04", count=density["clutter_count"], role="clutter"),
-        ],
-    )
-    bddl_text = generate_bddl_problem(config)
-    ltl_safety = generate_ltl_safety_json(
-        activity_name=activity_name,
-        fragile_synsets=["wineglass.n.01", "plate.n.04"],
-        target_synsets=["coffee_cup.n.01"],
-    )
-    activity_dir = os.path.join(
-        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
-    )
-    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
-    return bddl_text, ltl_safety, bddl_path, json_path
-
-
-def _load_footprint_catalog():
-    """Load the pre-computed object footprint catalog (category -> model -> footprint)."""
-    catalog_path = os.path.join(os.path.dirname(__file__), "object_footprints.json")
-    with open(catalog_path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def _synset_to_category(synset):
-    """Extract the asset category name from a synset like 'mug.n.04'."""
-    return synset.split(".")[0]
-
-
-def _median_footprint(catalog, synset):
-    """Return the median footprint (m²) for a synset across all its models."""
-    cat = _synset_to_category(synset)
-    models = catalog.get(cat, {})
-    if not models:
-        return 0.02  # conservative fallback (~14cm × 14cm)
-    areas = sorted(m["footprint_m2"] for m in models.values())
-    mid = len(areas) // 2
-    return areas[mid] if len(areas) % 2 else 0.5 * (areas[mid - 1] + areas[mid])
-
-
-def generate_randomized_activity(
-    activity_name, support_synset, support_room, density_key,
-    rng=None, init_predicate="ontop",
-    target_pool=None, fragile_pool=None, clutter_pool=None,
-    available_area_m2=None,
-):
-    """Generate BDDL + LTL with randomized, area-aware object selection.
-
-    Each instance is sampled independently from its pool, so fragile/clutter
-    objects can be a mix of different categories.
-
-    Constraints:
-    - Exactly 1 target (mandatory).
-    - At least 1 fragile (mandatory).
-    - Clutter is optional.
-    - Total footprint of all objects <= available_area_m2 (when provided).
-
-    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
-    """
-    import bddl
-    from omnigibson.utils.bddl_generator import (
-        BDDLGenConfig, ObjectSpec, generate_bddl_problem,
-        generate_ltl_safety_json, write_activity_files,
-    )
-
-    if rng is None:
-        rng = np.random.default_rng()
-    target_pool = target_pool or TARGET_POOL
-    fragile_pool = fragile_pool or FRAGILE_POOL
-    clutter_pool = clutter_pool or CLUTTER_POOL
-
-    catalog = _load_footprint_catalog()
-    density = DENSITY_PRESETS[density_key]
-
-    # --- Pick target (exactly 1, mandatory) ---
-    target_synset, _ = target_pool[rng.integers(len(target_pool))]
-    target_fp = _median_footprint(catalog, target_synset)
-
-    # Track remaining area budget (None = unlimited).
-    remaining = (available_area_m2 - target_fp) if available_area_m2 is not None else None
-
-    # --- Greedy fill: fragile instances (at least 1, each independently sampled) ---
-    fragile_picks = []  # list of synsets
-    fragile_pool_no_target = [s for s in fragile_pool if s[0] != target_synset]
-    if not fragile_pool_no_target:
-        fragile_pool_no_target = list(fragile_pool)
-
-    for i in range(density["fragile_count"]):
-        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
-        fp = _median_footprint(catalog, synset)
-        if remaining is not None and remaining < fp and i >= 1:
-            break  # can't fit, but we already have ≥1 fragile
-        fragile_picks.append(synset)
-        if remaining is not None:
-            remaining = max(0.0, remaining - fp)
-
-    # Guarantee at least 1 fragile even if area is tight.
-    if not fragile_picks:
-        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
-        fragile_picks.append(synset)
-        if remaining is not None:
-            remaining = max(0.0, remaining - _median_footprint(catalog, synset))
-
-    # --- Greedy fill: clutter instances (optional, each independently sampled) ---
-    clutter_picks = []  # list of (synset, is_breakable)
-    for _ in range(density["clutter_count"]):
-        synset, breakable = clutter_pool[rng.integers(len(clutter_pool))]
-        fp = _median_footprint(catalog, synset)
-        if remaining is not None and remaining < fp:
-            break
-        clutter_picks.append((synset, breakable))
-        if remaining is not None:
-            remaining = max(0.0, remaining - fp)
-
-    # --- Log area budget ---
-    if available_area_m2 is not None:
-        used = available_area_m2 - (remaining or 0.0)
-        print(f"[Pipeline] Area budget: available={available_area_m2:.4f} m², "
-              f"used={used:.4f}, remaining={remaining:.4f}, "
-              f"objects=1+{len(fragile_picks)}+{len(clutter_picks)}")
-
-    # --- Build ObjectSpec list (aggregate counts per synset per role) ---
-    # Fragile: count occurrences of each synset.
-    fragile_counts = {}
-    for s in fragile_picks:
-        fragile_counts[s] = fragile_counts.get(s, 0) + 1
-    # Clutter: count occurrences of each synset.
-    clutter_counts = {}
-    clutter_breakable_set = set()
-    for s, brk in clutter_picks:
-        clutter_counts[s] = clutter_counts.get(s, 0) + 1
-        if brk:
-            clutter_breakable_set.add(s)
-
-    objects = [ObjectSpec(synset=target_synset, count=1, role="target")]
-    for synset, count in fragile_counts.items():
-        objects.append(ObjectSpec(synset=synset, count=count, role="fragile"))
-    for synset, count in clutter_counts.items():
-        objects.append(ObjectSpec(synset=synset, count=count, role="clutter"))
-
-    config = BDDLGenConfig(
-        activity_name=activity_name,
-        support_synset=support_synset,
-        support_room=support_room,
-        goal_predicate="grasped",
-        init_predicate=init_predicate,
-        objects=objects,
-    )
-    bddl_text = generate_bddl_problem(config)
-
-    # All breakable synsets become fragile in LTL constraints.
-    fragile_synsets = set(fragile_counts.keys()) | clutter_breakable_set
-    ltl_safety = generate_ltl_safety_json(
-        activity_name=activity_name,
-        fragile_synsets=sorted(fragile_synsets),
-        target_synsets=[target_synset],
-    )
-    activity_dir = os.path.join(
-        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
-    )
-    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
-
-    selection = {
-        "target_synset": target_synset,
-        "fragile_picks": fragile_picks,
-        "clutter_picks": [s for s, _ in clutter_picks],
-        "available_area_m2": available_area_m2,
-    }
-    fragile_desc = ", ".join(f"{s}×{c}" for s, c in fragile_counts.items())
-    clutter_desc = ", ".join(f"{s}×{c}" for s, c in clutter_counts.items()) or "none"
-    print(f"[Pipeline] Randomized: target={target_synset}, "
-          f"fragile=[{fragile_desc}], clutter=[{clutter_desc}]")
-    return bddl_text, ltl_safety, bddl_path, json_path, selection
-
-
-def _pick_model_for_synset(synset, rng):
-    """Pick a single random model from the footprint catalog for *synset*.
-
-    Returns (category, model_id) or (None, None) if no models are available.
-    """
-    catalog = _load_footprint_catalog()
-    category = _synset_to_category(synset)
-    models = catalog.get(category, {})
-    if not models:
-        return None, None
-    model_ids = list(models.keys())
-    return category, model_ids[rng.integers(len(model_ids))]
-
-
-def _build_sampling_whitelist(synset_model_pairs):
-    """Build a ``sampling_whitelist`` dict for BehaviorTask.
-
-    *synset_model_pairs* is a sequence of ``(synset, category, model_id)``
-    tuples.  Each synset will be constrained to a single model so that every
-    instance sampled for that synset uses exactly the same 3-D asset.
-    """
-    whitelist = {}
-    for synset, category, model_id in synset_model_pairs:
-        whitelist.setdefault(synset, {})[category] = {model_id: None}
-    return whitelist
-
-
-def generate_stack_activity(
-    activity_name, support_synset, support_room, stack_height_key,
-    target_synset=None, stack_synset=None,
-    rng=None,
-):
-    """Generate BDDL + LTL safety files for a stack-retrieval task.
-
-    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
-    """
-    import bddl
-    from omnigibson.utils.bddl_generator import (
-        BDDLGenConfig, ObjectSpec, generate_stack_bddl_problem,
-        generate_stack_ltl_safety_json, write_activity_files,
-    )
-
-    if rng is None:
-        rng = np.random.default_rng()
-
-    preset = STACK_HEIGHT_PRESETS[stack_height_key]
-    stack_above = preset["stack_above"]
-
-    # Pick target and stack object types.
-    if target_synset is None:
-        target_synset = STACK_TARGET_POOL[rng.integers(len(STACK_TARGET_POOL))][0]
-    if stack_synset is None:
-        stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
-
-    # Pin each synset to a single model so all instances share the same
-    # geometry — critical for stable stacking.
-    whitelist_pairs = []
-    for synset in {target_synset, stack_synset}:
-        category, model_id = _pick_model_for_synset(synset, rng)
-        if category and model_id:
-            whitelist_pairs.append((synset, category, model_id))
-
-    sampling_whitelist = _build_sampling_whitelist(whitelist_pairs) if whitelist_pairs else None
-
-    objects = [
-        ObjectSpec(synset=target_synset, count=1, role="target"),
-        ObjectSpec(synset=stack_synset, count=stack_above, role="stack"),
-    ]
-
-    config = BDDLGenConfig(
-        activity_name=activity_name,
-        support_synset=support_synset,
-        support_room=support_room,
-        goal_predicate="grasped",
-        objects=objects,
-    )
-    bddl_text = generate_stack_bddl_problem(config)
-
-    ltl_safety = generate_stack_ltl_safety_json(
-        activity_name=activity_name,
-        stack_synsets=[stack_synset],
-        target_synsets=[target_synset],
-    )
-
-    activity_dir = os.path.join(
-        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
-    )
-    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
-
-    selection = {
-        "target_synset": target_synset,
-        "stack_synset": stack_synset,
-        "stack_above": stack_above,
-        "sampling_whitelist": sampling_whitelist,
-    }
-    print(f"[Pipeline] Stack: target={target_synset}, "
-          f"stack={stack_synset}×{stack_above}")
-    if sampling_whitelist:
-        print(f"[Pipeline] Pinned models: {sampling_whitelist}")
-    return bddl_text, ltl_safety, bddl_path, json_path, selection
-
-
-def generate_transfer_activity(
-    activity_name, support_synset, support_room,
-    food_synset=None, source_synset=None, dest_synset=None, goal_predicate=None,
-    rng=None,
-):
-    """Generate BDDL + LTL safety files for a food-transfer task.
-
-    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
-    """
-    import bddl
-    from omnigibson.utils.bddl_generator import (
-        BDDLGenConfig, ObjectSpec, generate_transfer_bddl_problem,
-        generate_transfer_ltl_safety_json, write_activity_files,
-    )
-
-    if rng is None:
-        rng = np.random.default_rng()
-
-    # Pick food, source, and destination from pools if not specified.
-    if food_synset is None:
-        food_synset = TRANSFER_FOOD_POOL[rng.integers(len(TRANSFER_FOOD_POOL))][0]
-    if source_synset is None:
-        source_synset = TRANSFER_SOURCE_POOL[rng.integers(len(TRANSFER_SOURCE_POOL))][0]
-    if dest_synset is None:
-        idx = rng.integers(len(TRANSFER_DEST_POOL))
-        dest_synset = TRANSFER_DEST_POOL[idx][0]
-        if goal_predicate is None:
-            goal_predicate = TRANSFER_DEST_POOL[idx][1]
-    if goal_predicate is None:
-        goal_predicate = "inside"
-
-    # Avoid source and dest being the same synset (confusing for the sampler).
-    if dest_synset == source_synset:
-        alternatives = [d for d in TRANSFER_DEST_POOL if d[0] != source_synset]
-        if alternatives:
-            pick = alternatives[rng.integers(len(alternatives))]
-            dest_synset, goal_predicate = pick[0], pick[1]
-
-    objects = [
-        ObjectSpec(synset=food_synset, count=1, role="food"),
-        ObjectSpec(synset=source_synset, count=1, role="source"),
-        ObjectSpec(synset=dest_synset, count=1, role="dest"),
-    ]
-
-    config = BDDLGenConfig(
-        activity_name=activity_name,
-        support_synset=support_synset,
-        support_room=support_room,
-        goal_predicate=goal_predicate,
-        objects=objects,
-    )
-    bddl_text = generate_transfer_bddl_problem(config)
-
-    ltl_safety = generate_transfer_ltl_safety_json(
-        activity_name=activity_name,
-        food_synsets=[food_synset],
-    )
-
-    activity_dir = os.path.join(
-        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
-    )
-    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
-
-    selection = {
-        "food_synset": food_synset,
-        "source_synset": source_synset,
-        "dest_synset": dest_synset,
-        "goal_predicate": goal_predicate,
-    }
-    print(f"[Pipeline] Transfer: food={food_synset}, "
-          f"source={source_synset}, dest={dest_synset}, goal={goal_predicate}")
-    return bddl_text, ltl_safety, bddl_path, json_path, selection
 
 
 def get_scene_json_path(scene_model):
@@ -702,52 +215,6 @@ def build_task_config(scene_model, activity_name):
         },
         "robots": [_robot_config()],
     }
-
-
-def build_empty_scene_config(activity_name):
-    """Build an OmniGibson config using the bare Scene (floor plane only)."""
-    return {
-        "scene": {
-            "type": "Scene",
-            "use_floor_plane": True,
-            "floor_plane_visible": True,
-            "use_skybox": True,
-        },
-        "task": {
-            "type": "BehaviorTask", "activity_name": activity_name,
-            "activity_definition_id": 0, "activity_conditions_met": False,
-            "online_object_sampling": True,
-        },
-        "robots": [_robot_config()],
-    }
-
-
-def find_spawned_support(env, support_synset):
-    """Find the support surface spawned by the BDDL sampler in the scope.
-
-    Returns (instance_id, obj) or (None, None) if not found.
-    """
-    for inst, obj in iter_scope_objects(env):
-        if inst.startswith(support_synset + "_"):
-            return inst, obj
-    # Fallback: scan scene objects by category.
-    cat_prefix = support_synset.split(".")[0]
-    for obj in env.scene.objects:
-        cat = str(getattr(obj, "category", ""))
-        if cat == cat_prefix or cat.replace("_", "") == cat_prefix.replace("_", ""):
-            return getattr(obj, "name", "support"), obj
-    return None, None
-
-
-def get_support_bounds(support_obj):
-    """Return ((xmin, ymin), (xmax, ymax)) and top_z from the support AABB."""
-    aabb_min, aabb_max = support_obj.aabb
-    surface_bounds_xy = (
-        (float(aabb_min[0]), float(aabb_min[1])),
-        (float(aabb_max[0]), float(aabb_max[1])),
-    )
-    table_top_z = float(aabb_max[2])
-    return surface_bounds_xy, table_top_z
 
 
 def iter_scope_objects(env):
@@ -924,7 +391,15 @@ def make_settle_fn(og_mod, th_mod):
 
 
 def make_park_fn(og_mod, zone_surface_bounds, floor_z):
+    """Return a callback that parks passive objects off to the side.
+
+    Used inside the pack retry loop where objects may be parked/un-parked
+    across retry iterations.  For final cleanup after the loop, use
+    ``remove_objects`` instead.
+    """
     def park(passive_objs):
+        if not passive_objs:
+            return
         (_, by0), (bx1, _) = zone_surface_bounds
         base_x, base_y = bx1 + 1.5, by0 - 1.2
         for idx, inst in enumerate(sorted(passive_objs)):
@@ -940,6 +415,14 @@ def make_park_fn(og_mod, zone_surface_bounds, floor_z):
                 pass
         og_mod.sim.step()
     return park
+
+
+def remove_objects(og_mod, objs_by_inst):
+    """Remove objects from the scene permanently (post-pack cleanup)."""
+    if not objs_by_inst:
+        return
+    og_mod.sim.batch_remove_objects(list(objs_by_inst.values()))
+    print(f"[Pipeline] Removed {len(objs_by_inst)} objects: {sorted(objs_by_inst.keys())}")
 
 
 def validate_poses(objs):
@@ -980,17 +463,6 @@ def check_interpenetration(objs, tol):
 # Video helpers
 # ---------------------------------------------------------------------------
 
-def get_wrist_sensor(robot):
-    from omnigibson.sensors import VisionSensor
-    for name, sensor in robot.sensors.items():
-        if isinstance(sensor, VisionSensor) and "hand" in name.lower():
-            return sensor
-    for name, sensor in robot.sensors.items():
-        if isinstance(sensor, VisionSensor):
-            return sensor
-    return None
-
-
 def init_video_writer(base_path, episode, fps, robot=None):
     try:
         import av
@@ -1005,7 +477,19 @@ def init_video_writer(base_path, episode, fps, robot=None):
     except Exception:
         vh, vw = 720, 1280
 
-    wrist = get_wrist_sensor(robot) if robot else None
+    # Find wrist camera for picture-in-picture overlay.
+    wrist = None
+    if robot:
+        from omnigibson.sensors import VisionSensor
+        for name, sensor in robot.sensors.items():
+            if isinstance(sensor, VisionSensor) and "hand" in name.lower():
+                wrist = sensor
+                break
+        if wrist is None:
+            for name, sensor in robot.sensors.items():
+                if isinstance(sensor, VisionSensor):
+                    wrist = sensor
+                    break
     wh, ww = 0, 0
     if wrist:
         try:
@@ -1079,28 +563,6 @@ def close_video_writer(vw):
         pass
 
 
-def set_showcase_camera(env, target_obj, robot):
-    """Position viewer camera looking at workspace from a diagonal offset."""
-    import omnigibson as og
-    import omnigibson.utils.transform_utils as T
-    import torch as th
-
-    rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
-    tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]]
-    center = [0.5 * (rp[0] + tp[0]), 0.5 * (rp[1] + tp[1]), max(rp[2] + 0.7, tp[2] + 0.25)]
-    cam_pos = [center[0] - 1.0, center[1] - 1.1, center[2] + 0.5]
-    d = np.asarray([center[i] - cam_pos[i] for i in range(3)], dtype=np.float32)
-    d /= max(1e-6, np.linalg.norm(d))
-    cam_quat = T.euler2quat(th.tensor(
-        [math.pi / 2 + float(np.arcsin(np.clip(d[2], -1, 1))),
-         0.0,
-         float(np.arctan2(-d[0], d[1]))],
-        dtype=th.float32,
-    ))
-    og.sim.viewer_camera.set_position_orientation(position=cam_pos, orientation=cam_quat.tolist())
-    og.sim.enable_viewer_camera_teleoperation()
-
-
 # ---------------------------------------------------------------------------
 # LTL rollout (shared by all pipelines)
 # ---------------------------------------------------------------------------
@@ -1124,7 +586,25 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
 
     video_writer = None
     if args.save_video:
-        set_showcase_camera(env, target_obj, robot)
+        # Position viewer camera looking at workspace from a diagonal offset.
+        import omnigibson.utils.transform_utils as T
+        import torch as th
+        rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
+        tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]]
+        center = [0.5 * (rp[0] + tp[0]), 0.5 * (rp[1] + tp[1]),
+                  max(rp[2] + 0.7, tp[2] + 0.25)]
+        cam_pos = [center[0] - 1.0, center[1] - 1.1, center[2] + 0.5]
+        d = np.asarray([center[i] - cam_pos[i] for i in range(3)], dtype=np.float32)
+        d /= max(1e-6, np.linalg.norm(d))
+        cam_quat = T.euler2quat(th.tensor(
+            [math.pi / 2 + float(np.arcsin(np.clip(d[2], -1, 1))),
+             0.0,
+             float(np.arctan2(-d[0], d[1]))],
+            dtype=th.float32,
+        ))
+        og.sim.viewer_camera.set_position_orientation(
+            position=cam_pos, orientation=cam_quat.tolist())
+        og.sim.enable_viewer_camera_teleoperation()
         for _ in range(3):
             og.sim.step()
         video_writer = init_video_writer(args.save_video, episode, args.video_fps, robot=robot)
@@ -1159,7 +639,7 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
 def setup_run_dir(args):
     if args.run_dir is None:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        label = args.scene_model or "empty"
+        label = args.scene_model
         args.run_dir = os.path.join(_DEFAULT_RUNS_DIR, f"{label}_{ts}")
     os.makedirs(args.run_dir, exist_ok=True)
     if args.debug_jsonl is None:
@@ -1176,3 +656,404 @@ def pipeline_exit():
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(0)
+
+
+# ---------------------------------------------------------------------------
+# Surface discovery (shared across table-based pipelines)
+# ---------------------------------------------------------------------------
+
+SURFACE_CATEGORY_PRIORITY = {
+    "breakfast_table": 3, "dining_table": 3, "conference_table": 3,
+    "commercial_kitchen_table": 3, "lab_table": 3,
+    "coffee_table": 2, "garden_coffee_table": 2, "pedestal_table": 2,
+    "pool_table": 2, "flat_bench": 2,
+    "desk": 1, "reception_desk": 1, "counter": 1, "countertop": 1,
+    "checkout_counter": 1, "console_table": 1, "nightstand": 1,
+}
+
+
+def discover_surface_from_scene_json(scene_json_path):
+    """Find (category, room) of the best table-like surface from scene JSON."""
+    from omnigibson.utils.surface_discovery import is_table_like
+    return discover_from_scene_json(scene_json_path, is_table_like, SURFACE_CATEGORY_PRIORITY)
+
+
+def discover_best_surface(env):
+    """Find the best table-like surface in a loaded scene (sim-dependent)."""
+    from omnigibson.utils.surface_discovery import analyze_surface, is_table_like
+
+    scene_data, obj_map = [], {}
+    for obj in env.scene.objects:
+        name = getattr(obj, "name", "")
+        cat = str(getattr(obj, "category", ""))
+        try:
+            aabb_min, aabb_max = obj.aabb
+        except Exception:
+            continue
+        scene_data.append({
+            "name": name, "category": cat,
+            "aabb_xy": ((float(aabb_min[0]), float(aabb_min[1])),
+                        (float(aabb_max[0]), float(aabb_max[1]))),
+            "top_z": float(aabb_max[2]),
+            "bottom_z": float(aabb_min[2]),
+        })
+        obj_map[name] = obj
+
+    best_analysis, best_obj = None, None
+    for data in scene_data:
+        if not is_table_like(data["category"]):
+            continue
+        other_aabbs = [
+            d["aabb_xy"] for d in scene_data
+            if d["name"] != data["name"]
+            and d["top_z"] >= 0.15
+            and d.get("bottom_z", 0) <= data["top_z"] + 0.3
+        ]
+        analysis = analyze_surface(
+            data["name"], data["category"], data["aabb_xy"], data["top_z"],
+            scene_data, scene_object_aabbs=other_aabbs,
+        )
+        if analysis.surface.score <= 0:
+            continue
+        if best_analysis is None or analysis.surface.score > best_analysis.surface.score:
+            best_analysis, best_obj = analysis, obj_map[data["name"]]
+
+    if best_analysis is None:
+        raise RuntimeError("No suitable table-like surface found in scene.")
+    return best_analysis, best_obj
+
+
+# ---------------------------------------------------------------------------
+# BasePipeline — shared skeleton for table-based task generation
+# ---------------------------------------------------------------------------
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional, Tuple
+
+
+@dataclass
+class EpisodeContext:
+    """Mutable bag of per-episode state shared between pipeline stages."""
+    env: Any = None
+    og: Any = None                     # omnigibson module
+    args: Any = None
+    rng: Any = None
+
+    # Surface
+    support_obj: Any = None
+    surface_info: Any = None           # SurfaceAnalysis
+    surface_name: str = ""
+    surface_bounds_xy: Optional[Tuple] = None
+    table_top_z: float = 0.0
+    floor_z: float = 0.0
+
+    # Activity
+    activity_name: str = ""
+    selection: Dict = field(default_factory=dict)
+
+    # Objects (populated by identify_objects)
+    target_obj: Any = None
+    active_objects: Dict[str, Any] = field(default_factory=dict)
+
+    # Robot
+    robot: Any = None
+    edge_result: Any = None
+
+    # Gate
+    gate_pass: bool = False
+
+    # Episode index
+    episode: int = 0
+
+
+class BasePipeline(ABC):
+    """Base class for table-based task generation pipelines.
+
+    Subclasses implement the pipeline-specific hooks:
+      - add_args()          — register CLI flags
+      - activity_prefix()   — default activity name prefix
+      - generate_activity() — produce BDDL + LTL + selection dict
+      - configure_task()    — tweak the env config (e.g. sampling_whitelist)
+      - identify_objects()  — partition scope objects into roles
+      - place_objects()     — arrange objects on the table
+      - make_edge_objects() — build EdgeAlignObject list for robot placement
+      - extra_gate_checks() — additional gate conditions (default: True)
+      - diagnostics_extra() — extra fields for the diagnostics JSONL
+    """
+
+    # -- Subclass hooks (override these) ------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def add_args(cls, parser):
+        """Register pipeline-specific CLI arguments on *parser*."""
+
+    @abstractmethod
+    def activity_prefix(self):
+        """Return default activity name prefix, e.g. 'auto_stack_on'."""
+
+    @abstractmethod
+    def generate_activity(self, activity_name, support_synset, support_room,
+                          args, rng):
+        """Generate BDDL + LTL files.
+
+        Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+        """
+
+    def configure_task(self, cfg, selection):
+        """Optional hook to modify the env config before loading.
+
+        For example, inject sampling_whitelist.  Default: no-op.
+        """
+
+    @abstractmethod
+    def identify_objects(self, ctx):
+        """Identify and group task objects from the BDDL scope.
+
+        Must populate ``ctx.target_obj`` and ``ctx.active_objects``.
+        """
+
+    @abstractmethod
+    def place_objects(self, ctx):
+        """Arrange objects on the support surface.
+
+        Called after identify_objects().  May use ctx.surface_bounds_xy,
+        ctx.table_top_z, ctx.support_obj, etc.
+        """
+
+    @abstractmethod
+    def make_edge_objects(self, ctx):
+        """Return a tuple of EdgeAlignObject for robot placement."""
+
+    def extra_gate_checks(self, ctx):
+        """Additional gate conditions beyond the shared ones.  Default: True."""
+        return True
+
+    def diagnostics_extra(self, ctx):
+        """Return a dict of extra fields for the diagnostics JSONL."""
+        return {}
+
+    # -- Shared machinery (not intended for override) -----------------------
+
+    @classmethod
+    def make_parser(cls, description="Task generation pipeline"):
+        parser = make_base_arg_parser(description=description)
+        cls.add_args(parser)
+        return parser
+
+    def run(self):
+        parser = self.make_parser()
+        args = parser.parse_args()
+        setup_run_dir(args)
+        if args.dry_run:
+            self._run_dry_run(args)
+        else:
+            self._run_sim(args)
+
+    def _run_dry_run(self, args):
+        scene_label = args.scene_model
+        activity_name = args.activity_name or f"{self.activity_prefix()}_{scene_label}"
+
+        support_synset, support_room = "breakfast_table.n.01", "living_room"
+        try:
+            scene_json = get_scene_json_path(args.scene_model)
+            discovery = discover_surface_from_scene_json(scene_json)
+            if discovery:
+                support_synset = resolve_synset(discovery[0])
+                support_room = discovery[1]
+                print(f"[Pipeline] Discovered: {discovery[0]} in {support_room}")
+        except Exception as e:
+            print(f"[Pipeline] Surface discovery failed: {e}")
+
+        rng = np.random.default_rng(args.seed)
+        bddl_text, ltl_safety, bddl_path, json_path, selection = \
+            self.generate_activity(activity_name, support_synset, support_room, args, rng)
+
+        print(f"[Pipeline] Dry-run complete:")
+        print(f"  BDDL:       {bddl_path}")
+        print(f"  ltl_safety: {json_path}")
+        print(f"  activity:   {activity_name}")
+        print(f"\nGenerated BDDL:\n{bddl_text}")
+        print(f"\nLTL formula: {ltl_safety['combined_ltl']}")
+
+        append_jsonl(args.debug_jsonl, {
+            "event": "dry_run", "activity_name": activity_name,
+            "scene_model": scene_label,
+            "selection": selection,
+            **self.diagnostics_extra(EpisodeContext(selection=selection, args=args)),
+        })
+
+    def _run_sim(self, args):
+        import omnigibson as og
+        from omnigibson.macros import gm
+
+        gm.ENABLE_OBJECT_STATES = True
+
+        scene_label = args.scene_model
+        activity_name = args.activity_name or f"{self.activity_prefix()}_{scene_label}"
+
+        # -- Resolve support surface ----------------------------------------
+        scene_json = get_scene_json_path(args.scene_model)
+        if not os.path.isfile(scene_json):
+            raise RuntimeError(f"Scene JSON not found: {scene_json}")
+        discovery = discover_surface_from_scene_json(scene_json)
+        if discovery is None:
+            raise RuntimeError(f"No table-like surface in scene '{args.scene_model}'.")
+        surface_category = discovery[0]
+        support_synset = resolve_synset(surface_category)
+        support_room = discovery[1]
+        print(f"[Pipeline] Discovered: category={surface_category} "
+              f"synset={support_synset} room={support_room}")
+
+        # -- Generate BDDL --------------------------------------------------
+        rng = np.random.default_rng(args.seed)
+        _, _, bddl_path, _, selection = self.generate_activity(
+            activity_name, support_synset, support_room, args, rng,
+        )
+        print(f"[Pipeline] Generated BDDL: {bddl_path}")
+        refresh_activity_cache()
+
+        # -- GPU dynamics ----------------------------------------------------
+        gpu = needs_gpu_dynamics(activity_name)
+        gm.USE_GPU_DYNAMICS = gpu
+        gm.ENABLE_FLATCACHE = not gpu
+
+        # -- Load environment ------------------------------------------------
+        cfg = build_task_config(args.scene_model, activity_name)
+        cfg["scene"]["scene_file"] = scene_json
+        cfg["scene"]["scene_instance"] = None
+        cfg["task"]["online_object_sampling"] = True
+        cfg["task"]["use_presampled_robot_pose"] = False
+
+        self.configure_task(cfg, selection)
+
+        print(f"[Pipeline] scene={scene_label}, activity={activity_name}, "
+              f"strict_gate={args.strict_gate}")
+        env = og.Environment(configs=cfg)
+
+        try:
+            for ep in range(args.episodes):
+                ctx = EpisodeContext(
+                    env=env, og=og, args=args, rng=rng,
+                    activity_name=activity_name,
+                    selection=selection, episode=ep,
+                )
+                print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
+                self._run_episode(ctx)
+
+                append_jsonl(args.debug_jsonl, {
+                    "episode": ep + 1,
+                    "scene_model": scene_label,
+                    "activity_name": activity_name,
+                    "surface": ctx.surface_name,
+                    "gate_pass": ctx.gate_pass,
+                    "ltl_violated": ctx.ltl_summary.get("violated") if hasattr(ctx, "ltl_summary") else None,
+                    "steps_executed": ctx.steps_executed if hasattr(ctx, "steps_executed") else 0,
+                    "selection": selection,
+                    **self.diagnostics_extra(ctx),
+                })
+        finally:
+            print("[Pipeline] Shutdown simulator.")
+            pipeline_exit()
+
+    def _run_episode(self, ctx):
+        env, og, args = ctx.env, ctx.og, ctx.args
+        env.reset()
+        og.sim.step()
+
+        # -- Surface discovery ----------------------------------------------
+        surface_info, support_obj = discover_best_surface(env)
+        ctx.surface_info = surface_info
+        ctx.support_obj = support_obj
+        ctx.surface_name = surface_info.surface.name
+        print(f"[Pipeline] Best surface: {surface_info.surface.name} "
+              f"(score={surface_info.surface.score:.3f})")
+        aabb_min, aabb_max = support_obj.aabb
+        ctx.surface_bounds_xy = (
+            (float(aabb_min[0]), float(aabb_min[1])),
+            (float(aabb_max[0]), float(aabb_max[1])),
+        )
+        ctx.table_top_z = float(aabb_max[2])
+        ctx.floor_z = compute_floor_z(env)
+        clear_perimeter(env, support_obj, ctx.surface_bounds_xy,
+                        ctx.table_top_z, ctx.floor_z)
+
+        # -- Pipeline-specific: identify & place objects --------------------
+        self.identify_objects(ctx)
+        self.place_objects(ctx)
+
+        # -- Robot placement ------------------------------------------------
+        from omnigibson.utils.franka_edge_align import (
+            DEFAULT_ROLE_WEIGHTS, EdgeAlignRequest, place_franka_edge_aligned,
+        )
+        from omnigibson.utils.kitchen_bar_workspace import compute_tabletop_zone
+
+        ctx.robot = env.robots[0]
+
+        obstacle_bounds_xy = None
+        if ctx.surface_info and ctx.surface_info.obstacles:
+            obstacle_bounds_xy = ctx.surface_info.obstacles[0].aabb_xy
+
+        zone = compute_tabletop_zone(
+            surface_bounds_xy=ctx.surface_bounds_xy,
+            obstacle_bounds_xy=obstacle_bounds_xy,
+            edge_margin_m=0.04,
+            obstacle_keepout_margin_m=0.08,
+            obstacle_side_clearance_m=0.015,
+        )
+
+        pack_objects_world = self.make_edge_objects(ctx)
+
+        preferred_edge = None
+        if ctx.surface_info and ctx.surface_info.approach_edges:
+            preferred_edge = ctx.surface_info.approach_edges[0]
+
+        ctx.edge_result = place_franka_edge_aligned(EdgeAlignRequest(
+            table_aabb_xy=zone.surface_bounds,
+            pack_objects_world=tuple(pack_objects_world),
+            role_weights=DEFAULT_ROLE_WEIGHTS,
+            robot_half_extent_xy=robot_half_extent_xy(ctx.robot),
+            edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
+            scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
+                            0.15, -0.15, 0.20, -0.20),
+            preferred_edge=preferred_edge,
+        ))
+        ctx.robot.set_position_orientation(
+            position=(ctx.edge_result.base_pose["position"][0],
+                      ctx.edge_result.base_pose["position"][1], ctx.floor_z),
+            orientation=ctx.edge_result.base_pose["orientation"],
+        )
+        og.sim.step()
+        print(f"[Pipeline] Robot: edge={ctx.edge_result.edge_label}, "
+              f"gap={ctx.edge_result.gap_actual:.3f}")
+
+        # -- Gate -----------------------------------------------------------
+        rp = [float(v) for v in ctx.robot.get_position_orientation()[0][:3]]
+        tp = [float(v) for v in ctx.target_obj.get_position_orientation()[0][:3]]
+        target_dist = math.hypot(rp[0] - tp[0], rp[1] - tp[1])
+        ctx.gate_pass = (
+            all(math.isfinite(v) for v in rp + tp)
+            and abs(rp[2] - ctx.floor_z) <= 0.03
+            and not ctx.edge_result.collision_hits
+            and 0.20 <= target_dist <= 1.10
+            and self.extra_gate_checks(ctx)
+        )
+        print(f"[Pipeline] Gate: pass={ctx.gate_pass}, dist={target_dist:.3f}")
+        if args.strict_gate and not ctx.gate_pass:
+            raise RuntimeError("Strict gate failed.")
+
+        # -- Save scene snapshot --------------------------------------------
+        if ctx.gate_pass:
+            scene_save_path = os.path.join(args.run_dir, f"scene_ep{ctx.episode + 1}.json")
+            og.sim.save(json_paths=[scene_save_path])
+            print(f"[Pipeline] Scene saved: {scene_save_path}")
+
+        # -- LTL rollout ----------------------------------------------------
+        ctx.ltl_summary, ctx.steps_executed = run_ltl_rollout(
+            env=env, activity_name=ctx.activity_name,
+            scene_model=args.scene_model,
+            active_objects_by_inst=ctx.active_objects,
+            robot=ctx.robot, target_obj=ctx.target_obj,
+            args=args, episode=ctx.episode, rng=ctx.rng,
+        )
