@@ -255,8 +255,8 @@ def is_clearable(category):
 
 
 def clear_perimeter(env, support_obj, surface_bounds_xy, top_z, floor_z,
-                    margin_m=0.60, stash_offset=3.0):
-    """Move movable furniture near the target object out of the way."""
+                    margin_m=0.60):
+    """Remove movable furniture near the support surface from the scene."""
     import omnigibson as og
 
     (x0, y0), (x1, y1) = surface_bounds_xy
@@ -266,10 +266,7 @@ def clear_perimeter(env, support_obj, surface_bounds_xy, top_z, floor_z,
     support_name = getattr(support_obj, "name", "")
     scope_names = {getattr(obj, "name", "") for _, obj in iter_scope_objects(env)}
 
-    stash_x = x1 + stash_offset
-    stash_y = y0 - stash_offset
-    cleared = []
-
+    to_remove = []
     for obj in env.scene.objects:
         name = getattr(obj, "name", "")
         cat = str(getattr(obj, "category", ""))
@@ -285,22 +282,13 @@ def clear_perimeter(env, support_obj, surface_bounds_xy, top_z, floor_z,
             continue
         if ox1 < ex0 or ox0 > ex1 or oy1 < ey0 or oy0 > ey1:
             continue
-        sx = stash_x + 0.3 * len(cleared)
-        try:
-            obj.set_position_orientation(
-                position=(sx, stash_y, floor_z + 0.05),
-                orientation=(0, 0, 0, 1),
-            )
-            if hasattr(obj, "keep_still"):
-                obj.keep_still()
-            cleared.append(name)
-        except Exception:
-            pass
+        to_remove.append(obj)
 
-    if cleared:
-        og.sim.step()
-        print(f"[Pipeline] Cleared {len(cleared)} perimeter objects: {cleared}")
-    return cleared
+    if to_remove:
+        names = [getattr(o, "name", "?") for o in to_remove]
+        og.sim.batch_remove_objects(to_remove)
+        print(f"[Pipeline] Removed {len(to_remove)} perimeter objects: {names}")
+    return [getattr(o, "name", "") for o in to_remove]
 
 
 def build_task_object_sets(env, task_spec):
