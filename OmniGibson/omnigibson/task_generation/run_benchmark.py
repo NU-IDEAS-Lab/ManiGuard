@@ -78,6 +78,35 @@ def _discover_scenes(scenes_dir, pipeline):
     return eligible
 
 
+def _expected_rollout_paths(run_dir, episodes):
+    return [
+        os.path.join(run_dir, f"rollout_ep{ep}.mp4")
+        for ep in range(1, episodes + 1)
+    ]
+
+
+def _validate_scene_artifacts(run_dir, episodes):
+    missing = []
+    diagnostics_path = os.path.join(run_dir, "diagnostics.jsonl")
+    if not os.path.isfile(diagnostics_path):
+        missing.append("diagnostics.jsonl")
+    for video_path in _expected_rollout_paths(run_dir, episodes):
+        if not os.path.isfile(video_path):
+            missing.append(os.path.basename(video_path))
+    return missing
+
+
+def _spot_preflight_or_exit():
+    from omnigibson.utils.ltl_utils import get_spot_runtime_status
+
+    status = get_spot_runtime_status(require_buddy=True)
+    print(f"[Benchmark] Python: {status['python_executable']}")
+    print(f"[Benchmark] Spot module: {status['module_path']}")
+    if not status["valid"]:
+        print(f"[Benchmark] ERROR: {status['error']}")
+        sys.exit(1)
+
+
 def _run_scene(scene_model, args, output_dir, scene_index=0):
     """Run the pipeline on a single scene in a subprocess. Returns a result dict."""
     run_dir = os.path.join(output_dir, scene_model)
@@ -99,6 +128,10 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         "--video-fps", str(args.video_fps),
         "--strict-gate" if args.strict_gate else "--no-strict-gate",
     ]
+    if args.curation_manifest:
+        cmd.extend(["--curation-manifest", args.curation_manifest])
+    if args.allow_deferred:
+        cmd.append("--allow-deferred")
 
     # Pipeline-specific flags.
     if args.pipeline in ("table", "cabinet"):
@@ -123,8 +156,6 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
             cmd.extend(["--stack-synset", args.stack_synset])
 
     log_path = os.path.join(run_dir, "stdout.log")
-    diagnostics_path = os.path.join(run_dir, "diagnostics.jsonl")
-
     result = {
         "scene": scene_model,
         "status": "unknown",
@@ -154,13 +185,18 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         elapsed = time.time() - t0
         result["duration_s"] = round(elapsed, 1)
 
-        if proc.returncode == 0:
+        missing_artifacts = _validate_scene_artifacts(run_dir, args.episodes)
+
+        if proc.returncode == 0 and not missing_artifacts:
             result["status"] = "success"
-        elif proc.returncode == -11 and os.path.isfile(diagnostics_path):
+        elif proc.returncode == -11 and not missing_artifacts:
             # SIGSEGV during Isaac Sim shutdown is benign if the pipeline
             # wrote diagnostics (meaning it completed its real work).
             result["status"] = "success"
             result["error"] = "clean exit (shutdown segfault ignored)"
+        elif missing_artifacts:
+            result["status"] = "failed"
+            result["error"] = f"missing artifacts: {', '.join(missing_artifacts)}"
         else:
             result["status"] = "failed"
             result["error"] = f"exit code {proc.returncode}"
@@ -178,6 +214,7 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         result["error"] = str(e)
 
     # Parse diagnostics.jsonl if it exists to extract gate/ltl info.
+    diagnostics_path = os.path.join(run_dir, "diagnostics.jsonl")
     if os.path.isfile(diagnostics_path):
         try:
             with open(diagnostics_path, "r") as f:
@@ -264,10 +301,14 @@ def parse_args():
                    help="Output directory (default: outputs/benchmark_runs/<timestamp>)")
     p.add_argument("--resume", default=None,
                    help="Resume a previous benchmark run directory (skip completed scenes)")
+    p.add_argument("--curation-manifest", default=None,
+                   help="Optional scene curation manifest to apply per-scene overrides")
+    p.add_argument("--allow-deferred", action="store_true",
+                   help="Allow explicitly deferred scenes in the curation manifest to run")
     return p.parse_args()
 
 
-def _find_completed_scenes(output_dir):
+def _find_completed_scenes(output_dir, episodes):
     """Find scenes that already completed successfully in a previous run."""
     completed = set()
     summary_path = os.path.join(output_dir, "summary.csv")
@@ -280,8 +321,9 @@ def _find_completed_scenes(output_dir):
     # Also check individual scene dirs for diagnostics.
     if os.path.isdir(output_dir):
         for scene_dir in os.listdir(output_dir):
-            diag = os.path.join(output_dir, scene_dir, "diagnostics.jsonl")
-            if os.path.isfile(diag):
+            scene_run_dir = os.path.join(output_dir, scene_dir)
+            diag = os.path.join(scene_run_dir, "diagnostics.jsonl")
+            if os.path.isfile(diag) and not _validate_scene_artifacts(scene_run_dir, episodes):
                 try:
                     with open(diag, "r") as f:
                         for line in f:
@@ -295,6 +337,7 @@ def _find_completed_scenes(output_dir):
 
 def main():
     args = parse_args()
+    _spot_preflight_or_exit()
 
     scenes_dir = os.path.join(
         _PROJECT_ROOT, "datasets", "behavior-1k-assets", "scenes",
@@ -322,7 +365,7 @@ def main():
     # If resuming, skip already-completed scenes.
     completed = set()
     if args.resume:
-        completed = _find_completed_scenes(output_dir)
+        completed = _find_completed_scenes(output_dir, args.episodes)
         if completed:
             print(f"[Benchmark] Resuming — skipping {len(completed)} completed scenes")
         scenes = [s for s in scenes if s not in completed]
@@ -349,6 +392,9 @@ def main():
     if args.pipeline in ("table", "cabinet"):
         config_data["density"] = args.density
         config_data["randomize"] = args.randomize
+    if args.curation_manifest:
+        config_data["curation_manifest"] = args.curation_manifest
+        config_data["allow_deferred"] = args.allow_deferred
     if args.pipeline == "transfer":
         config_data.update({
             "food_synset": args.food_synset,

@@ -112,6 +112,16 @@ def test_apply_pack_transform_and_validate_integrity():
     assert report.max_position_error <= 1e-6
 
 
+def test_build_clutter_pack_uses_root_to_bottom_offset_for_z():
+    mod = _load_module()
+    descriptors = [
+        mod.ClutterObjectDescriptor("wineglass.n.01_1", "fragile", (0.03, 0.03), 0.14, root_to_bottom_z=0.06),
+    ]
+    pack = mod.build_clutter_pack("countertop.n.01_1", descriptors, seed=1)
+    entry = pack.object_entries[0]
+    assert abs(entry.rel_pose[2] - 0.064) <= 1e-6
+
+
 def test_check_packing_feasibility_accepts_loose():
     mod = _load_module()
     descriptors = [

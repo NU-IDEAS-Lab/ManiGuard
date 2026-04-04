@@ -238,7 +238,7 @@ class PinchPointPipeline(BasePipeline):
     def place_objects(self, ctx):
         import torch as th
         from omnigibson.utils.clutter_pack_layout import validate_pack_integrity
-        from omnigibson.utils.kitchen_bar_workspace import compute_tabletop_zone
+        from omnigibson.utils.tabletop_workspace import compute_tabletop_zone
         from omnigibson.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
 
         args = ctx.args

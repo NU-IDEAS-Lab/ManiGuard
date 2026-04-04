@@ -30,6 +30,7 @@ class EdgeAlignRequest:
     scan_offsets_m: Tuple[float, ...]
     collision_checker: Optional[Callable[[Tuple[float, float, float]], Sequence[str]]] = None
     preferred_edge: Optional[str] = None
+    anchor_offset_m: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -59,7 +60,17 @@ def select_best_table_edge(
         "y_min": abs(cy - y_min),
         "y_max": abs(cy - y_max),
     }
-    return min(distances, key=distances.get)
+    span_x = x_max - x_min
+    span_y = y_max - y_min
+    if math.isclose(span_x, span_y, rel_tol=1e-6, abs_tol=1e-6):
+        candidate_edges = ("x_min", "x_max", "y_min", "y_max")
+    elif span_y > span_x:
+        # Long edges run along the y axis, so prefer mounting from x_min / x_max first.
+        candidate_edges = ("x_min", "x_max")
+    else:
+        # Long edges run along the x axis, so prefer mounting from y_min / y_max first.
+        candidate_edges = ("y_min", "y_max")
+    return min(candidate_edges, key=lambda edge: (distances[edge], edge))
 
 
 def compute_weighted_edge_anchor(
@@ -124,6 +135,7 @@ def place_franka_edge_aligned(request: EdgeAlignRequest) -> EdgeAlignResult:
         robot_half_extent_xy=request.robot_half_extent_xy,
         edge_margin_m=request.edge_margin_m,
     )
+    anchor_s += request.anchor_offset_m
 
     center_xy = _pack_center_xy(request.pack_objects_world)
     candidates: List[Tuple[int, Tuple[float, float, float], Tuple[str, ...], float]] = []

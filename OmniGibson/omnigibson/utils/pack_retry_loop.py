@@ -18,7 +18,7 @@ from omnigibson.utils.clutter_pack_layout import (
     check_packing_feasibility,
     validate_pack_integrity,
 )
-from omnigibson.utils.kitchen_bar_workspace import (
+from omnigibson.utils.tabletop_workspace import (
     Bounds2D,
     ZoneCapacityStats,
     bounds_overlap,
@@ -34,6 +34,7 @@ class PackRetryConfig:
     pack_min_clearance: float = 0.008
     pack_clearance_step_m: float = 0.005
     pack_clearance_floor_m: float = 0.002
+    pack_clearance_search_mode: str = "shrink_from_start"
     frontier_noise_margin_m: float = 0.02
     pack_tries_per_clearance: int = 10
     zone_padding: float = 0.008
@@ -48,6 +49,7 @@ class PackResult:
     world_positions: Dict[str, Tuple[float, float, float]]
     pack_origin: Tuple[float, float, float]
     attempt_used: int
+    clearance_used: float
     active_descriptors: List[ClutterObjectDescriptor]
     active_objects_by_inst: Dict[str, object]
     cull_history: List[dict]
@@ -57,18 +59,28 @@ def _build_min_clearance_schedule(
     start_clearance: float,
     floor_clearance: float,
     step: float,
+    search_mode: str = "shrink_from_start",
 ) -> Tuple[float, ...]:
     start = max(0.0, float(start_clearance))
     floor = max(0.0, float(floor_clearance))
     decrement = max(1e-6, float(step))
     if floor > start:
         raise ValueError("floor_clearance must be <= start_clearance")
+    if search_mode not in {"shrink_from_start", "expand_from_floor"}:
+        raise ValueError(f"Unsupported search_mode: {search_mode}")
     values = []
-    cur = start
-    while cur > floor + 1e-9:
-        values.append(round(cur, 4))
-        cur -= decrement
-    values.append(round(floor, 4))
+    if search_mode == "shrink_from_start":
+        cur = start
+        while cur > floor + 1e-9:
+            values.append(round(cur, 4))
+            cur -= decrement
+        values.append(round(floor, 4))
+    else:
+        cur = floor
+        while cur < start - 1e-9:
+            values.append(round(cur, 4))
+            cur += decrement
+        values.append(round(start, 4))
     dedup = []
     for v in values:
         if v not in dedup:
@@ -176,11 +188,14 @@ def run_pack_retry_loop(
     validate_poses_fn: Callable[[Dict[str, object]], List[str]],
     check_interpenetration_fn: Callable[[Dict[str, object], float], List],
     obstacle_keepout_bounds: Optional[Bounds2D] = None,
+    obstacle_keepout_bounds_seq: Optional[Sequence[Bounds2D]] = None,
+    extra_validation_fn: Optional[Callable[[Dict[str, object]], Optional[str]]] = None,
 ) -> PackResult:
     clearance_schedule = _build_min_clearance_schedule(
         start_clearance=config.pack_min_clearance,
         floor_clearance=config.pack_clearance_floor_m,
         step=config.pack_clearance_step_m,
+        search_mode=config.pack_clearance_search_mode,
     )
     placement_bounds_local = _local_bounds_from_zone(red_zone_bounds)
 
@@ -189,12 +204,17 @@ def run_pack_retry_loop(
     pack_spec = None
     pack_origin = None
     pack_attempt_used = None
+    clearance_used = None
     last_pack_error = None
     active_objects_by_inst = None
     cull_history: List[dict] = []
     last_pack_for_cull = None
     attempt_idx = 0
     solved = False
+
+    keepout_bounds_seq = tuple(obstacle_keepout_bounds_seq or ())
+    if obstacle_keepout_bounds is not None and obstacle_keepout_bounds not in keepout_bounds_seq:
+        keepout_bounds_seq = (obstacle_keepout_bounds,) + keepout_bounds_seq
 
     while not solved:
         descriptor_by_inst = {d.instance_id: d for d in active_descriptors}
@@ -275,19 +295,26 @@ def run_pack_retry_loop(
                         if not contains_point(red_zone_bounds, (cx, cy)):
                             zone_ok = False
                             break
-                        if obstacle_keepout_bounds is not None:
+                        if keepout_bounds_seq:
                             obj_bounds = ((cx, cy), (cx, cy))
-                            if bounds_overlap(obj_bounds, obstacle_keepout_bounds, tol=1e-6):
+                            if any(bounds_overlap(obj_bounds, keepout, tol=1e-6) for keepout in keepout_bounds_seq):
                                 zone_ok = False
                                 break
                     if not zone_ok:
                         last_pack_error = f"zone_constraint_violation: attempt={attempt_idx}"
                         continue
 
+                    if extra_validation_fn is not None:
+                        extra_error = extra_validation_fn(active_objects)
+                        if extra_error:
+                            last_pack_error = f"{extra_error}: attempt={attempt_idx}"
+                            continue
+
                     pack_spec = pack_spec_candidate
                     world_positions = world_positions_candidate
                     pack_origin = pack_origin_candidate
                     pack_attempt_used = attempt_idx
+                    clearance_used = min_clearance
                     active_objects_by_inst = active_objects
                     solved = True
                     solved_this_round = True
@@ -328,6 +355,7 @@ def run_pack_retry_loop(
         world_positions=world_positions,
         pack_origin=pack_origin,
         attempt_used=pack_attempt_used,
+        clearance_used=clearance_used,
         active_descriptors=active_descriptors,
         active_objects_by_inst=active_objects_by_inst,
         cull_history=cull_history,

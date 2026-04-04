@@ -751,6 +751,7 @@ class BDDLSampler:
         # Initialize other variables that will be filled in later
         self._sampling_whitelist = None  # Maps str to str to list
         self._sampling_blacklist = None  # Maps str to str to list
+        self._inroom_object_name_whitelist = None  # Maps BDDL inst to allowed scene object names
         self._room_type_to_object_instance = None  # dict
         self._inroom_object_instances = None  # set of str
         self._object_sampling_orders = None  # dict mapping str to list of str
@@ -791,7 +792,13 @@ class BDDLSampler:
 
         self._agent_pre_sampling_pose = None
 
-    def sample(self, validate_goal=False, sampling_whitelist=None, sampling_blacklist=None):
+    def sample(
+        self,
+        validate_goal=False,
+        sampling_whitelist=None,
+        sampling_blacklist=None,
+        inroom_object_name_whitelist=None,
+    ):
         """
         Run sampling for this BEHAVIOR task
 
@@ -805,6 +812,9 @@ class BDDLSampler:
                 mapping category name (e.g.: "breakfast_table") to a list of invalid models that should not be sampled from
                 that category. During sampling, if a given synset is found in this blacklist, all specified
                 models will not be used as options
+            inroom_object_name_whitelist (None or dict): If specified, maps a BDDL object instance name
+                (e.g. ``breakfast_table.n.01_1``) to an iterable of allowed scene object names. This constrains
+                in-room sampling for that specific object instance to the named scene objects only.
 
         Returns:
             2-tuple:
@@ -815,6 +825,7 @@ class BDDLSampler:
         # Store sampling white / blacklists
         self._sampling_whitelist = sampling_whitelist
         self._sampling_blacklist = sampling_blacklist
+        self._inroom_object_name_whitelist = inroom_object_name_whitelist
 
         # Reject scenes with missing non-sampleable objects
         # Populate object_scope with sampleable objects and the robot
@@ -1184,6 +1195,13 @@ class BDDLSampler:
                         for obj in room_objs
                         if obj.category in categories and obj.model in valid_models[obj.category]
                     ]
+                    allowed_names = None
+                    if self._inroom_object_name_whitelist is not None:
+                        names = self._inroom_object_name_whitelist.get(obj_inst, None)
+                        if names is not None:
+                            allowed_names = set(names)
+                    if allowed_names is not None:
+                        scene_objs = [obj for obj in scene_objs if obj.name in allowed_names]
 
                     if len(scene_objs) != 0:
                         room_type_to_scene_objs[room_type][obj_inst][room_inst] = scene_objs

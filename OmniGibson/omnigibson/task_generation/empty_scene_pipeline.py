@@ -461,7 +461,7 @@ def run_sim(args):
         DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest,
         place_franka_edge_aligned,
     )
-    from omnigibson.utils.kitchen_bar_workspace import compute_tabletop_zone
+    from omnigibson.utils.tabletop_workspace import compute_tabletop_zone
 
     gm.USE_GPU_DYNAMICS = False
     gm.ENABLE_OBJECT_STATES = True

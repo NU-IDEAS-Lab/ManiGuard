@@ -12,6 +12,7 @@ class ClutterObjectDescriptor:
     role: str
     half_extent_xy: Tuple[float, float]
     height: float
+    root_to_bottom_z: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -133,7 +134,10 @@ def build_clutter_pack(
             chosen_xy = rng.choice(pool)
 
         x, y = chosen_xy
-        z = max(0.008, 0.5 * max(descriptor.height, 0.01) + 0.004)
+        bottom_offset_z = descriptor.root_to_bottom_z
+        if bottom_offset_z is None:
+            bottom_offset_z = 0.5 * max(descriptor.height, 0.01)
+        z = max(0.008, float(bottom_offset_z) + 0.004)
         yaw = 0.0 if descriptor.role == "target" else rng.uniform(-0.18, 0.18)
         qx, qy, qz, qw = _quat_from_yaw(yaw)
         entries.append(

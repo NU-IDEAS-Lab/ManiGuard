@@ -48,12 +48,12 @@ from omnigibson.object_states import (
     ToggledOn,
     Upright,
 )
-
-try:
-    from omnigibson.utils.ltl_utils import LTLMonitor
-    _SPOT_AVAILABLE = True
-except ImportError:
-    _SPOT_AVAILABLE = False
+from omnigibson.utils.ltl_utils import (
+    LTLMonitor,
+    get_spot_runtime_status,
+    spot,
+    spot_runtime_available,
+)
 
 log = logging.getLogger(__name__)
 
@@ -303,9 +303,12 @@ def _auto_generate_scene_propositions(
     ``propositions`` block.  This function parses those AP names and creates
     definitions so the evaluator can handle them.
     """
-    if not _SPOT_AVAILABLE or not merged.get("combined_ltl"):
+    if not merged.get("combined_ltl"):
         return merged
-    import spot
+    if not spot_runtime_available(require_buddy=False):
+        status = get_spot_runtime_status(require_buddy=False)
+        log.warning("[TaskLTLMonitor] Spot runtime invalid for AP parsing: %s", status["error"])
+        return merged
 
     formula = spot.formula(merged["combined_ltl"])
     ap_names = sorted(str(ap) for ap in spot.atomic_prop_collect(formula))
@@ -420,7 +423,7 @@ class TaskLTLMonitor:
         print(f"[LTL] Propositions: {sorted(self._prop_fns.keys())}")
 
         # Initialise the Spot automaton.
-        if _SPOT_AVAILABLE and self._formula_str:
+        if spot_runtime_available(require_buddy=True) and self._formula_str:
             try:
                 self._monitor = LTLMonitor(self._formula_str)
                 self._monitor.reset()
@@ -431,8 +434,9 @@ class TaskLTLMonitor:
                 self._monitor = None
         else:
             self._monitor = None
-            if not _SPOT_AVAILABLE:
-                print("[LTL] WARNING: Spot not available — LTL monitoring disabled.")
+            if not spot_runtime_available(require_buddy=True):
+                status = get_spot_runtime_status(require_buddy=True)
+                print(f"[LTL] WARNING: Spot runtime invalid — monitoring disabled. {status['error']}")
             elif not self._formula_str:
                 print("[LTL] WARNING: No LTL formula found — monitoring disabled.")
 
