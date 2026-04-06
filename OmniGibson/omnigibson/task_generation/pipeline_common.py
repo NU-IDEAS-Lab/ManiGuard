@@ -26,23 +26,12 @@ _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 from omnigibson.utils.bddl_generator import DENSITY_PRESETS  # noqa: F401, E402
 from omnigibson.utils.bddl_generator import generate_clutter_activity as generate_activity  # noqa: F401, E402
 
-# Categories of movable furniture that can block robot placement.
-CLEARABLE_CATEGORIES = {
-    "chair", "straight_chair", "armchair", "swivel_chair", "folding_chair",
-    "highchair", "rocking_chair", "barber_chair", "wheelchair",
-    "stool", "bar_stool", "bench", "ottoman", "hassock",
-    "pot_plant", "plant", "stand", "pedestal", "trash_can", "wastebasket",
-    "side_table", "end_table", "coffee_table", "tray",
-}
-
 STRUCTURAL_CATEGORY_KEYWORDS = (
     "wall", "walls", "floor", "ceiling", "roof", "window", "door",
     "stairs", "stair", "railing", "beam", "column", "pillar",
 )
 
 DEFAULT_VIDEO_CANDIDATE_MODE = "support_relative_v1"
-DEFAULT_SUPPORT_CLEAR_MODE = "remove_all"
-DEFAULT_PERIMETER_CLEAR_MODE = "aggressive"
 
 # ---------------------------------------------------------------------------
 # Arg parsing
@@ -78,8 +67,6 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p.add_argument("--perimeter-clear-margin-m", type=float, default=None)
     p.add_argument("--video-viewer-only", action="store_true")
     p.add_argument("--video-candidate-mode", default=DEFAULT_VIDEO_CANDIDATE_MODE)
-    p.add_argument("--support-clear-mode", default=DEFAULT_SUPPORT_CLEAR_MODE)
-    p.add_argument("--perimeter-clear-mode", default=DEFAULT_PERIMETER_CLEAR_MODE)
     return p
 
 
@@ -255,27 +242,6 @@ def get_scope_obj(env, inst):
     return getattr(ent, "wrapped_obj", None)
 
 
-def compute_floor_z(env):
-    floor_z = 0.0
-    for inst, obj in iter_scope_objects(env):
-        if inst.startswith("floor."):
-            try:
-                floor_z = max(floor_z, float(obj.aabb[1][2]))
-            except Exception:
-                pass
-    return floor_z
-
-
-def is_clearable(category):
-    cat = category.lower()
-    if cat in CLEARABLE_CATEGORIES:
-        return True
-    for prefix in ("chair", "stool", "bench", "ottoman", "hassock"):
-        if prefix in cat:
-            return True
-    return False
-
-
 def is_structural_object(obj):
     name = str(getattr(obj, "name", "") or "").lower()
     cat = str(getattr(obj, "category", "") or "").lower()
@@ -322,74 +288,14 @@ def _oriented_keepout_bounds_xy(base_xy, yaw, x_min, x_max, y_min, y_max):
     return ((min(xs), min(ys)), (max(xs), max(ys)))
 
 
-def _is_surface_resident_object(obj, support_name, scope_names, surface_bounds_xy, top_z):
-    name = getattr(obj, "name", "")
-    if not name or name == support_name or name in scope_names:
-        return False
-    if is_structural_object(obj):
-        return False
-    try:
-        bounds_xy = _object_bounds_xy(obj)
-        obj_min, obj_max = obj.aabb
-    except Exception:
-        return False
-    if not _bounds_overlap_xy(bounds_xy, surface_bounds_xy):
-        return False
-    bottom_z = float(obj_min[2])
-    top_obj_z = float(obj_max[2])
-    return abs(bottom_z - top_z) <= 0.14 or abs(top_obj_z - top_z) <= 0.18
+def clear_support_area(env, support_obj, surface_bounds_xy, margin_m=0.60):
+    """Remove all non-structural preset objects on and around the support surface.
 
-
-def clear_support_surface_objects(env, support_obj, surface_bounds_xy, top_z):
-    """Remove preset objects already occupying the selected support surface."""
-    import omnigibson as og
-
-    support_name = getattr(support_obj, "name", "")
-    scope_names = {getattr(obj, "name", "") for _, obj in iter_scope_objects(env)}
-    to_remove = []
-    for obj in env.scene.objects:
-        if _is_surface_resident_object(obj, support_name, scope_names, surface_bounds_xy, top_z):
-            to_remove.append(obj)
-
-    if to_remove:
-        names = [getattr(o, "name", "?") for o in to_remove]
-        og.sim.batch_remove_objects(to_remove)
-        print(f"[Pipeline] Removed {len(to_remove)} support-surface objects: {names}")
-    return [getattr(o, "name", "") for o in to_remove]
-
-
-def clear_other_objects_by_category(env, support_obj, categories):
-    """Remove all preset objects in the requested categories except the chosen support."""
-    import omnigibson as og
-
-    normalized = {str(cat).strip().lower() for cat in (categories or ()) if str(cat).strip()}
-    if not normalized:
-        return []
-
-    support_name = getattr(support_obj, "name", "")
-    scope_names = {getattr(obj, "name", "") for _, obj in iter_scope_objects(env)}
-    to_remove = []
-    for obj in env.scene.objects:
-        name = getattr(obj, "name", "")
-        cat = str(getattr(obj, "category", "") or "").lower()
-        if not name or name == support_name or name in scope_names:
-            continue
-        if is_structural_object(obj):
-            continue
-        if cat not in normalized:
-            continue
-        to_remove.append(obj)
-
-    if to_remove:
-        names = [getattr(o, "name", "?") for o in to_remove]
-        og.sim.batch_remove_objects(to_remove)
-        print(f"[Pipeline] Removed {len(to_remove)} objects by category {sorted(normalized)}: {names}")
-    return [getattr(o, "name", "") for o in to_remove]
-
-
-def clear_perimeter(env, support_obj, surface_bounds_xy, top_z, floor_z,
-                    margin_m=0.60, mode="clearable_only"):
-    """Remove blocking preset objects near the support surface from the scene."""
+    Removes every object whose xy bounding box overlaps the support surface
+    bounds expanded by ``margin_m``, except the support itself, BDDL scope
+    objects, and structural objects (walls, floors, etc.).  No z-filtering
+    or category filtering — everything in the area goes.
+    """
     import omnigibson as og
 
     expanded_bounds = _expanded_bounds(surface_bounds_xy, margin_m)
@@ -399,29 +305,22 @@ def clear_perimeter(env, support_obj, surface_bounds_xy, top_z, floor_z,
     to_remove = []
     for obj in env.scene.objects:
         name = getattr(obj, "name", "")
-        cat = str(getattr(obj, "category", ""))
-        if name == support_name or name in scope_names:
+        if not name or name == support_name or name in scope_names:
             continue
         if is_structural_object(obj):
             continue
         try:
-            obj_min, obj_max = obj.aabb
-            obj_bounds = (
-                (float(obj_min[0]), float(obj_min[1])),
-                (float(obj_max[0]), float(obj_max[1])),
-            )
+            obj_bounds = _object_bounds_xy(obj)
         except Exception:
             continue
         if not _bounds_overlap_xy(obj_bounds, expanded_bounds):
-            continue
-        if mode != "aggressive" and not is_clearable(cat):
             continue
         to_remove.append(obj)
 
     if to_remove:
         names = [getattr(o, "name", "?") for o in to_remove]
         og.sim.batch_remove_objects(to_remove)
-        print(f"[Pipeline] Removed {len(to_remove)} perimeter objects ({mode}): {names}")
+        print(f"[Pipeline] Cleared {len(to_remove)} objects from support area: {names}")
     return [getattr(o, "name", "") for o in to_remove]
 
 
@@ -1334,9 +1233,7 @@ class EpisodeContext:
     surface_bounds_xy: Optional[Tuple] = None
     table_top_z: float = 0.0
     floor_z: float = 0.0
-    removed_support_residents: list[str] = field(default_factory=list)
-    removed_category_objects: list[str] = field(default_factory=list)
-    removed_perimeter_objects: list[str] = field(default_factory=list)
+    removed_area_objects: list[str] = field(default_factory=list)
     removed_robot_base_objects: list[str] = field(default_factory=list)
     resolved_video_views: Tuple = field(default_factory=tuple)
 
@@ -1594,42 +1491,18 @@ class BasePipeline(ABC):
         ctx.surface_name = surface_info.surface.name
         print(f"[Pipeline] Best surface: {surface_info.surface.name} "
               f"(score={surface_info.surface.score:.3f})")
-        aabb_min, aabb_max = support_obj.aabb
-        ctx.surface_bounds_xy = (
-            (float(aabb_min[0]), float(aabb_min[1])),
-            (float(aabb_max[0]), float(aabb_max[1])),
+        # Clear objects on/around the support surface, then stabilize and
+        # compute final geometry once from the settled pose.
+        pre_aabb_min, pre_aabb_max = support_obj.aabb
+        pre_bounds_xy = (
+            (float(pre_aabb_min[0]), float(pre_aabb_min[1])),
+            (float(pre_aabb_max[0]), float(pre_aabb_max[1])),
         )
-        if ctx.curation and getattr(ctx.curation, "surface_bounds_override_xy", None):
-            ctx.surface_bounds_xy = ctx.curation.surface_bounds_override_xy
-            print(f"[Pipeline] Surface bounds override: {ctx.surface_bounds_xy}")
-        ctx.table_top_z = float(aabb_max[2])
-        ctx.floor_z = compute_floor_z(env)
-        support_clear_mode = getattr(args, "support_clear_mode", None) or DEFAULT_SUPPORT_CLEAR_MODE
-        perimeter_clear_mode = getattr(args, "perimeter_clear_mode", None) or DEFAULT_PERIMETER_CLEAR_MODE
-        if support_clear_mode == "remove_all":
-            ctx.removed_support_residents = clear_support_surface_objects(
-                env, support_obj, ctx.surface_bounds_xy, ctx.table_top_z
-            )
-            if ctx.removed_support_residents:
-                og.sim.step()
-        ctx.removed_category_objects = clear_other_objects_by_category(
-            env,
-            support_obj,
-            getattr(args, "remove_other_object_categories", ()),
-        )
-        if ctx.removed_category_objects:
-            og.sim.step()
         clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
-        ctx.removed_perimeter_objects = clear_perimeter(
-            env,
-            support_obj,
-            ctx.surface_bounds_xy,
-            ctx.table_top_z,
-            ctx.floor_z,
-            margin_m=clear_margin,
-            mode=perimeter_clear_mode,
+        ctx.removed_area_objects = clear_support_area(
+            env, support_obj, pre_bounds_xy, margin_m=clear_margin,
         )
-        if ctx.removed_perimeter_objects:
+        if ctx.removed_area_objects:
             og.sim.step()
 
         if bool(getattr(args, "pin_support_base", False)):
@@ -1637,8 +1510,6 @@ class BasePipeline(ABC):
                 print(f"[Pipeline] Pinned support to world: {support_obj.name}")
                 og.sim.step()
 
-        # Support furniture can settle after nearby chairs / duplicate tables are removed.
-        # Recompute tabletop geometry after this cleanup so pack placement uses the current support pose.
         stabilize_support_object(og, support_obj, steps=4)
         aabb_min, aabb_max = support_obj.aabb
         ctx.surface_bounds_xy = (
@@ -1649,6 +1520,7 @@ class BasePipeline(ABC):
             ctx.surface_bounds_xy = ctx.curation.surface_bounds_override_xy
             print(f"[Pipeline] Surface bounds override: {ctx.surface_bounds_xy}")
         ctx.table_top_z = float(aabb_max[2])
+        ctx.floor_z = float(aabb_min[2])
 
         # -- Pipeline-specific: identify & place objects --------------------
         self.identify_objects(ctx)
@@ -1719,9 +1591,8 @@ class BasePipeline(ABC):
                 gap_actual=float("nan"),
                 failure_reason=None,
             )
-        if perimeter_clear_mode == "aggressive":
-            base_yaw = _yaw_from_quat(ctx.edge_result.base_pose["orientation"])
-            ctx.removed_robot_base_objects = clear_robot_base_region(
+        base_yaw = _yaw_from_quat(ctx.edge_result.base_pose["orientation"])
+        ctx.removed_robot_base_objects = clear_robot_base_region(
                 env,
                 support_obj,
                 ctx.edge_result.base_pose["position"][:2],
@@ -1732,10 +1603,10 @@ class BasePipeline(ABC):
                 workspace_side_m=getattr(args, "mount_workspace_side_m", 0.0) or 0.0,
                 workspace_rear_m=getattr(args, "mount_workspace_rear_m", 0.0) or 0.0,
             )
-            if ctx.removed_robot_base_objects:
-                og.sim.step()
-                if override_pose is None:
-                    ctx.edge_result = place_franka_edge_aligned(edge_request)
+        if ctx.removed_robot_base_objects:
+            og.sim.step()
+            if override_pose is None:
+                ctx.edge_result = place_franka_edge_aligned(edge_request)
         ctx.robot.set_position_orientation(
             position=(ctx.edge_result.base_pose["position"][0],
                       ctx.edge_result.base_pose["position"][1], ctx.floor_z),

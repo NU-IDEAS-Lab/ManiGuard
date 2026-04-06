@@ -568,7 +568,7 @@ def run_sim(args):
                     (float(aabb_max[0]), float(aabb_max[1])),
                 )
                 table_top_z = float(aabb_max[2])
-                floor_z = 0.0
+                floor_z = float(aabb_min[2])
                 print(f"[Pipeline] Surface bounds: {surface_bounds_xy}, "
                       f"top_z={table_top_z:.3f}")
                 sys.stdout.flush()

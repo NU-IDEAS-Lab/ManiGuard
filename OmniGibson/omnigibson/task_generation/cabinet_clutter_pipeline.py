@@ -19,8 +19,7 @@ from omnigibson.task_generation.pipeline_common import (
     build_task_config,
     build_task_object_sets,
     check_interpenetration,
-    clear_perimeter,
-    compute_floor_z,
+    clear_support_area,
     discover_from_scene_json,
     generate_activity,
     get_scene_json_path,
@@ -181,8 +180,8 @@ def run_sim(args, activity_name=None):
             print(f"[Pipeline] Cabinet zone: red_zone={red_zone}, placement_z={placement_z:.3f}")
 
             # -- Clear perimeter objects ------------------------------------
-            floor_z = compute_floor_z(env)
-            clear_perimeter(env, cabinet_obj, cab.aabb_xy, cab.exterior_aabb_max[2], floor_z)
+            floor_z = float(cabinet_obj.aabb[0][2])
+            clear_support_area(env, cabinet_obj, cab.aabb_xy)
 
             # -- Build object sets ------------------------------------------
             task_spec = build_manipulation_task_spec(activity_name)

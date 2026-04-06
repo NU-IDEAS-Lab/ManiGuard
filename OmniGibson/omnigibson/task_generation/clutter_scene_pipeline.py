@@ -343,20 +343,12 @@ class ClutterPipeline(BasePipeline):
             ]
         if hasattr(ctx, "_resident_gate_error"):
             extra["resident_gate_error"] = ctx._resident_gate_error
-        if getattr(ctx, "removed_support_residents", None):
-            extra["removed_support_residents"] = list(ctx.removed_support_residents)
-        if getattr(ctx, "removed_category_objects", None):
-            extra["removed_category_objects"] = list(ctx.removed_category_objects)
-        if getattr(ctx, "removed_perimeter_objects", None):
-            extra["removed_perimeter_objects"] = list(ctx.removed_perimeter_objects)
+        if getattr(ctx, "removed_area_objects", None):
+            extra["removed_area_objects"] = list(ctx.removed_area_objects)
         if getattr(ctx, "removed_robot_base_objects", None):
             extra["removed_robot_base_objects"] = list(ctx.removed_robot_base_objects)
         if getattr(ctx, "resolved_video_views", None):
             extra["resolved_video_views"] = list(ctx.resolved_video_views)
-        if getattr(ctx.args, "support_clear_mode", None) is not None:
-            extra["support_clear_mode"] = ctx.args.support_clear_mode
-        if getattr(ctx.args, "perimeter_clear_mode", None) is not None:
-            extra["perimeter_clear_mode"] = ctx.args.perimeter_clear_mode
         if getattr(ctx.args, "video_candidate_mode", None) is not None:
             extra["video_candidate_mode"] = ctx.args.video_candidate_mode
         return extra
