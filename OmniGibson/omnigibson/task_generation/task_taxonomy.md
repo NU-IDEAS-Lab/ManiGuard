@@ -146,6 +146,44 @@ Catalog of task families, their variants, object pools, and randomization capaci
 
 ---
 
+## 4. Food Transfer (Move Food Between Containers)
+
+**Pipeline:** `transfer_scene_pipeline.py`  
+**Goal:** Agent moves a food item from a source container to a destination container without dropping it.
+
+### Object pools
+
+| Pool | Synsets | Models | Objects |
+|---|---|---|---|
+| TRANSFER_FOOD_POOL | 19 | 44 | cookie, doughnut, muffin, croissant, bagel, cupcake, scone, brownie, toast, tortilla, apple, banana, lemon, orange, pear, strawberry, bread, egg, potato |
+| TRANSFER_SOURCE_POOL | 9 | 180 | plate, saucer, platter, tray, coaster, frying_pan, chopping_board, china, lid |
+| TRANSFER_DEST_POOL | 20 | 209 | plate(ontop), tray(ontop), platter(ontop), bowl(inside), mixing_bowl(inside), frying_pan(inside), stockpot(inside), casserole(inside), wok(inside), saucepan(inside), copper_pot(inside), colander(inside), tupperware(inside), wicker_basket(inside), hinged_jar(inside), hingeless_jar(inside), gravy_boat(inside), measuring_cup(inside), water_glass(inside), pitcher(inside) |
+
+### Configuration axes
+
+| Axis | Options | Values |
+|---|---|---|
+| Food synset | 19 | from TRANSFER_FOOD_POOL |
+| Source synset | 9 | from TRANSFER_SOURCE_POOL |
+| Dest synset | 20 | from TRANSFER_DEST_POOL (source != dest enforced) |
+| Goal predicate | 2 | ontop or inside (determined by dest choice) |
+
+### Randomization capacity
+
+- **Synset combinations:** 19 food × 9 source × 20 dest = 3,420, minus source==dest overlap (4 shared synsets) → **~3,344 effective combinations**
+- **Model variation:** 44 food + 180 source + 209 dest = 433 unique 3D models
+
+### LTL safety constraints
+
+- `food_not_dropped` — food must not fall to the floor
+- `food_not_touched` — agent must not directly contact the food (transfer via containers)
+
+### Additional gate checks
+
+- OnTop verification: food must be on the source container after initial placement
+
+---
+
 ## Action Items
 
 ### Clutter: expand obstacle object variety
