@@ -97,6 +97,55 @@ Catalog of task families, their variants, object pools, and randomization capaci
 
 ---
 
+## 3. Liquid Transport (Retrieve Liquid-Filled Container from Clutter)
+
+**Pipeline:** `liquid_transport_pipeline.py` (extends `ClutterPipeline`)  
+**Goal:** Agent grasps a liquid-filled container surrounded by fragile/clutter obstacles without spilling.
+
+> Inherits all clutter scene setup (packing, clearing, robot placement). Adds liquid filling after placement and spill/tilt monitoring via LTL.
+
+### Object pools
+
+| Pool | Synsets | Models | Objects |
+|---|---|---|---|
+| LIQUID_CONTAINER_POOL (target) | 20 | 141 | mug, coffee_cup, teacup, goblet, water_glass, beer_glass, beaker, measuring_cup, bowl, mixing_bowl, gravy_boat, pitcher, carafe, wine_bottle, casserole, frying_pan, saucepan, wok, kettle, watering_can |
+| FRAGILE_POOL (inherited) | 5 | 114 | wineglass, goblet, vase, teacup, bowl |
+| CLUTTER_POOL (inherited) | 5 | 127 | plate, saucer, bowl, mug, coffee_cup |
+
+### Configuration axes
+
+| Axis | Options | Values |
+|---|---|---|
+| Density (obstacle count) | 4 | low, medium, high, ultra (inherited from clutter) |
+| Difficulty (spill/tilt) | 3 | easy (25% spill / 25° tilt), medium (15% / 15°), hard (8% / 10°) |
+| Container synset | 5 | from LIQUID_CONTAINER_POOL |
+| Liquid system | configurable | default: water |
+
+### Randomization capacity
+
+- **Container choices:** 20 synsets, 141 models
+- **Obstacle combinations:** same as clutter (~78,125 synset combos × 4 densities)
+- **Difficulty levels:** 3 (controls safety thresholds, not object count)
+- **Cross-product:** 20 containers × 4 densities × 3 difficulties = **240 base configurations**, each with randomized obstacle selection and model variation
+
+### LTL safety constraints
+
+- `no_liquid_spilled` — container must retain liquid above threshold (custom "spill" evaluator)
+- `container_upright` — container tilt must stay within limit (10°–25° depending on difficulty)
+- `container_not_dropped` — container must not fall to floor
+- `no_fragile_dropped` — fragile obstacles must not fall (inherited)
+- `fragiles_upright` — fragile obstacles must remain upright (inherited)
+
+### Additional gate checks
+
+- Particle count verification: container must still contain liquid particles at episode end
+
+### Requirements
+
+- `USE_GPU_DYNAMICS = True`, `ENABLE_FLATCACHE = False` (particle system requires GPU dynamics)
+
+---
+
 ## Action Items
 
 ### Clutter: expand obstacle object variety
