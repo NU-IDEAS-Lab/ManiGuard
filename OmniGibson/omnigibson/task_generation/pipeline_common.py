@@ -931,6 +931,94 @@ def close_video_writer(vw):
 
 
 # ---------------------------------------------------------------------------
+# Pre-rollout stabilisation and LTL step-0 validation
+# ---------------------------------------------------------------------------
+
+def _try_upright_objects(og_mod, objects_by_inst):
+    """Re-set any tipped objects to upright orientation, preserving position."""
+    from omnigibson.object_states import Upright
+    fixed = []
+    for inst, obj in objects_by_inst.items():
+        try:
+            if Upright not in obj.states:
+                continue
+            if not obj.states[Upright].get_value():
+                pos = obj.get_position_orientation()[0]
+                obj.set_position_orientation(
+                    position=(float(pos[0]), float(pos[1]), float(pos[2])),
+                    orientation=(0, 0, 0, 1),
+                )
+                if hasattr(obj, "keep_still"):
+                    obj.keep_still()
+                fixed.append(inst)
+        except Exception:
+            continue
+    if fixed:
+        og_mod.sim.step()
+        print(f"[Pipeline] Re-uprighted {len(fixed)} objects: {fixed}")
+    return fixed
+
+
+def validate_ltl_step0(env, activity_name, scene_model, active_objects_by_inst):
+    """Evaluate LTL propositions at step 0 and return (ok, label_dict).
+
+    Creates a temporary LTL monitor, runs one evaluation, and checks
+    whether the initial state would immediately violate any safety
+    constraint.  Returns ``(True, labels)`` if clean.
+    """
+    from omnigibson.utils.safety_monitor import TaskLTLMonitor
+
+    try:
+        monitor = TaskLTLMonitor(
+            env=env, activity_name=activity_name,
+            scene_model=scene_model,
+            active_objects_by_inst=active_objects_by_inst,
+        )
+        monitor.reset()
+        info = monitor.step(0)
+        labels = info.get("ap", {})
+        doomed = bool(info.get("doomed", False))
+        return not doomed, labels
+    except Exception as exc:
+        print(f"[Pipeline] WARNING: LTL step-0 validation failed: {exc}")
+        return True, {}
+
+
+def stabilize_and_validate(
+    env, og_mod, activity_name, scene_model,
+    active_objects_by_inst, max_attempts=3,
+):
+    """Stabilise objects and validate LTL step 0.
+
+    Runs up to *max_attempts* rounds of: re-upright tipped objects →
+    settle physics → evaluate LTL step 0.  Returns ``(ok, labels)``
+    where *ok* is True if a clean initial state was achieved.
+    """
+    ok = False
+    labels = {}
+    for attempt in range(max_attempts):
+        # Fix tipped objects.
+        _try_upright_objects(og_mod, active_objects_by_inst)
+
+        # Physics settle (reuse shared helper).
+        stabilize_active_objects(og_mod, active_objects_by_inst, steps=3)
+
+        # Evaluate LTL step 0.
+        ok, labels = validate_ltl_step0(
+            env, activity_name, scene_model, active_objects_by_inst,
+        )
+        if ok:
+            if attempt > 0:
+                print(f"[Pipeline] LTL step-0 clean after {attempt + 1} stabilisation rounds")
+            return True, labels
+
+        print(f"[Pipeline] LTL step-0 violation (attempt {attempt + 1}/{max_attempts}): "
+              f"{labels}")
+
+    return False, labels
+
+
+# ---------------------------------------------------------------------------
 # LTL rollout (shared by all pipelines)
 # ---------------------------------------------------------------------------
 
@@ -1613,6 +1701,20 @@ class BasePipeline(ABC):
             and 0.20 <= target_dist <= 1.10
             and self.extra_gate_checks(ctx)
         )
+
+        # -- LTL step-0 validation (stabilise objects first) ----------------
+        if ctx.gate_pass and ctx.active_objects:
+            ltl_ok, ltl_labels = stabilize_and_validate(
+                env=env, og_mod=og,
+                activity_name=ctx.activity_name,
+                scene_model=args.scene_model,
+                active_objects_by_inst=ctx.active_objects,
+            )
+            if not ltl_ok:
+                ctx.gate_pass = False
+                print(f"[Pipeline] Gate failed: LTL step-0 violations persist: "
+                      f"{ltl_labels}")
+
         print(f"[Pipeline] Gate: pass={ctx.gate_pass}, dist={target_dist:.3f}")
         if args.strict_gate and not ctx.gate_pass:
             raise RuntimeError("Strict gate failed.")
