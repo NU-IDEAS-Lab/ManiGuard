@@ -109,8 +109,58 @@ class TransferPipeline(BasePipeline):
                 ctx.active_objects[inst] = obj
 
     def place_objects(self, ctx):
+        import omnigibson as og
+
+        # Place source and dest on the table surface, side by side.
+        cx = 0.5 * (ctx.surface_bounds_xy[0][0] + ctx.surface_bounds_xy[1][0])
+        cy = 0.5 * (ctx.surface_bounds_xy[0][1] + ctx.surface_bounds_xy[1][1])
+        spread = 0.15  # half the gap between source and dest
+
+        if ctx._source_obj is not None:
+            try:
+                _, src_aabb_max = ctx._source_obj.aabb
+                src_half_h = 0.5 * max(0.01, float(src_aabb_max[2]) - float(ctx._source_obj.aabb[0][2]))
+            except Exception:
+                src_half_h = 0.02
+            ctx._source_obj.set_position_orientation(
+                position=(cx - spread, cy, ctx.table_top_z + src_half_h + 0.002),
+            )
+            if hasattr(ctx._source_obj, "keep_still"):
+                ctx._source_obj.keep_still()
+
+        dest_obj = get_scope_obj(ctx.env, ctx._dest_ids[0]) if ctx._dest_ids else None
+        if dest_obj is not None:
+            try:
+                _, dest_aabb_max = dest_obj.aabb
+                dest_half_h = 0.5 * max(0.01, float(dest_aabb_max[2]) - float(dest_obj.aabb[0][2]))
+            except Exception:
+                dest_half_h = 0.02
+            dest_obj.set_position_orientation(
+                position=(cx + spread, cy, ctx.table_top_z + dest_half_h + 0.002),
+            )
+            if hasattr(dest_obj, "keep_still"):
+                dest_obj.keep_still()
+
+        og.sim.step()
+
+        # Place food on source.
         if ctx.target_obj is not None and ctx._source_obj is not None:
             _place_food_on_source(ctx.env, ctx.target_obj, ctx._source_obj)
+
+    def extra_gate_checks(self, ctx):
+        from omnigibson.object_states.on_top import OnTop
+
+        if ctx.target_obj is None or ctx._source_obj is None:
+            return True
+        try:
+            on_source = ctx.target_obj.states[OnTop].get_value(ctx._source_obj)
+        except Exception:
+            on_source = False
+        if not on_source:
+            print("[Pipeline] Gate: food is NOT on source")
+            return False
+        print("[Pipeline] Gate: food is on source — OK")
+        return True
 
     def make_edge_objects(self, ctx):
         from omnigibson.utils.franka_edge_align import EdgeAlignObject
