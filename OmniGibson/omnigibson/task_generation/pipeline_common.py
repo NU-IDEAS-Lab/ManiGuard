@@ -79,7 +79,16 @@ def append_jsonl(path, payload):
         return
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(payload, ensure_ascii=True) + "\n")
+        f.write(json.dumps(payload, ensure_ascii=True, default=_json_default) + "\n")
+
+
+def _json_default(obj):
+    """Fallback serializer for Tensor / ndarray values in diagnostics."""
+    if hasattr(obj, "item"):
+        return obj.item()
+    if hasattr(obj, "tolist"):
+        return obj.tolist()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 def strip_room_suffix(room: str) -> str:
