@@ -1,17 +1,24 @@
 """Stack retrieval scene generation pipeline.
 
-Retrieves a target object from under a vertical stack on a table.
+Three variants based on the target (bottom) object type:
+  - **same**:       target is the same type as the stack items
+  - **flat**:       target is a flat object (tray, chopping board, …)
+  - **receptacle**: target is a concave container (bowl, stockpot, …)
 
 Usage:
     python -m omnigibson.task_generation.stack_scene_pipeline \
-        --scene-model Benevolence_1_int --dry-run
+        --stack-mode same --scene-model Benevolence_1_int --dry-run
 
     python -m omnigibson.task_generation.stack_scene_pipeline \
-        --scene-model Benevolence_1_int --episodes 1 --steps 300 \
-        --stack-height medium --save-video
+        --stack-mode flat --scene-model Benevolence_1_int --episodes 1 \
+        --steps 300 --save-video
+
+    python -m omnigibson.task_generation.stack_scene_pipeline \
+        --stack-mode receptacle --scene-model Benevolence_1_int --episodes 1 \
+        --steps 300 --save-video
 """
 
-import math
+import sys
 
 from omnigibson.task_generation.pipeline_common import (
     BasePipeline,
@@ -24,6 +31,10 @@ from omnigibson.utils.bddl_generator import (
     generate_stack_activity,
 )
 
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
 
 def _build_stack_descriptors(env, target_ids, stack_ids):
     """Build StackObjectDescriptors from live env objects, ordered bottom-to-top."""
@@ -83,26 +94,35 @@ def _validate_ontop_state(env, stack_descriptors, support_obj, objects_by_inst):
     return True, "ok"
 
 
-class StackPipeline(BasePipeline):
+# ---------------------------------------------------------------------------
+# Shared base class
+# ---------------------------------------------------------------------------
+
+class _StackBase(BasePipeline):
+    """Shared logic for all stack-retrieval pipeline variants."""
+
+    # Subclasses must set this.
+    _stack_mode = None
 
     @classmethod
     def add_args(cls, parser):
+        parser.add_argument("--stack-mode", default="same",
+                            choices=["same", "flat", "receptacle"],
+                            help="Stack variant: same, flat, or receptacle")
         parser.add_argument("--stack-height", default="medium",
                             choices=list(STACK_HEIGHT_PRESETS),
                             help="Number of objects stacked on top of the target")
         parser.add_argument("--target-synset", default=None,
-                            help="Override target object synset")
+                            help="Override target (bottom) object synset")
         parser.add_argument("--stack-synset", default=None,
                             help="Override stack object synset")
-
-    def activity_prefix(self):
-        return "auto_stack_on"
 
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
         return generate_stack_activity(
             activity_name, support_synset, support_room, args.stack_height,
             target_synset=args.target_synset, stack_synset=args.stack_synset,
+            mode=self._stack_mode,
             rng=rng,
         )
 
@@ -114,16 +134,21 @@ class StackPipeline(BasePipeline):
         selection = ctx.selection
         target_synset = selection["target_synset"]
         stack_synset = selection["stack_synset"]
+        same_synset = target_synset == stack_synset
 
         target_ids, stack_ids = [], []
         for inst, obj in iter_scope_objects(ctx.env):
             if inst.startswith(("agent.", "floor.")):
                 continue
-            if inst.startswith(target_synset + "_"):
+            if same_synset and inst.startswith(target_synset + "_"):
+                # Same synset for both: _1 is target, rest are stack.
+                if inst == f"{target_synset}_1":
+                    target_ids.append(inst)
+                else:
+                    stack_ids.append(inst)
+            elif inst.startswith(target_synset + "_"):
                 target_ids.append(inst)
             elif inst.startswith(stack_synset + "_"):
-                if stack_synset == target_synset and inst == f"{target_synset}_1":
-                    continue
                 stack_ids.append(inst)
 
         stack_ids.sort(key=lambda s: int(s.rsplit("_", 1)[-1]))
@@ -217,13 +242,68 @@ class StackPipeline(BasePipeline):
 
     def diagnostics_extra(self, ctx):
         return {
+            "stack_mode": self._stack_mode,
             "stack_height": getattr(ctx.args, "stack_height", None),
             "ontop_valid": getattr(ctx, "_ontop_ok", None),
         }
 
 
+# ---------------------------------------------------------------------------
+# Concrete pipeline classes
+# ---------------------------------------------------------------------------
+
+class StackSamePipeline(_StackBase):
+    """Target is the same object type as the stack items."""
+    _stack_mode = "same"
+
+    def activity_prefix(self):
+        return "auto_stack_same_on"
+
+
+class StackFlatPipeline(_StackBase):
+    """Target is a flat object (tray, chopping board, etc.) under the stack."""
+    _stack_mode = "flat"
+
+    def activity_prefix(self):
+        return "auto_stack_flat_on"
+
+
+class StackReceptaclePipeline(_StackBase):
+    """Target is a concave receptacle (bowl, stockpot, etc.) under the stack."""
+    _stack_mode = "receptacle"
+
+    def activity_prefix(self):
+        return "auto_stack_recep_on"
+
+
+# Backward compatibility alias.
+StackPipeline = StackSamePipeline
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+_MODE_MAP = {
+    "same": StackSamePipeline,
+    "flat": StackFlatPipeline,
+    "receptacle": StackReceptaclePipeline,
+}
+
+
+def _parse_stack_mode():
+    """Peek at sys.argv for --stack-mode before full argparse runs."""
+    for i, arg in enumerate(sys.argv):
+        if arg == "--stack-mode" and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return "same"
+
+
 def main():
-    StackPipeline().run()
+    mode = _parse_stack_mode()
+    if mode not in _MODE_MAP:
+        raise SystemExit(f"Unknown --stack-mode {mode!r}. Choose from: {list(_MODE_MAP)}")
+    _MODE_MAP[mode]().run()
 
 
 if __name__ == "__main__":

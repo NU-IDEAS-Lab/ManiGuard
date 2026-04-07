@@ -657,6 +657,57 @@ STACK_TARGET_POOL = [
     ("bowl.n.01", 0.060),
 ]
 
+# "Same" variant — one synset used for both target and stack items
+STACK_SAME_POOL = [
+    ("plate.n.04", 0.020),
+    ("saucer.n.02", 0.015),
+    ("bowl.n.01", 0.060),
+]
+
+# "Flat" variant — thin flat objects as the target under the stack
+STACK_FLAT_TARGET_POOL = [
+    # Kitchenware
+    ("tray.n.01", 0.025),
+    ("platter.n.01", 0.024),
+    ("chopping_board.n.01", 0.019),
+    ("place_mat.n.01", 0.004),
+    # Cloth / paper (thin)
+    ("credit_card.n.01", 0.001),
+    ("postcard.n.01", 0.001),
+    ("rag.n.01", 0.001),
+    ("dinner_napkin.n.01", 0.023),
+    ("dishtowel.n.01", 0.031),
+    ("paper_towel.n.01", 0.005),
+    ("hand_towel.n.01", 0.048),
+    ("wax_paper.n.01", 0.015),
+    # Paper / stationery
+    ("envelope.n.01", 0.001),
+    ("newspaper.n.03", 0.006),
+    ("magazine.n.01", 0.010),
+    ("letter.n.01", 0.012),
+    ("notebook.n.01", 0.028),
+    ("catalog.n.01", 0.006),
+    ("menu.n.01", 0.001),
+    ("clipboard.n.01", 0.010),
+    ("folder.n.02", 0.033),
+    ("mousepad.n.01", 0.006),
+    ("map.n.01", 0.003),
+    ("mail.n.04", 0.001),
+    ("receipt.n.02", 0.001),
+    ("money.n.01", 0.001),
+]
+
+# "Receptacle" variant — concave containers as the target under the stack
+STACK_RECEPTACLE_TARGET_POOL = [
+    ("bowl.n.01", 0.069),
+    ("mug.n.04", 0.082),
+    ("frying_pan.n.01", 0.107),
+    ("stockpot.n.01", 0.199),
+    ("casserole.n.02", 0.120),
+    ("wok.n.01", 0.110),
+    ("saucepan.n.01", 0.097),
+]
+
 # Transfer pools
 TRANSFER_FOOD_POOL = [
     ("cookie.n.01",),
@@ -737,10 +788,16 @@ def _pick_model_for_synset(synset, rng):
 
 
 def _build_sampling_whitelist(synset_model_pairs):
-    """Build a ``sampling_whitelist`` dict for BehaviorTask."""
+    """Build a ``sampling_whitelist`` dict for BehaviorTask.
+
+    When the same synset appears multiple times (e.g. target and stack both
+    use bowl.n.01 but with different models), all models are merged into the
+    whitelist so the sampler can assign distinct models to different instances.
+    """
     whitelist = {}
     for synset, category, model_id in synset_model_pairs:
-        whitelist.setdefault(synset, {})[category] = {model_id: None}
+        cat_dict = whitelist.setdefault(synset, {}).setdefault(category, {})
+        cat_dict[model_id] = None
     return whitelist
 
 
@@ -866,9 +923,17 @@ def generate_clutter_activity(
 def generate_stack_activity(
     activity_name, support_synset, support_room, stack_height_key,
     target_synset=None, stack_synset=None,
+    mode="same",
     rng=None,
 ):
     """Generate BDDL + LTL safety files for a stack-retrieval task.
+
+    *mode* selects the target/stack pool pairing:
+      - ``"same"``:  target and stack share the same synset (from STACK_SAME_POOL)
+      - ``"flat"``:  target is a flat object (from STACK_FLAT_TARGET_POOL),
+                     stack items from STACK_ITEM_POOL
+      - ``"receptacle"``: target is a concave container (from
+                          STACK_RECEPTACLE_TARGET_POOL), stack from STACK_ITEM_POOL
 
     Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
     """
@@ -880,17 +945,42 @@ def generate_stack_activity(
     preset = STACK_HEIGHT_PRESETS[stack_height_key]
     stack_above = preset["stack_above"]
 
-    if target_synset is None:
-        target_synset = STACK_TARGET_POOL[rng.integers(len(STACK_TARGET_POOL))][0]
-    if stack_synset is None:
-        stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+    # --- Pool selection by mode ---
+    if mode == "same":
+        if target_synset is None:
+            chosen = STACK_SAME_POOL[rng.integers(len(STACK_SAME_POOL))]
+            target_synset = chosen[0]
+        # Same mode: stack synset must equal target synset
+        stack_synset = target_synset
+    elif mode == "flat":
+        if target_synset is None:
+            target_synset = STACK_FLAT_TARGET_POOL[rng.integers(len(STACK_FLAT_TARGET_POOL))][0]
+        if stack_synset is None:
+            stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+    elif mode == "receptacle":
+        if target_synset is None:
+            target_synset = STACK_RECEPTACLE_TARGET_POOL[rng.integers(len(STACK_RECEPTACLE_TARGET_POOL))][0]
+        if stack_synset is None:
+            stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+    else:
+        raise ValueError(f"Unknown stack mode: {mode!r}")
 
-    # Pin each synset to a single model for stable stacking.
+    # Pin each role to a specific model for stable stacking.
+    # Same mode: all instances use one model (uniform stack).
+    # Flat/receptacle: target and stack get independent models so the
+    # target can differ from stack items even when they share a synset.
     whitelist_pairs = []
-    for synset in {target_synset, stack_synset}:
-        category, model_id = _pick_model_for_synset(synset, rng)
-        if category and model_id:
-            whitelist_pairs.append((synset, category, model_id))
+    if mode == "same":
+        cat, model_id = _pick_model_for_synset(target_synset, rng)
+        if cat and model_id:
+            whitelist_pairs.append((target_synset, cat, model_id))
+    else:
+        target_cat, target_model = _pick_model_for_synset(target_synset, rng)
+        stack_cat, stack_model = _pick_model_for_synset(stack_synset, rng)
+        if target_cat and target_model:
+            whitelist_pairs.append((target_synset, target_cat, target_model))
+        if stack_cat and stack_model:
+            whitelist_pairs.append((stack_synset, stack_cat, stack_model))
 
     sampling_whitelist = _build_sampling_whitelist(whitelist_pairs) if whitelist_pairs else None
 
@@ -920,12 +1010,13 @@ def generate_stack_activity(
     bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
 
     selection = {
+        "mode": mode,
         "target_synset": target_synset,
         "stack_synset": stack_synset,
         "stack_above": stack_above,
         "sampling_whitelist": sampling_whitelist,
     }
-    print(f"[Pipeline] Stack: target={target_synset}, "
+    print(f"[Pipeline] Stack ({mode}): target={target_synset}, "
           f"stack={stack_synset}×{stack_above}")
     if sampling_whitelist:
         print(f"[Pipeline] Pinned models: {sampling_whitelist}")

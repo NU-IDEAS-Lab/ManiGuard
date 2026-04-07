@@ -26,11 +26,16 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", ".."))
 _DEFAULT_OUTPUT_DIR = os.path.join(_PROJECT_ROOT, "outputs", "benchmark_runs")
 
+_STACK_SCRIPT = os.path.join(_SCRIPT_DIR, "stack_scene_pipeline.py")
+
 _PIPELINE_SCRIPTS = {
     "table": os.path.join(_SCRIPT_DIR, "clutter_scene_pipeline.py"),
     "cabinet": os.path.join(_SCRIPT_DIR, "cabinet_clutter_pipeline.py"),
     "transfer": os.path.join(_SCRIPT_DIR, "transfer_scene_pipeline.py"),
-    "stack": os.path.join(_SCRIPT_DIR, "stack_scene_pipeline.py"),
+    "stack": _STACK_SCRIPT,
+    "stack_same": _STACK_SCRIPT,
+    "stack_flat": _STACK_SCRIPT,
+    "stack_receptacle": _STACK_SCRIPT,
 }
 
 # Scenes excluded per pipeline type.
@@ -58,6 +63,27 @@ _EXCLUDED_SCENES = {
         "school_gym",
     }),
     "stack": frozenset({
+        "Benevolence_0_int",
+        "grocery_store_convenience",
+        "hall_arch_wood",
+        "hall_train_station",
+        "school_gym",
+    }),
+    "stack_same": frozenset({
+        "Benevolence_0_int",
+        "grocery_store_convenience",
+        "hall_arch_wood",
+        "hall_train_station",
+        "school_gym",
+    }),
+    "stack_flat": frozenset({
+        "Benevolence_0_int",
+        "grocery_store_convenience",
+        "hall_arch_wood",
+        "hall_train_station",
+        "school_gym",
+    }),
+    "stack_receptacle": frozenset({
         "Benevolence_0_int",
         "grocery_store_convenience",
         "hall_arch_wood",
@@ -147,7 +173,13 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
             cmd.extend(["--dest-synset", args.dest_synset])
         if args.goal_predicate:
             cmd.extend(["--goal-predicate", args.goal_predicate])
-    if args.pipeline == "stack":
+    if args.pipeline.startswith("stack"):
+        # Derive --stack-mode from the pipeline name (stack_flat -> flat, etc.)
+        if "_" in args.pipeline:
+            stack_mode = args.pipeline.split("_", 1)[1]
+        else:
+            stack_mode = "same"
+        cmd.extend(["--stack-mode", stack_mode])
         if args.stack_height:
             cmd.extend(["--stack-height", args.stack_height])
         if args.target_synset:
@@ -402,7 +434,7 @@ def main():
             "dest_synset": args.dest_synset,
             "goal_predicate": args.goal_predicate,
         })
-    if args.pipeline == "stack":
+    if args.pipeline.startswith("stack"):
         config_data.update({
             "stack_height": args.stack_height,
             "target_synset": args.target_synset,
