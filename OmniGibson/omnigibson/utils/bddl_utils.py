@@ -149,6 +149,20 @@ class ObjectStateRealPredicate(UnsampleablePredicate, UnaryAtomicFormula):
         return entity.exists
 
 
+class ObjectStateStashedPredicate(UnsampleablePredicate, UnaryAtomicFormula):
+    """Tells the sampler to create the object but skip placement.
+
+    The object is imported at a stash position by ``_import_sampleable_objects``
+    and left there.  Pipeline code is responsible for teleporting it to the
+    desired location after ``env.reset()``.  Evaluation always returns True
+    (the object exists and is available for manipulation).
+    """
+    STATE_NAME = "stashed"
+
+    def _evaluate(self, entity, **kwargs):
+        return entity.exists
+
+
 class ObjectStateUnaryPredicate(UnaryAtomicFormula):
     STATE_CLASS = None
     STATE_NAME = None
@@ -260,6 +274,7 @@ SUPPORTED_PREDICATES = {
     "future": ObjectStateFuturePredicate,
     "real": ObjectStateRealPredicate,
     "insource": ObjectStateInsourcePredicate,
+    "stashed": ObjectStateStashedPredicate,
 }
 
 KINEMATIC_STATES_BDDL = frozenset([state.__name__.lower() for state in _KINEMATIC_STATE_SET] + ["attached"])
