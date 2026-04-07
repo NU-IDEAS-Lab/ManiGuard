@@ -766,13 +766,28 @@ LIQUID_PRESETS = {
 
 # Transfer pools
 TRANSFER_FOOD_POOL = [
+    # Baked goods
     ("cookie.n.01",),
-    ("apple.n.01",),
-    ("banana.n.02",),
-    ("bread.n.01",),
     ("doughnut.n.02",),
     ("muffin.n.01",),
     ("croissant.n.01",),
+    ("bagel.n.01",),
+    ("cupcake.n.01",),
+    ("scone.n.01",),
+    ("brownie.n.03",),
+    ("toast.n.01",),
+    ("tortilla.n.01",),
+    # Fruits
+    ("apple.n.01",),
+    ("banana.n.02",),
+    ("lemon.n.01",),
+    ("orange.n.01",),
+    ("pear.n.01",),
+    ("strawberry.n.01",),
+    # Other
+    ("bread.n.01",),
+    ("egg.n.02",),
+    ("potato.n.01",),
 ]
 
 TRANSFER_SOURCE_POOL = [
@@ -782,22 +797,36 @@ TRANSFER_SOURCE_POOL = [
     ("tray.n.01",),
     ("coaster.n.03",),
     ("frying_pan.n.01",),
-    ("cookie_sheet.n.01",),
+    ("chopping_board.n.01",),
+    ("china.n.02",),
+    ("lid.n.02",),
 ]
 
 TRANSFER_DEST_POOL = [
-    ("bowl.n.01", "inside"),
+    # Flat surfaces (ontop)
     ("plate.n.04", "ontop"),
     ("tray.n.01", "ontop"),
     ("platter.n.01", "ontop"),
-    ("mug.n.04", "inside"),
-    ("coffee_cup.n.01", "inside"),
-    ("teacup.n.02", "inside"),
+    # Bowls and pots (inside)
+    ("bowl.n.01", "inside"),
+    ("mixing_bowl.n.01", "inside"),
     ("frying_pan.n.01", "inside"),
     ("stockpot.n.01", "inside"),
     ("casserole.n.02", "inside"),
     ("wok.n.01", "inside"),
     ("saucepan.n.01", "inside"),
+    ("copper_pot.n.01", "inside"),
+    ("colander.n.01", "inside"),
+    # Containers (inside)
+    ("tupperware.n.01", "inside"),
+    ("wicker_basket.n.01", "inside"),
+    ("hinged_jar.n.01", "inside"),
+    ("hingeless_jar.n.01", "inside"),
+    ("gravy_boat.n.01", "inside"),
+    ("measuring_cup.n.01", "inside"),
+    # Glasses and pitchers (inside)
+    ("water_glass.n.02", "inside"),
+    ("pitcher.n.02", "inside"),
 ]
 
 
