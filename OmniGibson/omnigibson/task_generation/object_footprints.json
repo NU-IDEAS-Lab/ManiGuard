@@ -1,4 +1,128 @@
 {
+  "beaker": {
+    "dtjmai": {
+      "extent_xyz": [
+        0.084715,
+        0.073969,
+        0.046131
+      ],
+      "footprint_m2": 0.006266
+    },
+    "effbnc": {
+      "extent_xyz": [
+        0.123699,
+        0.123673,
+        0.146823
+      ],
+      "footprint_m2": 0.015298
+    },
+    "exzsal": {
+      "extent_xyz": [
+        0.095327,
+        0.09533,
+        0.101717
+      ],
+      "footprint_m2": 0.009088
+    },
+    "fxrsyi": {
+      "extent_xyz": [
+        0.045776,
+        0.045776,
+        0.06632
+      ],
+      "footprint_m2": 0.002095
+    },
+    "fyrkzs": {
+      "extent_xyz": [
+        0.077808,
+        0.077807,
+        0.0809
+      ],
+      "footprint_m2": 0.006054
+    },
+    "jdijek": {
+      "extent_xyz": [
+        0.077807,
+        0.077806,
+        0.080899
+      ],
+      "footprint_m2": 0.006054
+    },
+    "rhohgs": {
+      "extent_xyz": [
+        0.077806,
+        0.077806,
+        0.080906
+      ],
+      "footprint_m2": 0.006054
+    },
+    "sfvswx": {
+      "extent_xyz": [
+        0.125553,
+        0.125553,
+        0.146461
+      ],
+      "footprint_m2": 0.015763
+    },
+    "sstojv": {
+      "extent_xyz": [
+        0.174232,
+        0.173844,
+        0.207914
+      ],
+      "footprint_m2": 0.030289
+    },
+    "uobdoq": {
+      "extent_xyz": [
+        0.077806,
+        0.077806,
+        0.080898
+      ],
+      "footprint_m2": 0.006054
+    },
+    "uzgibd": {
+      "extent_xyz": [
+        0.070733,
+        0.070733,
+        0.073542
+      ],
+      "footprint_m2": 0.005003
+    },
+    "zycgen": {
+      "extent_xyz": [
+        0.077804,
+        0.077812,
+        0.0809
+      ],
+      "footprint_m2": 0.006054
+    }
+  },
+  "beer_glass": {
+    "lymciz": {
+      "extent_xyz": [
+        0.105616,
+        0.105602,
+        0.208737
+      ],
+      "footprint_m2": 0.011153
+    },
+    "mxsliu": {
+      "extent_xyz": [
+        0.060172,
+        0.060525,
+        0.116911
+      ],
+      "footprint_m2": 0.003642
+    },
+    "rxscji": {
+      "extent_xyz": [
+        0.060078,
+        0.060103,
+        0.087724
+      ],
+      "footprint_m2": 0.003611
+    }
+  },
   "bowl": {
     "adciys": {
       "extent_xyz": [
@@ -375,6 +499,32 @@
         0.055
       ],
       "footprint_m2": 0.026056
+    }
+  },
+  "carafe": {
+    "hdbsog": {
+      "extent_xyz": [
+        0.112721,
+        0.112724,
+        0.302016
+      ],
+      "footprint_m2": 0.012706
+    },
+    "mdtkkv": {
+      "extent_xyz": [
+        0.251337,
+        0.192761,
+        0.38637
+      ],
+      "footprint_m2": 0.048448
+    },
+    "ocjcgp": {
+      "extent_xyz": [
+        0.078413,
+        0.078415,
+        0.233373
+      ],
+      "footprint_m2": 0.006149
     }
   },
   "cardstock": {
@@ -885,6 +1035,24 @@
       "footprint_m2": 0.02189
     }
   },
+  "gravy_boat": {
+    "arryyl": {
+      "extent_xyz": [
+        0.24235,
+        0.109911,
+        0.14055
+      ],
+      "footprint_m2": 0.026637
+    },
+    "krgqwl": {
+      "extent_xyz": [
+        0.21103,
+        0.160811,
+        0.080895
+      ],
+      "footprint_m2": 0.033936
+    }
+  },
   "hand_towel": {
     "klevhj": {
       "extent_xyz": [
@@ -893,6 +1061,24 @@
         0.047708
       ],
       "footprint_m2": 0.064489
+    }
+  },
+  "kettle": {
+    "bzisss": {
+      "extent_xyz": [
+        0.185877,
+        0.159879,
+        0.171578
+      ],
+      "footprint_m2": 0.029718
+    },
+    "vjbldp": {
+      "extent_xyz": [
+        0.182886,
+        0.165641,
+        0.171975
+      ],
+      "footprint_m2": 0.030293
     }
   },
   "letter": {
@@ -1697,6 +1883,16 @@
       "footprint_m2": 2.520356
     }
   },
+  "measuring_cup": {
+    "ahtzhp": {
+      "extent_xyz": [
+        0.2762,
+        0.165158,
+        0.121995
+      ],
+      "footprint_m2": 0.045617
+    }
+  },
   "menu": {
     "keaqlh": {
       "extent_xyz": [
@@ -1755,6 +1951,32 @@
         0.001393
       ],
       "footprint_m2": 0.023982
+    }
+  },
+  "mixing_bowl": {
+    "bsgybx": {
+      "extent_xyz": [
+        0.241086,
+        0.21411,
+        0.116327
+      ],
+      "footprint_m2": 0.051619
+    },
+    "deudkt": {
+      "extent_xyz": [
+        0.264406,
+        0.23482,
+        0.127579
+      ],
+      "footprint_m2": 0.062088
+    },
+    "xifive": {
+      "extent_xyz": [
+        0.292715,
+        0.258948,
+        0.142363
+      ],
+      "footprint_m2": 0.075798
     }
   },
   "money": {
@@ -2271,6 +2493,48 @@
         0.004842
       ],
       "footprint_m2": 0.028344
+    }
+  },
+  "pitcher": {
+    "ankfvi": {
+      "extent_xyz": [
+        0.272876,
+        0.21439,
+        0.280098
+      ],
+      "footprint_m2": 0.058502
+    },
+    "bbewjo": {
+      "extent_xyz": [
+        0.176872,
+        0.129911,
+        0.246034
+      ],
+      "footprint_m2": 0.022978
+    },
+    "mbrlge": {
+      "extent_xyz": [
+        0.27656,
+        0.218411,
+        0.282078
+      ],
+      "footprint_m2": 0.060404
+    },
+    "tsyims": {
+      "extent_xyz": [
+        0.266474,
+        0.217645,
+        0.358196
+      ],
+      "footprint_m2": 0.057997
+    },
+    "tzbnmh": {
+      "extent_xyz": [
+        0.266816,
+        0.218115,
+        0.358189
+      ],
+      "footprint_m2": 0.058197
     }
   },
   "place_mat": {
@@ -3521,6 +3785,210 @@
       "footprint_m2": 0.008953
     }
   },
+  "water_glass": {
+    "bbpraa": {
+      "extent_xyz": [
+        0.067666,
+        0.067668,
+        0.135013
+      ],
+      "footprint_m2": 0.004579
+    },
+    "cdteyb": {
+      "extent_xyz": [
+        0.172127,
+        0.17256,
+        0.041513
+      ],
+      "footprint_m2": 0.029702
+    },
+    "edfzlt": {
+      "extent_xyz": [
+        0.095634,
+        0.095632,
+        0.119384
+      ],
+      "footprint_m2": 0.009146
+    },
+    "elwfms": {
+      "extent_xyz": [
+        0.091139,
+        0.091141,
+        0.12416
+      ],
+      "footprint_m2": 0.008306
+    },
+    "evaida": {
+      "extent_xyz": [
+        0.08401,
+        0.084012,
+        0.156957
+      ],
+      "footprint_m2": 0.007058
+    },
+    "ewgotr": {
+      "extent_xyz": [
+        0.078953,
+        0.078942,
+        0.141494
+      ],
+      "footprint_m2": 0.006233
+    },
+    "ggpnlr": {
+      "extent_xyz": [
+        0.058521,
+        0.058523,
+        0.200005
+      ],
+      "footprint_m2": 0.003425
+    },
+    "gypzlg": {
+      "extent_xyz": [
+        0.094749,
+        0.09475,
+        0.105684
+      ],
+      "footprint_m2": 0.008977
+    },
+    "igyuko": {
+      "extent_xyz": [
+        0.059987,
+        0.060133,
+        0.14803
+      ],
+      "footprint_m2": 0.003607
+    },
+    "imsnkt": {
+      "extent_xyz": [
+        0.086734,
+        0.086734,
+        0.096216
+      ],
+      "footprint_m2": 0.007523
+    },
+    "kttdbu": {
+      "extent_xyz": [
+        0.164038,
+        0.164266,
+        0.139624
+      ],
+      "footprint_m2": 0.026946
+    },
+    "ktuvuo": {
+      "extent_xyz": [
+        0.078982,
+        0.078982,
+        0.077806
+      ],
+      "footprint_m2": 0.006238
+    },
+    "kuiiai": {
+      "extent_xyz": [
+        0.102385,
+        0.102386,
+        0.178207
+      ],
+      "footprint_m2": 0.010483
+    },
+    "lvqgvn": {
+      "extent_xyz": [
+        0.063668,
+        0.063446,
+        0.146884
+      ],
+      "footprint_m2": 0.004039
+    },
+    "nfoydb": {
+      "extent_xyz": [
+        0.089999,
+        0.09,
+        0.130466
+      ],
+      "footprint_m2": 0.0081
+    },
+    "onbiqg": {
+      "extent_xyz": [
+        0.085637,
+        0.085604,
+        0.087655
+      ],
+      "footprint_m2": 0.007331
+    },
+    "ptciim": {
+      "extent_xyz": [
+        0.084267,
+        0.084299,
+        0.119397
+      ],
+      "footprint_m2": 0.007104
+    },
+    "slscza": {
+      "extent_xyz": [
+        0.077183,
+        0.077181,
+        0.150014
+      ],
+      "footprint_m2": 0.005957
+    },
+    "szjfpb": {
+      "extent_xyz": [
+        0.055314,
+        0.05541,
+        0.114609
+      ],
+      "footprint_m2": 0.003065
+    },
+    "uwtdng": {
+      "extent_xyz": [
+        0.05561,
+        0.055608,
+        0.064899
+      ],
+      "footprint_m2": 0.003092
+    },
+    "vcwsbm": {
+      "extent_xyz": [
+        0.134984,
+        0.091152,
+        0.193543
+      ],
+      "footprint_m2": 0.012304
+    },
+    "wvztiw": {
+      "extent_xyz": [
+        0.122967,
+        0.141233,
+        0.142378
+      ],
+      "footprint_m2": 0.017367
+    },
+    "ybhepe": {
+      "extent_xyz": [
+        0.041727,
+        0.041726,
+        0.059115
+      ],
+      "footprint_m2": 0.001741
+    },
+    "zbridw": {
+      "extent_xyz": [
+        0.07994,
+        0.079564,
+        0.099565
+      ],
+      "footprint_m2": 0.00636
+    }
+  },
+  "watering_can": {
+    "pewtns": {
+      "extent_xyz": [
+        0.903344,
+        0.315856,
+        0.50537
+      ],
+      "footprint_m2": 0.285327
+    }
+  },
   "wax_paper": {
     "emhfwr": {
       "extent_xyz": [
@@ -3529,6 +3997,40 @@
         0.014635
       ],
       "footprint_m2": 0.06201
+    }
+  },
+  "wine_bottle": {
+    "hlzfxw": {
+      "extent_xyz": [
+        0.058595,
+        0.058581,
+        0.252234
+      ],
+      "footprint_m2": 0.003433
+    },
+    "inkqch": {
+      "extent_xyz": [
+        0.0691,
+        0.069296,
+        0.221579
+      ],
+      "footprint_m2": 0.004788
+    },
+    "vjdkci": {
+      "extent_xyz": [
+        0.074939,
+        0.074872,
+        0.248034
+      ],
+      "footprint_m2": 0.005611
+    },
+    "zuctnl": {
+      "extent_xyz": [
+        0.061434,
+        0.061409,
+        0.26398
+      ],
+      "footprint_m2": 0.003773
     }
   },
   "wineglass": {

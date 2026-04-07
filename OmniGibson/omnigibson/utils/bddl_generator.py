@@ -722,18 +722,31 @@ STACK_RECEPTACLE_TARGET_POOL = [
 
 # Liquid transport pools — containers must have "fillable" ability in OG.
 LIQUID_CONTAINER_POOL = [
-    ("mug.n.04",),
-    ("coffee_cup.n.01",),
-    ("bowl.n.01",),
-    ("teacup.n.02",),
-    ("goblet.n.01",),
-]
-
-LIQUID_OBSTACLE_POOL = [
-    ("wineglass.n.01", True),
-    ("vase.n.01", True),
-    ("goblet.n.01", True),
+    # Cups and glasses
+    ("mug.n.04", True),
+    ("coffee_cup.n.01", True),
     ("teacup.n.02", True),
+    ("goblet.n.01", True),
+    ("water_glass.n.02", True),
+    ("beer_glass.n.01", True),
+    ("beaker.n.02", True),
+    ("measuring_cup.n.01", True),
+    # Bowls
+    ("bowl.n.01", True),
+    ("mixing_bowl.n.01", True),
+    ("gravy_boat.n.01", True),
+    # Pitchers and bottles
+    ("pitcher.n.02", True),
+    ("carafe.n.01", True),
+    ("wine_bottle.n.01", True),
+    # Cookware
+    ("casserole.n.02", True),
+    ("frying_pan.n.01", True),
+    ("saucepan.n.01", True),
+    ("wok.n.01", True),
+    ("kettle.n.01", True),
+    # Other
+    ("watering_can.n.01", True),
 ]
 
 # Blocked-door obstacle pool — fragile objects placed in the door sweep.
@@ -745,9 +758,9 @@ DOOR_OBSTACLE_POOL = [
 ]
 
 LIQUID_PRESETS = {
-    "easy":   {"obstacle_count": 1, "spill_threshold": 0.25, "max_tilt_deg": 25},
-    "medium": {"obstacle_count": 2, "spill_threshold": 0.15, "max_tilt_deg": 15},
-    "hard":   {"obstacle_count": 4, "spill_threshold": 0.08, "max_tilt_deg": 10},
+    "easy":   {"spill_threshold": 0.25, "max_tilt_deg": 25},
+    "medium": {"spill_threshold": 0.15, "max_tilt_deg": 15},
+    "hard":   {"spill_threshold": 0.08, "max_tilt_deg": 10},
 }
 
 
@@ -1245,88 +1258,6 @@ def generate_liquid_transport_ltl_safety_json(
         "propositions": propositions,
     }
 
-
-def generate_liquid_transport_activity(
-    activity_name: str,
-    support_synset: str,
-    support_room: Optional[str],
-    difficulty: str = "medium",
-    container_synset: Optional[str] = None,
-    system_name: str = "water",
-    rng=None,
-) -> Tuple[str, dict, str, str, dict]:
-    """Generate BDDL + LTL for a liquid transport task.
-
-    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
-    """
-    import bddl
-
-    if rng is None:
-        rng = np.random.default_rng()
-
-    preset = LIQUID_PRESETS[difficulty]
-
-    # Pick container.
-    if container_synset is None:
-        entry = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))]
-        container_synset = entry[0]
-
-    # Pick fragile obstacles.
-    obstacle_synsets = []
-    exclude = {container_synset}
-    pool_no_container = [e for e in LIQUID_OBSTACLE_POOL if e[0] not in exclude]
-    if not pool_no_container:
-        pool_no_container = list(LIQUID_OBSTACLE_POOL)
-    for _ in range(preset["obstacle_count"]):
-        entry = pool_no_container[rng.integers(len(pool_no_container))]
-        obstacle_synsets.append(entry[0])
-
-    # Build BDDL — goal is "grasped" (robot picks up the filled container).
-    objects = [ObjectSpec(synset=container_synset, count=1, role="target")]
-    obstacle_counts: Dict[str, int] = {}
-    for s in obstacle_synsets:
-        obstacle_counts[s] = obstacle_counts.get(s, 0) + 1
-    for synset, count in obstacle_counts.items():
-        objects.append(ObjectSpec(synset=synset, count=count, role="fragile"))
-
-    config = BDDLGenConfig(
-        activity_name=activity_name,
-        support_synset=support_synset,
-        support_room=support_room,
-        goal_predicate="grasped",
-        init_predicate="ontop",
-        objects=objects,
-    )
-    bddl_text = generate_bddl_problem(config)
-
-    # LTL safety.
-    fragile_synset_set = set(obstacle_synsets)
-    ltl_safety = generate_liquid_transport_ltl_safety_json(
-        activity_name=activity_name,
-        container_synsets=[container_synset],
-        fragile_synsets=sorted(fragile_synset_set),
-        system_name=system_name,
-        spill_threshold=preset["spill_threshold"],
-        max_tilt_deg=preset["max_tilt_deg"],
-    )
-
-    activity_dir = os.path.join(
-        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
-    )
-    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
-
-    selection = {
-        "container_synset": container_synset,
-        "obstacle_synsets": obstacle_synsets,
-        "system_name": system_name,
-        "difficulty": difficulty,
-        "spill_threshold": preset["spill_threshold"],
-        "max_tilt_deg": preset["max_tilt_deg"],
-    }
-    print(f"[Pipeline] Liquid transport: container={container_synset}, "
-          f"obstacles={obstacle_counts}, system={system_name}, "
-          f"difficulty={difficulty}")
-    return bddl_text, ltl_safety, bddl_path, json_path, selection
 
 
 # ---------------------------------------------------------------------------
