@@ -28,6 +28,7 @@ Usage:
 """
 
 import argparse
+import copy
 import math
 import os
 import sys
@@ -79,6 +80,10 @@ SURFACE_CATEGORY_POOL = [
 # Minimum usable surface area (m²).  Tables smaller than this are skipped
 # because most task objects won't fit.
 _MIN_SURFACE_AREA_M2 = 0.35
+
+# Minimum surface height (m).  Tables shorter than this produce poor
+# camera framing and are impractical for FrankaMounted manipulation.
+_MIN_SURFACE_HEIGHT_M = 0.50
 
 
 # ---------------------------------------------------------------------------
@@ -177,15 +182,18 @@ def _load_surface_catalog():
         return json.load(f)
 
 
-def _pick_surface(rng, category=None, model=None, min_area=None):
-    """Pick a surface category + model, filtering by minimum area.
+def _pick_surface(rng, category=None, model=None, min_area=None,
+                   min_height=None):
+    """Pick a surface category + model, filtering by minimum area and height.
 
     If *category* and *model* are both given they are used as-is (no filtering).
     Otherwise candidates are drawn from the catalog and rejected if their
-    surface area is below *min_area*.
+    surface area is below *min_area* or height is below *min_height*.
     """
     if min_area is None:
         min_area = _MIN_SURFACE_AREA_M2
+    if min_height is None:
+        min_height = _MIN_SURFACE_HEIGHT_M
 
     if category is not None and model is not None:
         synset = _resolve_synset(category)
@@ -200,12 +208,14 @@ def _pick_surface(rng, category=None, model=None, min_area=None):
         cat_models = catalog.get(cat, {})
         for m, info in cat_models.items():
             area = info["surface_area_m2"]
-            if area >= min_area:
+            height = info.get("height_m", 0.0)
+            if area >= min_area and height >= min_height:
                 candidates.append((cat, m, area))
 
     if not candidates:
         raise RuntimeError(
             f"No surface models found with area >= {min_area:.2f} m² "
+            f"and height >= {min_height:.2f} m "
             f"(categories searched: {cats_to_try})"
         )
 
@@ -485,12 +495,11 @@ def run_sim(args):
             )
             activity_name = args.activity_name or f"auto_{args.setup}_empty_{surface_cat}"
 
-            # Generate BDDL + LTL safety files (for LTL monitor, not sampler).
-            _, _, bddl_path, _, bddl_selection = _generate_bddl(
-                args, activity_name, support_synset, rng,
-            )
-            refresh_activity_cache()
-
+            # Build object configs first so we know which synsets were
+            # actually selected (domain randomization picks assets that
+            # exist in the catalog).  The BDDL is generated afterwards
+            # using the *same* synsets so the LTL monitor tracks the
+            # objects that are actually in the scene.
             if args.setup == "clutter":
                 obj_cfgs, roles, selection = _build_clutter_objects(rng, args.clutter_density)
             elif args.setup == "stack":
@@ -503,6 +512,36 @@ def run_sim(args):
                     rng, food_synset=args.food_synset, source_synset=args.source_synset,
                     dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
                 )
+
+            # Temporarily patch args with the resolved synsets so
+            # _generate_bddl writes a BDDL + LTL safety file that
+            # matches the actually-spawned objects.  Restore afterwards
+            # so the next episode re-randomizes when the user didn't
+            # pin a specific synset via CLI flags.
+            saved_args = copy.copy(args)
+            if args.setup == "transfer":
+                args.food_synset = selection["food_synset"]
+                args.source_synset = selection["source_synset"]
+                args.dest_synset = selection["dest_synset"]
+                args.goal_predicate = selection["goal_predicate"]
+            elif args.setup == "stack":
+                args.target_synset = selection["target_synset"]
+                args.stack_synset = selection["stack_synset"]
+
+            # Generate BDDL + LTL safety files (for LTL monitor, not sampler).
+            _, _, bddl_path, _, bddl_selection = _generate_bddl(
+                args, activity_name, support_synset, rng,
+            )
+            refresh_activity_cache()
+
+            # Restore args so the next episode re-randomizes.
+            args.food_synset = saved_args.food_synset
+            args.source_synset = saved_args.source_synset
+            args.dest_synset = saved_args.dest_synset
+            args.goal_predicate = saved_args.goal_predicate
+            args.target_synset = saved_args.target_synset
+            if hasattr(saved_args, "stack_synset"):
+                args.stack_synset = saved_args.stack_synset
 
             # Surface config: placed at origin, fixed.
             # Look up the surface height from the catalog so we can place it
