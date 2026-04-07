@@ -1,6 +1,18 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. 
+
+## Approach
+- Think before acting. Read existing files before writing code.
+- Be concise in output but thorough in reasoning.
+- Prefer editing over rewriting whole files.
+- Do not re-read files you have already read unless the file may have changed.
+- Test your code before declaring done.
+- No sycophantic openers or closing fluff.
+- Keep solutions simple and direct.
+- Apply first principles thinking. Don't assume I fully understand the goal. Stay prudent, start from the original needs and problems. If the goal is unclear, please pause and discuss with me. If the goal is clear but the path is not optimal, please directly suggest a shorter, lower-cost approach.
+- User instructions always override this file.
+
 
 ## Project Overview
 
@@ -30,12 +42,14 @@ The repository is a monorepo with several major subsystems:
 - Task-level constraints: `bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
 - Scene-level constraints: `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json`
 
-### MVP Scene Entrypoints
+## Git & Collaboration Workflow
 
-Two fixed scene configurations for manipulation tasks:
-
-1. **Coffee-table baseline** (regression): `franka_mounted_mvp_runner_coffee_table.py` + `franka_mounted_behavior_cached_coffee_table.yaml`
-2. **Kitchen-bar mainline** (active development): `franka_mounted_mvp_runner_kitchen_bar.py` + `franka_mounted_behavior_cached_kitchen_bar.yaml`
+- **Commit frequently**: when a logical unit of work is complete (new feature, bug fix, refactor), propose a commit. Do not batch unrelated changes.
+- **Always get approval first**: before committing, show the user the proposed commit message and list of files. Do not commit without explicit approval.
+- **Commit message style**: `type(scope): short description` (e.g. `feat(isaac):`, `fix(clutter):`, `docs:`, `chore:`). Body explains "why", not "what".
+- **After each commit**: add a one-line summary to the relevant `DEV_LOG.md` recording what was accomplished.
+- **Separate concerns**: reference code, documentation, and feature code go in separate commits.
+- **Never force-push** to shared branches without asking.
 
 ## Common Commands
 
@@ -48,26 +62,6 @@ Two fixed scene configurations for manipulation tasks:
 # --omnigibson requires --bddl; --primitives requires --omnigibson
 ```
 
-### Running Simulations
-
-```bash
-conda activate behavior
-
-# Kitchen-bar mainline (primary entrypoint)
-python OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_kitchen_bar.py \
-  --config OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_kitchen_bar.yaml \
-  --activity-name retrieve_filled_cup_from_clutter_safely \
-  --episodes 1 --steps 300 --showcase-gui --strict-gate
-
-# Coffee-table baseline
-python OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_coffee_table.py \
-  --config OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_coffee_table.yaml \
-  --episodes 1 --steps 300 --showcase-gui
-
-# Basic installation check
-python -m OmniGibson.examples.environments.behavior_env_demo
-```
-
 ### Testing
 
 ```bash
@@ -75,6 +69,55 @@ pytest OmniGibson/tests/ -v          # OmniGibson tests (includes LTL tests)
 pytest bddl3/tests/                  # BDDL tests
 pytest RLinf/tests/unit_tests/       # RLinf unit tests
 pytest RLinf/tests/e2e_tests/        # RLinf E2E tests (requires GPU)
+```
+
+### Task Generation Pipelines
+
+All pipelines live in `OmniGibson/omnigibson/task_generation/` and share a `BasePipeline` class from `pipeline_common.py`. Each auto-discovers a surface in the given scene, generates BDDL + `ltl_safety.json`, spawns objects, places the robot, and runs LTL-monitored rollouts.
+
+```bash
+conda activate behavior
+
+# Tabletop clutter (retrieve target from fragile clutter)
+python -m omnigibson.task_generation.clutter_scene_pipeline \
+  --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video --strict-gate
+
+# Stack retrieval (retrieve target from under a stack)
+python -m omnigibson.task_generation.stack_scene_pipeline \
+  --scene-model Benevolence_1_int --stack-height medium --episodes 1 --steps 300 --save-video
+
+# Food transfer (move food between containers without touching)
+python -m omnigibson.task_generation.transfer_scene_pipeline \
+  --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
+
+# Pinch-point (fragile near target handle)
+python -m omnigibson.task_generation.pinch_point_pipeline \
+  --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
+
+# Cabinet clutter (retrieve from inside a cabinet)
+python -m omnigibson.task_generation.cabinet_clutter_pipeline \
+  --scene-model Rs_int --episodes 1 --steps 300 --save-video
+
+# Empty scene (no pre-existing furniture; setup: clutter/stack/transfer)
+python -m omnigibson.task_generation.empty_scene_pipeline \
+  --setup stack --episodes 1 --steps 300 --save-video
+
+# Dry-run any pipeline (generates BDDL + LTL only, no simulator)
+python -m omnigibson.task_generation.clutter_scene_pipeline \
+  --scene-model Benevolence_1_int --dry-run
+```
+
+### Benchmark (multi-scene)
+
+```bash
+# Run a pipeline across all eligible scenes with per-scene timeout
+python -m omnigibson.task_generation.run_benchmark \
+  --pipeline table --steps 300 --episodes 1 --timeout 300 --save-video
+
+# Pipeline choices: table, cabinet, transfer, stack
+# Restrict to specific scenes:
+python -m omnigibson.task_generation.run_benchmark \
+  --pipeline transfer --scenes Benevolence_1_int Rs_int --steps 300
 ```
 
 ### Linting
@@ -121,12 +164,5 @@ Key environment variables (for RLinf/headless deployment):
 
 - **PhysX CUDA error 700**: Set `CUDA_VISIBLE_DEVICES=0` to pin a single GPU
 - **`typing_extensions` errors with torch 2.6.0**: Remove outdated `typing_extensions` from Isaac Sim so conda's version is used
-- **`No module named 'spot'`**: Spot is optional; safety features degrade gracefully
 - **Vulkan `ERROR_INCOMPATIBLE_DRIVER`**: Fix `VK_ICD_FILENAMES` to point to valid local ICD JSON
 - **CUDA OOM**: Reduce `total_num_envs` in YAML config; ensure `component_placement` GPUs don't overlap
-
-## Clutter Density Controls
-
-When working with cluttered environment tasks:
-- **Object count**: Edit BDDL file at `bddl3/bddl/activity_definitions/<activity>/problem0.bddl` (add objects in `:objects` and placement predicates in `:init`)
-- **Packing tightness**: Runner flag `--clutter-density {low,medium,high,ultra}` with optional fine-grain overrides (`--pack-jitter-xy`, `--pack-min-clearance`, `--zone-utilization-cap`, `--pack-min-scale`)

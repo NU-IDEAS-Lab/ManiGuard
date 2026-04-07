@@ -490,21 +490,6 @@ def stabilize_active_objects(og_mod, objs, steps, support_obj=None):
         og_mod.sim.step()
 
 
-def stabilize_support_object(og_mod, support_obj, steps):
-    if support_obj is None or steps <= 0:
-        return
-    for _ in range(int(steps)):
-        try:
-            if hasattr(support_obj, "set_linear_velocity"):
-                support_obj.set_linear_velocity(th.zeros(3))
-            if hasattr(support_obj, "set_angular_velocity"):
-                support_obj.set_angular_velocity(th.zeros(3))
-            if hasattr(support_obj, "keep_still"):
-                support_obj.keep_still()
-        except Exception:
-            pass
-        og_mod.sim.step()
-
 
 def pin_support_object_to_world(support_obj):
     if support_obj is None:
@@ -1491,26 +1476,11 @@ class BasePipeline(ABC):
         ctx.surface_name = surface_info.surface.name
         print(f"[Pipeline] Best surface: {surface_info.surface.name} "
               f"(score={surface_info.surface.score:.3f})")
-        # Clear objects on/around the support surface, then stabilize and
-        # compute final geometry once from the settled pose.
-        pre_aabb_min, pre_aabb_max = support_obj.aabb
-        pre_bounds_xy = (
-            (float(pre_aabb_min[0]), float(pre_aabb_min[1])),
-            (float(pre_aabb_max[0]), float(pre_aabb_max[1])),
-        )
-        clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
-        ctx.removed_area_objects = clear_support_area(
-            env, support_obj, pre_bounds_xy, margin_m=clear_margin,
-        )
-        if ctx.removed_area_objects:
-            og.sim.step()
+        # Pin support first so it cannot move, then clear and compute geometry once.
+        if pin_support_object_to_world(support_obj):
+            print(f"[Pipeline] Pinned support to world: {support_obj.name}")
+        og.sim.step()
 
-        if bool(getattr(args, "pin_support_base", False)):
-            if pin_support_object_to_world(support_obj):
-                print(f"[Pipeline] Pinned support to world: {support_obj.name}")
-                og.sim.step()
-
-        stabilize_support_object(og, support_obj, steps=4)
         aabb_min, aabb_max = support_obj.aabb
         ctx.surface_bounds_xy = (
             (float(aabb_min[0]), float(aabb_min[1])),
@@ -1521,6 +1491,13 @@ class BasePipeline(ABC):
             print(f"[Pipeline] Surface bounds override: {ctx.surface_bounds_xy}")
         ctx.table_top_z = float(aabb_max[2])
         ctx.floor_z = float(aabb_min[2])
+
+        clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
+        ctx.removed_area_objects = clear_support_area(
+            env, support_obj, ctx.surface_bounds_xy, margin_m=clear_margin,
+        )
+        if ctx.removed_area_objects:
+            og.sim.step()
 
         # -- Pipeline-specific: identify & place objects --------------------
         self.identify_objects(ctx)
