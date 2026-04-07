@@ -151,6 +151,11 @@ class SafetyPropositionEvaluator:
         self._resolver = resolver
 
     def build(self, prop_name: str, prop_def: dict) -> Callable[[], bool]:
+        # Custom evaluator types (not backed by a single OG state class).
+        check = prop_def.get("check", "")
+        if check == "spill":
+            return self._build_spill(prop_def)
+
         state = prop_def.get("state", "")
         state_lower = state.lower()
 
@@ -205,6 +210,60 @@ class SafetyPropositionEvaluator:
             if not results:
                 return False if _chk == "any" else True
             return any(results) if _chk == "any" else all(results)
+
+        return eval_fn
+
+    def _build_spill(self, prop_def: dict) -> Callable[[], bool]:
+        """Build an evaluator that detects liquid spill from a container.
+
+        Tracks the initial particle count inside each container on first
+        evaluation. Returns True (spilled) when the fraction of particles
+        lost exceeds ``spill_threshold``.
+        """
+        from omnigibson.object_states import ContainedParticles
+
+        subjects = self._resolver.resolve_patterns(prop_def.get("over", []))
+        system_name = prop_def.get("system_name", "water")
+        params = prop_def.get("params", {})
+        threshold = float(params.get("spill_threshold", 0.15))
+        env = self._resolver._env
+
+        # Mutable state captured by the closure.
+        state = {"initial_counts": None}
+
+        def eval_fn(
+            _subj=subjects, _sys_name=system_name, _env=env,
+            _threshold=threshold, _state=state, _cp=ContainedParticles,
+        ):
+            # Lazily get the particle system from the scene.
+            try:
+                system = _env.scene.get_system(_sys_name)
+            except Exception:
+                return False
+
+            # Read current particle counts per container.
+            current = {}
+            for inst, obj in _subj.items():
+                try:
+                    data = obj.states[_cp].get_value(system)
+                    current[inst] = data.n_in_volume
+                except Exception:
+                    current[inst] = 0
+
+            # Record baseline on first call.
+            if _state["initial_counts"] is None:
+                _state["initial_counts"] = dict(current)
+                return False  # No spill possible on first evaluation.
+
+            # Check if any container has lost more than threshold.
+            for inst, initial in _state["initial_counts"].items():
+                if initial <= 0:
+                    continue
+                now = current.get(inst, 0)
+                loss = (initial - now) / initial
+                if loss > _threshold:
+                    return True
+            return False
 
         return eval_fn
 

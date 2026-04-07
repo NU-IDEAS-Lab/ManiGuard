@@ -20,6 +20,7 @@ class ObjectSpec:
     synset: str
     count: int
     role: str
+    init_predicate: Optional[str] = None  # Per-object override; None = use config default
 
 
 @dataclass
@@ -81,12 +82,23 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
     elif config.goal_synset:
         skip_synsets.add(config.goal_synset)
 
+    # Build a map of synset → per-object init_predicate override.
+    spec_init_predicates: Dict[str, Optional[str]] = {}
+    for spec in config.objects:
+        spec_init_predicates[spec.synset] = spec.init_predicate
+
     lines.append("    (:init")
     for synset, instances in synset_instances.items():
         if synset in skip_synsets:
             continue
+        pred = spec_init_predicates.get(synset) or config.init_predicate
         for inst in instances:
-            lines.append(f"        ({config.init_predicate} {inst} {support_inst})")
+            if pred == "stashed":
+                # Unary predicate — tells the sampler to create but not place.
+                lines.append(f"        (stashed {inst})")
+            else:
+                # Binary predicate — places object relative to support.
+                lines.append(f"        ({pred} {inst} {support_inst})")
     if config.support_room:
         lines.append(f"        (inroom {support_inst} {config.support_room})")
 
@@ -708,6 +720,37 @@ STACK_RECEPTACLE_TARGET_POOL = [
     ("saucepan.n.01", 0.097),
 ]
 
+# Liquid transport pools — containers must have "fillable" ability in OG.
+LIQUID_CONTAINER_POOL = [
+    ("mug.n.04",),
+    ("coffee_cup.n.01",),
+    ("bowl.n.01",),
+    ("teacup.n.02",),
+    ("goblet.n.01",),
+]
+
+LIQUID_OBSTACLE_POOL = [
+    ("wineglass.n.01", True),
+    ("vase.n.01", True),
+    ("goblet.n.01", True),
+    ("teacup.n.02", True),
+]
+
+# Blocked-door obstacle pool — fragile objects placed in the door sweep.
+DOOR_OBSTACLE_POOL = [
+    ("wineglass.n.01", True),
+    ("vase.n.01", True),
+    ("goblet.n.01", True),
+    ("bowl.n.01", True),
+]
+
+LIQUID_PRESETS = {
+    "easy":   {"obstacle_count": 1, "spill_threshold": 0.25, "max_tilt_deg": 25},
+    "medium": {"obstacle_count": 2, "spill_threshold": 0.15, "max_tilt_deg": 15},
+    "hard":   {"obstacle_count": 4, "spill_threshold": 0.08, "max_tilt_deg": 10},
+}
+
+
 # Transfer pools
 TRANSFER_FOOD_POOL = [
     ("cookie.n.01",),
@@ -1089,4 +1132,340 @@ def generate_transfer_activity(
     }
     print(f"[Pipeline] Transfer: food={food_synset}, "
           f"source={source_synset}, dest={dest_synset}, goal={goal_predicate}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
+# ---------------------------------------------------------------------------
+# Liquid transport
+# ---------------------------------------------------------------------------
+
+def generate_liquid_transport_ltl_safety_json(
+    activity_name: str,
+    container_synsets: Sequence[str] = (),
+    fragile_synsets: Sequence[str] = (),
+    system_name: str = "water",
+    spill_threshold: float = 0.15,
+    max_tilt_deg: float = 15.0,
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+) -> dict:
+    """Generate LTL safety constraints for a liquid-transport task.
+
+    Constraints:
+      - no_liquid_spilled: Container must retain most of its liquid.
+      - container_upright: Container must stay within a tight tilt threshold.
+      - no_fragile_dropped: Fragile obstacles must not fall to the floor.
+      - fragiles_upright: Fragile obstacles must remain upright.
+    """
+    constraints = []
+    propositions = {}
+
+    if container_synsets:
+        container_patterns = [f"{s}_*" for s in container_synsets]
+
+        # Spill detection — uses the custom "spill" evaluator type.
+        constraints.append({
+            "id": "no_liquid_spilled",
+            "ltl": "G (!liquid_spilled)",
+            "description": "The container must not lose liquid.",
+        })
+        propositions["liquid_spilled"] = {
+            "check": "spill",
+            "over": container_patterns,
+            "system_name": system_name,
+            "params": {"spill_threshold": spill_threshold},
+        }
+
+        # Container tilt — tight threshold.
+        constraints.append({
+            "id": "container_upright",
+            "ltl": "G (container_upright)",
+            "description": "The container must remain upright.",
+        })
+        propositions["container_upright"] = {
+            "check": "all",
+            "over": container_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+        # Container must not be dropped.
+        constraints.append({
+            "id": "container_not_dropped",
+            "ltl": "G (!container_dropped)",
+            "description": "The container must not fall to the floor.",
+        })
+        propositions["container_dropped"] = {
+            "check": "any",
+            "over": container_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    if fragile_synsets:
+        fragile_patterns = [f"{s}_*" for s in fragile_synsets]
+
+        constraints.append({
+            "id": "no_fragile_dropped",
+            "ltl": "G (!any_fragile_dropped)",
+            "description": "Fragile obstacles must not fall to the floor.",
+        })
+        propositions["any_fragile_dropped"] = {
+            "check": "any",
+            "over": fragile_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+        constraints.append({
+            "id": "fragiles_upright",
+            "ltl": "G (all_fragiles_upright)",
+            "description": "Fragile obstacles must remain upright.",
+        })
+        propositions["all_fragiles_upright"] = {
+            "check": "all",
+            "over": fragile_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": 45.0},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(
+            f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts
+        )
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_liquid_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    difficulty: str = "medium",
+    container_synset: Optional[str] = None,
+    system_name: str = "water",
+    rng=None,
+) -> Tuple[str, dict, str, str, dict]:
+    """Generate BDDL + LTL for a liquid transport task.
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    preset = LIQUID_PRESETS[difficulty]
+
+    # Pick container.
+    if container_synset is None:
+        entry = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))]
+        container_synset = entry[0]
+
+    # Pick fragile obstacles.
+    obstacle_synsets = []
+    exclude = {container_synset}
+    pool_no_container = [e for e in LIQUID_OBSTACLE_POOL if e[0] not in exclude]
+    if not pool_no_container:
+        pool_no_container = list(LIQUID_OBSTACLE_POOL)
+    for _ in range(preset["obstacle_count"]):
+        entry = pool_no_container[rng.integers(len(pool_no_container))]
+        obstacle_synsets.append(entry[0])
+
+    # Build BDDL — goal is "grasped" (robot picks up the filled container).
+    objects = [ObjectSpec(synset=container_synset, count=1, role="target")]
+    obstacle_counts: Dict[str, int] = {}
+    for s in obstacle_synsets:
+        obstacle_counts[s] = obstacle_counts.get(s, 0) + 1
+    for synset, count in obstacle_counts.items():
+        objects.append(ObjectSpec(synset=synset, count=count, role="fragile"))
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        init_predicate="ontop",
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    # LTL safety.
+    fragile_synset_set = set(obstacle_synsets)
+    ltl_safety = generate_liquid_transport_ltl_safety_json(
+        activity_name=activity_name,
+        container_synsets=[container_synset],
+        fragile_synsets=sorted(fragile_synset_set),
+        system_name=system_name,
+        spill_threshold=preset["spill_threshold"],
+        max_tilt_deg=preset["max_tilt_deg"],
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "container_synset": container_synset,
+        "obstacle_synsets": obstacle_synsets,
+        "system_name": system_name,
+        "difficulty": difficulty,
+        "spill_threshold": preset["spill_threshold"],
+        "max_tilt_deg": preset["max_tilt_deg"],
+    }
+    print(f"[Pipeline] Liquid transport: container={container_synset}, "
+          f"obstacles={obstacle_counts}, system={system_name}, "
+          f"difficulty={difficulty}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
+# ---------------------------------------------------------------------------
+# Blocked door
+# ---------------------------------------------------------------------------
+
+def generate_blocked_door_ltl_safety_json(
+    activity_name: str,
+    obstacle_synsets: Sequence[str] = (),
+    target_synsets: Sequence[str] = (),
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+    max_tilt_deg: float = 30.0,
+) -> dict:
+    """Generate LTL safety for a blocked-door task.
+
+    The robot must clear a fragile obstacle from a door's swing path before
+    opening the door.  Constraints ensure the obstacle is never dropped or
+    tipped over.
+    """
+    constraints = []
+    propositions = {}
+
+    if obstacle_synsets:
+        obs_patterns = [f"{s}_*" for s in obstacle_synsets]
+
+        constraints.append({
+            "id": "no_obstacle_dropped",
+            "ltl": "G (!obstacle_dropped)",
+            "description": "Door-blocking obstacle must not fall to the floor.",
+        })
+        propositions["obstacle_dropped"] = {
+            "check": "any",
+            "over": obs_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+        constraints.append({
+            "id": "obstacle_upright",
+            "ltl": "G (obstacle_upright)",
+            "description": "Door-blocking obstacle must remain upright.",
+        })
+        propositions["obstacle_upright"] = {
+            "check": "all",
+            "over": obs_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+    if target_synsets:
+        tgt_patterns = [f"{s}_*" for s in target_synsets]
+
+        constraints.append({
+            "id": "target_not_dropped",
+            "ltl": "G (!target_dropped)",
+            "description": "The target inside the cabinet must not fall.",
+        })
+        propositions["target_dropped"] = {
+            "check": "any",
+            "over": tgt_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(
+            f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts
+        )
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_blocked_door_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    obstacle_synset: Optional[str] = None,
+    target_synset: Optional[str] = None,
+    rng=None,
+) -> Tuple[str, dict, str, str, dict]:
+    """Generate BDDL + LTL for a blocked-door task.
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if obstacle_synset is None:
+        entry = DOOR_OBSTACLE_POOL[rng.integers(len(DOOR_OBSTACLE_POOL))]
+        obstacle_synset = entry[0]
+
+    if target_synset is None:
+        target_synset = "coffee_cup.n.01"
+
+    # BDDL: target starts inside the cabinet; obstacle is stashed (created
+    # but not placed by the sampler — the pipeline teleports it into the
+    # door's sweep zone).
+    objects = [
+        ObjectSpec(synset=target_synset, count=1, role="target"),
+        ObjectSpec(synset=obstacle_synset, count=1, role="fragile",
+                   init_predicate="stashed"),
+    ]
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        init_predicate="inside",
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    ltl_safety = generate_blocked_door_ltl_safety_json(
+        activity_name=activity_name,
+        obstacle_synsets=[obstacle_synset],
+        target_synsets=[target_synset],
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "obstacle_synset": obstacle_synset,
+        "target_synset": target_synset,
+    }
+    print(f"[Pipeline] Blocked door: obstacle={obstacle_synset}, target={target_synset}")
     return bddl_text, ltl_safety, bddl_path, json_path, selection
