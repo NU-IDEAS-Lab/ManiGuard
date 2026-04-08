@@ -39,11 +39,12 @@ class CustomDataConfig(DataConfigFactory):
     action_train_with_rotation_6d: bool = False
 
     def generate_observations(
-        image: np.ndarray, state: np.ndarray, prompt: str
+        image: np.ndarray, wrist_image: np.ndarray, state: np.ndarray, prompt: str
     ) -> dict:
         """Creates an input example for the Franka policy."""
         return {
             "observation/image": image,
+            "observation/wrist_image": wrist_image,
             "observation/state": state,
             "prompt": prompt,
         }
@@ -57,6 +58,7 @@ class CustomDataConfig(DataConfigFactory):
                 _transforms.RepackTransform(
                     {
                         "observation/image": "image",
+                        "observation/wrist_image": "wrist_image",
                         "observation/state": "state",
                         "actions": "actions",
                         "prompt": "prompt",

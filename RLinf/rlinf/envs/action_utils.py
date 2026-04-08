@@ -196,6 +196,8 @@ def prepare_actions(
         )
     elif env_type == SupportedEnvType.BEHAVIOR:
         chunk_actions = raw_chunk_actions
+    elif env_type == SupportedEnvType.SENTINEL:
+        chunk_actions = raw_chunk_actions
     elif env_type == SupportedEnvType.ISAACLAB:
         chunk_actions = prepare_actions_for_isaaclab(
             raw_chunk_actions=raw_chunk_actions,

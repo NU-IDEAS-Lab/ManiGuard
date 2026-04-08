@@ -283,6 +283,24 @@ _CONFIGS = [
         num_train_steps=30_000,
     ),
     TrainConfig(
+        name="pi05_franka_tabletop",
+        model=pi0_config.Pi0Config(
+            pi05=True, action_horizon=10, discrete_state_input=False
+        ),
+        data=CustomDataConfig(
+            repo_id="physical-intelligence/franka_tabletop",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets",
+                asset_id="franka",
+            ),
+            extra_delta_transform=False,
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(_DEFAULT_PI05_BEHAVIOR_BASE),
+        pytorch_weight_path=_DEFAULT_PI05_BEHAVIOR_BASE,
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
         name="pi0_custom",
         model=pi0_config.Pi0Config(),
         data=CustomDataConfig(
@@ -305,6 +323,7 @@ _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 
 def _override_with_model_path(config: TrainConfig, model_path: str) -> TrainConfig:
     """Return a copy of the config with assets/weight paths set from model_path."""
+    assets_path = os.path.join(model_path, "assets")
     data_config = config.data
     if (
         dataclasses.is_dataclass(data_config)
@@ -313,7 +332,7 @@ def _override_with_model_path(config: TrainConfig, model_path: str) -> TrainConf
     ):
         data_config = dataclasses.replace(
             data_config,
-            assets=dataclasses.replace(data_config.assets, assets_dir=model_path),
+            assets=dataclasses.replace(data_config.assets, assets_dir=assets_path),
         )
 
     replace_kwargs = {
@@ -323,7 +342,7 @@ def _override_with_model_path(config: TrainConfig, model_path: str) -> TrainConf
     if dataclasses.is_dataclass(config) and any(
         field.name == "assets_dirs" for field in dataclasses.fields(config)
     ):
-        replace_kwargs["assets_dirs"] = model_path
+        replace_kwargs["assets_dirs"] = assets_path
 
     return dataclasses.replace(config, **replace_kwargs)
 
