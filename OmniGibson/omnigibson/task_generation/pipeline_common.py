@@ -147,7 +147,13 @@ def get_scene_json_path(scene_model):
 
 
 def discover_from_scene_json(scene_json_path, category_filter_fn, priority_map=None):
-    """Find (category, room) of best matching object from scene JSON. No sim needed."""
+    """Find (category, room_type, room_instance) of best matching object from scene JSON.
+
+    Returns a 3-tuple: (category, room_type, room_instance) where room_type
+    is the stripped semantic name (for BDDL ``inroom``) and room_instance is
+    the full instance name (for ``load_room_instances``).  Returns None if no
+    match is found.
+    """
     with open(scene_json_path, "r", encoding="utf-8") as f:
         init_infos = json.load(f).get("objects_info", {}).get("init_info", {})
 
@@ -158,8 +164,9 @@ def discover_from_scene_json(scene_json_path, category_filter_fn, priority_map=N
         if not category_filter_fn(cat):
             continue
         rooms = args.get("in_rooms", [])
-        room = strip_room_suffix(rooms[0]) if rooms else "living_room"
-        candidates.append((cat, room))
+        room_instance = rooms[0] if rooms else "living_room_0"
+        room_type = strip_room_suffix(room_instance)
+        candidates.append((cat, room_type, room_instance))
 
     if not candidates:
         return None
@@ -1430,12 +1437,14 @@ class BasePipeline(ABC):
         curation = getattr(args, "_scene_curation", None)
 
         support_synset, support_room = "breakfast_table.n.01", "living_room"
+        room_instance = None
         try:
             scene_json = get_scene_json_path(args.scene_model)
             discovery = discover_surface_from_scene_json(scene_json)
             if discovery:
                 support_synset = resolve_synset(discovery[0])
                 support_room = discovery[1]
+                room_instance = discovery[2]
                 print(f"[Pipeline] Discovered: {discovery[0]} in {support_room}")
         except Exception as e:
             print(f"[Pipeline] Surface discovery failed: {e}")
@@ -1482,6 +1491,7 @@ class BasePipeline(ABC):
         surface_category = discovery[0]
         support_synset = resolve_synset(surface_category)
         support_room = discovery[1]
+        room_instance = discovery[2]
         if curation and curation.support_category:
             surface_category = curation.support_category
             support_synset = resolve_synset(surface_category)
@@ -1507,6 +1517,9 @@ class BasePipeline(ABC):
         cfg = build_task_config(args.scene_model, activity_name)
         cfg["scene"]["scene_file"] = scene_json
         cfg["scene"]["scene_instance"] = None
+        if room_instance:
+            cfg["scene"]["load_room_instances"] = [room_instance]
+            print(f"[Pipeline] Partial load: room={room_instance}")
         cfg["task"]["online_object_sampling"] = True
         cfg["task"]["use_presampled_robot_pose"] = False
         if curation and getattr(curation, "surface_name", None):

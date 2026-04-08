@@ -250,14 +250,18 @@ def _infer_support_ids(
     supports = set()
 
     # Destination objects in init conditions for ontop / inside are strong support signals.
+    # inroom also implies a scene object that acts as implicit support.
     for cond in init_conditions:
-        if not isinstance(cond, list) or len(cond) < 3:
+        if not isinstance(cond, list) or len(cond) < 2:
             continue
-        if cond[0] not in {"ontop", "inside"}:
-            continue
-        support = _normalize_instance_token(str(cond[2]), instance_to_synset)
-        if support is not None:
-            supports.add(support)
+        if cond[0] in {"ontop", "inside"} and len(cond) >= 3:
+            support = _normalize_instance_token(str(cond[2]), instance_to_synset)
+            if support is not None:
+                supports.add(support)
+        elif cond[0] == "inroom" and len(cond) >= 2:
+            support = _normalize_instance_token(str(cond[1]), instance_to_synset)
+            if support is not None:
+                supports.add(support)
 
     # Destination objects in positive relocation goals are also support signals.
     for pred in goal_predicates:

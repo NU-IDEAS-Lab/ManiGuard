@@ -965,11 +965,14 @@ def generate_clutter_activity(
         if brk:
             clutter_breakable_set.add(s)
 
-    objects = [ObjectSpec(synset=target_synset, count=1, role="target")]
+    objects = [ObjectSpec(synset=target_synset, count=1, role="target",
+                          init_predicate="stashed")]
     for synset, count in fragile_counts.items():
-        objects.append(ObjectSpec(synset=synset, count=count, role="fragile"))
+        objects.append(ObjectSpec(synset=synset, count=count, role="fragile",
+                                  init_predicate="stashed"))
     for synset, count in clutter_counts.items():
-        objects.append(ObjectSpec(synset=synset, count=count, role="clutter"))
+        objects.append(ObjectSpec(synset=synset, count=count, role="clutter",
+                                  init_predicate="stashed"))
 
     config = BDDLGenConfig(
         activity_name=activity_name,
