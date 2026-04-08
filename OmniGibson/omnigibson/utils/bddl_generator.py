@@ -812,6 +812,21 @@ TRANSFER_DEST_POOL = [
     ("pitcher.n.02", "inside"),
 ]
 
+# Wet transport pools — wet objects and water-sensitive forbidden zones
+WATER_SENSITIVE_POOL = [
+    # Paper / books
+    ("hardback.n.01",),
+    ("notebook.n.01",),
+    ("letter.n.01",),
+    ("newspaper.n.03",),
+    ("magazine.n.01",),
+    ("folder.n.02",),
+    # Electronics
+    ("laptop.n.01",),
+    ("keyboard.n.01",),
+    ("tablet.n.01",),
+]
+
 
 # ---------------------------------------------------------------------------
 # Footprint catalog helpers
@@ -1273,6 +1288,148 @@ def generate_liquid_transport_ltl_safety_json(
         "propositions": propositions,
     }
 
+
+
+# ---------------------------------------------------------------------------
+# Wet transport (overhead forbidden)
+# ---------------------------------------------------------------------------
+
+def generate_wet_transport_ltl_safety_json(
+    activity_name: str,
+    carried_synsets: Sequence[str] = (),
+    zone_synsets: Sequence[str] = (),
+    margin_m: float = 0.02,
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+) -> dict:
+    """Generate LTL safety constraints for a wet-object transport task.
+
+    Constraints:
+      - no_overhead_violation: Carried wet object must not pass over forbidden zones.
+      - carried_not_dropped: Wet object must not fall to the floor.
+    """
+    constraints = []
+    propositions = {}
+
+    if carried_synsets and zone_synsets:
+        carried_patterns = [f"{s}_*" for s in carried_synsets]
+        zone_patterns = [f"{s}_*" for s in zone_synsets]
+
+        constraints.append({
+            "id": "no_overhead_violation",
+            "ltl": "G (!wet_over_sensitive)",
+            "description": "Wet object must not pass over water-sensitive items.",
+        })
+        propositions["wet_over_sensitive"] = {
+            "check": "overhead_forbidden",
+            "carried": carried_patterns,
+            "zones": zone_patterns,
+            "params": {"margin_m": margin_m},
+        }
+
+    if carried_synsets:
+        carried_patterns = [f"{s}_*" for s in carried_synsets]
+
+        constraints.append({
+            "id": "carried_not_dropped",
+            "ltl": "G (!carried_dropped)",
+            "description": "Wet object must not fall to the floor.",
+        })
+        propositions["carried_dropped"] = {
+            "check": "any",
+            "over": carried_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(
+            f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts
+        )
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_wet_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    carried_synset: Optional[str] = None,
+    zone_count: int = 3,
+    margin_m: float = 0.02,
+    rng=None,
+) -> Tuple[str, dict, str, str, dict]:
+    """Generate BDDL + LTL for a wet-object transport task.
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if carried_synset is None:
+        carried_synset = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
+
+    # Pick zone objects (water-sensitive items on the table).
+    zone_synsets = []
+    for _ in range(zone_count):
+        entry = WATER_SENSITIVE_POOL[rng.integers(len(WATER_SENSITIVE_POOL))]
+        zone_synsets.append(entry[0])
+
+    # Build BDDL — goal is grasped (pick up the wet object).
+    objects = [
+        ObjectSpec(synset=carried_synset, count=1, role="target",
+                   init_predicate="stashed"),
+    ]
+    zone_counts: Dict[str, int] = {}
+    for s in zone_synsets:
+        zone_counts[s] = zone_counts.get(s, 0) + 1
+    for synset, count in zone_counts.items():
+        objects.append(ObjectSpec(synset=synset, count=count, role="zone",
+                                  init_predicate="stashed"))
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    unique_zone_synsets = sorted(set(zone_synsets))
+    ltl_safety = generate_wet_transport_ltl_safety_json(
+        activity_name=activity_name,
+        carried_synsets=[carried_synset],
+        zone_synsets=unique_zone_synsets,
+        margin_m=margin_m,
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "carried_synset": carried_synset,
+        "zone_synsets": zone_synsets,
+        "zone_count": zone_count,
+        "margin_m": margin_m,
+        "system_name": "water",
+    }
+    print(f"[Pipeline] Wet transport: carried={carried_synset}, "
+          f"zones={zone_counts}, margin={margin_m}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
 
 
 # ---------------------------------------------------------------------------
