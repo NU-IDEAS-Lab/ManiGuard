@@ -22,6 +22,7 @@ class SupportedEnvType(Enum):
     ISAACLAB = "isaaclab"
     METAWORLD = "metaworld"
     BEHAVIOR = "behavior"
+    SENTINEL = "sentinel"
     CALVIN = "calvin"
     ROBOCASA = "robocasa"
     REALWORLD = "realworld"
@@ -84,6 +85,10 @@ def get_env_cls(env_type: str, env_cfg=None, enable_offload=False):
         from rlinf.envs.behavior.behavior_env import BehaviorEnv
 
         return BehaviorEnv
+    elif env_type == SupportedEnvType.SENTINEL:
+        from rlinf.envs.sentinel.sentinel_env import SentinelEnv
+
+        return SentinelEnv
     elif env_type == SupportedEnvType.CALVIN:
         from rlinf.envs.calvin.calvin_gym_env import CalvinEnv
 

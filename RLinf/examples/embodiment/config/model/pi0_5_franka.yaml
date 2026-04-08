@@ -1,0 +1,28 @@
+model_type: "openpi"
+model_path: ${oc.env:SENTINEL_PI05_BASE,/home/yiyanpeng/data/SENTINEL-Lite/checkpoints/pi05_base}
+
+precision: null
+
+num_action_chunks: 10
+action_dim: 8
+
+is_lora: False
+lora_rank: 32
+
+use_proprio: True
+num_steps: 5
+add_value_head: False
+
+openpi:
+  config_name: "pi05_franka_tabletop"
+  num_images_in_input: 2
+  noise_level: 0.5
+  action_chunk: ${actor.model.num_action_chunks}
+  num_steps: ${actor.model.num_steps}
+  train_expert_only: True
+  action_env_dim: ${actor.model.action_dim}
+  noise_method: "flow_sde"
+  add_value_head: ${actor.model.add_value_head}
+  value_after_vlm: False
+  value_vlm_mode: "mean_token"
+  detach_critic_input: null

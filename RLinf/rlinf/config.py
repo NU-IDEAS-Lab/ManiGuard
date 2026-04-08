@@ -817,6 +817,27 @@ def validate_embodied_cfg(cfg):
                 omnigibson_cfg.robots[0].obs_modalities = ["rgb", "depth", "proprio"]
             cfg.env.train.omnigibson_cfg = omnigibson_cfg
             cfg.env.eval.omnigibson_cfg = omnigibson_cfg
+        elif (
+            SupportedEnvType(cfg.env.train.env_type) == SupportedEnvType.SENTINEL
+            or SupportedEnvType(cfg.env.eval.env_type) == SupportedEnvType.SENTINEL
+        ):
+            import omnigibson as og
+
+            assert cfg.env.train.base_config_name == "franka_mounted_sentinel", (
+                "Only franka_mounted_sentinel is supported for sentinel envs, "
+                f"got {cfg.env.train.base_config_name}"
+            )
+            config_filename = os.path.join(
+                og.example_config_path, "franka_mounted_sentinel.yaml"
+            )
+            omnigibson_cfg = yaml.load(
+                open(config_filename, "r"), Loader=yaml.FullLoader
+            )
+            omnigibson_cfg = OmegaConf.create(omnigibson_cfg)
+            with open_dict(omnigibson_cfg):
+                omnigibson_cfg.robots[0].obs_modalities = ["rgb", "proprio"]
+            cfg.env.train.omnigibson_cfg = omnigibson_cfg
+            cfg.env.eval.omnigibson_cfg = omnigibson_cfg
 
     return cfg
 
