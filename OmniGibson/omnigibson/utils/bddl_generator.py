@@ -277,13 +277,6 @@ def generate_stack_bddl_problem(config: BDDLGenConfig) -> str:
     if agent_synset not in synset_instances:
         synset_instances[agent_synset] = [f"{agent_synset}_1"]
 
-    # Floor — stack objects are placed here so the sampler imports them
-    # without crowding the table.  The pipeline re-stacks after reset.
-    floor_synset = "floor.n.01"
-    if floor_synset not in synset_instances:
-        synset_instances[floor_synset] = [f"{floor_synset}_1"]
-    floor_inst = synset_instances[floor_synset][0]
-
     # --- :objects ---
     lines.append("    (:objects")
     for synset, instances in synset_instances.items():
@@ -291,25 +284,18 @@ def generate_stack_bddl_problem(config: BDDLGenConfig) -> str:
     lines.append("    )")
     lines.append("")
 
-    # --- :init — target on the table; stack objects on the floor ---
-    # The BDDL sampler uses expensive raycasting for ontop placement.
-    # Placing many identical items on a table causes crowding failures with
-    # long retry loops.  We place only the target (and any base) on the
-    # support; stack objects go on the floor (a huge, never-crowded surface)
-    # so the sampler can import them cheaply.  The pipeline's
-    # apply_stack_transform re-stacks everything after env.reset().
+    # --- :init — all objects stashed; pipeline re-stacks after reset ---
     lines.append("    (:init")
 
     for bi in base_insts:
-        lines.append(f"        (ontop {bi} {support_inst})")
+        lines.append(f"        (stashed {bi})")
     for ti in target_insts:
-        lines.append(f"        (ontop {ti} {support_inst})")
+        lines.append(f"        (stashed {ti})")
     for si in stack_insts:
-        lines.append(f"        (ontop {si} {floor_inst})")
+        lines.append(f"        (stashed {si})")
 
     if config.support_room:
         lines.append(f"        (inroom {support_inst} {config.support_room})")
-        lines.append(f"        (inroom {floor_inst} {config.support_room})")
     lines.append("    )")
     lines.append("")
 
@@ -482,17 +468,14 @@ def generate_transfer_bddl_problem(config: BDDLGenConfig) -> str:
     lines.append("    )")
     lines.append("")
 
-    # --- :init — place everything on the support surface ---
-    # The BDDL sampler's raycast placement fails for small-on-small ontop
-    # (e.g. cookie on plate).  We place all objects on the furniture and let
-    # the pipeline teleport the food onto the source container after reset.
+    # --- :init — all objects stashed; pipeline places them after reset ---
     lines.append("    (:init")
     for fi in food_insts:
-        lines.append(f"        (ontop {fi} {support_inst})")
+        lines.append(f"        (stashed {fi})")
     for si in source_insts:
-        lines.append(f"        (ontop {si} {support_inst})")
+        lines.append(f"        (stashed {si})")
     for di in dest_insts:
-        lines.append(f"        (ontop {di} {support_inst})")
+        lines.append(f"        (stashed {di})")
     if config.support_room:
         lines.append(f"        (inroom {support_inst} {config.support_room})")
     lines.append("    )")
