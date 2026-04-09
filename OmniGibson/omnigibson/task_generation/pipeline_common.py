@@ -40,7 +40,8 @@ DEFAULT_VIDEO_CANDIDATE_MODE = "support_relative_v1"
 def make_base_arg_parser(description="Task generation pipeline"):
     """Create an argument parser with args common to all pipelines."""
     p = argparse.ArgumentParser(description=description)
-    p.add_argument("--scene-model", required=True)
+    p.add_argument("--scene-model", default=None,
+                   help="Scene to use. If omitted, auto-selects based on object footprint.")
     p.add_argument("--activity-name", default=None)
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--episodes", type=int, default=1)
@@ -213,6 +214,50 @@ def estimate_surface_area_from_scene_json(scene_json_path, surface_category):
         area = (ext[0] * scale[0]) * (ext[1] * scale[1])
         return area
     return None
+
+
+# ---------------------------------------------------------------------------
+# Scene-surface catalog (pre-sim, for object-first scene selection)
+# ---------------------------------------------------------------------------
+
+_scene_surface_catalog_cache = {}
+
+
+def build_scene_surface_catalog(category_filter_fn, priority_map=None):
+    """Scan all scenes and return eligible surfaces with estimated areas.
+
+    Returns list of (scene_model, surface_category, room_type, room_instance, area_m2).
+    Results are cached by filter function identity.
+    """
+    cache_key = id(category_filter_fn)
+    if cache_key in _scene_surface_catalog_cache:
+        return _scene_surface_catalog_cache[cache_key]
+
+    from omnigibson.utils.asset_utils import get_scene_path
+    scenes_dir = os.path.join(
+        os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..")),
+        "datasets", "behavior-1k-assets", "scenes",
+    )
+    if not os.path.isdir(scenes_dir):
+        return []
+
+    catalog = []
+    for scene_model in sorted(os.listdir(scenes_dir)):
+        try:
+            scene_json = get_scene_json_path(scene_model)
+        except Exception:
+            continue
+        if not os.path.isfile(scene_json):
+            continue
+        discovery = discover_from_scene_json(scene_json, category_filter_fn, priority_map)
+        if discovery is None:
+            continue
+        surface_category, room_type, room_instance = discovery
+        area = estimate_surface_area_from_scene_json(scene_json, surface_category)
+        catalog.append((scene_model, surface_category, room_type, room_instance, area))
+
+    _scene_surface_catalog_cache[cache_key] = catalog
+    return catalog
 
 
 # ---------------------------------------------------------------------------
@@ -1151,7 +1196,7 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
 def setup_run_dir(args):
     if args.run_dir is None:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        label = args.scene_model
+        label = args.scene_model or "auto"
         args.run_dir = os.path.join(_DEFAULT_RUNS_DIR, f"{label}_{ts}")
     os.makedirs(args.run_dir, exist_ok=True)
     if args.debug_jsonl is None:
@@ -1405,6 +1450,14 @@ class BasePipeline(ABC):
     def make_edge_objects(self, ctx):
         """Return a tuple of EdgeAlignObject for robot placement."""
 
+    @abstractmethod
+    def select_objects(self, args, rng):
+        """Pre-select objects and estimate required surface area.
+
+        Must return a dict with at minimum ``"required_area_m2"`` plus
+        pipeline-specific object selections.
+        """
+
     def extra_gate_checks(self, ctx):
         """Additional gate conditions beyond the shared ones.  Default: True."""
         return True
@@ -1432,6 +1485,28 @@ class BasePipeline(ABC):
             self._run_sim(args)
 
     def _run_dry_run(self, args):
+        from omnigibson.utils.surface_discovery import is_table_like
+
+        # Object-first scene selection for dry-run too.
+        rng_pre = np.random.default_rng(args.seed)
+        pre_selection = self.select_objects(args, rng_pre)
+        args._pre_selection = pre_selection
+
+        if args.scene_model is None:
+            required = pre_selection["required_area_m2"]
+            scene_catalog = build_scene_surface_catalog(
+                is_table_like, SURFACE_CATEGORY_PRIORITY,
+            )
+            eligible = [e for e in scene_catalog if e[4] is not None and e[4] >= required]
+            if not eligible:
+                raise RuntimeError(f"No scene has a table large enough ({required:.3f} m²)")
+            pick = eligible[rng_pre.integers(len(eligible))]
+            args.scene_model = pick[0]
+            print(f"[Pipeline] Auto-scene: {pick[0]} (area={pick[4]:.3f}, required={required:.3f})")
+
+        if args.scene_model is None:
+            raise RuntimeError("No --scene-model specified and select_objects() not implemented.")
+
         scene_label = args.scene_model
         activity_name = args.activity_name or f"{self.activity_prefix()}_{scene_label}"
         curation = getattr(args, "_scene_curation", None)
@@ -1474,8 +1549,37 @@ class BasePipeline(ABC):
     def _run_sim(self, args):
         import omnigibson as og
         from omnigibson.macros import gm
+        from omnigibson.utils.surface_discovery import is_table_like
 
         gm.ENABLE_OBJECT_STATES = True
+
+        # -- Object-first scene selection -----------------------------------
+        rng_pre = np.random.default_rng(args.seed)
+        pre_selection = self.select_objects(args, rng_pre)
+        args._pre_selection = pre_selection
+
+        if args.scene_model is None:
+            required = pre_selection["required_area_m2"]
+            scene_catalog = build_scene_surface_catalog(
+                is_table_like, SURFACE_CATEGORY_PRIORITY,
+            )
+            eligible = [
+                entry for entry in scene_catalog
+                if entry[4] is not None and entry[4] >= required
+            ]
+            if not eligible:
+                raise RuntimeError(
+                    f"No scene has a table large enough ({required:.3f} m²). "
+                    f"Scanned {len(scene_catalog)} scenes."
+                )
+            pick = eligible[rng_pre.integers(len(eligible))]
+            args.scene_model = pick[0]
+            print(f"[Pipeline] Auto-scene: {pick[0]} "
+                  f"(table={pick[1]}, area={pick[4]:.3f} m², "
+                  f"required={required:.3f} m²)")
+
+        if args.scene_model is None:
+            raise RuntimeError("No --scene-model specified and select_objects() not implemented.")
 
         scene_label = args.scene_model
         activity_name = args.activity_name or f"{self.activity_prefix()}_{scene_label}"
@@ -1499,6 +1603,14 @@ class BasePipeline(ABC):
             support_room = curation.support_room
         print(f"[Pipeline] Discovered: category={surface_category} "
               f"synset={support_synset} room={support_room}")
+
+        # Store surface info in pre_selection for _run_episode.
+        if pre_selection is None:
+            pre_selection = {}
+            args._pre_selection = pre_selection
+        pre_selection.setdefault("_surface_category", surface_category)
+        pre_selection.setdefault("_room_type", support_room)
+        pre_selection.setdefault("_room_instance", room_instance)
 
         # -- Generate BDDL --------------------------------------------------
         rng = np.random.default_rng(args.seed)
@@ -1575,17 +1687,69 @@ class BasePipeline(ABC):
         env.reset()
         og.sim.step()
 
-        # -- Surface discovery ----------------------------------------------
+        # -- Find support surface object by category -------------------------
+        pre = args._pre_selection
+        surface_category = pre["_surface_category"]
         forced_name = getattr(ctx.curation, "surface_name", None) if ctx.curation else None
-        forced_category = getattr(ctx.curation, "support_category", None) if ctx.curation else None
-        surface_info, support_obj = discover_best_surface(
-            env, forced_name=forced_name, forced_category=forced_category,
-        )
-        ctx.surface_info = surface_info
+        target_category = getattr(ctx.curation, "support_category", None) if ctx.curation else surface_category
+
+        support_obj = None
+        if forced_name:
+            for obj in env.scene.objects:
+                if getattr(obj, "name", "") == forced_name:
+                    support_obj = obj
+                    break
+        else:
+            for obj in env.scene.objects:
+                if getattr(obj, "category", "") == target_category:
+                    support_obj = obj
+                    break
+
+        if support_obj is None:
+            raise RuntimeError(
+                f"Support surface '{target_category}' not found in scene objects."
+            )
+
         ctx.support_obj = support_obj
-        ctx.surface_name = surface_info.surface.name
-        print(f"[Pipeline] Best surface: {surface_info.surface.name} "
-              f"(score={surface_info.surface.score:.3f})")
+        ctx.surface_name = getattr(support_obj, "name", "")
+
+        # Analyze the surface for obstacle/approach info.
+        from omnigibson.utils.surface_discovery import analyze_surface
+        try:
+            aabb_min, aabb_max = support_obj.aabb
+            surface_aabb_xy = (
+                (float(aabb_min[0]), float(aabb_min[1])),
+                (float(aabb_max[0]), float(aabb_max[1])),
+            )
+            top_z = float(aabb_max[2])
+            scene_data = []
+            for obj in env.scene.objects:
+                try:
+                    o_min, o_max = obj.aabb
+                    scene_data.append({
+                        "name": getattr(obj, "name", ""),
+                        "category": str(getattr(obj, "category", "")),
+                        "aabb_xy": ((float(o_min[0]), float(o_min[1])),
+                                    (float(o_max[0]), float(o_max[1]))),
+                        "top_z": float(o_max[2]),
+                        "bottom_z": float(o_min[2]),
+                    })
+                except Exception:
+                    continue
+            other_aabbs = [
+                d["aabb_xy"] for d in scene_data
+                if d["name"] != ctx.surface_name
+                and d["top_z"] >= 0.15
+                and d.get("bottom_z", 0) <= top_z + 0.3
+            ]
+            ctx.surface_info = analyze_surface(
+                ctx.surface_name, target_category, surface_aabb_xy, top_z,
+                scene_data, scene_object_aabbs=other_aabbs,
+            )
+        except Exception:
+            ctx.surface_info = None
+
+        print(f"[Pipeline] Support surface: {ctx.surface_name} ({target_category})")
         # Pin support first so it cannot move, then clear and compute geometry once.
         if pin_support_object_to_world(support_obj):
             print(f"[Pipeline] Pinned support to world: {support_obj.name}")

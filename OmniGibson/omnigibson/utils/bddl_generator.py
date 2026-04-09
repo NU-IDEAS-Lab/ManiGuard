@@ -824,7 +824,8 @@ WATER_SENSITIVE_POOL = [
     # Electronics
     ("laptop.n.01",),
     ("keyboard.n.01",),
-    ("tablet.n.01",),
+    ("tablet.n.05",),
+    ("monitor.n.04",),
 ]
 
 
@@ -846,6 +847,20 @@ def _load_footprint_catalog():
 def _synset_to_category(synset):
     """Extract the asset category name from a synset like 'mug.n.04'."""
     return synset.split(".")[0]
+
+
+def estimate_object_set_footprint(synset_counts, margin_factor=1.3):
+    """Estimate total footprint (m²) for a set of objects.
+
+    Args:
+        synset_counts: list of (synset, count) tuples
+        margin_factor: multiplier for packing clearance (default 1.3 = 30% extra)
+
+    Returns: estimated total area in m²
+    """
+    catalog = _load_footprint_catalog()
+    total = sum(_median_footprint(catalog, s) * c for s, c in synset_counts)
+    return total * margin_factor
 
 
 def _median_footprint(catalog, synset):
@@ -891,10 +906,12 @@ def _build_sampling_whitelist(synset_model_pairs):
 def generate_clutter_activity(
     activity_name, support_synset, support_room, density_key,
     rng=None, init_predicate="ontop",
-    target_pool=None, fragile_pool=None, clutter_pool=None,
-    available_area_m2=None,
+    pre_selection=None,
 ):
-    """Generate BDDL + LTL with randomized, area-aware object selection.
+    """Generate BDDL + LTL from pre-selected objects.
+
+    ``pre_selection`` must contain ``target_synset``, ``fragile_picks``,
+    and ``clutter_picks``.
 
     Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
     """
@@ -902,55 +919,10 @@ def generate_clutter_activity(
 
     if rng is None:
         rng = np.random.default_rng()
-    target_pool = target_pool or TARGET_POOL
-    fragile_pool = fragile_pool or FRAGILE_POOL
-    clutter_pool = clutter_pool or CLUTTER_POOL
 
-    catalog = _load_footprint_catalog()
-    density = DENSITY_PRESETS[density_key]
-
-    # Pick target (exactly 1).
-    target_synset, _ = target_pool[rng.integers(len(target_pool))]
-    target_fp = _median_footprint(catalog, target_synset)
-    remaining = (available_area_m2 - target_fp) if available_area_m2 is not None else None
-
-    # Greedy fill: fragile (at least 1).
-    fragile_picks = []
-    fragile_pool_no_target = [s for s in fragile_pool if s[0] != target_synset]
-    if not fragile_pool_no_target:
-        fragile_pool_no_target = list(fragile_pool)
-
-    for i in range(density["fragile_count"]):
-        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
-        fp = _median_footprint(catalog, synset)
-        if remaining is not None and remaining < fp and i >= 1:
-            break
-        fragile_picks.append(synset)
-        if remaining is not None:
-            remaining = max(0.0, remaining - fp)
-
-    if not fragile_picks:
-        synset, _ = fragile_pool_no_target[rng.integers(len(fragile_pool_no_target))]
-        fragile_picks.append(synset)
-        if remaining is not None:
-            remaining = max(0.0, remaining - _median_footprint(catalog, synset))
-
-    # Greedy fill: clutter (optional).
-    clutter_picks = []
-    for _ in range(density["clutter_count"]):
-        synset, breakable = clutter_pool[rng.integers(len(clutter_pool))]
-        fp = _median_footprint(catalog, synset)
-        if remaining is not None and remaining < fp:
-            break
-        clutter_picks.append((synset, breakable))
-        if remaining is not None:
-            remaining = max(0.0, remaining - fp)
-
-    if available_area_m2 is not None:
-        used = available_area_m2 - (remaining or 0.0)
-        print(f"[Pipeline] Area budget: available={available_area_m2:.4f} m², "
-              f"used={used:.4f}, remaining={remaining:.4f}, "
-              f"objects=1+{len(fragile_picks)}+{len(clutter_picks)}")
+    target_synset = pre_selection["target_synset"]
+    fragile_picks = pre_selection.get("fragile_picks", [])
+    clutter_picks = [(s, True) for s in pre_selection.get("clutter_picks", [])]
 
     # Build ObjectSpec list.
     fragile_counts = {}
@@ -997,7 +969,6 @@ def generate_clutter_activity(
         "target_synset": target_synset,
         "fragile_picks": fragile_picks,
         "clutter_picks": [s for s, _ in clutter_picks],
-        "available_area_m2": available_area_m2,
     }
     fragile_desc = ", ".join(f"{s}×{c}" for s, c in fragile_counts.items())
     clutter_desc = ", ".join(f"{s}×{c}" for s, c in clutter_counts.items()) or "none"
