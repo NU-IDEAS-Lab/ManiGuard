@@ -829,6 +829,25 @@ WATER_SENSITIVE_POOL = [
 ]
 
 
+# Lid-before-transport pools — containers with matching lids + food contents
+LID_CONTAINER_POOL = [
+    ("stockpot.n.01",),
+    ("casserole.n.02",),
+    ("saucepan.n.01",),
+    ("wok.n.01",),
+    ("frying_pan.n.01",),
+]
+
+LID_FOOD_POOL = [
+    ("apple.n.01",),
+    ("egg.n.02",),
+    ("lemon.n.01",),
+    ("orange.n.01",),
+    ("potato.n.01",),
+    ("pear.n.01",),
+]
+
+
 # ---------------------------------------------------------------------------
 # Footprint catalog helpers
 # ---------------------------------------------------------------------------
@@ -1400,6 +1419,264 @@ def generate_wet_transport_activity(
     }
     print(f"[Pipeline] Wet transport: carried={carried_synset}, "
           f"zones={zone_counts}, margin={margin_m}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
+# ---------------------------------------------------------------------------
+# Lid-before-transport (temporal Until constraint)
+# ---------------------------------------------------------------------------
+
+_LID_PAIRS_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "task_generation", "lid_container_pairs.json",
+)
+
+
+def get_lid_container_pairs():
+    """Return dict mapping lid_model -> {container_category, container_model}."""
+    with open(_LID_PAIRS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def generate_lid_transport_ltl_safety_json(
+    activity_name: str,
+    container_synsets: Sequence[str] = (),
+    support_synset: str = "breakfast_table.n.01",
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+) -> dict:
+    """Generate LTL safety for lid-before-transport task.
+
+    Constraints:
+      - lid_before_lift: container must stay on support until lid is placed
+        LTL: (container_on_support) U (lid_on_container)
+      - container_not_dropped: container must not fall to floor
+    """
+    constraints = []
+    propositions = {}
+
+    if container_synsets:
+        container_patterns = [f"{s}_*" for s in container_synsets]
+
+        # Until constraint: container stays on table until lid is on it.
+        constraints.append({
+            "id": "lid_before_lift",
+            "ltl": "(container_on_support) U (lid_on_container)",
+            "description": "Container must stay on the table until lid is placed on it.",
+        })
+        propositions["container_on_support"] = {
+            "check": "all",
+            "over": container_patterns,
+            "state": "ontop",
+            "relative_to": [f"{support_synset}_*"],
+        }
+        propositions["lid_on_container"] = {
+            "check": "all",
+            "over": ["lid.n.02_*"],
+            "state": "ontop",
+            "relative_to": container_patterns,
+        }
+
+        # Container must not be dropped.
+        constraints.append({
+            "id": "container_not_dropped",
+            "ltl": "G (!container_dropped)",
+            "description": "Container must not fall to the floor.",
+        })
+        propositions["container_dropped"] = {
+            "check": "any",
+            "over": container_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    combined = " & ".join(f"({p})" for p in ltl_parts) if ltl_parts else ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_lid_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    lid_model: Optional[str] = None,
+    food_synset: Optional[str] = None,
+    rng=None,
+) -> Tuple[str, dict, str, str, dict]:
+    """Generate BDDL + LTL for a lid-before-transport task.
+
+    Picks a lid from ``lid_container_pairs.json``, which gives the matching
+    container category and model.  The lid is always chosen first because
+    only lids with attachment meta-links are compatible with the sampler.
+
+    Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # Pick a lid → get its paired container.
+    pairs = get_lid_container_pairs()
+    if lid_model is None:
+        lid_ids = list(pairs.keys())
+        lid_model = lid_ids[rng.integers(len(lid_ids))]
+
+    pair = pairs[lid_model]
+    container_category = pair["container_category"]
+    container_model = pair["container_model"]
+
+    # Resolve container synset from category.
+    # Resolve category → synset without importing pipeline_common.
+    try:
+        from bddl.object_taxonomy import ObjectTaxonomy
+        container_synset = ObjectTaxonomy().get_synset_from_category(container_category)
+    except Exception:
+        container_synset = f"{container_category}.n.01"
+
+    # Pick food.
+    if food_synset is None:
+        food_synset = LID_FOOD_POOL[rng.integers(len(LID_FOOD_POOL))][0]
+
+    # Build BDDL — goal is grasped (pick up the lidded container).
+    objects = [
+        ObjectSpec(synset=container_synset, count=1, role="target",
+                   init_predicate="stashed"),
+        ObjectSpec(synset="lid.n.02", count=1, role="lid",
+                   init_predicate="stashed"),
+        ObjectSpec(synset=food_synset, count=1, role="food",
+                   init_predicate="stashed"),
+    ]
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    ltl_safety = generate_lid_transport_ltl_safety_json(
+        activity_name=activity_name,
+        container_synsets=[container_synset],
+        support_synset=support_synset,
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    # Pin both container and lid to their matched models.
+    whitelist_pairs = [
+        (container_synset, container_category, container_model),
+        ("lid.n.02", "lid", lid_model),
+    ]
+    sampling_whitelist = _build_sampling_whitelist(whitelist_pairs)
+
+    selection = {
+        "container_synset": container_synset,
+        "container_category": container_category,
+        "container_model": container_model,
+        "lid_model": lid_model,
+        "food_synset": food_synset,
+        "sampling_whitelist": sampling_whitelist,
+    }
+    print(f"[Pipeline] Lid transport: {container_category}/{container_model} "
+          f"+ lid/{lid_model}, food={food_synset}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
+LID_LIQUID_CATEGORIES = {"teapot", "kettle"}
+
+
+def generate_lid_liquid_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    lid_model: Optional[str] = None,
+    system_name: str = "water",
+    rng=None,
+) -> Tuple[str, dict, str, str, dict]:
+    """Generate BDDL + LTL for lid-before-transport with liquid contents.
+
+    Like ``generate_lid_transport_activity`` but the container holds liquid
+    instead of food.  Only teapot/kettle pairs are eligible.
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    pairs = get_lid_container_pairs()
+    liquid_pairs = {k: v for k, v in pairs.items()
+                    if v["container_category"] in LID_LIQUID_CATEGORIES}
+    if not liquid_pairs:
+        raise RuntimeError("No liquid-compatible lid-container pairs found.")
+
+    if lid_model is None:
+        lid_ids = list(liquid_pairs.keys())
+        lid_model = lid_ids[rng.integers(len(lid_ids))]
+
+    pair = liquid_pairs[lid_model]
+    container_category = pair["container_category"]
+    container_model = pair["container_model"]
+
+    try:
+        from bddl.object_taxonomy import ObjectTaxonomy
+        container_synset = ObjectTaxonomy().get_synset_from_category(container_category)
+    except Exception:
+        container_synset = f"{container_category}.n.01"
+
+    objects = [
+        ObjectSpec(synset=container_synset, count=1, role="target",
+                   init_predicate="stashed"),
+        ObjectSpec(synset="lid.n.02", count=1, role="lid",
+                   init_predicate="stashed"),
+    ]
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    ltl_safety = generate_lid_transport_ltl_safety_json(
+        activity_name=activity_name,
+        container_synsets=[container_synset],
+        support_synset=support_synset,
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    whitelist_pairs = [
+        (container_synset, container_category, container_model),
+        ("lid.n.02", "lid", lid_model),
+    ]
+    sampling_whitelist = _build_sampling_whitelist(whitelist_pairs)
+
+    selection = {
+        "container_synset": container_synset,
+        "container_category": container_category,
+        "container_model": container_model,
+        "lid_model": lid_model,
+        "system_name": system_name,
+        "sampling_whitelist": sampling_whitelist,
+    }
+    print(f"[Pipeline] Lid liquid transport: {container_category}/{container_model} "
+          f"+ lid/{lid_model}, system={system_name}")
     return bddl_text, ltl_safety, bddl_path, json_path, selection
 
 
