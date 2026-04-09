@@ -134,17 +134,17 @@ def _spot_preflight_or_exit():
 
 
 def _run_scene(scene_model, args, output_dir, scene_index=0):
-    """Run the pipeline on a single scene in a subprocess. Returns a result dict."""
-    run_dir = os.path.join(output_dir, scene_model)
+    """Run the pipeline on a single scene (or auto-select) in a subprocess."""
+    label = scene_model or f"trial_{scene_index}"
+    run_dir = os.path.join(output_dir, label)
     os.makedirs(run_dir, exist_ok=True)
 
-    # Vary seed per scene so each gets different randomization.
+    # Vary seed per scene/trial so each gets different randomization.
     scene_seed = args.seed + scene_index
 
     pipeline_script = _PIPELINE_SCRIPTS[args.pipeline]
     cmd = [
         sys.executable, pipeline_script,
-        "--scene-model", scene_model,
         "--episodes", str(args.episodes),
         "--steps", str(args.steps),
         "--seed", str(scene_seed),
@@ -154,6 +154,8 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         "--video-fps", str(args.video_fps),
         "--strict-gate" if args.strict_gate else "--no-strict-gate",
     ]
+    if scene_model:
+        cmd.extend(["--scene-model", scene_model])
     if args.curation_manifest:
         cmd.extend(["--curation-manifest", args.curation_manifest])
     if args.allow_deferred:
@@ -189,7 +191,7 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
 
     log_path = os.path.join(run_dir, "stdout.log")
     result = {
-        "scene": scene_model,
+        "scene": label,
         "status": "unknown",
         "duration_s": 0,
         "gate_pass": False,
@@ -199,7 +201,7 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
     }
 
     print(f"\n{'='*70}")
-    print(f"[Benchmark] Starting: {scene_model}")
+    print(f"[Benchmark] Starting: {label}")
     print(f"[Benchmark] Run dir:  {run_dir}")
     print(f"[Benchmark] Timeout:  {args.timeout}s")
     print(f"{'='*70}")
@@ -304,9 +306,11 @@ def parse_args():
     p.add_argument("--pipeline", default="table", choices=list(_PIPELINE_SCRIPTS),
                    help="Pipeline type: 'table' (tabletop clutter) or 'cabinet' (cabinet clutter)")
     p.add_argument("--scenes", nargs="*", default=None,
-                   help="Specific scenes to run (default: all eligible)")
+                   help="Specific scenes to run. If omitted, each trial auto-selects.")
+    p.add_argument("--num-trials", type=int, default=None,
+                   help="Number of trials when auto-selecting scenes (default: 10)")
     p.add_argument("--exclude", nargs="*", default=None,
-                   help="Additional scenes to exclude")
+                   help="Additional scenes to exclude (only with --scenes)")
     p.add_argument("--timeout", type=int, default=900,
                    help="Timeout per scene in seconds (default: 900 = 15min)")
     p.add_argument("--episodes", type=int, default=1)
@@ -385,26 +389,31 @@ def main():
         output_dir = os.path.join(_DEFAULT_OUTPUT_DIR, f"benchmark_{ts}")
     os.makedirs(output_dir, exist_ok=True)
 
-    # Determine scene list.
+    # Determine scene list.  When --scenes is given, run those specific scenes
+    # with --scene-model.  Otherwise, let each subprocess auto-select a scene.
     if args.scenes:
         scenes = args.scenes
+        if args.exclude:
+            scenes = [s for s in scenes if s not in set(args.exclude)]
     else:
-        scenes = _discover_scenes(scenes_dir, args.pipeline)
+        scenes = None  # auto-select mode
 
-    if args.exclude:
-        scenes = [s for s in scenes if s not in set(args.exclude)]
-
-    # If resuming, skip already-completed scenes.
-    completed = set()
-    if args.resume:
-        completed = _find_completed_scenes(output_dir, args.episodes)
-        if completed:
-            print(f"[Benchmark] Resuming — skipping {len(completed)} completed scenes")
-        scenes = [s for s in scenes if s not in completed]
+    # In auto-select mode, build a trial list of None entries.
+    if scenes is None:
+        num_trials = args.num_trials or 10
+        scenes = [None] * num_trials
+        print(f"[Benchmark] Auto-select mode: {num_trials} trials")
+    else:
+        # If resuming, skip already-completed scenes.
+        completed = set()
+        if args.resume:
+            completed = _find_completed_scenes(output_dir, args.episodes)
+            if completed:
+                print(f"[Benchmark] Resuming — skipping {len(completed)} completed scenes")
+            scenes = [s for s in scenes if s not in completed]
 
     print(f"[Benchmark] Output: {output_dir}")
-    print(f"[Benchmark] Scenes: {len(scenes)} to run"
-          f"{f' ({len(completed)} already completed)' if completed else ''}")
+    print(f"[Benchmark] Trials: {len(scenes)} to run")
     print(f"[Benchmark] Config: episodes={args.episodes}, steps={args.steps}, "
           f"density={args.density}, timeout={args.timeout}s")
 
@@ -412,7 +421,7 @@ def main():
     config_path = os.path.join(output_dir, "benchmark_config.json")
     config_data = {
         "pipeline": args.pipeline,
-        "scenes": scenes,
+        "scenes": [s for s in scenes if s is not None],
         "episodes": args.episodes,
         "steps": args.steps,
         "seed": args.seed,

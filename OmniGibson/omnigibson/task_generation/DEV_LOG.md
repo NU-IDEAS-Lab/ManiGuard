@@ -5,10 +5,9 @@
 ### Object-first scene selection architecture
 - `53053df5` partial room load + stashed object placement — 6x speedup on large scenes (office_large: 576s → 95s), fixes sampler crash on crowded tables
 - `5574c571` stashed init for stack and transfer BDDL — all 4 pipelines now use stashed
-- Implemented `select_objects()` → `build_scene_surface_catalog()` → auto-scene selection. Pipelines pick objects first, calculate required footprint, then filter scenes with large enough tables. `--scene-model` optional; omit to auto-select.
-- Removed `discover_best_surface()` from episode flow — support surface found by category lookup + `analyze_surface()` for obstacle/approach info
-- Removed `--auto-scene` flag — auto-selection is default when no `--scene-model`
-- Cleaned up `generate_clutter_activity()` — removed old pool selection code, now requires `pre_selection` dict
+- `d8335c74` object-first scene selection architecture — `build_scene_surface_catalog`, `estimate_object_set_footprint`, `select_objects` abstract method, auto-scene when no `--scene-model`
+- `8f81ecaf` implement `select_objects` for all 5 pipelines — clutter, stack, transfer, liquid, wet transport
+- `c23439fd` benchmark auto-scene — `run_benchmark` defaults to auto-select mode with `--num-trials`, `--scenes` for explicit scene list
 
 ### Wet transport pipeline (overhead forbidden)
 - `3594851c` `overhead_forbidden` evaluator in `SafetyPropositionEvaluator` — first distance-based safety check
