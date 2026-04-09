@@ -62,6 +62,7 @@ from omnigibson.utils.bddl_generator import (
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
+_PARK_POS = (100.0, 100.0, -100.0)
 
 # Surface categories suitable for the empty-scene pipeline.
 # Criteria: adequate height for FrankaMounted (>0.5m), reasonable surface area
@@ -125,6 +126,9 @@ def parse_args():
     p.add_argument("--source-synset", default=None)
     p.add_argument("--dest-synset", default=None)
     p.add_argument("--goal-predicate", default=None, choices=["inside", "ontop"])
+    # Batch mode.
+    p.add_argument("--batch-size", type=int, default=None,
+                   help="Episodes per env load (default: all episodes in one batch)")
     return p.parse_args()
 
 
@@ -391,12 +395,18 @@ def _build_transfer_objects(rng, food_synset=None, source_synset=None,
 # BDDL generation (for LTL safety files — sampler is bypassed)
 # ---------------------------------------------------------------------------
 
-def _generate_bddl(args, activity_name, support_synset, rng):
+def _generate_bddl(args, activity_name, support_synset, rng, selection=None):
     support_room = None  # No rooms in empty Scene.
     if args.setup == "clutter":
+        # Build pre_selection from the already-resolved synsets.
+        pre = {
+            "target_synset": args.target_synset or (selection or {}).get("target_synset", "coffee_cup.n.01"),
+            "fragile_picks": (selection or {}).get("fragile_synsets", []),
+            "clutter_picks": [],
+        }
         return generate_activity(
             activity_name, support_synset, support_room, args.clutter_density,
-            rng=rng,
+            rng=rng, pre_selection=pre,
         )
     elif args.setup == "stack":
         return generate_stack_activity(
@@ -445,8 +455,34 @@ def run_dry_run(args):
     args.surface_category = surface_cat
     activity_name = args.activity_name or f"auto_{args.setup}_empty_{surface_cat}"
 
+    # Build a pre_selection for the dry-run BDDL generation.
+    if args.setup == "clutter":
+        dry_cfgs, dry_roles, dry_sel = _build_clutter_objects(rng, args.clutter_density)
+    elif args.setup == "stack":
+        dry_cfgs, dry_roles, dry_sel = _build_stack_objects(
+            rng, args.stack_height,
+            target_synset=args.target_synset, stack_synset=args.stack_synset,
+        )
+    elif args.setup == "transfer":
+        dry_cfgs, dry_roles, dry_sel = _build_transfer_objects(
+            rng, food_synset=args.food_synset, source_synset=args.source_synset,
+            dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+        )
+    else:
+        dry_sel = {}
+
+    # Patch args with resolved synsets for BDDL gen.
+    if args.setup == "transfer":
+        args.food_synset = dry_sel.get("food_synset")
+        args.source_synset = dry_sel.get("source_synset")
+        args.dest_synset = dry_sel.get("dest_synset")
+        args.goal_predicate = dry_sel.get("goal_predicate")
+    elif args.setup == "stack":
+        args.target_synset = dry_sel.get("target_synset")
+        args.stack_synset = dry_sel.get("stack_synset")
+
     bddl_text, ltl_safety, bddl_path, json_path, selection = _generate_bddl(
-        args, activity_name, support_synset, rng,
+        args, activity_name, support_synset, rng, selection=dry_sel,
     )
     print(f"[Pipeline] Dry-run (empty scene, setup={args.setup}):")
     print(f"  Surface:    {surface_cat} / {surface_model}")
@@ -463,43 +499,289 @@ def run_dry_run(args):
     })
 
 
-def run_sim(args):
-    import torch as th
-    import omnigibson as og
-    from omnigibson.macros import gm
+def _park_objects(objects_by_inst, og_mod):
+    """Move all objects to the park position."""
+    for obj in objects_by_inst.values():
+        obj.set_position_orientation(position=_PARK_POS)
+        if hasattr(obj, "keep_still"):
+            obj.keep_still()
+    og_mod.sim.step()
+
+
+def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
+                       surface_bounds_xy, table_top_z, floor_z,
+                       obj_cfgs, roles, selection, activity_name, support_synset,
+                       surface_cat, surface_model):
+    """Run a single episode (placement + rollout) on a live env.
+
+    Objects are already in the scene (parked). This function unparks them,
+    places them, runs the rollout, then parks them back.
+    """
     from omnigibson.utils.franka_edge_align import (
         DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest,
         place_franka_edge_aligned,
     )
     from omnigibson.utils.tabletop_workspace import compute_tabletop_zone
 
+    # -- Resolve scene objects from configs --------------------------------
+    objects_by_inst = {}
+    roles_by_inst = {}
+    for obj_cfg in obj_cfgs:
+        name = obj_cfg["name"]
+        obj = env.scene.object_registry("name", name)
+        if obj is not None:
+            objects_by_inst[name] = obj
+            roles_by_inst[name] = roles[name]
+
+    # -- Place objects on the surface --------------------------------------
+    if args.setup in ("clutter", "transfer"):
+        from omnigibson.utils.clutter_pack_layout import (
+            ClutterObjectDescriptor, build_clutter_pack, apply_pack_transform,
+        )
+
+        descriptors = []
+        for inst, obj in objects_by_inst.items():
+            try:
+                a_min, a_max = obj.aabb
+                dx = max(0.01, float(a_max[0] - a_min[0]))
+                dy = max(0.01, float(a_max[1] - a_min[1]))
+                dz = max(0.01, float(a_max[2] - a_min[2]))
+            except Exception:
+                continue
+            descriptors.append(ClutterObjectDescriptor(
+                instance_id=inst, role=roles_by_inst[inst],
+                half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
+            ))
+
+        zone = compute_tabletop_zone(
+            surface_bounds_xy=surface_bounds_xy, obstacle_bounds_xy=None,
+            edge_margin_m=0.04,
+        )
+        half_w = 0.5 * (zone.red_zone_bounds[1][0] - zone.red_zone_bounds[0][0])
+        half_h = 0.5 * (zone.red_zone_bounds[1][1] - zone.red_zone_bounds[0][1])
+        cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
+        cy = 0.5 * (surface_bounds_xy[0][1] + surface_bounds_xy[1][1])
+        pack_origin = (cx, cy, table_top_z)
+
+        bounds_local = ((-half_w, -half_h), (half_w, half_h))
+        pack_spec = None
+        for clearance in (0.025, 0.015, 0.008, 0.003):
+            try:
+                pack_spec = build_clutter_pack(
+                    table_obj_name="support_surface",
+                    descriptors=descriptors, seed=ep_seed,
+                    min_clearance=clearance,
+                    placement_bounds_local=bounds_local,
+                )
+                break
+            except RuntimeError as e:
+                print(f"[Pipeline] Pack clearance={clearance:.3f}: {e}")
+        if pack_spec is None:
+            raise RuntimeError("Could not pack objects on surface at any clearance.")
+        apply_pack_transform(pack_spec, objects_by_inst, pack_origin, pack_yaw=0.0)
+        print(f"[Pipeline] Pack placed: {len(descriptors)} objects")
+
+    elif args.setup == "stack":
+        from omnigibson.utils.clutter_pack_layout import (
+            StackObjectDescriptor, build_stack_layout, apply_stack_transform,
+        )
+
+        stack_descs = []
+        for inst, obj in objects_by_inst.items():
+            try:
+                a_min, a_max = obj.aabb
+                dx = max(0.01, float(a_max[0] - a_min[0]))
+                dy = max(0.01, float(a_max[1] - a_min[1]))
+                dz = max(0.01, float(a_max[2] - a_min[2]))
+            except Exception:
+                continue
+            stack_descs.append(StackObjectDescriptor(
+                instance_id=inst, role=roles_by_inst[inst],
+                half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
+            ))
+
+        cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
+        cy = 0.5 * (surface_bounds_xy[0][1] + surface_bounds_xy[1][1])
+        stack_origin = (cx, cy, table_top_z)
+        stack_spec = build_stack_layout(
+            support_obj_name="support_surface",
+            descriptors=stack_descs, seed=ep_seed,
+        )
+        apply_stack_transform(stack_spec, objects_by_inst, stack_origin)
+        print(f"[Pipeline] Stack placed: {len(stack_descs)} objects")
+
+    # -- Settle physics ----------------------------------------------------
+    for obj in objects_by_inst.values():
+        if hasattr(obj, "keep_still"):
+            obj.keep_still()
+    settle_fn = make_settle_fn(og, th)
+    settle_fn(objects_by_inst)
+
+    # -- Transfer: teleport food onto source -------------------------------
+    if args.setup == "transfer":
+        food_obj, source_obj = None, None
+        for name, role in roles_by_inst.items():
+            obj = objects_by_inst.get(name)
+            if obj is None:
+                continue
+            if role == "food" and food_obj is None:
+                food_obj = obj
+            elif role == "source" and source_obj is None:
+                source_obj = obj
+        if food_obj and source_obj:
+            src_pos = source_obj.get_position_orientation()[0]
+            try:
+                src_top_z = float(source_obj.aabb[1][2])
+            except Exception:
+                src_top_z = float(src_pos[2]) + 0.03
+            try:
+                f_half_h = 0.5 * max(0.01, float(food_obj.aabb[1][2] - food_obj.aabb[0][2]))
+            except Exception:
+                f_half_h = 0.02
+            food_obj.set_position_orientation(
+                position=(float(src_pos[0]), float(src_pos[1]),
+                          src_top_z + f_half_h + 0.005),
+            )
+            if hasattr(food_obj, "keep_still"):
+                food_obj.keep_still()
+            og.sim.step()
+            print("[Pipeline] Food teleported onto source")
+
+    # -- Robot placement ---------------------------------------------------
+    zone = compute_tabletop_zone(
+        surface_bounds_xy=surface_bounds_xy, obstacle_bounds_xy=None,
+        edge_margin_m=0.04,
+    )
+    pack_objects_world = []
+    for inst, obj in objects_by_inst.items():
+        try:
+            pos = obj.get_position_orientation()[0]
+            pack_objects_world.append(EdgeAlignObject(
+                name=inst, role=roles_by_inst[inst],
+                position_xy=(float(pos[0]), float(pos[1])),
+            ))
+        except Exception:
+            continue
+
+    edge_result = None
+    if pack_objects_world:
+        edge_result = place_franka_edge_aligned(EdgeAlignRequest(
+            table_aabb_xy=zone.surface_bounds,
+            pack_objects_world=tuple(pack_objects_world),
+            role_weights=DEFAULT_ROLE_WEIGHTS,
+            robot_half_extent_xy=robot_half_extent_xy(robot),
+            edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
+            scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
+                            0.15, -0.15, 0.20, -0.20),
+        ))
+        robot.set_position_orientation(
+            position=(edge_result.base_pose["position"][0],
+                      edge_result.base_pose["position"][1], floor_z),
+            orientation=edge_result.base_pose["orientation"],
+        )
+        og.sim.step()
+        print(f"[Pipeline] Robot: edge={edge_result.edge_label}, "
+              f"gap={edge_result.gap_actual:.3f}")
+    else:
+        cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
+        robot.set_position_orientation(
+            position=(cx, surface_bounds_xy[0][1] - 0.3, floor_z))
+        og.sim.step()
+        print("[Pipeline] Robot placed at fallback position")
+
+    # -- Gate --------------------------------------------------------------
+    target_obj = None
+    for name, role in roles_by_inst.items():
+        if role in ("target", "food"):
+            target_obj = objects_by_inst.get(name)
+            break
+    if target_obj is None and objects_by_inst:
+        target_obj = next(iter(objects_by_inst.values()))
+
+    rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
+    tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]] if target_obj else rp
+    target_dist = math.hypot(rp[0] - tp[0], rp[1] - tp[1])
+    gate_pass = (
+        all(math.isfinite(v) for v in rp + tp)
+        and abs(rp[2] - floor_z) <= 0.03
+        and (edge_result is None or not edge_result.collision_hits)
+        and 0.20 <= target_dist <= 1.10
+    )
+    print(f"[Pipeline] Gate: pass={gate_pass}, dist={target_dist:.3f}")
+    if args.strict_gate and not gate_pass:
+        raise RuntimeError("Strict gate failed.")
+
+    # Save episode state — only active objects, not parked ones.
+    scene_save = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
+    import json as _json
+    ep_state = {
+        "episode": ep + 1,
+        "surface": {"category": surface_cat, "model": surface_model},
+        "gate_pass": gate_pass,
+        "objects": {},
+    }
+    for inst, obj in objects_by_inst.items():
+        try:
+            pos = [float(v) for v in obj.get_position_orientation()[0][:3]]
+            ori = [float(v) for v in obj.get_position_orientation()[1][:4]]
+        except Exception:
+            pos, ori = [0, 0, 0], [0, 0, 0, 1]
+        ep_state["objects"][inst] = {
+            "category": str(getattr(obj, "category", "")),
+            "role": roles_by_inst.get(inst, ""),
+            "position": pos,
+            "orientation": ori,
+        }
+    with open(scene_save, "w") as f:
+        _json.dump(ep_state, f, indent=2)
+    print(f"[Pipeline] Scene saved: {scene_save}")
+
+    # -- LTL rollout -------------------------------------------------------
+    rng = np.random.default_rng(ep_seed)
+    summary, executed = run_ltl_rollout(
+        env=env, activity_name=activity_name,
+        scene_model=args.scene_model,
+        active_objects_by_inst=objects_by_inst,
+        robot=robot, target_obj=target_obj,
+        args=args, episode=ep, rng=rng,
+    )
+
+    append_jsonl(args.debug_jsonl, {
+        "episode": ep + 1, "setup": args.setup,
+        "surface": f"{surface_cat}/{surface_model}",
+        "activity_name": activity_name,
+        "gate_pass": gate_pass,
+        "ltl_violated": summary["violated"],
+        "steps_executed": executed,
+        "selection": selection,
+    })
+
+    # -- Park objects back -------------------------------------------------
+    _park_objects(objects_by_inst, og)
+    robot.set_position_orientation(position=(50.0, 50.0, 0.0))
+    og.sim.step()
+
+
+def run_sim(args):
+    import torch as th
+    import omnigibson as og
+    from omnigibson.macros import gm
+
     gm.USE_GPU_DYNAMICS = False
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_FLATCACHE = True
 
-    _MAX_SURFACE_RETRIES = 3
+    batch_size = args.batch_size or args.episodes
 
-    for ep in range(args.episodes):
-        ep_seed = args.seed + ep * 1000
-        min_area = _MIN_SURFACE_AREA_M2
-        episode_done = False
+    for batch_start in range(0, args.episodes, batch_size):
+        batch_end = min(batch_start + batch_size, args.episodes)
+        batch_eps = list(range(batch_start, batch_end))
 
-        # Retry loop: if packing fails, close env and try a larger surface.
-        for surface_attempt in range(_MAX_SURFACE_RETRIES):
-            rng = np.random.default_rng(ep_seed + surface_attempt * 100)
-
-            # -- Domain randomization: pick surface + objects ---------------
-            surface_cat, surface_model, support_synset = _pick_surface(
-                rng, args.surface_category, args.surface_model,
-                min_area=min_area,
-            )
-            activity_name = args.activity_name or f"auto_{args.setup}_empty_{surface_cat}"
-
-            # Build object configs first so we know which synsets were
-            # actually selected (domain randomization picks assets that
-            # exist in the catalog).  The BDDL is generated afterwards
-            # using the *same* synsets so the LTL monitor tracks the
-            # objects that are actually in the scene.
+        # -- Pre-select objects for all episodes in batch ------------------
+        episode_data = []  # (obj_cfgs, roles, selection, ep_seed)
+        for ep in batch_eps:
+            ep_seed = args.seed + ep * 1000
+            rng = np.random.default_rng(ep_seed)
             if args.setup == "clutter":
                 obj_cfgs, roles, selection = _build_clutter_objects(rng, args.clutter_density)
             elif args.setup == "stack":
@@ -512,365 +794,157 @@ def run_sim(args):
                     rng, food_synset=args.food_synset, source_synset=args.source_synset,
                     dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
                 )
+            else:
+                raise ValueError(f"Unknown setup: {args.setup}")
+            episode_data.append((obj_cfgs, roles, selection, ep_seed))
 
-            # Temporarily patch args with the resolved synsets so
-            # _generate_bddl writes a BDDL + LTL safety file that
-            # matches the actually-spawned objects.  Restore afterwards
-            # so the next episode re-randomizes when the user didn't
-            # pin a specific synset via CLI flags.
-            saved_args = copy.copy(args)
-            if args.setup == "transfer":
-                args.food_synset = selection["food_synset"]
-                args.source_synset = selection["source_synset"]
-                args.dest_synset = selection["dest_synset"]
-                args.goal_predicate = selection["goal_predicate"]
-            elif args.setup == "stack":
-                args.target_synset = selection["target_synset"]
-                args.stack_synset = selection["stack_synset"]
-
-            # Generate BDDL + LTL safety files (for LTL monitor, not sampler).
-            _, _, bddl_path, _, bddl_selection = _generate_bddl(
-                args, activity_name, support_synset, rng,
+        # -- Compute max footprint across episodes -------------------------
+        from omnigibson.utils.bddl_generator import _load_footprint_catalog, _median_footprint
+        fp_catalog = _load_footprint_catalog()
+        max_footprint = _MIN_SURFACE_AREA_M2
+        for obj_cfgs, _, _, _ in episode_data:
+            ep_fp = sum(
+                _median_footprint(fp_catalog, _resolve_synset(c["category"]))
+                for c in obj_cfgs
             )
-            refresh_activity_cache()
+            max_footprint = max(max_footprint, ep_fp * 1.3)
 
-            # Restore args so the next episode re-randomizes.
-            args.food_synset = saved_args.food_synset
-            args.source_synset = saved_args.source_synset
-            args.dest_synset = saved_args.dest_synset
-            args.goal_predicate = saved_args.goal_predicate
-            args.target_synset = saved_args.target_synset
-            if hasattr(saved_args, "stack_synset"):
-                args.stack_synset = saved_args.stack_synset
+        # -- Pick surface for the batch (area >= max footprint) ------------
+        rng_surface = np.random.default_rng(args.seed + batch_start)
+        surface_cat, surface_model, support_synset = _pick_surface(
+            rng_surface, args.surface_category, args.surface_model,
+            min_area=max_footprint,
+        )
+        activity_name = args.activity_name or f"auto_{args.setup}_empty_{surface_cat}"
+        print(f"[Pipeline] Max footprint across batch: {max_footprint:.4f} m²")
 
-            # Surface config: placed at origin, fixed.
-            # Look up the surface height from the catalog so we can place it
-            # with the bottom of its legs on the floor (z=0).
-            catalog = _load_surface_catalog()
-            surface_height = catalog.get(surface_cat, {}).get(
-                surface_model, {}).get("height_m", 0.75)
-            surface_z = surface_height / 2.0  # center of bbox above floor
+        # -- Collect all unique objects ------------------------------------
+        all_obj_cfgs_map = {}  # name -> cfg (deduplicated)
+        for obj_cfgs, roles, _, _ in episode_data:
+            for cfg in obj_cfgs:
+                name = cfg["name"]
+                if name not in all_obj_cfgs_map:
+                    parked = dict(cfg)
+                    parked["position"] = list(_PARK_POS)
+                    all_obj_cfgs_map[name] = parked
 
-            surface_cfg = _make_obj_cfg(
-                name="support_surface",
-                category=surface_cat,
-                model=surface_model,
-                position=[0.0, 0.0, surface_z],
-                fixed_base=True,
-            )
+        # -- Build env config with surface + all objects -------------------
+        catalog = _load_surface_catalog()
+        surface_height = catalog.get(surface_cat, {}).get(
+            surface_model, {}).get("height_m", 0.75)
+        surface_z = surface_height / 2.0
 
-            # -- Build env config (grasp_task_demo pattern) -----------------
-            all_objects = [surface_cfg] + obj_cfgs
-            cfg = dict(
-                scene=dict(type="Scene"),
-                robots=[dict(
-                    type="FrankaMounted",
-                    obs_modalities=["rgb"],
-                    action_type="continuous",
-                    action_normalize=True,
-                    controller_config={
-                        "arm_0": {"name": "OperationalSpaceController"},
-                        "gripper_0": {"name": "MultiFingerGripperController"},
-                    },
-                )],
-                objects=all_objects,
-                task=dict(type="DummyTask"),
-            )
+        surface_cfg = _make_obj_cfg(
+            name="support_surface", category=surface_cat,
+            model=surface_model, position=[0.0, 0.0, surface_z],
+            fixed_base=True,
+        )
 
-            print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes} "
-                  f"(surface attempt {surface_attempt + 1}/{_MAX_SURFACE_RETRIES})")
-            print(f"[Pipeline] Surface: {surface_cat}/{surface_model}, "
-                  f"objects: {len(obj_cfgs)}, setup: {args.setup}")
-            sys.stdout.flush()
+        all_objects = [surface_cfg] + list(all_obj_cfgs_map.values())
+        cfg = dict(
+            scene=dict(type="Scene"),
+            robots=[dict(
+                type="FrankaMounted", obs_modalities=["rgb"],
+                action_type="continuous", action_normalize=True,
+                controller_config={
+                    "arm_0": {"name": "OperationalSpaceController"},
+                    "gripper_0": {"name": "MultiFingerGripperController"},
+                },
+            )],
+            objects=all_objects,
+            task=dict(type="DummyTask"),
+        )
 
-            env = og.Environment(configs=cfg)
-            try:
-                env.reset()
+        print(f"\n[Pipeline] Batch {batch_start//batch_size + 1}: "
+              f"episodes {batch_start+1}-{batch_end}, "
+              f"surface={surface_cat}/{surface_model}, "
+              f"objects={len(all_obj_cfgs_map)}")
+        sys.stdout.flush()
 
-                # Park robot far from origin so it doesn't interfere with
-                # object placement and physics settling on the table.
-                robot = env.robots[0]
-                robot.set_position_orientation(
-                    position=(50.0, 50.0, 0.0),
-                    orientation=(0.0, 0.0, 0.0, 1.0),
-                )
-                og.sim.step()
-
-                # -- Locate objects in the scene ----------------------------
-                support_obj = env.scene.object_registry("name", "support_surface")
-                if support_obj is None:
-                    raise RuntimeError("Support surface not found in scene.")
-
-                aabb_min, aabb_max = support_obj.aabb
-                surface_bounds_xy = (
-                    (float(aabb_min[0]), float(aabb_min[1])),
-                    (float(aabb_max[0]), float(aabb_max[1])),
-                )
-                table_top_z = float(aabb_max[2])
-                floor_z = float(aabb_min[2])
-                print(f"[Pipeline] Surface bounds: {surface_bounds_xy}, "
-                      f"top_z={table_top_z:.3f}")
-                sys.stdout.flush()
-
-                # Build objects_by_inst + roles lookup.
-                objects_by_inst = {}
-                roles_by_inst = {}
-                for obj_cfg in obj_cfgs:
-                    name = obj_cfg["name"]
-                    obj = env.scene.object_registry("name", name)
-                    if obj is not None:
-                        objects_by_inst[name] = obj
-                        roles_by_inst[name] = roles[name]
-
-                print(f"[Pipeline] Task objects found: {len(objects_by_inst)}")
-                sys.stdout.flush()
-
-                # -- Place objects on the surface via pack layout -----------
-                if args.setup in ("clutter", "transfer"):
-                    from omnigibson.utils.clutter_pack_layout import (
-                        ClutterObjectDescriptor, build_clutter_pack,
-                        apply_pack_transform,
-                    )
-
-                    descriptors = []
-                    for inst, obj in objects_by_inst.items():
-                        try:
-                            a_min, a_max = obj.aabb
-                            dx = max(0.01, float(a_max[0] - a_min[0]))
-                            dy = max(0.01, float(a_max[1] - a_min[1]))
-                            dz = max(0.01, float(a_max[2] - a_min[2]))
-                        except Exception:
-                            continue
-                        descriptors.append(ClutterObjectDescriptor(
-                            instance_id=inst, role=roles_by_inst[inst],
-                            half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
-                        ))
-
-                    zone = compute_tabletop_zone(
-                        surface_bounds_xy=surface_bounds_xy,
-                        obstacle_bounds_xy=None,
-                        edge_margin_m=0.04,
-                    )
-                    half_w = 0.5 * (zone.red_zone_bounds[1][0]
-                                    - zone.red_zone_bounds[0][0])
-                    half_h = 0.5 * (zone.red_zone_bounds[1][1]
-                                    - zone.red_zone_bounds[0][1])
-                    cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
-                    cy = 0.5 * (surface_bounds_xy[0][1] + surface_bounds_xy[1][1])
-                    pack_origin = (cx, cy, table_top_z)
-
-                    # Retry with decreasing clearance.
-                    bounds_local = ((-half_w, -half_h), (half_w, half_h))
-                    pack_spec = None
-                    for clearance in (0.025, 0.015, 0.008, 0.003):
-                        try:
-                            pack_spec = build_clutter_pack(
-                                table_obj_name="support_surface",
-                                descriptors=descriptors,
-                                seed=ep_seed,
-                                min_clearance=clearance,
-                                placement_bounds_local=bounds_local,
-                            )
-                            break
-                        except RuntimeError as e:
-                            print(f"[Pipeline] Pack clearance={clearance:.3f}: {e}")
-                            sys.stdout.flush()
-                    if pack_spec is None:
-                        raise RuntimeError(
-                            "Could not pack objects on surface at any clearance.")
-                    apply_pack_transform(
-                        pack_spec, objects_by_inst, pack_origin, pack_yaw=0.0)
-                    print(f"[Pipeline] Pack placed: {len(descriptors)} objects")
-
-                elif args.setup == "stack":
-                    from omnigibson.utils.clutter_pack_layout import (
-                        StackObjectDescriptor, build_stack_layout,
-                        apply_stack_transform,
-                    )
-
-                    stack_descs = []
-                    for inst, obj in objects_by_inst.items():
-                        try:
-                            a_min, a_max = obj.aabb
-                            dx = max(0.01, float(a_max[0] - a_min[0]))
-                            dy = max(0.01, float(a_max[1] - a_min[1]))
-                            dz = max(0.01, float(a_max[2] - a_min[2]))
-                        except Exception:
-                            continue
-                        stack_descs.append(StackObjectDescriptor(
-                            instance_id=inst, role=roles_by_inst[inst],
-                            half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
-                        ))
-
-                    cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
-                    cy = 0.5 * (surface_bounds_xy[0][1] + surface_bounds_xy[1][1])
-                    stack_origin = (cx, cy, table_top_z)
-                    stack_spec = build_stack_layout(
-                        support_obj_name="support_surface",
-                        descriptors=stack_descs, seed=ep_seed,
-                    )
-                    apply_stack_transform(stack_spec, objects_by_inst, stack_origin)
-                    print(f"[Pipeline] Stack placed: {len(stack_descs)} objects")
-
-                # Pack succeeded — mark episode as ready to continue.
-                episode_done = True
-
-            except RuntimeError as pack_err:
-                # Pack or surface error — close this env and retry with a
-                # larger minimum area so _pick_surface selects a bigger table.
-                print(f"[Pipeline] Surface attempt {surface_attempt + 1} failed: "
-                      f"{pack_err}")
-                sys.stdout.flush()
-                env.close()
-                min_area *= 2.0  # Double the minimum area for next attempt.
-                continue
-
-            # If we reach here, packing succeeded — break the retry loop.
-            break
-        else:
-            # All surface retries exhausted.
-            raise RuntimeError(
-                f"Episode {ep + 1}: could not find a surface large enough "
-                f"after {_MAX_SURFACE_RETRIES} attempts."
-            )
-
-        # -- From here on, env is live and packing succeeded. ---------------
+        import time as _time
+        _t_env_start = _time.time()
+        env = og.Environment(configs=cfg)
         try:
-
-            sys.stdout.flush()
-
-            # -- Settle physics ---------------------------------------------
-            for obj in objects_by_inst.values():
-                if hasattr(obj, "keep_still"):
-                    obj.keep_still()
-            settle_fn = make_settle_fn(og, th)
-            settle_fn(objects_by_inst)
-
-            # -- Transfer: teleport food onto source ------------------------
-            if args.setup == "transfer":
-                food_obj, source_obj = None, None
-                for name, role in roles_by_inst.items():
-                    obj = objects_by_inst.get(name)
-                    if obj is None:
-                        continue
-                    if role == "food" and food_obj is None:
-                        food_obj = obj
-                    elif role == "source" and source_obj is None:
-                        source_obj = obj
-                if food_obj and source_obj:
-                    src_pos = source_obj.get_position_orientation()[0]
-                    try:
-                        src_top_z = float(source_obj.aabb[1][2])
-                    except Exception:
-                        src_top_z = float(src_pos[2]) + 0.03
-                    try:
-                        f_half_h = 0.5 * max(0.01, float(food_obj.aabb[1][2] - food_obj.aabb[0][2]))
-                    except Exception:
-                        f_half_h = 0.02
-                    food_obj.set_position_orientation(
-                        position=(float(src_pos[0]), float(src_pos[1]),
-                                  src_top_z + f_half_h + 0.005),
-                    )
-                    if hasattr(food_obj, "keep_still"):
-                        food_obj.keep_still()
-                    og.sim.step()
-                    print(f"[Pipeline] Food teleported onto source")
-
-            # -- Robot placement --------------------------------------------
+            env.reset()
             robot = env.robots[0]
-            zone = compute_tabletop_zone(
-                surface_bounds_xy=surface_bounds_xy, obstacle_bounds_xy=None,
-                edge_margin_m=0.04,
+            robot.set_position_orientation(position=(50.0, 50.0, 0.0))
+            og.sim.step()
+            print(f"[Pipeline] Env init: {_time.time() - _t_env_start:.1f}s")
+
+            support_obj = env.scene.object_registry("name", "support_surface")
+            if support_obj is None:
+                raise RuntimeError("Support surface not found in scene.")
+
+            aabb_min, aabb_max = support_obj.aabb
+            surface_bounds_xy = (
+                (float(aabb_min[0]), float(aabb_min[1])),
+                (float(aabb_max[0]), float(aabb_max[1])),
             )
+            table_top_z = float(aabb_max[2])
+            floor_z = float(aabb_min[2])
+            print(f"[Pipeline] Surface bounds: {surface_bounds_xy}, "
+                  f"top_z={table_top_z:.3f}")
 
-            pack_objects_world = []
-            for inst, obj in objects_by_inst.items():
-                try:
-                    pos = obj.get_position_orientation()[0]
-                    pack_objects_world.append(EdgeAlignObject(
-                        name=inst, role=roles_by_inst[inst],
-                        position_xy=(float(pos[0]), float(pos[1])),
-                    ))
-                except Exception:
-                    continue
+            # -- Run each episode in the batch -----------------------------
+            for idx, (obj_cfgs, roles, selection, ep_seed) in enumerate(episode_data):
+                ep = batch_start + idx
 
-            edge_result = None
-            if pack_objects_world:
-                edge_result = place_franka_edge_aligned(EdgeAlignRequest(
-                    table_aabb_xy=zone.surface_bounds,
-                    pack_objects_world=tuple(pack_objects_world),
-                    role_weights=DEFAULT_ROLE_WEIGHTS,
-                    robot_half_extent_xy=robot_half_extent_xy(robot),
-                    edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
-                    scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
-                                    0.15, -0.15, 0.20, -0.20),
-                ))
-                robot.set_position_orientation(
-                    position=(edge_result.base_pose["position"][0],
-                              edge_result.base_pose["position"][1], floor_z),
-                    orientation=edge_result.base_pose["orientation"],
+                # Generate BDDL + LTL for this episode's synsets.
+                saved_args = copy.copy(args)
+                if args.setup == "transfer":
+                    args.food_synset = selection["food_synset"]
+                    args.source_synset = selection["source_synset"]
+                    args.dest_synset = selection["dest_synset"]
+                    args.goal_predicate = selection["goal_predicate"]
+                elif args.setup == "stack":
+                    args.target_synset = selection["target_synset"]
+                    args.stack_synset = selection["stack_synset"]
+
+                rng_bddl = np.random.default_rng(ep_seed)
+                _, _, bddl_path, _, _ = _generate_bddl(
+                    args, activity_name, support_synset, rng_bddl,
+                    selection=selection,
                 )
-                og.sim.step()
-                print(f"[Pipeline] Robot: edge={edge_result.edge_label}, "
-                      f"gap={edge_result.gap_actual:.3f}")
-            else:
-                cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
-                robot.set_position_orientation(
-                    position=(cx, surface_bounds_xy[0][1] - 0.3, floor_z))
-                og.sim.step()
-                print("[Pipeline] Robot placed at fallback position")
+                refresh_activity_cache()
 
-            sys.stdout.flush()
+                # Restore args.
+                for attr in ("food_synset", "source_synset", "dest_synset",
+                             "goal_predicate", "target_synset"):
+                    setattr(args, attr, getattr(saved_args, attr, None))
+                if hasattr(saved_args, "stack_synset"):
+                    args.stack_synset = saved_args.stack_synset
 
-            # -- Gate -------------------------------------------------------
-            target_obj = None
-            for name, role in roles_by_inst.items():
-                if role in ("target", "food"):
-                    target_obj = objects_by_inst.get(name)
-                    break
-            if target_obj is None and objects_by_inst:
-                target_obj = next(iter(objects_by_inst.values()))
+                print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
+                sys.stdout.flush()
+                _t_ep_start = _time.time()
 
-            rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
-            if target_obj is not None:
-                tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]]
-            else:
-                tp = rp
-            target_dist = math.hypot(rp[0] - tp[0], rp[1] - tp[1])
-            gate_pass = (
-                all(math.isfinite(v) for v in rp + tp)
-                and abs(rp[2] - floor_z) <= 0.03
-                and (edge_result is None or not edge_result.collision_hits)
-                and 0.20 <= target_dist <= 1.10
-            )
-            print(f"[Pipeline] Gate: pass={gate_pass}, dist={target_dist:.3f}")
-            if args.strict_gate and not gate_pass:
-                raise RuntimeError("Strict gate failed.")
-
-            # -- Save scene snapshot ----------------------------------------
-            if gate_pass:
-                scene_save = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
-                og.sim.save(json_paths=[scene_save])
-                print(f"[Pipeline] Scene saved: {scene_save}")
-
-            # -- LTL rollout ------------------------------------------------
-            summary, executed = run_ltl_rollout(
-                env=env, activity_name=activity_name,
-                scene_model=args.scene_model,
-                active_objects_by_inst=objects_by_inst,
-                robot=robot, target_obj=target_obj,
-                args=args, episode=ep, rng=rng,
-            )
-
-            append_jsonl(args.debug_jsonl, {
-                "episode": ep + 1, "setup": args.setup,
-                "surface": f"{surface_cat}/{surface_model}",
-                "activity_name": activity_name,
-                "gate_pass": gate_pass,
-                "ltl_violated": summary["violated"],
-                "steps_executed": executed,
-                "selection": selection,
-            })
+                try:
+                    _run_episode_inner(
+                        ep=ep, ep_seed=ep_seed, args=args,
+                        env=env, og=og, th=th, robot=robot,
+                        support_obj=support_obj,
+                        surface_bounds_xy=surface_bounds_xy,
+                        table_top_z=table_top_z, floor_z=floor_z,
+                        obj_cfgs=obj_cfgs, roles=roles,
+                        selection=selection,
+                        activity_name=activity_name,
+                        support_synset=support_synset,
+                        surface_cat=surface_cat,
+                        surface_model=surface_model,
+                    )
+                    print(f"[Pipeline] Episode {ep + 1} took {_time.time() - _t_ep_start:.1f}s")
+                except RuntimeError as e:
+                    print(f"[Pipeline] Episode {ep + 1} failed: {e} "
+                          f"({_time.time() - _t_ep_start:.1f}s)")
+                    # Park everything and continue to next episode.
+                    _park_objects(
+                        {c["name"]: env.scene.object_registry("name", c["name"])
+                         for c in obj_cfgs
+                         if env.scene.object_registry("name", c["name"]) is not None},
+                        og,
+                    )
+                    robot.set_position_orientation(position=(50.0, 50.0, 0.0))
+                    og.sim.step()
 
         finally:
             env.close()
