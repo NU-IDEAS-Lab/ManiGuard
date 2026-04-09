@@ -1,5 +1,15 @@
 # Task Generation Pipeline — Dev Log
 
+## 2026-04-09
+
+### Empty-scene pipeline refactor
+- `7c494752` batch mode (`--batch-size`), refactored `run_sim` into `_run_episode_inner`, BDDL generation now receives resolved object selection for consistency
+
+### SO-101 → Franka teleoperation
+- `771d61bf` ZMQ teleop bridge: SO-101 leader arm (lerobot, Python 3.12) → Franka IK (OmniGibson, Python 3.10) via ZMQ PUB/SUB
+- `24a27607` teleop demo with pipeline snapshot loading (`--snapshot scene_ep*.json`)
+- `13613be3` setup guide (`teleop_bridge/README.md`)
+
 ## 2026-04-08
 
 ### Object-first scene selection architecture
