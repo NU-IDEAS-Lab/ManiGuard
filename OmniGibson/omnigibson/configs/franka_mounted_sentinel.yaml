@@ -11,8 +11,8 @@ env:
       relative_prim_path: /external_sensor0
       modalities: [rgb]
       sensor_kwargs:
-        image_height: 224
-        image_width: 224
+        image_height: 240
+        image_width: 416
       position: [0.0, 0.0, 1.2]
       orientation: [0.707, 0.0, 0.0, 0.707]
       pose_frame: parent
@@ -53,8 +53,8 @@ robots:
     sensor_config:
       VisionSensor:
         sensor_kwargs:
-          image_height: 224
-          image_width: 224
+          image_height: 240
+          image_width: 416
     controller_config:
       arm_0:
         name: JointController

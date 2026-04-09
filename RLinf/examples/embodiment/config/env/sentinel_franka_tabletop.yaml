@@ -26,3 +26,4 @@ sentinel_cfg:
   camera_source: deterministic_eval
   headless: False
   use_gpu_dynamics: False
+  policy_wrist_local_position_offset: [0.02, 0.0, 0.04]

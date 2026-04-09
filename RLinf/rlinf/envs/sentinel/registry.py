@@ -13,14 +13,19 @@ def _normalize_synset_name(synset: str) -> str:
     return base.replace("_", " ")
 
 
-def build_prompt(target_synset: str, support_object_name: str | None = None) -> str:
+def _normalize_label(name: str) -> str:
+    return name.replace("_", " ")
+
+
+def build_prompt(target_synset: str, support_label: str | None = None) -> str:
     target_name = _normalize_synset_name(target_synset)
-    if support_object_name:
-        support_name = support_object_name.replace("_", " ")
-        return (
-            f"Pick up the {target_name} from the {support_name} while avoiding the surrounding clutter."
-        )
-    return f"Pick up the {target_name} while avoiding the surrounding clutter."
+    if support_label:
+        support_name = _normalize_label(support_label)
+        return f"Pick up the {target_name} on the {support_name}."
+    return f"Pick up the {target_name}."
+
+
+DEFAULT_SENTINEL_ROBOT_NAME = "agent_0"
 
 
 @dataclass(frozen=True)
@@ -33,7 +38,56 @@ class SentinelSceneSpec:
     target_synset: str
     target_object_name: str
     support_object_name: str | None
+    support_object_label: str | None
     prompt: str
+
+
+def _scene_object_registry(scene_info: dict) -> dict:
+    state = scene_info.get("state", {})
+    if "registry" in state:
+        return state["registry"].setdefault("object_registry", {})
+    return state.setdefault("object_registry", {})
+
+
+def _is_scene_robot(obj_info: dict) -> bool:
+    class_module = str(obj_info.get("class_module", ""))
+    class_name = str(obj_info.get("class_name", ""))
+    return class_module.startswith("omnigibson.robots.") or class_name.endswith(("Robot", "Mounted", "Panda"))
+
+
+def extract_scene_robot_setup(
+    scene_info: dict,
+    robot_name: str = DEFAULT_SENTINEL_ROBOT_NAME,
+) -> dict | None:
+    init_info = scene_info.get("objects_info", {}).get("init_info", {})
+    state_registry = _scene_object_registry(scene_info)
+
+    for scene_object_name, obj_info in init_info.items():
+        if not _is_scene_robot(obj_info):
+            continue
+        state_info = state_registry.get(scene_object_name, {})
+        root_link = state_info.get("root_link", {})
+        return {
+            "scene_object_name": scene_object_name,
+            "name": robot_name,
+            "position": root_link.get("pos"),
+            "orientation": root_link.get("ori"),
+            "reset_joint_pos": state_info.get("joint_pos"),
+        }
+    return None
+
+
+def strip_scene_robots_from_scene_info(scene_info: dict) -> dict:
+    runtime_scene_info = copy.deepcopy(scene_info)
+    init_info = runtime_scene_info.get("objects_info", {}).get("init_info", {})
+    state_registry = _scene_object_registry(runtime_scene_info)
+
+    robot_names = [name for name, obj_info in init_info.items() if _is_scene_robot(obj_info)]
+    for robot_name in robot_names:
+        init_info.pop(robot_name, None)
+        state_registry.pop(robot_name, None)
+
+    return runtime_scene_info
 
 
 def _read_first_jsonl(path: Path) -> dict:
@@ -183,6 +237,7 @@ def build_scene_registry(
             raise FileNotFoundError(f"Missing diagnostics file: {diagnostics_file}")
 
         diagnostics = _read_first_jsonl(diagnostics_file)
+        scene_info = json.loads(scene_file.read_text(encoding="utf-8"))
         activity_name = diagnostics["activity_name"]
         problem_file = activity_root / activity_name / "problem0.bddl"
         if not problem_file.is_file():
@@ -198,6 +253,15 @@ def build_scene_registry(
 
         target_synset = diagnostics["selection"]["target_synset"]
         support_object_name = diagnostics.get("surface")
+        support_object_label = None
+        if support_object_name:
+            support_object_label = (
+                scene_info.get("objects_info", {})
+                .get("init_info", {})
+                .get(support_object_name, {})
+                .get("args", {})
+                .get("category")
+            ) or support_object_name
         registry.append(
             SentinelSceneSpec(
                 scene_name=scene_name,
@@ -208,7 +272,8 @@ def build_scene_registry(
                 target_synset=target_synset,
                 target_object_name=target_object_name,
                 support_object_name=support_object_name,
-                prompt=build_prompt(target_synset, support_object_name),
+                support_object_label=support_object_label,
+                prompt=build_prompt(target_synset, support_object_label),
             )
         )
 
