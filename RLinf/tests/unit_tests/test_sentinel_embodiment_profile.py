@@ -60,7 +60,11 @@ def test_profile_exposes_scene_relative_ready_pose_contract():
     env = SentinelEnv.__new__(SentinelEnv)
     env.embodiment_profile = FRANKA_TABLETOP_SINGLE_ARM_V1
 
-    assert FRANKA_TABLETOP_SINGLE_ARM_V1.reset_pose_mode == "scene_relative_ready_eef_v1"
+    assert FRANKA_TABLETOP_SINGLE_ARM_V1.reset_pose_mode == "scene_relative_ready_eef_pose_v2"
     assert FRANKA_TABLETOP_SINGLE_ARM_V1.ready_eef_standoff_m > 0.0
     assert FRANKA_TABLETOP_SINGLE_ARM_V1.ready_eef_height_above_table_m > 0.0
+    assert FRANKA_TABLETOP_SINGLE_ARM_V1.ready_eef_max_height_above_table_m >= (
+        FRANKA_TABLETOP_SINGLE_ARM_V1.ready_eef_height_above_table_m
+    )
+    assert FRANKA_TABLETOP_SINGLE_ARM_V1.ready_eef_lookat_height_above_table_m > 0.0
     assert env.embodiment_profile.ready_gripper_scalar == 0.0

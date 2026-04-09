@@ -2,6 +2,7 @@ import torch
 
 from rlinf.envs.sentinel.sentinel_env import (
     DEFAULT_POLICY_WRIST_LOCAL_POSITION_OFFSET,
+    compute_policy_wrist_local_orientation,
     compute_policy_wrist_local_pose,
     resolve_wrist_sensor_name,
 )
@@ -69,3 +70,23 @@ def test_compute_policy_wrist_local_pose_prefers_explicit_override():
     )
 
     assert torch.allclose(pose, torch.tensor(override, dtype=torch.float32))
+
+
+def test_compute_policy_wrist_local_orientation_uses_base_orientation_by_default():
+    base = torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float32)
+
+    orientation = compute_policy_wrist_local_orientation(base)
+
+    assert torch.allclose(orientation, base)
+
+
+def test_compute_policy_wrist_local_orientation_prefers_explicit_override():
+    base = torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=torch.float32)
+    override = [0.5, 0.5, 0.5, 0.5]
+
+    orientation = compute_policy_wrist_local_orientation(
+        base,
+        local_orientation_override=override,
+    )
+
+    assert torch.allclose(orientation, torch.tensor(override, dtype=torch.float32))

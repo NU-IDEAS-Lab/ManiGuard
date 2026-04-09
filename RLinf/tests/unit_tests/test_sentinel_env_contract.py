@@ -1,12 +1,15 @@
 import torch
+import omnigibson.utils.transform_utils as T
 
 from rlinf.envs.sentinel.sentinel_env import (
+    build_camera_orientation_quat,
     build_tabletop_oblique_support_view,
     build_droid_left_shoulder_view,
     build_workspace_camera_lookat_point,
     gripper_joint_positions_from_policy_scalar,
     policy_gripper_scalar_from_joint_positions,
     pull_back_camera_eye,
+    synthesize_scene_relative_ready_eef_orientation,
     synthesize_scene_relative_ready_eef_position,
 )
 
@@ -47,6 +50,7 @@ def test_synthesize_scene_relative_ready_eef_position_stays_above_table_and_insi
         object_top_z=0.82,
         workspace_standoff_m=0.18,
         height_above_table_m=0.30,
+        max_height_above_table_m=0.42,
         min_object_clearance_m=0.18,
         surface_margin_m=0.06,
     )
@@ -55,6 +59,24 @@ def test_synthesize_scene_relative_ready_eef_position_stays_above_table_and_insi
     assert 0.26 <= float(desired[0]) <= 0.54
     assert 0.16 <= float(desired[1]) <= 0.34
     assert float(desired[2]) >= 1.00
+
+
+def test_synthesize_scene_relative_ready_eef_position_caps_tall_object_clearance():
+    desired = synthesize_scene_relative_ready_eef_position(
+        robot_base_position=torch.tensor([0.0, 0.0, 0.0], dtype=torch.float32),
+        workspace_center=torch.tensor([0.45, 0.25, 0.8], dtype=torch.float32),
+        surface_bounds_xy=((0.20, 0.10), (0.60, 0.40)),
+        table_top_z=0.75,
+        object_top_z=1.55,
+        workspace_standoff_m=0.18,
+        height_above_table_m=0.30,
+        max_height_above_table_m=0.42,
+        min_object_clearance_m=0.18,
+        surface_margin_m=0.06,
+    )
+
+    assert float(desired[2]) <= 1.17
+    assert float(desired[2]) >= 1.05
 
 
 def test_build_tabletop_oblique_support_view_is_workspace_anchored():
@@ -132,3 +154,49 @@ def test_build_workspace_camera_lookat_point_stays_on_workspace_semantics():
     assert torch.allclose(torch.as_tensor(lookat[:2]), torch.tensor([0.45, 0.25], dtype=torch.float32))
     assert float(lookat[2]) >= 0.84
     assert float(lookat[2]) <= 0.93
+
+
+def test_build_camera_orientation_quat_aligns_camera_forward_with_lookat():
+    eye = [0.30, 0.10, 1.05]
+    lookat = [0.45, 0.25, 0.86]
+
+    quat = build_camera_orientation_quat(eye, lookat)
+    rotation = T.quat2mat(quat)
+    forward_world = rotation @ torch.tensor([0.0, 0.0, -1.0], dtype=torch.float32)
+    desired_forward = torch.tensor(lookat, dtype=torch.float32) - torch.tensor(eye, dtype=torch.float32)
+    desired_forward = desired_forward / torch.linalg.norm(desired_forward)
+
+    assert quat.shape == (4,)
+    assert torch.allclose(forward_world, desired_forward, atol=1e-5)
+
+
+def test_synthesize_scene_relative_ready_eef_orientation_aims_mounted_wrist_at_workspace():
+    pose = synthesize_scene_relative_ready_eef_orientation(
+        ready_eef_world_position=[0.33, 0.16, 1.02],
+        workspace_center=[0.45, 0.25, 0.88],
+        table_top_z=0.74,
+        object_top_z=0.93,
+        wrist_camera_local_position=[0.05, 0.0, -0.13],
+        wrist_camera_local_orientation=[0.7010571, 0.7010573, 0.09229438, 0.09229999],
+        wrist_camera_local_position_offset=[0.02, 0.0, 0.04],
+        ready_lookat_height_above_table_m=0.10,
+    )
+
+    desired_eef_world_orientation = pose["desired_eef_world_orientation"]
+    desired_camera_world_orientation = pose["desired_camera_world_orientation"]
+    desired_camera_world_position = pose["desired_camera_world_position"]
+    desired_camera_lookat = pose["desired_camera_lookat"]
+    forward_world = T.quat2mat(desired_camera_world_orientation) @ torch.tensor([0.0, 0.0, -1.0], dtype=torch.float32)
+    desired_forward = desired_camera_lookat - desired_camera_world_position
+    desired_forward = desired_forward / torch.linalg.norm(desired_forward)
+    recomposed_camera_quat = T.quat_multiply(
+        desired_eef_world_orientation,
+        pose["effective_wrist_local_orientation"],
+    )
+
+    assert desired_eef_world_orientation.shape == (4,)
+    assert desired_camera_world_orientation.shape == (4,)
+    assert desired_camera_world_position.shape == (3,)
+    assert desired_camera_lookat.shape == (3,)
+    assert torch.allclose(recomposed_camera_quat, desired_camera_world_orientation, atol=1e-5)
+    assert float(torch.dot(forward_world, desired_forward)) > 0.999
