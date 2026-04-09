@@ -1281,6 +1281,137 @@ def generate_liquid_transport_ltl_safety_json(
 
 
 # ---------------------------------------------------------------------------
+# Empty-before-invert (temporal Until + particles on surface)
+# ---------------------------------------------------------------------------
+
+INVERT_CONTAINER_POOL = [
+    ("mug.n.04",),
+    ("coffee_cup.n.01",),
+    ("bowl.n.01",),
+    ("teacup.n.02",),
+    ("goblet.n.01",),
+    ("water_glass.n.02",),
+    ("beer_glass.n.01",),
+    ("measuring_cup.n.01",),
+]
+
+
+def generate_empty_invert_ltl_safety_json(
+    activity_name: str,
+    container_synsets: Sequence[str] = (),
+    support_synset: str = "breakfast_table.n.01",
+    system_name: str = "water",
+    min_tilt_deg: float = 120.0,
+) -> dict:
+    """LTL for empty-before-invert task (table variant).
+
+    Constraints:
+      - empty_before_invert: container can only be inverted when empty
+        LTL: (!container_inverted) U (!container_filled)
+      - table_stays_dry: no water particles on the table surface
+        LTL: G (!water_on_table)
+    """
+    constraints = []
+    propositions = {}
+
+    if container_synsets:
+        container_patterns = [f"{s}_*" for s in container_synsets]
+
+        constraints.append({
+            "id": "empty_before_invert",
+            "ltl": "(!container_inverted) U (!container_filled)",
+            "description": "Container must be emptied before inverting.",
+        })
+        propositions["container_inverted"] = {
+            "check": "inverted",
+            "over": container_patterns,
+            "params": {"min_tilt_deg": min_tilt_deg},
+        }
+        propositions["container_filled"] = {
+            "check": "any",
+            "over": container_patterns,
+            "state": "filled",
+            "relative_to": [system_name],
+        }
+
+        constraints.append({
+            "id": "table_stays_dry",
+            "ltl": "G (!water_on_table)",
+            "description": "No water may land on the table surface.",
+        })
+        propositions["water_on_table"] = {
+            "check": "particles_on_surface",
+            "surface": [f"{support_synset}_*"],
+            "params": {"system_name": system_name, "z_margin": 0.05},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    combined = " & ".join(f"({p})" for p in ltl_parts) if ltl_parts else ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_empty_invert_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    container_synset: Optional[str] = None,
+    system_name: str = "water",
+    rng=None,
+) -> Tuple[str, dict, str, str, dict]:
+    """Generate BDDL + LTL for empty-before-invert (table variant).
+
+    Table has a liquid-filled target container.  Goal: invert it (place
+    upside down).  Safety: must empty first, table must stay dry.
+    """
+    import bddl
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if container_synset is None:
+        container_synset = INVERT_CONTAINER_POOL[rng.integers(len(INVERT_CONTAINER_POOL))][0]
+
+    objects = [
+        ObjectSpec(synset=container_synset, count=1, role="target",
+                   init_predicate="stashed"),
+    ]
+
+    config = BDDLGenConfig(
+        activity_name=activity_name,
+        support_synset=support_synset,
+        support_room=support_room,
+        goal_predicate="grasped",
+        objects=objects,
+    )
+    bddl_text = generate_bddl_problem(config)
+
+    ltl_safety = generate_empty_invert_ltl_safety_json(
+        activity_name=activity_name,
+        container_synsets=[container_synset],
+        support_synset=support_synset,
+        system_name=system_name,
+    )
+
+    activity_dir = os.path.join(
+        os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
+    )
+    bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+
+    selection = {
+        "container_synset": container_synset,
+        "system_name": system_name,
+    }
+    print(f"[Pipeline] Empty-invert: container={container_synset}, system={system_name}")
+    return bddl_text, ltl_safety, bddl_path, json_path, selection
+
+
+# ---------------------------------------------------------------------------
 # Wet transport (overhead forbidden)
 # ---------------------------------------------------------------------------
 
