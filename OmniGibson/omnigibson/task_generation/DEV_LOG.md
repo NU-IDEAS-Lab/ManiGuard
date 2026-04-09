@@ -13,6 +13,11 @@
 - `0705b1d5` lid-container pair registry (20 verified attachment pairs from asset metadata) + food/liquid activity generators + LTL Until constraint
 - `167be100` LidTransportPipeline (food) + LidLiquidTransportPipeline (teapot/kettle with water), `--lid-mode food|liquid`
 
+### Empty-before-invert pipeline (temporal Until + particles on surface)
+- `pending` EmptyInvertPipeline — liquid-filled container on table, must empty before inverting, table must stay dry
+- New evaluators: `inverted` (tilt > 120°), `particles_on_surface` (water ContactParticles on table)
+- LTL: `(!container_inverted) U (!container_filled)` + `G(!water_on_table)`
+
 ### Wet transport pipeline (overhead forbidden)
 - `3594851c` `overhead_forbidden` evaluator in `SafetyPropositionEvaluator` — first distance-based safety check
 - `bb6c92aa` wet transport pipeline — liquid container + water-sensitive zone objects (books, laptops, keyboards)
