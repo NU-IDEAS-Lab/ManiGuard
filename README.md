@@ -34,16 +34,6 @@ The post-run dataset repair and curation workflow lives in:
 
 This workflow is used when a benchmark run already exists but some scenes still need scene-level repair, replay, rerendering, or manual review before release.
 
-## Legacy Kitchen-Bar MVP
-
-The earlier kitchen-bar MVP pipeline is still preserved as a legacy reference:
-
-- Legacy design / pipeline doc: [docs/omnigibson/cluttered_env_scene_generation_pipeline.md](docs/omnigibson/cluttered_env_scene_generation_pipeline.md)
-- Runner: `OmniGibson/omnigibson/examples/environments/franka_mounted_mvp_runner_kitchen_bar.py`
-- Config: `OmniGibson/omnigibson/configs/franka_mounted_behavior_cached_kitchen_bar.yaml`
-
-This MVP line remains useful as historical context and for early cup-first manipulation experiments, but it is no longer the primary entrypoint for the current benchmark-scale task-generation workflow.
-
 ## Manipulation Safety-Critical BDDL Activity
 
 Possible manipulation safety-critical predicates:
