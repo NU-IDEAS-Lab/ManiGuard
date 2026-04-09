@@ -44,13 +44,37 @@ class WetTransportPipeline(BasePipeline):
 
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
+        pre = getattr(args, "_pre_selection", None)
         return generate_wet_transport_activity(
             activity_name, support_synset, support_room,
-            carried_synset=args.container_synset,
+            carried_synset=pre["carried_synset"] if pre else args.container_synset,
             zone_count=args.zone_count,
             margin_m=args.overhead_margin_m,
             rng=rng,
         )
+
+    def select_objects(self, args, rng):
+        from omnigibson.utils.bddl_generator import (
+            estimate_object_set_footprint,
+        )
+        container = args.container_synset
+        if container is None:
+            container = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
+        zones = []
+        for _ in range(args.zone_count):
+            zones.append(WATER_SENSITIVE_POOL[rng.integers(len(WATER_SENSITIVE_POOL))][0])
+
+        synset_counts = [(container, 1)]
+        zone_counts = {}
+        for z in zones:
+            zone_counts[z] = zone_counts.get(z, 0) + 1
+        synset_counts.extend(zone_counts.items())
+
+        return {
+            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "carried_synset": container,
+            "zone_synsets": zones,
+        }
 
     def configure_task(self, cfg, selection):
         # Liquid particles require GPU dynamics.
@@ -99,14 +123,33 @@ class WetTransportPipeline(BasePipeline):
 
         rng = np.random.default_rng(ctx.args.seed + ctx.episode)
 
-        # Scatter zone objects across the table.
+        # Reserve space for the container on the left edge.
+        container_reserve_x = ctx.surface_bounds_xy[0][0] + sx * 0.15
+
+        # Scatter zone objects across the remaining table area (right of container).
+        zone_x_min = container_reserve_x + sx * 0.05
+        zone_x_max = ctx.surface_bounds_xy[1][0] - sx * 0.05
+        zone_sx = zone_x_max - zone_x_min
+
+        placed_zones = []
         for i, inst in enumerate(ctx._zone_ids):
             obj = ctx.active_objects.get(inst)
             if obj is None:
                 continue
+            # Check if object fits on the table.
+            try:
+                obj_min, obj_max = obj.aabb
+                obj_w = float(obj_max[0] - obj_min[0])
+                obj_d = float(obj_max[1] - obj_min[1])
+            except Exception:
+                obj_w, obj_d = 0.1, 0.1
+            if obj_w > zone_sx * 0.8 or obj_d > sy * 0.8:
+                print(f"[Pipeline] Zone {inst} too large ({obj_w:.2f}x{obj_d:.2f}), skipping")
+                continue
+
             cols = max(1, len(ctx._zone_ids))
             frac = (i + 0.5) / cols
-            x = cx + (frac - 0.5) * sx * 0.7
+            x = zone_x_min + frac * zone_sx
             y = cy + (rng.random() - 0.5) * sy * 0.3
             try:
                 half_h = 0.5 * max(0.01, float(obj.aabb[1][2]) - float(obj.aabb[0][2]))
@@ -117,19 +160,19 @@ class WetTransportPipeline(BasePipeline):
             )
             if hasattr(obj, "keep_still"):
                 obj.keep_still()
+            placed_zones.append(inst)
 
         og.sim.step()
 
-        # Place container at one edge of the table.
+        # Place container on the reserved left edge.
         target = ctx.target_obj
         if target is not None:
             try:
                 half_h = 0.5 * max(0.01, float(target.aabb[1][2]) - float(target.aabb[0][2]))
             except Exception:
                 half_h = 0.02
-            edge_x = ctx.surface_bounds_xy[0][0] + sx * 0.1
             target.set_position_orientation(
-                position=(edge_x, cy, ctx.table_top_z + half_h + 0.002),
+                position=(container_reserve_x, cy, ctx.table_top_z + half_h + 0.002),
             )
             if hasattr(target, "keep_still"):
                 target.keep_still()

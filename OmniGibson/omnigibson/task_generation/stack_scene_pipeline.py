@@ -117,11 +117,43 @@ class _StackBase(BasePipeline):
         parser.add_argument("--stack-synset", default=None,
                             help="Override stack object synset")
 
+    def select_objects(self, args, rng):
+        from omnigibson.utils.bddl_generator import (
+            STACK_SAME_POOL, STACK_FLAT_TARGET_POOL, STACK_RECEPTACLE_TARGET_POOL,
+            STACK_ITEM_POOL
+        )
+        mode = self._stack_mode
+
+        if mode == "same":
+            pool = STACK_SAME_POOL
+            target = args.target_synset or pool[rng.integers(len(pool))][0]
+            stack = target
+        elif mode == "flat":
+            target = args.target_synset or STACK_FLAT_TARGET_POOL[rng.integers(len(STACK_FLAT_TARGET_POOL))][0]
+            stack = args.stack_synset or STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+        elif mode == "receptacle":
+            target = args.target_synset or STACK_RECEPTACLE_TARGET_POOL[rng.integers(len(STACK_RECEPTACLE_TARGET_POOL))][0]
+            stack = args.stack_synset or STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+        else:
+            return None
+
+        # Stack is vertical — footprint is just the larger of target vs stack item.
+        from omnigibson.utils.bddl_generator import _load_footprint_catalog, _median_footprint
+        catalog = _load_footprint_catalog()
+        required = max(_median_footprint(catalog, target), _median_footprint(catalog, stack))
+        return {
+            "required_area_m2": required,
+            "target_synset": target,
+            "stack_synset": stack,
+        }
+
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
+        pre = getattr(args, "_pre_selection", None)
         return generate_stack_activity(
             activity_name, support_synset, support_room, args.stack_height,
-            target_synset=args.target_synset, stack_synset=args.stack_synset,
+            target_synset=pre["target_synset"] if pre else args.target_synset,
+            stack_synset=pre["stack_synset"] if pre else args.stack_synset,
             mode=self._stack_mode,
             rng=rng,
         )

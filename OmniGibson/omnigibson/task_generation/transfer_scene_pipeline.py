@@ -64,12 +64,33 @@ class TransferPipeline(BasePipeline):
     def activity_prefix(self):
         return "auto_transfer_on"
 
+    def select_objects(self, args, rng):
+        from omnigibson.utils.bddl_generator import (
+            TRANSFER_FOOD_POOL, TRANSFER_SOURCE_POOL, TRANSFER_DEST_POOL,
+            estimate_object_set_footprint,
+        )
+        food = args.food_synset or TRANSFER_FOOD_POOL[rng.integers(len(TRANSFER_FOOD_POOL))][0]
+        source = args.source_synset or TRANSFER_SOURCE_POOL[rng.integers(len(TRANSFER_SOURCE_POOL))][0]
+        dest_entry = TRANSFER_DEST_POOL[rng.integers(len(TRANSFER_DEST_POOL))]
+        dest = args.dest_synset or dest_entry[0]
+
+        synset_counts = [(food, 1), (source, 1), (dest, 1)]
+        return {
+            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "food_synset": food,
+            "source_synset": source,
+            "dest_synset": dest,
+        }
+
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
+        pre = getattr(args, "_pre_selection", None)
         return generate_transfer_activity(
             activity_name, support_synset, support_room,
-            food_synset=args.food_synset, source_synset=args.source_synset,
-            dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+            food_synset=pre["food_synset"] if pre else args.food_synset,
+            source_synset=pre["source_synset"] if pre else args.source_synset,
+            dest_synset=pre["dest_synset"] if pre else args.dest_synset,
+            goal_predicate=args.goal_predicate,
             rng=rng,
         )
 

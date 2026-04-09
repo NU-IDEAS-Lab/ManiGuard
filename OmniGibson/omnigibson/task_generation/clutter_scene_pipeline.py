@@ -19,8 +19,6 @@ from omnigibson.task_generation.pipeline_common import (
     build_descriptors,
     build_task_object_sets,
     check_interpenetration,
-    estimate_surface_area_from_scene_json,
-    get_scene_json_path,
     get_scope_obj,
     iter_scope_objects,
     make_park_fn,
@@ -108,28 +106,40 @@ class ClutterPipeline(BasePipeline):
     def activity_prefix(self):
         return "auto_clutter_on"
 
+    def select_objects(self, args, rng):
+        from omnigibson.utils.bddl_generator import (
+            TARGET_POOL, FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
+            estimate_object_set_footprint,
+        )
+        density = DENSITY_PRESETS[args.clutter_density]
+        target_synset = TARGET_POOL[rng.integers(len(TARGET_POOL))][0]
+
+        fragile_pool = [s for s in FRAGILE_POOL if s[0] != target_synset] or list(FRAGILE_POOL)
+        fragile_picks = [fragile_pool[rng.integers(len(fragile_pool))][0]
+                         for _ in range(density["fragile_count"])]
+
+        clutter_picks = [CLUTTER_POOL[rng.integers(len(CLUTTER_POOL))][0]
+                         for _ in range(density["clutter_count"])]
+
+        synset_counts = [(target_synset, 1)]
+        for s in set(fragile_picks):
+            synset_counts.append((s, fragile_picks.count(s)))
+        for s in set(clutter_picks):
+            synset_counts.append((s, clutter_picks.count(s)))
+
+        return {
+            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "target_synset": target_synset,
+            "fragile_picks": fragile_picks,
+            "clutter_picks": clutter_picks,
+        }
+
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
-        # Estimate surface area for area-aware object budgeting.
-        surface_area = None
-        if args.scene_model:
-            try:
-                scene_json = get_scene_json_path(args.scene_model)
-                from omnigibson.task_generation.pipeline_common import (
-                    discover_surface_from_scene_json,
-                )
-                discovery = discover_surface_from_scene_json(scene_json)
-                if discovery:
-                    surface_area = estimate_surface_area_from_scene_json(
-                        scene_json, discovery[0],
-                    )
-            except Exception:
-                pass
-
         return generate_clutter_activity(
             activity_name, support_synset, support_room,
             args.clutter_density, rng=rng,
-            available_area_m2=surface_area,
+            pre_selection=args._pre_selection,
         )
 
     def identify_objects(self, ctx):

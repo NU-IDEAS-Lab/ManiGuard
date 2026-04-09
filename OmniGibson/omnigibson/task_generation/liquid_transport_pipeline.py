@@ -23,10 +23,6 @@ Usage:
 import os
 
 from omnigibson.task_generation.clutter_scene_pipeline import ClutterPipeline
-from omnigibson.task_generation.pipeline_common import (
-    estimate_surface_area_from_scene_json,
-    get_scene_json_path,
-)
 from omnigibson.utils.bddl_generator import (
     LIQUID_CONTAINER_POOL,
     LIQUID_PRESETS,
@@ -65,38 +61,45 @@ class LiquidTransportPipeline(ClutterPipeline):
     def activity_prefix(self):
         return "auto_liquid_transport_on"
 
+    def select_objects(self, args, rng):
+        # Override clutter's select_objects to use LIQUID_CONTAINER_POOL as target.
+        from omnigibson.utils.bddl_generator import (
+            FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
+            estimate_object_set_footprint,
+        )
+        density = DENSITY_PRESETS[args.clutter_density]
+        container = args.container_synset
+        if container is None:
+            container = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
+
+        fragile_pool = [s for s in FRAGILE_POOL if s[0] != container] or list(FRAGILE_POOL)
+        fragile_picks = [fragile_pool[rng.integers(len(fragile_pool))][0]
+                         for _ in range(density["fragile_count"])]
+        clutter_picks = [CLUTTER_POOL[rng.integers(len(CLUTTER_POOL))][0]
+                         for _ in range(density["clutter_count"])]
+
+        synset_counts = [(container, 1)]
+        for s in set(fragile_picks):
+            synset_counts.append((s, fragile_picks.count(s)))
+        for s in set(clutter_picks):
+            synset_counts.append((s, clutter_picks.count(s)))
+
+        return {
+            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "target_synset": container,
+            "fragile_picks": fragile_picks,
+            "clutter_picks": clutter_picks,
+        }
+
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
         import bddl
-
-        # Use clutter generation with liquid container as target pool.
-        surface_area = None
-        if args.scene_model:
-            try:
-                scene_json = get_scene_json_path(args.scene_model)
-                from omnigibson.task_generation.pipeline_common import (
-                    discover_surface_from_scene_json,
-                )
-                discovery = discover_surface_from_scene_json(scene_json)
-                if discovery:
-                    surface_area = estimate_surface_area_from_scene_json(
-                        scene_json, discovery[0],
-                    )
-            except Exception:
-                pass
-
-        # If a specific container synset is requested, make a single-entry pool.
-        if args.container_synset:
-            target_pool = [(args.container_synset, True)]
-        else:
-            target_pool = LIQUID_CONTAINER_POOL
 
         bddl_text, _clutter_ltl, bddl_path, json_path, selection = \
             generate_clutter_activity(
                 activity_name, support_synset, support_room,
                 args.clutter_density, rng=rng,
-                target_pool=target_pool,
-                available_area_m2=surface_area,
+                pre_selection=args._pre_selection,
             )
 
         # Replace clutter LTL with liquid-specific LTL.
