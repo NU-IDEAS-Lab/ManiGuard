@@ -157,6 +157,10 @@ class SafetyPropositionEvaluator:
             return self._build_spill(prop_def)
         if check == "overhead_forbidden":
             return self._build_overhead_forbidden(prop_def)
+        if check == "inverted":
+            return self._build_inverted(prop_def)
+        if check == "particles_on_surface":
+            return self._build_particles_on_surface(prop_def)
 
         state = prop_def.get("state", "")
         state_lower = state.lower()
@@ -307,6 +311,67 @@ class SafetyPropositionEvaluator:
                         continue
                     if zx0 <= cx <= zx1 and zy0 <= cy <= zy1 and cz > z_top:
                         return True
+            return False
+
+        return eval_fn
+
+    def _build_inverted(self, prop_def: dict) -> Callable[[], bool]:
+        """Check if an object is flipped upside down (tilt > threshold from vertical).
+
+        JSON definition::
+
+            {"check": "inverted", "over": ["mug.n.04_*"],
+             "params": {"min_tilt_deg": 120.0}}
+        """
+        import math
+
+        subjects = self._resolver.resolve_patterns(prop_def.get("over", []))
+        min_tilt = float(prop_def.get("params", {}).get("min_tilt_deg", 120.0))
+
+        def eval_fn(_subj=subjects, _min=min_tilt):
+            for obj in _subj.values():
+                try:
+                    quat = obj.get_position_orientation()[1]
+                    x, y, z, w = [float(v) for v in quat[:4]]
+                    zz = 1.0 - 2.0 * (x * x + y * y)
+                    zz = max(-1.0, min(1.0, zz))
+                    tilt_deg = math.degrees(math.acos(zz))
+                    if tilt_deg >= _min:
+                        return True
+                except Exception:
+                    continue
+            return False
+
+        return eval_fn
+
+    def _build_particles_on_surface(self, prop_def: dict) -> Callable[[], bool]:
+        """Check if physical particles exist near a surface (e.g. water on table).
+
+        JSON definition::
+
+            {"check": "particles_on_surface", "surface": ["breakfast_table.n.01_*"],
+             "params": {"system_name": "water", "z_margin": 0.05}}
+        """
+        surface_objs = self._resolver.resolve_patterns(prop_def.get("surface", []))
+        system_name = prop_def.get("params", {}).get("system_name", "water")
+        z_margin = float(prop_def.get("params", {}).get("z_margin", 0.05))
+        env = self._resolver._env
+
+        def eval_fn(_surfaces=surface_objs, _sys=system_name, _env=env, _zm=z_margin):
+            try:
+                system = _env.scene.get_system(_sys)
+            except Exception:
+                return False
+            if system.n_particles == 0:
+                return False
+            for s_obj in _surfaces.values():
+                try:
+                    from omnigibson.object_states.contact_particles import ContactParticles
+                    n = len(s_obj.states[ContactParticles].get_value(system))
+                    if n > 0:
+                        return True
+                except Exception:
+                    continue
             return False
 
         return eval_fn
