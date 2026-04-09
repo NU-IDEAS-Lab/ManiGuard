@@ -1,5 +1,10 @@
 # Task Generation Pipeline — Dev Log
 
+## 2026-04-09
+
+### Empty-scene pipeline refactor
+- `7c494752` batch mode (`--batch-size`), refactored `run_sim` into `_run_episode_inner`, BDDL generation now receives resolved object selection for consistency
+
 ## 2026-04-08
 
 ### Object-first scene selection architecture
