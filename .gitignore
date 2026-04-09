@@ -1,0 +1,7 @@
+.DS_Store
+.context/
+log_dir/*
+scene_generation/*
+outputs/*
+datasets/
+bddl3/bddl/activity_definitions/*

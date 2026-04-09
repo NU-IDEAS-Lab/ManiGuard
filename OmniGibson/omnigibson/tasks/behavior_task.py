@@ -2,7 +2,6 @@ import os
 import json
 from pathlib import Path
 import random
-import spot
 
 import torch as th
 from bddl.activity import (
@@ -36,7 +35,13 @@ from omnigibson.utils.bddl_utils import (
     OmniGibsonBDDLBackend,
     get_processed_bddl,
 )
-from omnigibson.utils.ltl_utils import AtomicPropositionGenerator, LTLMonitor
+from omnigibson.utils.ltl_utils import (
+    AtomicPropositionGenerator,
+    LTLMonitor,
+    get_spot_runtime_status,
+    spot,
+    spot_runtime_available,
+)
 from omnigibson.utils.python_utils import assert_valid_key, classproperty
 from omnigibson.utils.config_utils import TorchEncoder
 from omnigibson.utils.ui_utils import create_module_logger
@@ -93,6 +98,7 @@ class BehaviorTask(BaseTask):
         randomize_presampled_pose=False,
         sampling_whitelist=None,
         sampling_blacklist=None,
+        inroom_object_name_whitelist=None,
         highlight_task_relevant_objects=False,
         termination_config=None,
         reward_config=None,
@@ -142,6 +148,7 @@ class BehaviorTask(BaseTask):
         self.randomize_presampled_pose = randomize_presampled_pose
         self.sampling_whitelist = sampling_whitelist  # Maps str to str to list
         self.sampling_blacklist = sampling_blacklist  # Maps str to str to list
+        self.inroom_object_name_whitelist = inroom_object_name_whitelist  # Maps BDDL inst to scene object names
         self.highlight_task_relevant_objs = highlight_task_relevant_objects  # bool
         self.object_scope = None  # Maps str to BDDLEntity
         self.object_instance_to_category = None  # Maps str to str
@@ -320,6 +327,16 @@ class BehaviorTask(BaseTask):
                 ltl_str = constraint.get("ltl", "")
                 if not ltl_str:
                     continue
+                
+                if not spot_runtime_available(require_buddy=False):
+                    status = get_spot_runtime_status(require_buddy=False)
+                    log.warning(
+                        "LTL safety constraint '%s' found but Spot runtime is invalid. %s Skipping validation.",
+                        ltl_str,
+                        status["error"],
+                    )
+                    continue
+
                 try:
                     formula = spot.formula(ltl_str)
                 except Exception as exc:
@@ -352,7 +369,7 @@ class BehaviorTask(BaseTask):
         if results["combined_ltl"]:
             try:
                 self.ltl_monitor = LTLMonitor(results["combined_ltl"])
-            except RuntimeError as exc:
+            except Exception as exc:
                 log.warning(f"Failed to initialize LTLMonitor: {exc}")
                 self.ltl_monitor = None
 
@@ -500,6 +517,7 @@ class BehaviorTask(BaseTask):
             accept_scene, feedback = self.sampler.sample(
                 sampling_whitelist=self.sampling_whitelist,
                 sampling_blacklist=self.sampling_blacklist,
+                inroom_object_name_whitelist=self.inroom_object_name_whitelist,
             )
             if not accept_scene:
                 return accept_scene, feedback
@@ -572,14 +590,20 @@ class BehaviorTask(BaseTask):
             env (Environment): The environment containing the scene to update
         """
         env.scene.write_task_metadata(
-            key="inst_to_name", data={inst: entity.name for inst, entity in self.object_scope.items() if entity.exists}
+            key="inst_to_name",
+            data={
+                inst: entity.name
+                for inst, entity in self.object_scope.items()
+                if entity is not None and entity.exists
+            },
         )
 
     def _get_obs(self, env):
         low_dim_obs = dict()
 
         # Batch rpy calculations for much better efficiency
-        objs_exist = {obj: obj.exists for obj in self.object_scope.values() if not obj.is_system}
+        valid_objects = [obj for obj in self.object_scope.values() if obj is not None and not obj.is_system]
+        objs_exist = {obj: obj.exists for obj in valid_objects}
         objs_rpy = T.quat2euler(
             th.stack(
                 [

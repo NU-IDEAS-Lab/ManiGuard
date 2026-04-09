@@ -19,10 +19,9 @@ import time
 import omnigibson as og
 import torch as th
 from omnigibson.macros import gm
-from omnigibson.object_states import OnTop, Touching
+from omnigibson.object_states import OnTop, Touching, Upright
 from omnigibson.utils.asset_utils import get_all_object_category_models
 from omnigibson.utils.python_utils import meets_minimum_version
-import omnigibson.utils.transform_utils as T
 from omnigibson.utils.ltl_utils import LTLMonitor
 
 try:
@@ -214,19 +213,12 @@ class LTLWrapper(gym.Wrapper):
         glasses = self._get_glasses()
         if not glasses:
             return False
-        world_up = th.tensor([0.0, 0.0, 1.0], dtype=th.float32)
         for glass in glasses:
-            _, quat = glass.get_position_orientation()
-            quat_t = th.as_tensor(quat, dtype=th.float32)
-            up = T.quat_apply(quat_t, world_up)
-            up = th.as_tensor(up, dtype=th.float32).reshape(-1)
-            if up.numel() < 3:
-                return False
-            up = up[-3:]
-            up = up / (th.norm(up) + 1e-8)
-            cos_angle = th.clamp(th.dot(up, world_up), -1.0, 1.0)
-            angle_deg = float(th.rad2deg(th.acos(cos_angle)))
-            if angle_deg > MAX_TILT_DEG:
+            state = glass.states.get(Upright)
+            if state is None:
+                continue
+            state.max_tilt_deg = MAX_TILT_DEG
+            if not state.get_value():
                 return False
         return True
 

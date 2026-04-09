@@ -1,13 +1,89 @@
 from dataclasses import dataclass
 from enum import Enum
+import importlib.util
+import os
+import site
+import sys
 from typing import Callable, Dict, List, Optional, Tuple
-import spot
-# import buddy  # Removed incorrect import
-from spot import buddy  # Use buddy from spot
+try:
+    import spot
+    from spot import buddy
+except ImportError:
+    spot = None
+    buddy = None
 import numpy as np
 
 from bddl.logic_base import BinaryAtomicFormula, UnaryAtomicFormula
 from omnigibson.utils.bddl_utils import SUPPORTED_PREDICATES
+
+
+_SPOT_REQUIRED_ATTRS = ("formula", "translate", "atomic_prop_collect")
+
+
+def get_spot_runtime_status(require_buddy: bool = True) -> Dict[str, object]:
+    """Return diagnostics about the currently imported Spot runtime."""
+    module_path = getattr(spot, "__file__", None) if spot is not None else None
+    spec_origin = None
+    try:
+        spec = importlib.util.find_spec("spot")
+        spec_origin = getattr(spec, "origin", None) if spec is not None else None
+    except Exception:
+        spec_origin = None
+    resolved_path = module_path or spec_origin
+    missing = []
+    if spot is None:
+        missing.append("spot module")
+    else:
+        for attr in _SPOT_REQUIRED_ATTRS:
+            if not hasattr(spot, attr):
+                missing.append(f"spot.{attr}")
+    if require_buddy and buddy is None:
+        missing.append("spot.buddy")
+
+    user_site = None
+    try:
+        user_site = site.getusersitepackages()
+    except Exception:
+        user_site = None
+
+    user_site_enabled = bool(getattr(site, "ENABLE_USER_SITE", False))
+    shadowed_by_user_site = bool(
+        user_site_enabled and resolved_path and user_site and os.path.realpath(resolved_path).startswith(os.path.realpath(user_site))
+    )
+
+    valid = not missing
+    error = None
+    if not valid:
+        detail = ", ".join(missing)
+        if resolved_path:
+            error = f"Invalid Spot runtime from {resolved_path}: missing {detail}"
+        else:
+            error = f"Spot runtime unavailable: missing {detail}"
+        if shadowed_by_user_site:
+            error += " (user-site module shadowing detected; try PYTHONNOUSERSITE=1)"
+
+    return {
+        "valid": valid,
+        "module_path": resolved_path,
+        "missing": tuple(missing),
+        "error": error,
+        "python_executable": sys.executable,
+        "user_site_enabled": user_site_enabled,
+        "user_site_path": user_site,
+        "shadowed_by_user_site": shadowed_by_user_site,
+        "PYTHONNOUSERSITE": os.environ.get("PYTHONNOUSERSITE"),
+    }
+
+
+def spot_runtime_available(require_buddy: bool = True) -> bool:
+    return bool(get_spot_runtime_status(require_buddy=require_buddy)["valid"])
+
+
+def require_valid_spot_runtime(require_buddy: bool = True):
+    status = get_spot_runtime_status(require_buddy=require_buddy)
+    if not status["valid"]:
+        raise ImportError(status["error"])
+    return spot, buddy
 
 
 class PropositionType(Enum):
@@ -263,17 +339,18 @@ class LTLMonitor:
 
 
     def _initialize_spot(self) -> None:
-        
-        self._formula = spot.formula(self.formula_str)
-        self._ap_list = sorted(str(ap) for ap in spot.atomic_prop_collect(self._formula))
+        spot_mod, buddy_mod = require_valid_spot_runtime(require_buddy=True)
+
+        self._formula = spot_mod.formula(self.formula_str)
+        self._ap_list = sorted(str(ap) for ap in spot_mod.atomic_prop_collect(self._formula))
         if self.translate_opts:
             self._runtime_check = any(str(opt).lower() == "monitor" for opt in self.translate_opts)
 
         try:
             if self.translate_opts:
-                self._automaton = spot.translate(self._formula, *self.translate_opts)
+                self._automaton = spot_mod.translate(self._formula, *self.translate_opts)
             else:
-                self._automaton = spot.translate(self._formula)
+                self._automaton = spot_mod.translate(self._formula)
         except Exception:
             raise ValueError(f"Failed to translate LTL formula: {self.formula_str} into automaton.")
 
@@ -298,16 +375,18 @@ class LTLMonitor:
 
 
     def _build_condition_bdd(self, label_dict: Dict[str, bool]):
-        cond = buddy.bddtrue
+        _, buddy_mod = require_valid_spot_runtime(require_buddy=True)
+        cond = buddy_mod.bddtrue
         for ap in self._ap_list:
             var = self._check_ap_in_dict(ap)
             val = bool(label_dict.get(ap, False))
-            cond = cond & (buddy.bdd_ithvar(var) if val else buddy.bdd_nithvar(var))
+            cond = cond & (buddy_mod.bdd_ithvar(var) if val else buddy_mod.bdd_nithvar(var))
         return cond
 
 
     def _register_ap(self, ap: str) -> None:
-        self._dict.register_proposition(spot.formula(ap), self)
+        spot_mod, _ = require_valid_spot_runtime(require_buddy=True)
+        self._dict.register_proposition(spot_mod.formula(ap), self)
         
 
     def step(self, label_dict: Dict[str, bool]) -> Dict[str, object]:
@@ -315,10 +394,11 @@ class LTLMonitor:
             return {"state": None, "accepting": False}
 
         cond = self._build_condition_bdd(label_dict)
+        _, buddy_mod = require_valid_spot_runtime(require_buddy=True)
         next_state = None
         for transition in self._automaton.out(self._state):
             # Simplification of implies: A -> B  is equivalent to A & ~B == False
-            if (cond & buddy.bdd_not(transition.cond)) == buddy.bddfalse:
+            if (cond & buddy_mod.bdd_not(transition.cond)) == buddy_mod.bddfalse:
                 next_state = transition.dst
                 break
         self._state = next_state

@@ -1,0 +1,38 @@
+(define (problem transfer_hot_pan_safely-0)
+    (:domain omnigibson)
+
+    (:objects
+        frying_pan.n.01_1 - frying_pan.n.01
+        stove.n.01_1 - stove.n.01
+        countertop.n.01_1 - countertop.n.01
+        newspaper.n.03_1 - newspaper.n.03
+        paper_towel.n.01_1 - paper_towel.n.01
+        rag.n.01_1 - rag.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+    
+    (:init 
+        (ontop frying_pan.n.01_1 stove.n.01_1)
+        (hot frying_pan.n.01_1)
+        (toggled_on stove.n.01_1)
+        (ontop newspaper.n.03_1 countertop.n.01_1)
+        (ontop paper_towel.n.01_1 countertop.n.01_1)
+        (ontop rag.n.01_1 countertop.n.01_1)
+        (inroom stove.n.01_1 kitchen)
+        (inroom countertop.n.01_1 kitchen)
+        (inroom floor.n.01_1 kitchen)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+    
+    (:goal 
+        (and 
+            (ontop ?frying_pan.n.01_1 ?countertop.n.01_1)
+            (not (toggled_on ?stove.n.01_1))
+            (not (on_fire ?newspaper.n.03_1))
+            (not (on_fire ?paper_towel.n.01_1))
+            (not (on_fire ?rag.n.01_1))
+            (not (touching ?frying_pan.n.01_1 ?newspaper.n.03_1))
+        )
+    )
+)

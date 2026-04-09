@@ -7,13 +7,16 @@ This only serves as a starting point that users can further build upon.
 import argparse
 import os
 import time
+import datetime
 
 import yaml
+import numpy as np
 
 import omnigibson as og
 from omnigibson import example_config_path
 from omnigibson.macros import gm
 from omnigibson.utils.python_utils import meets_minimum_version
+from omnigibson.learning.utils.obs_utils import create_video_writer, write_video
 
 try:
     import gymnasium as gym
@@ -108,6 +111,13 @@ def main():
         help="If set, will evaluate the PPO agent found from --checkpoint",
     )
 
+    parser.add_argument(
+        "--video_record_freq",
+        type=int,
+        default=1000,
+        help="Frequency (in steps) to record video during training",
+    )
+
     args = parser.parse_args()
     tensorboard_log_dir = os.path.join("log_dir", time.strftime("%Y%m%d-%H%M%S"))
     os.makedirs(tensorboard_log_dir, exist_ok=True)
@@ -141,6 +151,40 @@ def main():
     # Set the set
     set_random_seed(seed)
     env.reset()
+
+    # Video recording setup (only for training if not eval, or both if desired)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    video_fpath = f"navigation_training_demo_{timestamp}.mp4"
+    video_writer = create_video_writer(
+        fpath=video_fpath,
+        resolution=(720, 1280), # Viewer camera default resolution
+        rate=30,
+    )
+    print(f"[DEBUG] Video recording started: {video_fpath}")
+
+    # Wrap the env's step function to record video
+    original_step = env.step
+    step_counter = 0 # Define a counter to keep track of steps
+    
+    def step_with_recording(action):
+        nonlocal step_counter
+        step_ret = original_step(action)
+        
+        # Record video only if we hit the frequency
+        if args.video_record_freq > 0 and step_counter % args.video_record_freq == 0:
+             # Record viewer camera
+            viewer_obs, _ = og.sim.viewer_camera.get_obs()
+            if "rgb" in viewer_obs:
+                rgb_img = viewer_obs["rgb"][..., :3]
+                if hasattr(rgb_img, "cpu"):
+                    rgb_img = rgb_img.cpu().numpy()
+                write_video(rgb_img[None, ...], video_writer, mode="rgb")
+        
+        step_counter += 1
+        return step_ret
+    
+    # Monkey patch the step function
+    env.step = step_with_recording
 
     policy_kwargs = dict(
         features_extractor_class=CustomCombinedExtractor,
@@ -180,6 +224,11 @@ def main():
             callback=callback,
         )
         og.log.info("Finished training!")
+        
+        # Cleanup
+        if video_writer:
+            video_writer[0].close()
+            print(f"[DEBUG] Video saved to {video_fpath}")
 
 
 if __name__ == "__main__":

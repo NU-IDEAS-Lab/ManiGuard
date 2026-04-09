@@ -4,3 +4,5 @@
 .idea
 gha-creds-*.json
 .aider*
+
+videos/

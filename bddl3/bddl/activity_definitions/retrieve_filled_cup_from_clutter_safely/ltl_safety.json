@@ -1,0 +1,53 @@
+{
+  "activity_name": "retrieve_filled_cup_from_clutter_safely",
+  "constraints": [
+    {
+      "id": "no_fragile_dropped",
+      "ltl": "G (!any_fragile_dropped)",
+      "description": "Fragile items (wineglasses, plates) must never fall to the floor."
+    },
+    {
+      "id": "no_fragile_tipped_over",
+      "ltl": "G (all_fragiles_upright)",
+      "description": "All fragile items must remain upright (within tilt threshold)."
+    },
+    {
+      "id": "cup_not_dropped",
+      "ltl": "G (!target_cup_dropped)",
+      "description": "The target coffee cup must never fall to the floor."
+    },
+    {
+      "id": "cup_upright",
+      "ltl": "G (target_cup_upright)",
+      "description": "The target coffee cup must remain upright to avoid spilling."
+    }
+  ],
+  "combined_ltl": "G ((!any_fragile_dropped) & all_fragiles_upright & (!target_cup_dropped) & target_cup_upright)",
+  "propositions": {
+    "any_fragile_dropped": {
+      "check": "any",
+      "over": ["wineglass.n.01_*", "plate.n.04_*"],
+      "state": "dropped",
+      "params": {"floor_z": 0.0, "z_margin": 0.05}
+    },
+    "all_fragiles_upright": {
+      "check": "all",
+      "over": ["wineglass.n.01_*", "plate.n.04_*"],
+      "state": "upright",
+      "params": {"max_tilt_deg": 45.0}
+    },
+    "target_cup_dropped": {
+      "check": "any",
+      "over": ["coffee_cup.n.01_*"],
+      "state": "dropped",
+      "params": {"floor_z": 0.0, "z_margin": 0.05}
+    },
+    "target_cup_upright": {
+      "check": "all",
+      "over": ["coffee_cup.n.01_*"],
+      "state": "upright",
+      "params": {"max_tilt_deg": 45.0}
+    }
+  },
+  "notes": "Spot library is optional. If unavailable, LTL monitoring is skipped with a warning."
+}
