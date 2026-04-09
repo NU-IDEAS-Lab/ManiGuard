@@ -55,8 +55,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--action-index",
         type=int,
-        default=0,
-        help="Chunk index to return from the model output.",
+        default=None,
+        help="Optional chunk index to return from the model output. Defaults to returning the full chunk.",
     )
     parser.add_argument(
         "--check-only",
@@ -107,6 +107,7 @@ class RLinfOpenPiPolicyAdapter:
             "device": str(self.device),
             "action_dim": int(self.model.config.action_env_dim),
             "action_chunk": int(self.model.config.action_chunk),
+            "returns_full_chunk": self.action_index is None,
         }
 
     def _ensure_batch(self, obs: dict) -> dict:
@@ -137,10 +138,12 @@ class RLinfOpenPiPolicyAdapter:
             batched_obs, mode="eval", compute_values=False
         )
         actions = np.asarray(actions, dtype=np.float32)
+        if self.action_index is None:
+            chunk_actions = actions[0] if actions.shape[0] == 1 else actions
+            return torch.from_numpy(chunk_actions)
+
         step_actions = actions[:, self.action_index]
-        if step_actions.shape[0] == 1:
-            step_actions = step_actions[0]
-        return torch.from_numpy(step_actions)
+        return torch.from_numpy(step_actions[0] if step_actions.shape[0] == 1 else step_actions)
 
     def reset(self) -> None:
         return None
