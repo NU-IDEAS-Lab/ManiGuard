@@ -143,6 +143,7 @@ def synthesize_scene_relative_ready_eef_position(
     object_top_z: float,
     workspace_standoff_m: float,
     height_above_table_m: float,
+    max_height_above_table_m: float | None,
     min_object_clearance_m: float,
     surface_margin_m: float,
 ) -> torch.Tensor:
@@ -164,10 +165,14 @@ def synthesize_scene_relative_ready_eef_position(
         desired_xy[0] = desired_xy[0].clamp(float(x0) + float(surface_margin_m), float(x1) - float(surface_margin_m))
         desired_xy[1] = desired_xy[1].clamp(float(y0) + float(surface_margin_m), float(y1) - float(surface_margin_m))
 
-    desired_z = max(
-        float(table_top_z) + float(height_above_table_m),
-        float(object_top_z) + float(min_object_clearance_m),
-    )
+    desired_z = float(table_top_z) + float(height_above_table_m)
+    object_clearance_z = float(object_top_z) + float(min_object_clearance_m)
+    if max_height_above_table_m is not None:
+        object_clearance_z = min(
+            object_clearance_z,
+            float(table_top_z) + float(max_height_above_table_m),
+        )
+    desired_z = max(desired_z, object_clearance_z)
     return torch.tensor([desired_xy[0], desired_xy[1], desired_z], dtype=torch.float32)
 
 
@@ -213,6 +218,29 @@ def pull_back_camera_eye(
         return eye
 
     return (lookat + ray / ray_norm * (ray_norm + float(pullback_m))).astype(np.float32)
+
+
+def build_camera_orientation_quat(
+    eye,
+    lookat,
+) -> torch.Tensor:
+    import omnigibson.utils.transform_utils as T
+
+    eye = np.asarray(eye, dtype=np.float32)
+    lookat = np.asarray(lookat, dtype=np.float32)
+    direction = lookat - eye
+    direction = direction / max(np.linalg.norm(direction), 1e-6)
+    quat = T.euler2quat(
+        torch.tensor(
+            [
+                math.pi / 2 + float(np.arcsin(np.clip(direction[2], -1.0, 1.0))),
+                0.0,
+                float(np.arctan2(-direction[0], direction[1])),
+            ],
+            dtype=torch.float32,
+        )
+    )
+    return quat.to(torch.float32)
 
 
 def build_tabletop_oblique_support_view(
@@ -303,6 +331,72 @@ def build_workspace_camera_lookat_point(
         ],
         dtype=np.float32,
     )
+
+
+def synthesize_scene_relative_ready_eef_orientation(
+    ready_eef_world_position,
+    workspace_center,
+    *,
+    table_top_z: float,
+    object_top_z: float,
+    wrist_camera_local_position,
+    wrist_camera_local_orientation,
+    wrist_camera_local_position_offset=None,
+    wrist_camera_local_position_override=None,
+    ready_lookat_height_above_table_m: float,
+    refinement_steps: int = 4,
+) -> dict:
+    import omnigibson.utils.transform_utils as T
+
+    ready_eef_world_position = torch.as_tensor(ready_eef_world_position, dtype=torch.float32).reshape(3)
+    effective_wrist_local_position = compute_policy_wrist_local_pose(
+        wrist_camera_local_position,
+        local_position_offset=wrist_camera_local_position_offset,
+        local_position_override=wrist_camera_local_position_override,
+    ).to(torch.float32)
+    effective_wrist_local_orientation = compute_policy_wrist_local_orientation(
+        wrist_camera_local_orientation,
+    ).to(torch.float32)
+    desired_camera_lookat = torch.as_tensor(
+        build_workspace_camera_lookat_point(
+            workspace_center,
+            table_top_z=table_top_z,
+            object_top_z=object_top_z,
+            height_above_table_m=ready_lookat_height_above_table_m,
+        ),
+        dtype=torch.float32,
+    )
+
+    desired_camera_world_position = ready_eef_world_position.clone()
+    refinement_steps = max(int(refinement_steps), 1)
+    desired_camera_world_orientation = None
+    desired_eef_world_orientation = None
+    for _ in range(refinement_steps):
+        desired_camera_world_orientation = build_camera_orientation_quat(
+            desired_camera_world_position.detach().cpu().tolist(),
+            desired_camera_lookat.detach().cpu().tolist(),
+        )
+        desired_eef_world_orientation = T.quat_multiply(
+            desired_camera_world_orientation,
+            T.quat_inverse(effective_wrist_local_orientation),
+        ).to(torch.float32)
+        desired_camera_world_position = ready_eef_world_position + (
+            T.quat2mat(desired_eef_world_orientation) @ effective_wrist_local_position
+        )
+
+    camera_forward_world = T.quat2mat(desired_camera_world_orientation) @ torch.tensor(
+        [0.0, 0.0, -1.0],
+        dtype=torch.float32,
+    )
+    return {
+        "desired_eef_world_orientation": desired_eef_world_orientation,
+        "desired_camera_world_position": desired_camera_world_position.to(torch.float32),
+        "desired_camera_world_orientation": desired_camera_world_orientation.to(torch.float32),
+        "desired_camera_lookat": desired_camera_lookat.to(torch.float32),
+        "camera_forward_world": camera_forward_world.to(torch.float32),
+        "effective_wrist_local_position": effective_wrist_local_position,
+        "effective_wrist_local_orientation": effective_wrist_local_orientation,
+    }
 
 
 class SentinelEnv(gym.Env):
@@ -489,10 +583,17 @@ class SentinelEnv(gym.Env):
             )
         return state.reshape(8)
 
-    def _apply_profile_post_reset_ready_pose(self, env_idx: int, env, spec: SentinelSceneSpec) -> dict | None:
-        if self.embodiment_profile.reset_pose_mode != "scene_relative_ready_eef_v1":
+    def _apply_profile_post_reset_ready_pose(
+        self,
+        env_idx: int,
+        env,
+        spec: SentinelSceneSpec,
+        raw_obs: dict | None = None,
+    ) -> dict | None:
+        if self.embodiment_profile.reset_pose_mode != "scene_relative_ready_eef_pose_v2":
             return None
 
+        import omnigibson as og
         import omnigibson.utils.transform_utils as T
         from omnigibson.controllers.ik_controller import _compute_ik_qpos_torch
 
@@ -515,15 +616,50 @@ class SentinelEnv(gym.Env):
             object_top_z=geometry["object_top_z"],
             workspace_standoff_m=self.embodiment_profile.ready_eef_standoff_m,
             height_above_table_m=self.embodiment_profile.ready_eef_height_above_table_m,
+            max_height_above_table_m=self.embodiment_profile.ready_eef_max_height_above_table_m,
             min_object_clearance_m=self.embodiment_profile.ready_eef_min_object_clearance_m,
             surface_margin_m=self.embodiment_profile.ready_eef_surface_margin_m,
         )
 
         base_pos, base_quat = robot.get_position_orientation()
-        _, eef_quat_world = robot.eef_links[robot.default_arm].get_position_orientation()
+        robot_obs = {} if raw_obs is None else raw_obs.get(robot.name, {})
+        wrist_sensor_name, _, _ = resolve_wrist_sensor_name(
+            robot_obs,
+            suffix_priority=self.embodiment_profile.wrist_sensor_suffix_priority,
+            token_priority=self.embodiment_profile.wrist_sensor_token_priority,
+        )
+        orientation_source = "current_eef_orientation_fallback"
+        ready_orientation_payload = None
+        if wrist_sensor_name is not None:
+            wrist_sensor = robot.sensors[wrist_sensor_name]
+            wrist_base_local_position, wrist_base_local_orientation = wrist_sensor.get_position_orientation(
+                frame="parent"
+            )
+            local_position_offset = self.sentinel_cfg.get(
+                "policy_wrist_local_position_offset",
+                list(self.embodiment_profile.wrist_local_position_offset),
+            )
+            local_position_override = self.sentinel_cfg.get("policy_wrist_local_position_override")
+            ready_orientation_payload = synthesize_scene_relative_ready_eef_orientation(
+                desired_world_pos,
+                geometry["workspace_center"],
+                table_top_z=geometry["table_top_z"],
+                object_top_z=geometry["object_top_z"],
+                wrist_camera_local_position=wrist_base_local_position,
+                wrist_camera_local_orientation=wrist_base_local_orientation,
+                wrist_camera_local_position_offset=local_position_offset,
+                wrist_camera_local_position_override=local_position_override,
+                ready_lookat_height_above_table_m=self.embodiment_profile.ready_eef_lookat_height_above_table_m,
+            )
+            desired_world_quat = ready_orientation_payload["desired_eef_world_orientation"]
+            orientation_source = "canonical_wrist_workspace_pose"
+        else:
+            _, desired_world_quat = robot.eef_links[robot.default_arm].get_position_orientation()
+            desired_world_quat = desired_world_quat.to(torch.float32)
+
         desired_local_pos, desired_local_quat = T.relative_pose_transform(
             desired_world_pos,
-            eef_quat_world,
+            desired_world_quat,
             base_pos,
             base_quat,
         )
@@ -532,19 +668,32 @@ class SentinelEnv(gym.Env):
         gripper_idx = robot.gripper_control_idx[robot.default_arm]
         full_joint_positions = robot.get_joint_positions().to(torch.float32).clone()
         solved_arm = full_joint_positions[arm_idx].clone()
-        solve_mode = "jacobian_iterative"
+        solve_mode = "jacobian_iterative_pose_v2"
         goal_ori_mat = T.quat2mat(desired_local_quat.to(torch.float32))
-        for _ in range(3):
+        ik_iterations = 0
+        final_pos_err_norm = None
+        final_ori_err_norm = None
+        for _ in range(32):
+            ik_iterations += 1
             full_joint_positions[arm_idx] = solved_arm
             robot.set_joint_positions(positions=full_joint_positions, drive=False)
             robot.keep_still()
+            og.sim.step()
             control_dict = robot.get_control_dict()
             task_name = f"eef_{robot.default_arm}"
+            current_ee_pos = torch.as_tensor(control_dict[f"{task_name}_pos_relative"], dtype=torch.float32)
+            current_ee_mat = T.quat2mat(torch.as_tensor(control_dict[f"{task_name}_quat_relative"], dtype=torch.float32))
+            pos_err = desired_local_pos.to(torch.float32) - current_ee_pos
+            ori_err = T.orientation_error(goal_ori_mat, current_ee_mat)
+            final_pos_err_norm = float(torch.linalg.norm(pos_err))
+            final_ori_err_norm = float(torch.linalg.norm(ori_err))
+            if final_pos_err_norm < 1e-3 and final_ori_err_norm < 2e-2:
+                break
             solved_arm = _compute_ik_qpos_torch(
                 q=torch.as_tensor(control_dict["joint_position"][arm_idx], dtype=torch.float32),
                 j_eef=torch.as_tensor(control_dict[f"{task_name}_jacobian_relative"][:, arm_idx], dtype=torch.float32),
-                ee_pos=torch.as_tensor(control_dict[f"{task_name}_pos_relative"], dtype=torch.float32),
-                ee_mat=T.quat2mat(torch.as_tensor(control_dict[f"{task_name}_quat_relative"], dtype=torch.float32)),
+                ee_pos=current_ee_pos,
+                ee_mat=current_ee_mat,
                 goal_pos=desired_local_pos.to(torch.float32),
                 goal_ori_mat=goal_ori_mat,
                 q_lower_limit=robot.joint_lower_limits[arm_idx].to(torch.float32),
@@ -561,8 +710,10 @@ class SentinelEnv(gym.Env):
 
         robot.set_joint_positions(positions=full_joint_positions, drive=False)
         robot.keep_still()
+        og.sim.step()
         final_local_pos = robot.get_relative_eef_position().to(torch.float32)
         final_local_quat = robot.get_relative_eef_orientation().to(torch.float32)
+        final_local_ori_err = T.orientation_error(goal_ori_mat, T.quat2mat(final_local_quat))
         try:
             robot.reset_joint_pos = full_joint_positions.clone()
         except Exception:
@@ -572,14 +723,40 @@ class SentinelEnv(gym.Env):
             "source": f"{self.embodiment_profile.name}:{self.embodiment_profile.reset_pose_mode}",
             "applied": True,
             "solve_mode": solve_mode,
+            "orientation_source": orientation_source,
+            "wrist_sensor_name": wrist_sensor_name,
             "workspace_center": [float(v) for v in geometry["workspace_center"].tolist()],
             "desired_world_position": [float(v) for v in desired_world_pos.tolist()],
+            "desired_world_orientation": [float(v) for v in desired_world_quat.to(torch.float32).tolist()],
             "desired_local_position": [float(v) for v in desired_local_pos.to(torch.float32).tolist()],
             "desired_local_orientation": [float(v) for v in desired_local_quat.to(torch.float32).tolist()],
             "arm_joint_positions": [float(v) for v in solved_arm.to(torch.float32).tolist()],
             "final_local_position": [float(v) for v in final_local_pos.tolist()],
             "final_local_orientation": [float(v) for v in final_local_quat.tolist()],
+            "ik_iterations": ik_iterations,
+            "final_position_error_norm": float(torch.linalg.norm(desired_local_pos.to(torch.float32) - final_local_pos)),
+            "final_orientation_error_norm": float(torch.linalg.norm(final_local_ori_err)),
+            "last_iteration_position_error_norm": final_pos_err_norm,
+            "last_iteration_orientation_error_norm": final_ori_err_norm,
             "gripper_scalar": self.embodiment_profile.ready_gripper_scalar,
+            "desired_camera_world_position": None
+            if ready_orientation_payload is None
+            else [float(v) for v in ready_orientation_payload["desired_camera_world_position"].tolist()],
+            "desired_camera_world_orientation": None
+            if ready_orientation_payload is None
+            else [float(v) for v in ready_orientation_payload["desired_camera_world_orientation"].tolist()],
+            "desired_camera_lookat": None
+            if ready_orientation_payload is None
+            else [float(v) for v in ready_orientation_payload["desired_camera_lookat"].tolist()],
+            "camera_forward_world": None
+            if ready_orientation_payload is None
+            else [float(v) for v in ready_orientation_payload["camera_forward_world"].tolist()],
+            "effective_wrist_local_position": None
+            if ready_orientation_payload is None
+            else [float(v) for v in ready_orientation_payload["effective_wrist_local_position"].tolist()],
+            "effective_wrist_local_orientation": None
+            if ready_orientation_payload is None
+            else [float(v) for v in ready_orientation_payload["effective_wrist_local_orientation"].tolist()],
         }
 
     def _apply_policy_reset_state_override(self, env) -> dict | None:
@@ -689,23 +866,7 @@ class SentinelEnv(gym.Env):
             return None
 
     def _build_camera_pose(self, eye, lookat):
-        import omnigibson.utils.transform_utils as T
-
-        eye = np.asarray(eye, dtype=np.float32)
-        lookat = np.asarray(lookat, dtype=np.float32)
-        direction = lookat - eye
-        direction = direction / max(np.linalg.norm(direction), 1e-6)
-        quat = T.euler2quat(
-            torch.tensor(
-                [
-                    math.pi / 2 + float(np.arcsin(np.clip(direction[2], -1.0, 1.0))),
-                    0.0,
-                    float(np.arctan2(-direction[0], direction[1])),
-                ],
-                dtype=torch.float32,
-            )
-        )
-        return torch.tensor(eye, dtype=torch.float32), quat.to(torch.float32)
+        return torch.tensor(eye, dtype=torch.float32), build_camera_orientation_quat(eye, lookat)
 
     def _compute_workspace_geometry(self, env, target_obj, support_obj=None):
         robot = env.robots[0]
@@ -1272,7 +1433,7 @@ class SentinelEnv(gym.Env):
                 env.robots[0].keep_still()
                 og.sim.step()
             self._debug_reset_trace(f"env_idx={env_idx} scene settle done")
-            profile_reset_override = self._apply_profile_post_reset_ready_pose(env_idx, env, spec)
+            profile_reset_override = self._apply_profile_post_reset_ready_pose(env_idx, env, spec, raw_obs=raw_obs)
             if profile_reset_override is not None:
                 self._debug_reset_trace(f"env_idx={env_idx} applied profile post-reset override")
                 reset_info["profile_post_reset_override"] = profile_reset_override
@@ -1295,6 +1456,10 @@ class SentinelEnv(gym.Env):
             raw_obs, _ = env.get_obs()
             self._debug_reset_trace(f"env_idx={env_idx} get_obs complete")
             self._reset_infos[env_idx] = dict((reset_info or {}).get("obs_info", {}))
+            if profile_reset_override is not None:
+                self._reset_infos[env_idx]["profile_post_reset_override"] = profile_reset_override
+            if policy_reset_override is not None:
+                self._reset_infos[env_idx]["policy_reset_override"] = policy_reset_override
             self._reset_object_summaries[env_idx] = self._collect_object_state_summary(env)
             self._ltl_monitors[env_idx] = self._build_ltl_monitor(env, spec)
             self._reset_infos[env_idx]["ltl"] = self._ltl_monitors[env_idx].step(step_idx=0)

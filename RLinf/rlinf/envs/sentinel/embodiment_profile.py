@@ -12,8 +12,10 @@ class SentinelEmbodimentProfile:
     ready_eef_workspace_blend: float
     ready_eef_standoff_m: float
     ready_eef_height_above_table_m: float
+    ready_eef_max_height_above_table_m: float
     ready_eef_min_object_clearance_m: float
     ready_eef_surface_margin_m: float
+    ready_eef_lookat_height_above_table_m: float
     ready_gripper_scalar: float | None
     external_camera_resolution: tuple[int, int]
     wrist_camera_resolution: tuple[int, int]
@@ -44,12 +46,14 @@ FRANKA_TABLETOP_SINGLE_ARM_V1 = SentinelEmbodimentProfile(
     name="franka_tabletop_single_arm_v1",
     robot_type="FrankaMounted",
     robot_name="agent_0",
-    reset_pose_mode="scene_relative_ready_eef_v1",
+    reset_pose_mode="scene_relative_ready_eef_pose_v2",
     ready_eef_workspace_blend=0.65,
     ready_eef_standoff_m=0.18,
     ready_eef_height_above_table_m=0.30,
+    ready_eef_max_height_above_table_m=0.42,
     ready_eef_min_object_clearance_m=0.18,
     ready_eef_surface_margin_m=0.06,
+    ready_eef_lookat_height_above_table_m=0.10,
     ready_gripper_scalar=0.0,
     external_camera_resolution=(240, 416),
     wrist_camera_resolution=(240, 416),
