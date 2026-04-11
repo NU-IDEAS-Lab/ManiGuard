@@ -47,6 +47,9 @@ from rlinf.models.embodiment.openpi.dataconfig.gsenv_dataconfig import (
 from rlinf.models.embodiment.openpi.dataconfig.libero_dataconfig import (
     LeRobotLiberoDataConfig,
 )
+from rlinf.models.embodiment.openpi.dataconfig.omnigibson_dataconfig import (
+    OmniGibsonDataConfig,
+)
 from rlinf.models.embodiment.openpi.dataconfig.maniskill_dataconfig import (
     LeRobotManiSkillDataConfig,
 )
@@ -293,6 +296,24 @@ _CONFIGS = [
             assets=AssetsConfig(
                 assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets",
                 asset_id="franka",
+            ),
+            extra_delta_transform=False,
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(_DEFAULT_PI05_BEHAVIOR_BASE),
+        pytorch_weight_path=_DEFAULT_PI05_BEHAVIOR_BASE,
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="pi05_omnigibson_stack_cube",
+        model=pi0_config.Pi0Config(
+            pi05=True, action_horizon=10, discrete_state_input=False
+        ),
+        data=OmniGibsonDataConfig(
+            repo_id="RLinf/IsaacLab-Stack-Cube-Data",
+            base_config=DataConfig(prompt_from_task=False),
+            assets=AssetsConfig(
+                assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets",
+                asset_id="IsaacLab-Stack-Cube-Data",
             ),
             extra_delta_transform=False,
         ),
