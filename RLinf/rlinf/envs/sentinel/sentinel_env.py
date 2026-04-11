@@ -511,6 +511,10 @@ class SentinelEnv(gym.Env):
         env_cfg["scene"]["scene_file"] = runtime_scene_file
         env_cfg["scene"]["scene_instance"] = None
         env_cfg["scene"]["include_robots"] = False
+        # Partial room loading for faster init and lower GPU memory
+        load_room_instances = self.sentinel_cfg.get("load_room_instances")
+        if load_room_instances:
+            env_cfg["scene"]["load_room_instances"] = list(load_room_instances)
         with open(spec.problem_file, "r", encoding="utf-8") as handle:
             env_cfg["task"]["predefined_problem"] = handle.read()
         env_cfg["task"]["activity_name"] = spec.activity_name

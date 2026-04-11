@@ -178,8 +178,10 @@ def build_runtime_task_metadata(scene_info: dict, diagnostics: dict, problem_tex
         inst_id for inst_id in declared_instances if inst_id not in inst_to_name and not inst_id.startswith("agent.n.")
     ]
     if missing_instances:
-        raise ValueError(
-            f"Unable to recover cached inst_to_name mapping for: {missing_instances}"
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Could not map {len(missing_instances)} BDDL instances to scene objects: {missing_instances}. "
+            f"Proceeding with partial mapping."
         )
 
     return {"inst_to_name": inst_to_name}
@@ -249,7 +251,11 @@ def build_scene_registry(
                 target_object_name = entry.get("scene_object_name", "")
                 break
         if not target_object_name:
-            raise ValueError(f"Target object missing in diagnostics: {diagnostics_file}")
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Skipping scene {scene_name}: no target object in {diagnostics_file}"
+            )
+            continue
 
         target_synset = diagnostics["selection"]["target_synset"]
         support_object_name = diagnostics.get("surface")
