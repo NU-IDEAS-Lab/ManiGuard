@@ -65,8 +65,6 @@ def build_env_config(headless: bool, scene: str):
         "action_normalize": False,
         "grasping_mode": "physical",
         "position": [0, 0, 0.5],
-        # Match DROID training data mean joint pose
-        "reset_joint_pos": [0.016, 0.267, -0.017, -2.026, -0.033, 2.345, 0.083, 0.04, 0.04],
         "sensor_config": {
             "VisionSensor": {
                 "sensor_kwargs": {"image_height": 256, "image_width": 256},
@@ -74,18 +72,20 @@ def build_env_config(headless: bool, scene: str):
         },
         "controller_config": {
             "arm_0": {
-                "name": "JointController",
-                "motor_type": "position",
-                "use_delta_commands": True,
-                "command_input_limits": None,
-                "command_output_limits": None,
-                "use_impedances": False,
+                "name": "InverseKinematicsController",
+                "mode": "pose_delta_ori",
+                "command_input_limits": [[-1.0] * 6, [1.0] * 6],
+                "command_output_limits": [
+                    [-0.2, -0.2, -0.2, -0.5, -0.5, -0.5],
+                    [0.2, 0.2, 0.2, 0.5, 0.5, 0.5],
+                ],
             },
             "gripper_0": {
                 "name": "MultiFingerGripperController",
-                "command_input_limits": None,
+                "command_input_limits": [-1.0, 1.0],
                 "command_output_limits": "default",
                 "mode": "smooth",
+                "inverted": True,
             },
         },
     }
@@ -302,13 +302,16 @@ def main():
         if action_chunk.ndim == 1:
             action_chunk = action_chunk[np.newaxis, :]
 
-        # DROID outputs 8D absolute: joint_position(7) + gripper_position(1)
-        # Send directly to JointController (arm 7D) + GripperController (1D)
+        # DROID outputs 8D: delta_pos(3) + delta_rot(3) + gripper(1) + terminate(1)
+        # We use first 6 for IK arm, dim 6 for gripper, ignore dim 7 (terminate)
         chunk_len = min(execute_horizon, len(action_chunk), args.steps - step_idx)
         for chunk_idx in range(chunk_len):
             action_8d = action_chunk[chunk_idx].copy()
-            # 8D action: 7 joint targets + 1 gripper target
-            action_clipped = np.clip(action_8d[:action_space.shape[0]], action_space.low, action_space.high)
+            # Build 7D action for OmniGibson: 6D EEF delta + 1D gripper
+            arm_action = action_8d[:6]
+            gripper_action = np.sign(action_8d[6]) if abs(action_8d[6]) > 0.01 else -1.0
+            action_7d = np.concatenate([arm_action, [gripper_action]])
+            action_clipped = np.clip(action_7d[:action_space.shape[0]], action_space.low, action_space.high)
 
             raw_obs, reward, terminated, truncated, info = env.step(
                 torch.from_numpy(action_clipped).unsqueeze(0)
