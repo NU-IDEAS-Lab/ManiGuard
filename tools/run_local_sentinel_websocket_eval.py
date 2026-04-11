@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=8000, help="Policy server port.")
     parser.add_argument(
         "--pi05-checkpoint-dir",
-        default="/home/yiyanpeng/data/SENTINEL-Lite/checkpoints/pi05_base",
+        default=str(REPO_ROOT / "checkpoints" / "RLinf-Pi05-LIBERO-SFT"),
         help="Local Pi0.5 checkpoint root used for loading optional reset-state statistics.",
     )
     parser.add_argument(
@@ -144,6 +144,11 @@ def parse_args() -> argparse.Namespace:
         default="scene",
         help="Robot reset source: use the frozen scene robot pose, or override joints with Pi0.5 state mean.",
     )
+    parser.add_argument(
+        "--embodiment-profile",
+        default="franka_tabletop_libero_v1",
+        help="Sentinel embodiment profile name.",
+    )
     parser.add_argument("--seed-offset", type=int, default=0, help="Worker seed offset.")
     parser.add_argument(
         "--headless",
@@ -208,6 +213,7 @@ def build_env_cfg(args: argparse.Namespace):
     cfg.sentinel_cfg.benchmark_root = str(Path(args.benchmark_root).resolve())
     cfg.sentinel_cfg.activity_root = str(Path(args.activity_root).resolve())
     cfg.sentinel_cfg.max_scenes = args.max_scenes
+    cfg.sentinel_cfg.embodiment_profile = args.embodiment_profile
     cfg.sentinel_cfg.headless = bool(args.headless)
     cfg.sentinel_cfg.robot_reset_source = args.reset_joint_source
     cfg.sentinel_cfg.reset_settle_steps = int(args.reset_settle_steps)
@@ -616,7 +622,7 @@ def main() -> None:
             weights = torch.exp(0.005 * torch.arange(stacked_actions.shape[0], dtype=torch.float32))
             weights = weights / torch.sum(weights)
             raw_action = torch.sum(stacked_actions * weights[:, None], dim=0)
-            raw_action[7] = stacked_actions[-1, 7]
+            raw_action[-1] = stacked_actions[-1, -1]  # gripper: use latest replan
             active_chunk_idx = int(
                 min(int(temporal_sequences[-1]["idx"]), int(temporal_sequences[-1]["actions"].shape[0]) - 1)
             )

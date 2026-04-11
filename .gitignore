@@ -5,3 +5,6 @@ scene_generation/*
 outputs/*
 datasets/
 bddl3/bddl/activity_definitions/*
+checkpoints/
+RLinf-*/
+RLinf/.venv*/
