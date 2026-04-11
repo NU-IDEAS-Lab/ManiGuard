@@ -31,6 +31,19 @@ gm.ENABLE_TRANSITION_RULES = True
 DEFAULT_POLICY_WRIST_LOCAL_POSITION_OFFSET = (0.02, 0.0, 0.04)
 
 
+def quat2axisangle(quat: torch.Tensor) -> torch.Tensor:
+    """Convert quaternion (x,y,z,w) to axis-angle (3D). Matches LIBERO convention."""
+    quat = quat.to(torch.float32).clone()
+    quat = torch.clamp(quat, -1.0, 1.0)
+    w = quat[3]
+    sin_half = torch.sqrt(torch.clamp(1.0 - w * w, min=0.0))
+    if float(sin_half) < 1e-6:
+        return torch.zeros(3, dtype=torch.float32)
+    angle = 2.0 * torch.acos(torch.clamp(w, -1.0, 1.0))
+    axis = quat[:3] / sin_half
+    return axis * angle
+
+
 def policy_gripper_scalar_from_joint_positions(
     gripper_positions: torch.Tensor,
     gripper_lower: torch.Tensor,
@@ -546,16 +559,34 @@ class SentinelEnv(gym.Env):
                 robot_cfg["reset_joint_pos"] = scene_robot_setup["reset_joint_pos"]
         controller_cfg = robot_cfg.setdefault("controller_config", {})
         arm_cfg = controller_cfg.setdefault("arm_0", {})
-        arm_cfg.update(
-            {
-                "name": self.embodiment_profile.arm_controller_name,
-                "motor_type": self.embodiment_profile.arm_motor_type,
-                "command_input_limits": None,
-                "command_output_limits": None,
-                "use_delta_commands": self.embodiment_profile.arm_use_delta_commands,
-                "use_impedances": self.embodiment_profile.arm_use_impedances,
-            }
-        )
+        if self.embodiment_profile.arm_mode is not None:
+            # IK / OSC controller with EEF-space commands
+            for stale_key in ("motor_type", "use_delta_commands", "use_impedances"):
+                arm_cfg.pop(stale_key, None)
+            # 6D EEF limits: pos ±0.2 m/s, rot ±0.5 rad/s (OmniGibson IK defaults)
+            arm_cfg.update(
+                {
+                    "name": self.embodiment_profile.arm_controller_name,
+                    "mode": self.embodiment_profile.arm_mode,
+                    "command_input_limits": [[-1.0] * 6, [1.0] * 6],
+                    "command_output_limits": [
+                        [-0.2, -0.2, -0.2, -0.5, -0.5, -0.5],
+                        [0.2, 0.2, 0.2, 0.5, 0.5, 0.5],
+                    ],
+                }
+            )
+        else:
+            # Joint-space controller
+            arm_cfg.update(
+                {
+                    "name": self.embodiment_profile.arm_controller_name,
+                    "motor_type": self.embodiment_profile.arm_motor_type,
+                    "command_input_limits": None,
+                    "command_output_limits": None,
+                    "use_delta_commands": self.embodiment_profile.arm_use_delta_commands,
+                    "use_impedances": self.embodiment_profile.arm_use_impedances,
+                }
+            )
 
         gripper_cfg = controller_cfg.setdefault("gripper_0", {})
         gripper_cfg.update(
@@ -950,6 +981,37 @@ class SentinelEnv(gym.Env):
                 lookat_height_above_table_m=self.embodiment_profile.main_camera_lookat_height_above_table_m,
                 pullback_m=self.embodiment_profile.main_camera_pullback_m,
             )
+        if self.embodiment_profile.main_camera_mode == "libero_agentview_v1":
+            # Camera on the opposite side of the table from the robot,
+            # at arm-top height, looking back at the workspace to capture
+            # both the arm and objects in a full panoramic view.
+            forward, _ = _workspace_xy_basis(
+                geometry["robot_base_pos"], geometry["workspace_center"]
+            )
+            wc = np.asarray(geometry["workspace_center"], dtype=np.float32)
+            # Place camera on the far side of workspace (opposite from robot)
+            backoff = float(self.embodiment_profile.main_camera_backoff_m)
+            eye = np.asarray(
+                [
+                    float(wc[0] + forward[0] * backoff),
+                    float(wc[1] + forward[1] * backoff),
+                    float(geometry["table_top_z"] + float(self.embodiment_profile.main_camera_height_above_table_m)),
+                ],
+                dtype=np.float32,
+            )
+            lookat = np.asarray(
+                [
+                    float(wc[0]),
+                    float(wc[1]),
+                    float(geometry["table_top_z"] + float(self.embodiment_profile.main_camera_lookat_height_above_table_m)),
+                ],
+                dtype=np.float32,
+            )
+            return {
+                "label": "libero_agentview",
+                "eye": [float(v) for v in eye],
+                "lookat": [float(v) for v in lookat],
+            }
         raise ValueError(
             f"Unsupported Sentinel main camera mode: {self.embodiment_profile.main_camera_mode}"
         )
@@ -1123,15 +1185,26 @@ class SentinelEnv(gym.Env):
             wrist_sensor_resolution = "synthetic_zeros"
             rgb_sensor_names = []
 
-        arm_positions = robot.get_joint_positions()[robot.arm_control_idx[robot.default_arm]]
-        gripper_indices = robot.gripper_control_idx[robot.default_arm]
-        gripper_positions = robot.get_joint_positions()[gripper_indices]
-        gripper_scalar = policy_gripper_scalar_from_joint_positions(
-            gripper_positions,
-            robot.joint_lower_limits[gripper_indices],
-            robot.joint_upper_limits[gripper_indices],
-        )
-        state = torch.cat([arm_positions.to(torch.float32), gripper_scalar.to(torch.float32)], dim=0)
+        if self.embodiment_profile.state_mode == "eef":
+            # LIBERO/IsaacLab-compatible: eef_pos(3) + axis_angle(3) + gripper(1) = 7D
+            eef_pos = robot.get_relative_eef_position().to(torch.float32)
+            eef_quat = robot.get_relative_eef_orientation().to(torch.float32)
+            eef_axisangle = quat2axisangle(eef_quat)
+            gripper_indices = robot.gripper_control_idx[robot.default_arm]
+            gripper_qpos = robot.get_joint_positions()[gripper_indices].to(torch.float32)
+            gripper_scalar = torch.mean(gripper_qpos).reshape(1)
+            state = torch.cat([eef_pos, eef_axisangle, gripper_scalar], dim=0)
+        else:
+            # Original: joint_positions(7) + gripper_scalar(1) = 8D
+            arm_positions = robot.get_joint_positions()[robot.arm_control_idx[robot.default_arm]]
+            gripper_indices = robot.gripper_control_idx[robot.default_arm]
+            gripper_positions = robot.get_joint_positions()[gripper_indices]
+            gripper_scalar = policy_gripper_scalar_from_joint_positions(
+                gripper_positions,
+                robot.joint_lower_limits[gripper_indices],
+                robot.joint_upper_limits[gripper_indices],
+            )
+            state = torch.cat([arm_positions.to(torch.float32), gripper_scalar.to(torch.float32)], dim=0)
 
         return {
             "main_images": main_rgb,

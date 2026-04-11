@@ -13,9 +13,12 @@
 # limitations under the License.
 # openpi model configs
 
+import logging
 import os
 
 from omegaconf import DictConfig
+
+logger = logging.getLogger(__name__)
 
 
 def get_model(cfg: DictConfig, torch_dtype=None):
@@ -69,8 +72,36 @@ def get_model(cfg: DictConfig, torch_dtype=None):
         # that the policy is using the same normalization stats as the original training process.
         if data_config.asset_id is None:
             raise ValueError("Asset id is required to load norm stats.")
+        # Search for norm_stats.json in multiple possible locations
+        norm_stats_base = None
+        search_paths = [
+            os.path.join(checkpoint_dir, "assets"),
+            os.path.join(checkpoint_dir, "physical-intelligence"),
+            checkpoint_dir,
+        ]
+        # Also search recursively for the asset_id directory
+        for root, dirs, files in os.walk(checkpoint_dir):
+            if data_config.asset_id in dirs:
+                search_paths.append(root)
+        for sp in search_paths:
+            candidate = os.path.join(sp, data_config.asset_id, "norm_stats.json")
+            if os.path.isfile(candidate):
+                norm_stats_base = sp
+                logger.info(f"Found norm stats at {candidate}")
+                break
+        if norm_stats_base is None:
+            # Last resort: find any norm_stats.json and use its parent's parent
+            for root, dirs, files in os.walk(checkpoint_dir):
+                if "norm_stats.json" in files:
+                    norm_stats_base = os.path.dirname(root)
+                    logger.info(f"Found norm stats via search at {os.path.join(root, 'norm_stats.json')}")
+                    break
+        if norm_stats_base is None:
+            raise FileNotFoundError(
+                f"Could not find norm_stats.json for asset_id={data_config.asset_id} in {checkpoint_dir}"
+            )
         norm_stats = _checkpoints.load_norm_stats(
-            os.path.join(checkpoint_dir, "assets"), data_config.asset_id
+            norm_stats_base, data_config.asset_id
         )
     # wrappers
     repack_transforms = transforms.Group()

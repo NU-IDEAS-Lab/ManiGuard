@@ -40,6 +40,9 @@ class SentinelEmbodimentProfile:
     gripper_mode: str
     gripper_inverted: bool
     gripper_input_limits: tuple[tuple[float], tuple[float]]
+    arm_mode: str | None = None
+    state_mode: str = "joint"  # "joint" (7 joints + 1 gripper) or "eef" (3 pos + 3 axisangle + 2 gripper_qpos)
+    action_dim: int = 8
 
 
 FRANKA_TABLETOP_SINGLE_ARM_V1 = SentinelEmbodimentProfile(
@@ -88,11 +91,66 @@ FRANKA_TABLETOP_SINGLE_ARM_V1 = SentinelEmbodimentProfile(
     gripper_mode="smooth",
     gripper_inverted=True,
     gripper_input_limits=((0.0,), (1.0,)),
+    arm_mode=None,
+    state_mode="joint",
+    action_dim=8,
+)
+
+FRANKA_TABLETOP_LIBERO_V1 = SentinelEmbodimentProfile(
+    name="franka_tabletop_libero_v1",
+    robot_type="FrankaMounted",
+    robot_name="agent_0",
+    reset_pose_mode="scene_relative_ready_eef_pose_v2",
+    ready_eef_workspace_blend=0.65,
+    ready_eef_standoff_m=0.18,
+    ready_eef_height_above_table_m=0.30,
+    ready_eef_max_height_above_table_m=0.42,
+    ready_eef_min_object_clearance_m=0.18,
+    ready_eef_surface_margin_m=0.06,
+    ready_eef_lookat_height_above_table_m=0.10,
+    ready_gripper_scalar=0.0,
+    external_camera_resolution=(256, 256),
+    wrist_camera_resolution=(256, 256),
+    main_camera_mode="libero_agentview_v1",
+    main_camera_backoff_m=0.65,
+    main_camera_lateral_offset_m=0.0,
+    main_camera_height_above_table_m=0.60,
+    main_camera_lookat_height_above_table_m=0.10,
+    main_camera_pullback_m=0.0,
+    wrist_camera_mode="mounted_local_v1",
+    wrist_camera_lookat_height_above_table_m=0.10,
+    wrist_sensor_suffix_priority=(
+        ":camera_link:camera:0",
+        ":eef_link:camera:0",
+    ),
+    wrist_sensor_token_priority=(
+        ("camera_link", "camera"),
+        ("eef_link", "camera"),
+        ("wrist",),
+        ("realsense",),
+        ("d405",),
+        ("hand",),
+    ),
+    wrist_local_position_offset=(0.02, 0.0, 0.04),
+    wrist_local_orientation_override=None,
+    reset_settle_steps=10,
+    arm_controller_name="InverseKinematicsController",
+    arm_motor_type="velocity",
+    arm_use_delta_commands=False,
+    arm_use_impedances=False,
+    gripper_controller_name="MultiFingerGripperController",
+    gripper_mode="smooth",
+    gripper_inverted=True,
+    gripper_input_limits=((-1.0,), (1.0,)),
+    arm_mode="pose_delta_ori",
+    state_mode="eef",
+    action_dim=7,
 )
 
 
 _PROFILE_REGISTRY = {
     FRANKA_TABLETOP_SINGLE_ARM_V1.name: FRANKA_TABLETOP_SINGLE_ARM_V1,
+    FRANKA_TABLETOP_LIBERO_V1.name: FRANKA_TABLETOP_LIBERO_V1,
 }
 
 

@@ -37,12 +37,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--checkpoint-dir",
-        default="/home/yiyanpeng/data/SENTINEL-Lite/checkpoints/pi05_base",
+        default=str(REPO_ROOT / "checkpoints" / "RLinf-Pi05-LIBERO-SFT"),
         help="Converted local Pi0.5 checkpoint root.",
     )
     parser.add_argument(
         "--config-name",
-        default="pi05_franka_tabletop",
+        default="pi05_libero",
         help="RLinf openpi config name.",
     )
     parser.add_argument("--host", default="0.0.0.0", help="Websocket bind host.")
@@ -51,6 +51,12 @@ def parse_args() -> argparse.Namespace:
         "--device",
         default="cuda",
         help="Torch device used for inference. Defaults to cuda when available.",
+    )
+    parser.add_argument(
+        "--action-dim",
+        type=int,
+        default=7,
+        help="Action dimension. 7 for LIBERO-style delta EEF, 8 for absolute joint.",
     )
     parser.add_argument(
         "--action-index",
@@ -73,6 +79,7 @@ class RLinfOpenPiPolicyAdapter:
         config_name: str,
         device: str,
         action_index: int,
+        action_dim: int = 7,
     ) -> None:
         cfg = OmegaConf.create(
             {
@@ -84,7 +91,7 @@ class RLinfOpenPiPolicyAdapter:
                     "action_chunk": 10,
                     "num_steps": 5,
                     "train_expert_only": True,
-                    "action_env_dim": 8,
+                    "action_env_dim": action_dim,
                     "noise_method": "flow_sde",
                     "add_value_head": False,
                     "value_after_vlm": False,
@@ -111,6 +118,7 @@ class RLinfOpenPiPolicyAdapter:
         }
 
     def _ensure_batch(self, obs: dict) -> dict:
+        # Keep env keys as-is — obs_processor in openpi_action_model handles the mapping
         batched = dict(obs)
         for key in ("main_images", "wrist_images", "states"):
             value = batched.get(key)
@@ -235,6 +243,7 @@ def main() -> None:
         config_name=args.config_name,
         device=args.device,
         action_index=args.action_index,
+        action_dim=args.action_dim,
     )
     if args.check_only:
         print(adapter.metadata())
