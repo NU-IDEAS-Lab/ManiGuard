@@ -31,7 +31,6 @@ STRUCTURAL_CATEGORY_KEYWORDS = (
     "stairs", "stair", "railing", "beam", "column", "pillar",
 )
 
-DEFAULT_VIDEO_CANDIDATE_MODE = "support_relative_v1"
 
 # ---------------------------------------------------------------------------
 # Arg parsing
@@ -66,8 +65,6 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p.add_argument("--obstacle-keepout-margin-m", type=float, default=None)
     p.add_argument("--obstacle-side-clearance-m", type=float, default=None)
     p.add_argument("--perimeter-clear-margin-m", type=float, default=None)
-    p.add_argument("--video-viewer-only", action="store_true")
-    p.add_argument("--video-candidate-mode", default=DEFAULT_VIDEO_CANDIDATE_MODE)
     return p
 
 
@@ -729,14 +726,6 @@ def expected_video_path(base_path, episode):
     return f"{stem}_ep{episode + 1}.mp4"
 
 
-def expected_labeled_video_path(base_path, episode, label):
-    stem = base_path[:-4] if base_path.endswith(".mp4") else base_path
-    return f"{stem}_{label}_ep{episode + 1}.mp4"
-
-
-def _sanitize_view_label(label):
-    cleaned = "".join(ch if ch.isalnum() or ch in ("_", "-") else "_" for ch in str(label).strip())
-    return cleaned or "view"
 
 
 def _object_world_position(obj):
@@ -783,53 +772,79 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
         float(max(table_top_z + 0.15, cluster_center[2], tp[2])),
     ], dtype=np.float32)
 
-    toward_support = support_center[:2] - rp[:2]
-    norm = float(np.linalg.norm(toward_support))
-    if norm < 1e-6:
-        toward_support = cluster_center[:2] - rp[:2]
-        norm = float(np.linalg.norm(toward_support))
-    if norm < 1e-6:
-        toward_support = np.asarray([0.0, 1.0], dtype=np.float32)
-        norm = 1.0
-    forward = toward_support / norm
-    lateral = np.asarray([-forward[1], forward[0]], dtype=np.float32)
+    # Camera height: robot highest point + 0.4m
+    try:
+        robot_aabb_max = float(robot.aabb[1][2])
+    except Exception:
+        robot_aabb_max = rp[2] + 1.0  # fallback: base + ~1m
+    cam_z = robot_aabb_max + 0.4
 
-    primary_extent = abs(forward[0]) * hx + abs(forward[1]) * hy
-    lateral_extent = abs(lateral[0]) * hx + abs(lateral[1]) * hy
-    front_dist = max(primary_extent + 0.55, 0.80)
-    side_dist = max(lateral_extent + 0.65, 0.95)
-    low_z = max(table_top_z + 0.40, tp[2] + 0.30, rp[2] + 0.70)
-    high_z = low_z + 0.28
-    topdown_z = max(table_top_z + 1.25, high_z + 0.25)
+    # Surface AABB bounds
+    if support_obj is not None:
+        try:
+            aabb_min, aabb_max = support_obj.aabb
+            sx0, sy0 = float(aabb_min[0]), float(aabb_min[1])
+            sx1, sy1 = float(aabb_max[0]), float(aabb_max[1])
+        except Exception:
+            sx0, sy0 = float(support_center[0] - hx), float(support_center[1] - hy)
+            sx1, sy1 = float(support_center[0] + hx), float(support_center[1] + hy)
+    else:
+        sx0, sy0 = float(support_center[0] - hx), float(support_center[1] - hy)
+        sx1, sy1 = float(support_center[0] + hx), float(support_center[1] + hy)
 
+    sx_center = (sx0 + sx1) * 0.5
+    sy_center = (sy0 + sy1) * 0.5
+    margin = 0.3  # camera offset past surface edge
+
+    # Determine which edge of the surface the robot is closest to
+    dist_to_edges = {
+        "x_min": abs(rp[0] - sx0),
+        "x_max": abs(rp[0] - sx1),
+        "y_min": abs(rp[1] - sy0),
+        "y_max": abs(rp[1] - sy1),
+    }
+    robot_edge = min(dist_to_edges, key=dist_to_edges.get)
+    print(f"[Camera] robot_pos=({rp[0]:.2f}, {rp[1]:.2f}), surface=x[{sx0:.2f},{sx1:.2f}] y[{sy0:.2f},{sy1:.2f}]")
+    print("[Camera] dist_to_edges:", {k: round(v, 2) for k, v in dist_to_edges.items()})
+    print(f"[Camera] robot_edge={robot_edge}, cam_z={cam_z:.2f}")
+
+    # Opposite camera: on the far side of the surface from robot
+    # Left/right cameras: on the two remaining sides perpendicular to robot-opposite axis
+    if robot_edge == "x_min":
+        opp_eye = (sx1 + margin, sy_center, cam_z)
+        left_eye = (sx_center, sy0 - margin, cam_z)
+        right_eye = (sx_center, sy1 + margin, cam_z)
+    elif robot_edge == "x_max":
+        opp_eye = (sx0 - margin, sy_center, cam_z)
+        left_eye = (sx_center, sy1 + margin, cam_z)
+        right_eye = (sx_center, sy0 - margin, cam_z)
+    elif robot_edge == "y_min":
+        opp_eye = (sx_center, sy1 + margin, cam_z)
+        left_eye = (sx0 - margin, sy_center, cam_z)
+        right_eye = (sx1 + margin, sy_center, cam_z)
+    else:  # y_max
+        opp_eye = (sx_center, sy0 - margin, cam_z)
+        left_eye = (sx1 + margin, sy_center, cam_z)
+        right_eye = (sx0 - margin, sy_center, cam_z)
+
+    print(f"[Camera] opp_eye={opp_eye}, left_eye={left_eye}, right_eye={right_eye}")
+    print(f"[Camera] lookat=({lookat[0]:.2f}, {lookat[1]:.2f}, {lookat[2]:.2f})")
     return [
         {
             "label": "opposite_side_front",
-            "eye": (
-                float(lookat[0] + forward[0] * front_dist),
-                float(lookat[1] + forward[1] * front_dist),
-                float(low_z),
-            ),
+            "eye": tuple(float(v) for v in opp_eye),
             "lookat": tuple(float(v) for v in lookat),
             "canonical": True,
         },
         {
             "label": "left_overview",
-            "eye": (
-                float(lookat[0] + forward[0] * (front_dist * 0.45) + lateral[0] * side_dist),
-                float(lookat[1] + forward[1] * (front_dist * 0.45) + lateral[1] * side_dist),
-                float(high_z),
-            ),
+            "eye": tuple(float(v) for v in left_eye),
             "lookat": tuple(float(v) for v in lookat),
             "canonical": False,
         },
         {
             "label": "right_overview",
-            "eye": (
-                float(lookat[0] + forward[0] * (front_dist * 0.45) - lateral[0] * side_dist),
-                float(lookat[1] + forward[1] * (front_dist * 0.45) - lateral[1] * side_dist),
-                float(high_z),
-            ),
+            "eye": tuple(float(v) for v in right_eye),
             "lookat": tuple(float(v) for v in lookat),
             "canonical": False,
         },
@@ -838,148 +853,53 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
 
 def build_video_view_specs(args, robot, target_obj, support_obj=None,
                            active_objects_by_inst=None, camera_override=None):
-    rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
-    tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]]
-    default_center = [0.5 * (rp[0] + tp[0]), 0.5 * (rp[1] + tp[1]), max(rp[2] + 0.7, tp[2] + 0.25)]
-    default_eye = [default_center[0] - 1.0, default_center[1] - 1.1, default_center[2] + 0.5]
-    if camera_override and camera_override.get("lookat") is not None:
-        default_center = [float(v) for v in camera_override["lookat"]]
-    if camera_override and camera_override.get("eye") is not None:
-        default_eye = [float(v) for v in camera_override["eye"]]
-
-    candidate_views = tuple(getattr(args, "video_candidate_views", ()) or ())
-    candidate_mode = str(getattr(args, "video_candidate_mode", "") or "").strip() or DEFAULT_VIDEO_CANDIDATE_MODE
-    if not candidate_views:
-        if candidate_mode == "support_relative_v1":
-            views = _support_relative_video_views(
-                robot=robot,
-                target_obj=target_obj,
-                support_obj=support_obj,
-                active_objects_by_inst=active_objects_by_inst,
-            )
-            final_label = getattr(args, "video_final_view", None)
-            if final_label:
-                normalized = _sanitize_view_label(final_label)
-                for view in views:
-                    view["canonical"] = view["label"] == normalized
-                if not any(view["canonical"] for view in views):
-                    views[0]["canonical"] = True
-            return views
-        scene_entry = getattr(args, "_scene_curation", None)
-        issue_tags = set(getattr(scene_entry, "issue_tags", ()) or ())
-        if issue_tags & {"missing_third_person_video", "bad_camera_framing"}:
-            dx = default_eye[0] - default_center[0]
-            dy = default_eye[1] - default_center[1]
-            dz = default_eye[2] - default_center[2]
-            return [
-                {
-                    "label": "diag_left_far",
-                    "eye": tuple(default_eye),
-                    "lookat": tuple(default_center),
-                    "canonical": True,
-                },
-                {
-                    "label": "diag_left_mid",
-                    "eye": (
-                        default_center[0] + dx * 0.78,
-                        default_center[1] + dy * 0.78,
-                        default_center[2] + dz * 0.82,
-                    ),
-                    "lookat": tuple(default_center),
-                    "canonical": False,
-                },
-                {
-                    "label": "diag_right_mid",
-                    "eye": (
-                        default_center[0] - dx * 0.72,
-                        default_center[1] + dy * 0.72,
-                        default_center[2] + dz * 0.82,
-                    ),
-                    "lookat": tuple(default_center),
-                    "canonical": False,
-                },
-            ]
-        return [{
-            "label": "default",
-            "eye": tuple(default_eye),
-            "lookat": tuple(default_center),
-            "canonical": True,
-        }]
-
-    final_label = getattr(args, "video_final_view", None)
-    views = []
-    for idx, raw in enumerate(candidate_views):
-        label = _sanitize_view_label(raw["label"])
-        views.append({
-            "label": label,
-            "eye": tuple(float(v) for v in raw["eye"]),
-            "lookat": tuple(float(v) for v in raw["lookat"]),
-            "canonical": label == _sanitize_view_label(final_label) if final_label else idx == 0,
-        })
-    if not any(view["canonical"] for view in views):
-        views[0]["canonical"] = True
-    return views
+    """Build three camera views: opposite, left, right relative to robot and support surface."""
+    return _support_relative_video_views(
+        robot=robot,
+        target_obj=target_obj,
+        support_obj=support_obj,
+        active_objects_by_inst=active_objects_by_inst,
+    )
 
 
-def set_viewer_camera_pose(eye, lookat):
-    import omnigibson as og
+def eye_lookat_to_quat(eye, lookat):
+    """Compute camera orientation quaternion from eye position and lookat point."""
     import omnigibson.utils.transform_utils as T
-
-    cam_pos = [float(v) for v in eye]
-    center = [float(v) for v in lookat]
-    d = np.asarray([center[i] - cam_pos[i] for i in range(3)], dtype=np.float32)
-    d /= max(1e-6, np.linalg.norm(d))
-    cam_quat = T.euler2quat(th.tensor(
-        [math.pi / 2 + float(np.arcsin(np.clip(d[2], -1, 1))), 0.0, float(np.arctan2(-d[0], d[1]))],
-        dtype=th.float32,
-    ))
-    og.sim.viewer_camera.set_position_orientation(position=cam_pos, orientation=cam_quat.tolist())
+    d = np.asarray(lookat, dtype=np.float32) - np.asarray(eye, dtype=np.float32)
+    d = d / max(1e-6, np.linalg.norm(d))
+    return T.euler2quat(th.tensor([
+        math.pi / 2 + float(np.arcsin(np.clip(d[2], -1, 1))),
+        0.0,
+        float(np.arctan2(-d[0], d[1])),
+    ], dtype=th.float32))
 
 
-def record_frame(vw):
-    import omnigibson as og
-    try:
-        import av
-        viewer_rgb = og.sim.viewer_camera.get_obs()[0]["rgb"]
-        viewer_np = viewer_rgb[..., :3].cpu().numpy().astype(np.uint8)
-        vh, vw_px = vw["viewer_hw"]
+def setup_cameras(env, video_views):
+    """Position 3 external cameras and set viewer to opposite side.
 
-        wrist_np = None
-        if vw["wrist"] and vw["wrist_hw"][0] > 0:
-            try:
-                wrist_obs = vw["wrist"].get_obs()[0].get("rgb")
-                if wrist_obs is not None:
-                    wrist_raw = wrist_obs[..., :3].cpu().numpy().astype(np.uint8)
-                    from PIL import Image
-                    wrist_img = Image.fromarray(wrist_raw)
-                    scale = vh / wrist_raw.shape[0]
-                    new_w = int(wrist_raw.shape[1] * scale)
-                    wrist_np = np.array(wrist_img.resize((new_w, vh), Image.BILINEAR))
-            except Exception:
-                pass
-
-        if wrist_np is not None:
-            composite = np.concatenate([viewer_np, wrist_np], axis=1)
-        else:
-            composite = viewer_np
-
-        frame = av.VideoFrame.from_ndarray(composite, format="rgb24")
-        for packet in vw["stream"].encode(frame):
-            vw["container"].mux(packet)
-    except Exception:
-        pass
-
-
-def render_recorded_frame(vw, eye=None, lookat=None):
+    Returns list of view dicts with position/orientation added.
+    """
     import omnigibson as og
 
-    if eye is not None and lookat is not None:
-        set_viewer_camera_pose(eye, lookat)
-        # The viewer camera can lag one render behind pose updates; flush twice so
-        # each candidate writer captures its own intended viewpoint consistently.
-        og.sim.render()
-        og.sim.render()
-    record_frame(vw)
+    cam_names = ["cam_opposite", "cam_left", "cam_right"]
+    for view, cam_name in zip(video_views, cam_names):
+        eye = [float(v) for v in view["eye"]]
+        lookat = [float(v) for v in view["lookat"]]
+        quat = eye_lookat_to_quat(eye, lookat).tolist()
+        view["position"] = eye
+        view["orientation"] = quat
+        view["sensor_name"] = cam_name
+
+        sensor = env.external_sensors.get(cam_name)
+        if sensor is not None:
+            sensor.set_position_orientation(position=eye, orientation=quat, frame="world")
+
+    # Viewer camera = opposite side
+    opp = video_views[0]
+    og.sim.viewer_camera.set_position_orientation(
+        position=opp["position"], orientation=opp["orientation"],
+    )
+    return video_views
 
 
 def close_video_writer(vw):
@@ -1111,49 +1031,33 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
             active_objects_by_inst=active_objects_by_inst,
             camera_override=camera_override,
         )
+        # Position external cameras and set viewer to opposite side
+        video_views = setup_cameras(env, video_views)
         args._resolved_video_views = tuple(
             {
                 "label": view["label"],
-                "eye": tuple(float(v) for v in view["eye"]),
-                "lookat": tuple(float(v) for v in view["lookat"]),
+                "eye": view["position"],
+                "lookat": [float(v) for v in view["lookat"]],
+                "orientation": view["orientation"],
+                "sensor_name": view["sensor_name"],
                 "canonical": bool(view["canonical"]),
             }
             for view in video_views
         )
-        set_viewer_camera_pose(video_views[0]["eye"], video_views[0]["lookat"])
         for _ in range(3):
             og.sim.step()
-        writer_robot = None if getattr(args, "video_viewer_only", False) else robot
-        mode = "viewer_only" if writer_robot is None else "viewer_plus_wrist"
-        use_labeled_outputs = len(video_views) > 1 or bool(getattr(args, "video_candidate_views", ()))
-        for view in video_views:
-            if use_labeled_outputs:
-                stem = args.save_video[:-4] if args.save_video.endswith(".mp4") else args.save_video
-                base_path = f"{stem}_{view['label']}.mp4"
-            else:
-                base_path = args.save_video
-            video_path = expected_video_path(base_path, episode)
-            print(
-                f"[Pipeline] Video output: {video_path} ({mode}, label={view['label']}, canonical={view['canonical']})"
-            )
-            writer = init_video_writer(base_path, episode, args.video_fps, robot=writer_robot)
-            if writer is None:
-                raise RuntimeError(
-                    f"Failed to initialize video writer for {video_path}. "
-                    "Ensure PyAV is installed and the viewer camera can render frames."
-                )
-            video_writers.append({"view": view, "writer": writer, "path": video_path})
+        og.sim.render()
+        og.sim.render()
 
-        # Prime each fixed candidate pose before recording starts so the
-        # first encoded frames do not capture stale viewer state.
-        for writer_info in video_writers:
-            set_viewer_camera_pose(writer_info["view"]["eye"], writer_info["view"]["lookat"])
-            og.sim.render()
-            og.sim.render()
-        if video_writers:
-            set_viewer_camera_pose(video_writers[0]["view"]["eye"], video_writers[0]["view"]["lookat"])
-            og.sim.render()
-            og.sim.render()
+        for view in video_views:
+            stem = args.save_video[:-4] if args.save_video.endswith(".mp4") else args.save_video
+            base_path = f"{stem}_{view['label']}.mp4"
+            video_path = expected_video_path(base_path, episode)
+            print(f"[Pipeline] Video: {video_path} (sensor={view['sensor_name']})")
+            writer = init_video_writer(base_path, episode, args.video_fps, robot=None)
+            if writer is None:
+                raise RuntimeError(f"Failed to initialize video writer for {video_path}.")
+            video_writers.append({"view": view, "writer": writer, "path": video_path, "cam": view["sensor_name"]})
 
     executed = 0
     for _ in range(args.steps):
@@ -1164,25 +1068,31 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
         env._pre_step(action)
         og.sim.step()
         executed += 1
-        for writer_info in video_writers:
-            render_recorded_frame(
-                writer_info["writer"],
-                eye=writer_info["view"]["eye"],
-                lookat=writer_info["view"]["lookat"],
-            )
+
+        # Record from all external cameras simultaneously (one render pass)
+        if video_writers:
+            og.sim.render()
+            raw_obs, _ = env.get_obs()
+            external = raw_obs.get("external", {})
+            for writer_info in video_writers:
+                cam_obs = external.get(writer_info["cam"], {})
+                rgb = cam_obs.get("rgb")
+                if rgb is not None:
+                    frame = rgb[..., :3].cpu().numpy().astype(np.uint8)
+                    try:
+                        import av
+                        video_frame = av.VideoFrame.from_ndarray(frame, format="rgb24")
+                        for packet in writer_info["writer"]["stream"].encode(video_frame):
+                            writer_info["writer"]["container"].mux(packet)
+                    except Exception:
+                        pass
+
         ltl_monitor.step(executed)
         if executed % 50 == 0:
             print(f"[Pipeline] Step {executed}/{args.steps}")
 
     for writer_info in video_writers:
         close_video_writer(writer_info["writer"])
-
-    canonical_writer = next((w for w in video_writers if w["view"]["canonical"]), None)
-    if canonical_writer is not None:
-        canonical_path = expected_video_path(args.save_video, episode)
-        if canonical_writer["path"] != canonical_path:
-            shutil.copyfile(canonical_writer["path"], canonical_path)
-            print(f"[Pipeline] Canonical video selected: {canonical_path} <- {canonical_writer['path']}")
 
     summary = ltl_monitor.summary()
     print(f"[Pipeline] Episode done: steps={executed}, violated={summary['violated']}")
@@ -1252,12 +1162,8 @@ def load_scene_curation(args):
         )
     print(
         "[Curation] video: "
-        f"viewer_only={entry.video_viewer_only}, "
-        f"candidate_mode={entry.video_candidate_mode}, "
         f"eye={entry.video_camera_eye}, "
-        f"lookat={entry.video_camera_lookat}, "
-        f"candidate_views={len(entry.video_candidate_views)}, "
-        f"final_view={entry.video_final_view}"
+        f"lookat={entry.video_camera_lookat}"
     )
     return entry
 
@@ -1641,6 +1547,31 @@ class BasePipeline(ABC):
 
         self.configure_task(cfg, selection)
 
+        # Add 3 external cameras for simultaneous multi-view recording
+        cfg.setdefault("env", {})["external_sensors"] = [
+            {
+                "sensor_type": "VisionSensor",
+                "name": "cam_opposite",
+                "relative_prim_path": "/cam_opposite",
+                "modalities": ["rgb"],
+                "sensor_kwargs": {"image_height": 720, "image_width": 1280},
+            },
+            {
+                "sensor_type": "VisionSensor",
+                "name": "cam_left",
+                "relative_prim_path": "/cam_left",
+                "modalities": ["rgb"],
+                "sensor_kwargs": {"image_height": 720, "image_width": 1280},
+            },
+            {
+                "sensor_type": "VisionSensor",
+                "name": "cam_right",
+                "relative_prim_path": "/cam_right",
+                "modalities": ["rgb"],
+                "sensor_kwargs": {"image_height": 720, "image_width": 1280},
+            },
+        ]
+
         print(f"[Pipeline] scene={scene_label}, activity={activity_name}, "
               f"strict_gate={args.strict_gate}")
         env = og.Environment(configs=cfg)
@@ -1665,6 +1596,7 @@ class BasePipeline(ABC):
                     "ltl_violated": ctx.ltl_summary.get("violated") if hasattr(ctx, "ltl_summary") else None,
                     "steps_executed": ctx.steps_executed if hasattr(ctx, "steps_executed") else 0,
                     "selection": selection,
+                    "cameras": list(getattr(args, "_resolved_video_views", ())),
                     **self.diagnostics_extra(ctx),
                 }
                 if curation:

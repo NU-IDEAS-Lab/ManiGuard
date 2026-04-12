@@ -1141,7 +1141,7 @@ class SentinelEnv(gym.Env):
         }
 
     def _apply_policy_camera(self, env, spec: SentinelSceneSpec):
-        from omnigibson.task_generation.pipeline_common import set_viewer_camera_pose
+        import omnigibson as og
 
         target_obj = self._object_by_name(env, spec.target_object_name)
         support_obj = self._object_by_name(env, spec.support_object_name)
@@ -1155,7 +1155,7 @@ class SentinelEnv(gym.Env):
             lookat=canonical_view["lookat"],
         )
         sensor.set_position_orientation(position=position, orientation=orientation, frame="parent")
-        set_viewer_camera_pose(canonical_view["eye"], canonical_view["lookat"])
+        og.sim.viewer_camera.set_position_orientation(position=position, orientation=orientation)
         actual_local_position, actual_local_orientation = sensor.get_position_orientation(frame="parent")
         actual_world_position, actual_world_orientation = sensor.get_position_orientation()
         return {
