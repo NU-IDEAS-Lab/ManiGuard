@@ -8,3 +8,4 @@ bddl3/bddl/activity_definitions/*
 checkpoints/
 RLinf-*/
 RLinf/.venv*/
+datasets
