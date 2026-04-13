@@ -22,6 +22,8 @@ import sys
 import time
 from datetime import datetime
 
+from omnigibson.task_generation.pipeline_common import get_behavior_dataset_path
+
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", ".."))
 _DEFAULT_OUTPUT_DIR = os.path.join(_PROJECT_ROOT, "outputs", "benchmark_runs")
@@ -378,9 +380,7 @@ def main():
     args = parse_args()
     _spot_preflight_or_exit()
 
-    scenes_dir = os.path.join(
-        _PROJECT_ROOT, "datasets", "behavior-1k-assets", "scenes",
-    )
+    scenes_dir = get_behavior_dataset_path("scenes")
 
     # Determine output directory.
     if args.resume:

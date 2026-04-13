@@ -66,6 +66,7 @@ class LiquidTransportPipeline(ClutterPipeline):
         from omnigibson.utils.bddl_generator import (
             FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
             estimate_object_set_footprint,
+            estimate_object_set_required_span_xy,
         )
         density = DENSITY_PRESETS[args.clutter_density]
         container = args.container_synset
@@ -86,6 +87,7 @@ class LiquidTransportPipeline(ClutterPipeline):
 
         return {
             "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_span_xy_m": estimate_object_set_required_span_xy(synset_counts),
             "target_synset": container,
             "fragile_picks": fragile_picks,
             "clutter_picks": clutter_picks,

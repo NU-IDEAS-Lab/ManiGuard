@@ -138,11 +138,16 @@ class _StackBase(BasePipeline):
             return None
 
         # Stack is vertical — footprint is just the larger of target vs stack item.
-        from omnigibson.utils.bddl_generator import _load_footprint_catalog, _median_footprint
+        from omnigibson.utils.bddl_generator import (
+            _load_footprint_catalog,
+            _median_footprint,
+            estimate_object_set_required_span_xy,
+        )
         catalog = _load_footprint_catalog()
         required = max(_median_footprint(catalog, target), _median_footprint(catalog, stack))
         return {
             "required_area_m2": required,
+            "required_span_xy_m": estimate_object_set_required_span_xy([(target, 1), (stack, 1)]),
             "target_synset": target,
             "stack_synset": stack,
         }

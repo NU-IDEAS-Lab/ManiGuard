@@ -68,6 +68,7 @@ class TransferPipeline(BasePipeline):
         from omnigibson.utils.bddl_generator import (
             TRANSFER_FOOD_POOL, TRANSFER_SOURCE_POOL, TRANSFER_DEST_POOL,
             estimate_object_set_footprint,
+            estimate_object_set_required_span_xy,
         )
         food = args.food_synset or TRANSFER_FOOD_POOL[rng.integers(len(TRANSFER_FOOD_POOL))][0]
         source = args.source_synset or TRANSFER_SOURCE_POOL[rng.integers(len(TRANSFER_SOURCE_POOL))][0]
@@ -77,6 +78,7 @@ class TransferPipeline(BasePipeline):
         synset_counts = [(food, 1), (source, 1), (dest, 1)]
         return {
             "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_span_xy_m": estimate_object_set_required_span_xy(synset_counts),
             "food_synset": food,
             "source_synset": source,
             "dest_synset": dest,

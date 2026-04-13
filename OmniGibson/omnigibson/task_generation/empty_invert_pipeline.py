@@ -20,6 +20,7 @@ from omnigibson.task_generation.pipeline_common import (
 from omnigibson.utils.bddl_generator import (
     INVERT_CONTAINER_POOL,
     estimate_object_set_footprint,
+    estimate_object_set_required_span_xy,
     generate_empty_invert_activity,
 )
 
@@ -43,6 +44,7 @@ class EmptyInvertPipeline(BasePipeline):
         synset_counts = [(container, 1)]
         return {
             "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_span_xy_m": estimate_object_set_required_span_xy(synset_counts),
             "container_synset": container,
         }
 

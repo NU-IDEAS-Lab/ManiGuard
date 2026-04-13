@@ -56,6 +56,7 @@ class WetTransportPipeline(BasePipeline):
     def select_objects(self, args, rng):
         from omnigibson.utils.bddl_generator import (
             estimate_object_set_footprint,
+            estimate_object_set_required_span_xy,
         )
         container = args.container_synset
         if container is None:
@@ -72,6 +73,7 @@ class WetTransportPipeline(BasePipeline):
 
         return {
             "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_span_xy_m": estimate_object_set_required_span_xy(synset_counts),
             "carried_synset": container,
             "zone_synsets": zones,
         }

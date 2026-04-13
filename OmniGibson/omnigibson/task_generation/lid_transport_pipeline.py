@@ -24,6 +24,7 @@ from omnigibson.task_generation.pipeline_common import resolve_synset
 from omnigibson.utils.bddl_generator import (
     LID_FOOD_POOL,
     estimate_object_set_footprint,
+    estimate_object_set_required_span_xy,
     generate_lid_transport_activity,
     get_lid_container_pairs,
 )
@@ -55,6 +56,7 @@ class LidTransportPipeline(BasePipeline):
         synset_counts = [(container_synset, 1), ("lid.n.02", 1), (food, 1)]
         return {
             "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_span_xy_m": estimate_object_set_required_span_xy(synset_counts),
             "lid_model": lid_model,
             "food_synset": food,
         }
@@ -246,6 +248,7 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
         synset_counts = [(container_synset, 1), ("lid.n.02", 1)]
         return {
             "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_span_xy_m": estimate_object_set_required_span_xy(synset_counts),
             "lid_model": lid_model,
         }
 

@@ -882,6 +882,50 @@ def estimate_object_set_footprint(synset_counts, margin_factor=1.3):
     return total * margin_factor
 
 
+def estimate_object_set_required_span_xy(synset_counts, margin_factor=1.15, candidate_widths=16):
+    """Estimate a support-region rectangle span for a set of objects.
+
+    Uses a simple shelf-packing approximation over median footprint extents.
+    Rotation is allowed per item. The returned pair is sorted, so callers can
+    treat it as a rotation-invariant minimum width / length requirement.
+    """
+    catalog = _load_footprint_catalog()
+    items = []
+    for synset, count in synset_counts:
+        extent_x, extent_y = _median_extent_xy(catalog, synset)
+        short_side, long_side = sorted((extent_x, extent_y))
+        for _ in range(int(count)):
+            items.append((short_side, long_side))
+
+    if not items:
+        return (0.0, 0.0)
+
+    max_short = max(item[0] for item in items)
+    max_long = max(item[1] for item in items)
+    total_area = sum(item[0] * item[1] for item in items)
+    lower = max(max_long, math.sqrt(total_area))
+    upper = max(sum(item[0] for item in items), sum(item[1] for item in items), lower)
+    if candidate_widths <= 1 or upper <= lower + 1e-9:
+        candidate_values = [upper]
+    else:
+        candidate_values = np.linspace(lower, upper, num=int(candidate_widths), dtype=float)
+
+    best_layout = None
+    for shelf_width in candidate_values:
+        used_width, used_height = _shelf_pack_extent(items, float(shelf_width))
+        area = used_width * used_height
+        candidate = (area, max(used_width, used_height), min(used_width, used_height), used_width, used_height)
+        if best_layout is None or candidate < best_layout:
+            best_layout = candidate
+
+    _, _, _, used_width, used_height = best_layout
+    short_side, long_side = sorted((used_width, used_height))
+    return (
+        round(float(short_side) * float(margin_factor), 6),
+        round(float(long_side) * float(margin_factor), 6),
+    )
+
+
 def _median_footprint(catalog, synset):
     """Return the median footprint (m²) for a synset across all its models."""
     cat = _synset_to_category(synset)
@@ -891,6 +935,54 @@ def _median_footprint(catalog, synset):
     areas = sorted(m["footprint_m2"] for m in models.values())
     mid = len(areas) // 2
     return areas[mid] if len(areas) % 2 else 0.5 * (areas[mid - 1] + areas[mid])
+
+
+def _median_extent_xy(catalog, synset):
+    """Return median x/y footprint extents (m) for a synset across models."""
+    cat = _synset_to_category(synset)
+    models = catalog.get(cat, {})
+    if not models:
+        return (0.14, 0.14)
+
+    extent_xs = sorted(float(m.get("extent_xyz", [0.14, 0.14, 0.05])[0]) for m in models.values())
+    extent_ys = sorted(float(m.get("extent_xyz", [0.14, 0.14, 0.05])[1]) for m in models.values())
+    mid = len(extent_xs) // 2
+    if len(extent_xs) % 2:
+        return extent_xs[mid], extent_ys[mid]
+    return (
+        0.5 * (extent_xs[mid - 1] + extent_xs[mid]),
+        0.5 * (extent_ys[mid - 1] + extent_ys[mid]),
+    )
+
+
+def _shelf_pack_extent(items, shelf_width):
+    if shelf_width <= 0.0:
+        raise ValueError("shelf_width must be > 0")
+
+    width_used = 0.0
+    total_height = 0.0
+    row_width = 0.0
+    row_height = 0.0
+
+    for short_side, long_side in sorted(items, key=lambda item: item[1], reverse=True):
+        orientations = []
+        for width, height in ((short_side, long_side), (long_side, short_side)):
+            fits_current_row = row_width <= 1e-9 or row_width + width <= shelf_width + 1e-9
+            if fits_current_row:
+                orientations.append((0, max(row_height, height), width, height))
+            orientations.append((1, height, width, height))
+        _, _, width, height = min(orientations)
+        if row_width > 1e-9 and row_width + width > shelf_width + 1e-9:
+            total_height += row_height
+            width_used = max(width_used, row_width)
+            row_width = 0.0
+            row_height = 0.0
+        row_width += width
+        row_height = max(row_height, height)
+
+    total_height += row_height
+    width_used = max(width_used, row_width)
+    return float(width_used), float(total_height)
 
 
 def _pick_model_for_synset(synset, rng):

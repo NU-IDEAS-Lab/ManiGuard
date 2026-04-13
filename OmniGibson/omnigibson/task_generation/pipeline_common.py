@@ -32,6 +32,22 @@ STRUCTURAL_CATEGORY_KEYWORDS = (
 )
 
 
+
+def get_task_generation_data_root():
+    """Resolve the data root used by task-generation scripts.
+
+    Prefer ``OMNIGIBSON_DATA_PATH`` when set so local runs do not depend on the
+    repo-root ``datasets`` symlink. Fall back to the historical project-local
+    path for compatibility.
+    """
+    return os.path.abspath(os.path.expanduser(
+        os.environ.get("OMNIGIBSON_DATA_PATH", os.path.join(_PROJECT_ROOT, "datasets"))
+    ))
+
+
+def get_behavior_dataset_path(*parts):
+    return os.path.join(get_task_generation_data_root(), "behavior-1k-assets", *parts)
+
 # ---------------------------------------------------------------------------
 # Arg parsing
 # ---------------------------------------------------------------------------
@@ -144,6 +160,56 @@ def get_scene_json_path(scene_model):
     )
 
 
+def _normalize_scale_xyz(scale):
+    if scale is None:
+        return (1.0, 1.0, 1.0)
+    try:
+        values = tuple(float(v) for v in scale)
+    except Exception:
+        return (1.0, 1.0, 1.0)
+    if len(values) != 3:
+        return (1.0, 1.0, 1.0)
+    return values
+
+
+def discover_from_scene_json_candidates(scene_json_path, category_filter_fn, priority_map=None):
+    """Return all matching scene-JSON objects with category/model/room details."""
+    with open(scene_json_path, "r", encoding="utf-8") as f:
+        init_infos = json.load(f).get("objects_info", {}).get("init_info", {})
+
+    candidates = []
+    for obj_name, info in init_infos.items():
+        args = info.get("args", {})
+        cat = args.get("category", "")
+        if not category_filter_fn(cat):
+            continue
+        rooms = args.get("in_rooms", [])
+        room_instance = rooms[0] if rooms else "living_room_0"
+        room_type = strip_room_suffix(room_instance)
+        candidates.append({
+            "name": obj_name,
+            "category": cat,
+            "model": args.get("model", ""),
+            "scale": _normalize_scale_xyz(args.get("scale", (1.0, 1.0, 1.0))),
+            "room_type": room_type,
+            "room_instance": room_instance,
+        })
+
+    if priority_map:
+        candidates.sort(key=lambda c: (priority_map.get(c["category"], 0), c["name"]), reverse=True)
+    else:
+        candidates.sort(key=lambda c: c["name"])
+    return candidates
+
+
+def discover_from_scene_json_details(scene_json_path, category_filter_fn, priority_map=None):
+    """Find the best matching object from scene JSON with category/model/room details."""
+    candidates = discover_from_scene_json_candidates(scene_json_path, category_filter_fn, priority_map)
+    if not candidates:
+        return None
+    return candidates[0]
+
+
 def discover_from_scene_json(scene_json_path, category_filter_fn, priority_map=None):
     """Find (category, room_type, room_instance) of best matching object from scene JSON.
 
@@ -152,65 +218,75 @@ def discover_from_scene_json(scene_json_path, category_filter_fn, priority_map=N
     the full instance name (for ``load_room_instances``).  Returns None if no
     match is found.
     """
-    with open(scene_json_path, "r", encoding="utf-8") as f:
-        init_infos = json.load(f).get("objects_info", {}).get("init_info", {})
-
-    candidates = []
-    for info in init_infos.values():
-        args = info.get("args", {})
-        cat = args.get("category", "")
-        if not category_filter_fn(cat):
-            continue
-        rooms = args.get("in_rooms", [])
-        room_instance = rooms[0] if rooms else "living_room_0"
-        room_type = strip_room_suffix(room_instance)
-        candidates.append((cat, room_type, room_instance))
-
-    if not candidates:
+    details = discover_from_scene_json_details(scene_json_path, category_filter_fn, priority_map)
+    if details is None:
         return None
-    if priority_map:
-        candidates.sort(key=lambda c: priority_map.get(c[0], 0), reverse=True)
-    return candidates[0]
+    return (details["category"], details["room_type"], details["room_instance"])
+
+
+def _normalize_required_span_xy(required_span_xy_m, extra_margin_m=0.0):
+    if required_span_xy_m is None:
+        base = (0.0, 0.0)
+    else:
+        if len(required_span_xy_m) != 2:
+            raise ValueError("required_span_xy_m must contain exactly two values")
+        base = (max(0.0, float(required_span_xy_m[0])), max(0.0, float(required_span_xy_m[1])))
+    if extra_margin_m:
+        margin = 2.0 * float(extra_margin_m)
+        return (base[0] + margin, base[1] + margin)
+    return base
+
+
+def estimate_surface_area_from_candidate(candidate, profile_entry=None, required_span_xy_m=None):
+    """Estimate the usable support area for a specific surface candidate."""
+    import glob as globmod
+    from omnigibson.task_generation.support_surface_profiles import (
+        profile_generation_area_m2,
+    )
+
+    surface_category = candidate.get("category", "")
+    model = candidate.get("model", "")
+    scale = _normalize_scale_xyz(candidate.get("scale", (1.0, 1.0, 1.0)))
+    scale_area = abs(float(scale[0]) * float(scale[1]))
+
+    profile_area = profile_generation_area_m2(
+        profile_entry,
+        min_span_xy_m=required_span_xy_m,
+    )
+    if profile_area is not None and profile_area > 0.0:
+        return profile_area * scale_area, "support_profile_region_max"
+
+    if not surface_category or not model:
+        return None, "missing_category_or_model"
+
+    asset_base = get_behavior_dataset_path("objects", surface_category)
+    meta_paths = globmod.glob(os.path.join(asset_base, model, "misc", "metadata.json"))
+    if not meta_paths:
+        return None, "missing_asset_metadata"
+
+    with open(meta_paths[0], "r", encoding="utf-8") as mf:
+        meta = json.load(mf)
+    try:
+        ext = meta["link_bounding_boxes"]["base_link"]["collision"]["axis_aligned"]["extent"]
+    except (KeyError, TypeError):
+        return None, "missing_asset_extent"
+
+    area = (ext[0] * scale[0]) * (ext[1] * scale[1])
+    return abs(float(area)), "asset_aabb_fallback"
 
 
 def estimate_surface_area_from_scene_json(scene_json_path, surface_category):
-    """Estimate the XY surface area (m²) of a table from the scene JSON.
+    """Backward-compatible area estimate for the first matching surface category."""
+    candidates = discover_from_scene_json_candidates(
+        scene_json_path,
+        lambda category: category == surface_category,
+        priority_map=None,
+    )
+    if not candidates:
+        return None
 
-    Reads the model's base AABB from asset metadata, applies the scene scale,
-    and returns the XY footprint.  Returns None if the data is unavailable.
-    """
-    import glob as globmod
-
-    with open(scene_json_path, "r", encoding="utf-8") as f:
-        init_infos = json.load(f).get("objects_info", {}).get("init_info", {})
-
-    # Find the first object matching the surface category.
-    for info in init_infos.values():
-        obj_args = info.get("args", {})
-        if obj_args.get("category", "") != surface_category:
-            continue
-        model = obj_args.get("model", "")
-        scale = obj_args.get("scale", [1.0, 1.0, 1.0])
-        if not model:
-            continue
-
-        # Look up the model's base AABB extent from asset metadata.
-        asset_base = os.path.join(
-            os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..")),
-            "datasets", "behavior-1k-assets", "objects", surface_category,
-        )
-        meta_paths = globmod.glob(os.path.join(asset_base, model, "misc", "metadata.json"))
-        if not meta_paths:
-            continue
-        with open(meta_paths[0], "r", encoding="utf-8") as mf:
-            meta = json.load(mf)
-        try:
-            ext = meta["link_bounding_boxes"]["base_link"]["collision"]["axis_aligned"]["extent"]
-        except (KeyError, TypeError):
-            continue
-        area = (ext[0] * scale[0]) * (ext[1] * scale[1])
-        return area
-    return None
+    area, _ = estimate_surface_area_from_candidate(candidates[0], profile_entry=None)
+    return area
 
 
 # ---------------------------------------------------------------------------
@@ -220,21 +296,117 @@ def estimate_surface_area_from_scene_json(scene_json_path, surface_category):
 _scene_surface_catalog_cache = {}
 
 
-def build_scene_surface_catalog(category_filter_fn, priority_map=None):
-    """Scan all scenes and return eligible surfaces with estimated areas.
+def annotate_surface_candidate(candidate, scene_model=None, required_span_xy_m=None):
+    from omnigibson.task_generation.support_surface_profiles import make_profile_status
 
-    Returns list of (scene_model, surface_category, room_type, room_instance, area_m2).
-    Results are cached by filter function identity.
+    entry = dict(candidate)
+    profile_entry = lookup_support_surface_profile(entry.get("category"), entry.get("model"))
+    area_m2, area_source = estimate_surface_area_from_candidate(
+        entry,
+        profile_entry=profile_entry,
+        required_span_xy_m=required_span_xy_m,
+    )
+    profile_status = make_profile_status(profile_entry)
+    selection_tier = 0 if profile_status == "available" else (1 if profile_status == "missing" else 2)
+    eligible_for_generation = selection_tier < 2
+    entry.update({
+        "scene_model": scene_model,
+        "profile_status": profile_status,
+        "profile_candidate_for_generation": (
+            bool(profile_entry.get("candidate_for_generation", False)) if profile_entry else None
+        ),
+        "required_span_xy_m": list(required_span_xy_m) if required_span_xy_m is not None else None,
+        "profile_supports_required_span": (
+            bool(area_m2 is not None and area_m2 > 0.0) if profile_entry and required_span_xy_m is not None else None
+        ),
+        "generation_area_m2": area_m2,
+        "area_source": area_source,
+        "eligible_for_generation": eligible_for_generation,
+        "generation_selection_tier": selection_tier,
+    })
+    return entry
+
+
+def _choose_candidate_entry(candidates, *, required_area_m2=0.0, rng=None, allow_ineligible=False):
+    if not candidates:
+        return None
+
+    filtered = list(candidates)
+    if not allow_ineligible:
+        filtered = [entry for entry in filtered if entry.get("eligible_for_generation", False)]
+    if not filtered:
+        return None
+
+    required = max(0.0, float(required_area_m2))
+    sized = [
+        entry for entry in filtered
+        if entry.get("generation_area_m2") is not None and float(entry["generation_area_m2"]) + 1e-9 >= required
+    ]
+    pool = sized if sized else filtered
+    best_tier = min(int(entry.get("generation_selection_tier", 9)) for entry in pool)
+    pool = [entry for entry in pool if int(entry.get("generation_selection_tier", 9)) == best_tier]
+    pool = sorted(
+        pool,
+        key=lambda entry: (
+            str(entry.get("scene_model", "")),
+            str(entry.get("name", "")),
+            str(entry.get("category", "")),
+        ),
+    )
+    if rng is None:
+        return dict(pool[0])
+    return dict(pool[int(rng.integers(len(pool)))])
+
+
+def select_surface_candidate_from_scene_json(
+    scene_json_path,
+    category_filter_fn,
+    *,
+    priority_map=None,
+    required_area_m2=0.0,
+    required_span_xy_m=None,
+    rng=None,
+    forced_name=None,
+    forced_category=None,
+):
+    candidates = discover_from_scene_json_candidates(scene_json_path, category_filter_fn, priority_map)
+    if forced_name:
+        candidates = [entry for entry in candidates if entry["name"] == forced_name]
+    elif forced_category:
+        candidates = [entry for entry in candidates if entry["category"] == forced_category]
+
+    annotated = [
+        annotate_surface_candidate(entry, required_span_xy_m=required_span_xy_m)
+        for entry in candidates
+    ]
+    if forced_name or forced_category:
+        return _choose_candidate_entry(
+            annotated,
+            required_area_m2=required_area_m2,
+            rng=rng,
+            allow_ineligible=True,
+        )
+    return _choose_candidate_entry(
+        annotated,
+        required_area_m2=required_area_m2,
+        rng=rng,
+        allow_ineligible=False,
+    )
+
+
+def build_scene_surface_catalog(category_filter_fn, priority_map=None, required_span_xy_m=None):
+    """Scan all scenes and return annotated surface candidates.
+
+    Returns one catalog entry per candidate surface rather than a single
+    best-per-scene surface so scene selection can randomize across supports and
+    respect support-profile exclusions.
     """
-    cache_key = id(category_filter_fn)
+    span_key = None if required_span_xy_m is None else tuple(float(v) for v in required_span_xy_m)
+    cache_key = (id(category_filter_fn), span_key)
     if cache_key in _scene_surface_catalog_cache:
         return _scene_surface_catalog_cache[cache_key]
 
-    from omnigibson.utils.asset_utils import get_scene_path
-    scenes_dir = os.path.join(
-        os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..")),
-        "datasets", "behavior-1k-assets", "scenes",
-    )
+    scenes_dir = get_behavior_dataset_path("scenes")
     if not os.path.isdir(scenes_dir):
         return []
 
@@ -246,12 +418,14 @@ def build_scene_surface_catalog(category_filter_fn, priority_map=None):
             continue
         if not os.path.isfile(scene_json):
             continue
-        discovery = discover_from_scene_json(scene_json, category_filter_fn, priority_map)
-        if discovery is None:
-            continue
-        surface_category, room_type, room_instance = discovery
-        area = estimate_surface_area_from_scene_json(scene_json, surface_category)
-        catalog.append((scene_model, surface_category, room_type, room_instance, area))
+        for candidate in discover_from_scene_json_candidates(scene_json, category_filter_fn, priority_map):
+            catalog.append(
+                annotate_surface_candidate(
+                    candidate,
+                    scene_model=scene_model,
+                    required_span_xy_m=required_span_xy_m,
+                )
+            )
 
     _scene_surface_catalog_cache[cache_key] = catalog
     return catalog
@@ -1195,6 +1369,104 @@ def discover_surface_from_scene_json(scene_json_path):
     return discover_from_scene_json(scene_json_path, is_table_like, SURFACE_CATEGORY_PRIORITY)
 
 
+def discover_surface_details_from_scene_json(scene_json_path):
+    """Find the best currently-eligible table-like surface from scene JSON."""
+    from omnigibson.utils.surface_discovery import is_table_like
+    return select_surface_candidate_from_scene_json(
+        scene_json_path,
+        is_table_like,
+        priority_map=SURFACE_CATEGORY_PRIORITY,
+    )
+
+
+def lookup_support_surface_profile(category=None, model=None):
+    from omnigibson.task_generation.support_surface_profiles import (
+        get_support_surface_profile,
+        load_support_surface_profiles,
+    )
+
+    if not category or not model:
+        return None
+    document = load_support_surface_profiles()
+    return get_support_surface_profile(document, category, model)
+
+
+def support_surface_profile_diagnostics(
+    *,
+    category=None,
+    model=None,
+    profile_entry=None,
+    world_regions=None,
+    selected_region=None,
+    working_bounds_xy=None,
+    working_bounds_source=None,
+):
+    from omnigibson.task_generation.support_surface_profiles import make_profile_status
+
+    status = make_profile_status(profile_entry)
+    entry = profile_entry or {}
+    return {
+        "support_category": category,
+        "support_model": model,
+        "support_profile_key": f"{category}/{model}" if category and model else None,
+        "support_profile_status": status,
+        "support_profile_review_status": entry.get("review_status"),
+        "support_profile_candidate_for_generation": entry.get("candidate_for_generation"),
+        "support_profile_region_count": len(entry.get("usable_regions", ()) or ()),
+        "support_profile_region_ids": [region.get("region_id") for region in (entry.get("usable_regions", ()) or ())],
+        "support_profile_regions_world": list(world_regions or ()),
+        "support_profile_selected_region_id": selected_region.get("region_id") if selected_region else None,
+        "support_profile_selected_region_bounds_xy": (
+            selected_region.get("world_bounds_xy")
+            if selected_region and selected_region.get("world_bounds_xy") is not None
+            else working_bounds_xy
+        ),
+        "support_profile_selected_region_area_m2": (
+            float(selected_region.get("area_m2")) if selected_region and selected_region.get("area_m2") is not None else None
+        ),
+        "support_profile_selected_region_edges": (
+            list(selected_region.get("reachable_edge_labels", ()) or ()) if selected_region else []
+        ),
+        "support_working_bounds_source": working_bounds_source,
+        "support_profile_exclusion_reasons": list(entry.get("exclusion_reasons", ()) or ()),
+    }
+
+
+def choose_support_working_region(ctx, required_area_m2=0.0, required_span_xy_m=None):
+    from omnigibson.task_generation.support_surface_profiles import (
+        choose_profile_region,
+        region_bounds_xy,
+    )
+
+    ctx.support_region = None
+    ctx.support_working_bounds_source = "aabb"
+    if not ctx.support_profile or not ctx.support_profile_world_regions:
+        return None
+
+    edge_margin_m = float(ctx.args.zone_edge_margin_m if ctx.args.zone_edge_margin_m is not None else 0.04)
+    min_working_span_xy = _normalize_required_span_xy(required_span_xy_m, extra_margin_m=edge_margin_m)
+    region = choose_profile_region(
+        ctx.support_profile,
+        world_regions=ctx.support_profile_world_regions,
+        required_area_m2=required_area_m2,
+        min_span_xy_m=min_working_span_xy,
+        rng=ctx.rng,
+    )
+    if region is None:
+        return None
+
+    bounds = region_bounds_xy(region, world=True)
+    if bounds is None:
+        return None
+
+    ctx.support_region = region
+    ctx.surface_bounds_xy = bounds
+    ctx.support_working_bounds_source = "support_profile_region"
+    if region.get("top_plane_z_world") is not None:
+        ctx.table_top_z = float(region["top_plane_z_world"])
+    return region
+
+
 def discover_best_surface(env, forced_name=None, forced_category=None):
     """Find the best table-like surface in a loaded scene (sim-dependent)."""
     from omnigibson.utils.surface_discovery import analyze_surface, is_table_like
@@ -1270,6 +1542,13 @@ class EpisodeContext:
     support_obj: Any = None
     surface_info: Any = None           # SurfaceAnalysis
     surface_name: str = ""
+    support_category: str = ""
+    support_model: str = ""
+    support_profile: Optional[Dict[str, Any]] = None
+    support_profile_world_regions: Tuple = field(default_factory=tuple)
+    support_aabb_bounds_xy: Optional[Tuple] = None
+    support_region: Optional[Dict[str, Any]] = None
+    support_working_bounds_source: str = "aabb"
     surface_bounds_xy: Optional[Tuple] = None
     table_top_z: float = 0.0
     floor_z: float = 0.0
@@ -1397,18 +1676,39 @@ class BasePipeline(ABC):
         rng_pre = np.random.default_rng(args.seed)
         pre_selection = self.select_objects(args, rng_pre)
         args._pre_selection = pre_selection
+        required = pre_selection["required_area_m2"]
+        required_span_xy_m = pre_selection.get("required_span_xy_m")
+        edge_margin_m = float(args.zone_edge_margin_m if args.zone_edge_margin_m is not None else 0.04)
 
         if args.scene_model is None:
-            required = pre_selection["required_area_m2"]
             scene_catalog = build_scene_surface_catalog(
-                is_table_like, SURFACE_CATEGORY_PRIORITY,
+                is_table_like,
+                SURFACE_CATEGORY_PRIORITY,
+                required_span_xy_m=_normalize_required_span_xy(required_span_xy_m, extra_margin_m=edge_margin_m),
             )
-            eligible = [e for e in scene_catalog if e[4] is not None and e[4] >= required]
+            eligible = [
+                entry for entry in scene_catalog
+                if entry.get("eligible_for_generation", False)
+                and entry.get("generation_area_m2") is not None
+                and float(entry["generation_area_m2"]) + 1e-9 >= required
+            ]
             if not eligible:
                 raise RuntimeError(f"No scene has a table large enough ({required:.3f} m²)")
-            pick = eligible[rng_pre.integers(len(eligible))]
-            args.scene_model = pick[0]
-            print(f"[Pipeline] Auto-scene: {pick[0]} (area={pick[4]:.3f}, required={required:.3f})")
+            best_tier = min(int(entry.get("generation_selection_tier", 9)) for entry in eligible)
+            pool = [entry for entry in eligible if int(entry.get("generation_selection_tier", 9)) == best_tier]
+            pick = dict(pool[rng_pre.integers(len(pool))])
+            args.scene_model = pick["scene_model"]
+            pre_selection["_surface_name"] = pick["name"]
+            pre_selection["_surface_category"] = pick["category"]
+            pre_selection["_surface_model"] = pick.get("model")
+            pre_selection["_room_type"] = pick["room_type"]
+            pre_selection["_room_instance"] = pick["room_instance"]
+            print(
+                f"[Pipeline] Auto-scene: {pick['scene_model']} "
+                f"(surface={pick['name']}<{pick['category']}/{pick.get('model') or '?'}>, "
+                f"area={pick['generation_area_m2']:.3f}, required={required:.3f}, "
+                f"source={pick['area_source']}, profile={pick['profile_status']})"
+            )
 
         if args.scene_model is None:
             raise RuntimeError("No --scene-model specified and select_objects() not implemented.")
@@ -1419,20 +1719,48 @@ class BasePipeline(ABC):
 
         support_synset, support_room = "breakfast_table.n.01", "living_room"
         room_instance = None
+        support_category = None
+        support_model = None
+        support_name = None
         try:
             scene_json = get_scene_json_path(args.scene_model)
-            discovery = discover_surface_from_scene_json(scene_json)
+            discovery = select_surface_candidate_from_scene_json(
+                scene_json,
+                is_table_like,
+                priority_map=SURFACE_CATEGORY_PRIORITY,
+                required_area_m2=required,
+                required_span_xy_m=_normalize_required_span_xy(required_span_xy_m, extra_margin_m=edge_margin_m),
+                rng=rng_pre,
+                forced_name=(
+                    getattr(curation, "surface_name", None) if curation else None
+                ) or pre_selection.get("_surface_name"),
+                forced_category=getattr(curation, "support_category", None) if curation else None,
+            )
             if discovery:
-                support_synset = resolve_synset(discovery[0])
-                support_room = discovery[1]
-                room_instance = discovery[2]
-                print(f"[Pipeline] Discovered: {discovery[0]} in {support_room}")
+                support_name = discovery["name"]
+                support_category = discovery["category"]
+                support_model = discovery.get("model")
+                support_synset = resolve_synset(support_category)
+                support_room = discovery["room_type"]
+                room_instance = discovery["room_instance"]
+                pre_selection["_surface_name"] = support_name
+                pre_selection["_surface_category"] = support_category
+                pre_selection["_surface_model"] = support_model
+                pre_selection["_room_type"] = support_room
+                pre_selection["_room_instance"] = room_instance
+                print(
+                    f"[Pipeline] Discovered: {support_name}<{support_category}/{support_model or '?'}> "
+                    f"in {support_room}"
+                )
         except Exception as e:
             print(f"[Pipeline] Surface discovery failed: {e}")
         if curation and curation.support_category:
+            support_category = curation.support_category
             support_synset = resolve_synset(curation.support_category)
         if curation and curation.support_room:
             support_room = curation.support_room
+
+        profile_entry = lookup_support_surface_profile(support_category, support_model)
 
         rng = np.random.default_rng(args.seed)
         bddl_text, ltl_safety, bddl_path, json_path, selection = \
@@ -1449,6 +1777,11 @@ class BasePipeline(ABC):
             "event": "dry_run", "activity_name": activity_name,
             "scene_model": scene_label,
             "selection": selection,
+            **support_surface_profile_diagnostics(
+                category=support_category,
+                model=support_model,
+                profile_entry=profile_entry,
+            ),
             **self.diagnostics_extra(EpisodeContext(selection=selection, args=args)),
         })
 
@@ -1463,26 +1796,43 @@ class BasePipeline(ABC):
         rng_pre = np.random.default_rng(args.seed)
         pre_selection = self.select_objects(args, rng_pre)
         args._pre_selection = pre_selection
+        required = pre_selection["required_area_m2"]
+        required_span_xy_m = pre_selection.get("required_span_xy_m")
+        edge_margin_m = float(args.zone_edge_margin_m if args.zone_edge_margin_m is not None else 0.04)
 
         if args.scene_model is None:
-            required = pre_selection["required_area_m2"]
             scene_catalog = build_scene_surface_catalog(
-                is_table_like, SURFACE_CATEGORY_PRIORITY,
+                is_table_like,
+                SURFACE_CATEGORY_PRIORITY,
+                required_span_xy_m=_normalize_required_span_xy(required_span_xy_m, extra_margin_m=edge_margin_m),
             )
             eligible = [
                 entry for entry in scene_catalog
-                if entry[4] is not None and entry[4] >= required
+                if entry.get("eligible_for_generation", False)
+                and entry.get("generation_area_m2") is not None
+                and float(entry["generation_area_m2"]) + 1e-9 >= required
             ]
             if not eligible:
                 raise RuntimeError(
                     f"No scene has a table large enough ({required:.3f} m²). "
                     f"Scanned {len(scene_catalog)} scenes."
                 )
-            pick = eligible[rng_pre.integers(len(eligible))]
-            args.scene_model = pick[0]
-            print(f"[Pipeline] Auto-scene: {pick[0]} "
-                  f"(table={pick[1]}, area={pick[4]:.3f} m², "
-                  f"required={required:.3f} m²)")
+            best_tier = min(int(entry.get("generation_selection_tier", 9)) for entry in eligible)
+            pool = [entry for entry in eligible if int(entry.get("generation_selection_tier", 9)) == best_tier]
+            pick = dict(pool[rng_pre.integers(len(pool))])
+            args.scene_model = pick["scene_model"]
+            pre_selection["_surface_name"] = pick["name"]
+            pre_selection["_surface_category"] = pick["category"]
+            pre_selection["_surface_model"] = pick.get("model")
+            pre_selection["_room_type"] = pick["room_type"]
+            pre_selection["_room_instance"] = pick["room_instance"]
+            print(
+                f"[Pipeline] Auto-scene: {pick['scene_model']} "
+                f"(surface={pick['name']}<{pick['category']}/{pick.get('model') or '?'}>, "
+                f"area={pick['generation_area_m2']:.3f} m², "
+                f"required={required:.3f} m², source={pick['area_source']}, "
+                f"profile={pick['profile_status']})"
+            )
 
         if args.scene_model is None:
             raise RuntimeError("No --scene-model specified and select_objects() not implemented.")
@@ -1495,28 +1845,46 @@ class BasePipeline(ABC):
         scene_json = get_scene_json_path(args.scene_model)
         if not os.path.isfile(scene_json):
             raise RuntimeError(f"Scene JSON not found: {scene_json}")
-        discovery = discover_surface_from_scene_json(scene_json)
+        discovery = select_surface_candidate_from_scene_json(
+            scene_json,
+            is_table_like,
+            priority_map=SURFACE_CATEGORY_PRIORITY,
+            required_area_m2=required,
+            required_span_xy_m=_normalize_required_span_xy(required_span_xy_m, extra_margin_m=edge_margin_m),
+            rng=rng_pre,
+            forced_name=(
+                getattr(curation, "surface_name", None) if curation else None
+            ) or pre_selection.get("_surface_name"),
+            forced_category=getattr(curation, "support_category", None) if curation else None,
+        )
         if discovery is None:
             raise RuntimeError(f"No table-like surface in scene '{args.scene_model}'.")
-        surface_category = discovery[0]
+        surface_name = discovery["name"]
+        surface_category = discovery["category"]
+        surface_model = discovery.get("model")
         support_synset = resolve_synset(surface_category)
-        support_room = discovery[1]
-        room_instance = discovery[2]
+        support_room = discovery["room_type"]
+        room_instance = discovery["room_instance"]
         if curation and curation.support_category:
             surface_category = curation.support_category
             support_synset = resolve_synset(surface_category)
         if curation and curation.support_room:
             support_room = curation.support_room
-        print(f"[Pipeline] Discovered: category={surface_category} "
-              f"synset={support_synset} room={support_room}")
+        print(
+            f"[Pipeline] Discovered: surface={surface_name} "
+            f"category={surface_category} model={surface_model or '?'} "
+            f"synset={support_synset} room={support_room}"
+        )
 
         # Store surface info in pre_selection for _run_episode.
         if pre_selection is None:
             pre_selection = {}
             args._pre_selection = pre_selection
-        pre_selection.setdefault("_surface_category", surface_category)
-        pre_selection.setdefault("_room_type", support_room)
-        pre_selection.setdefault("_room_instance", room_instance)
+        pre_selection["_surface_name"] = surface_name
+        pre_selection["_surface_category"] = surface_category
+        pre_selection["_surface_model"] = surface_model
+        pre_selection["_room_type"] = support_room
+        pre_selection["_room_instance"] = room_instance
 
         # -- Generate BDDL --------------------------------------------------
         rng = np.random.default_rng(args.seed)
@@ -1597,6 +1965,15 @@ class BasePipeline(ABC):
                     "steps_executed": ctx.steps_executed if hasattr(ctx, "steps_executed") else 0,
                     "selection": selection,
                     "cameras": list(getattr(args, "_resolved_video_views", ())),
+                    **support_surface_profile_diagnostics(
+                        category=ctx.support_category,
+                        model=ctx.support_model,
+                        profile_entry=ctx.support_profile,
+                        world_regions=ctx.support_profile_world_regions,
+                        selected_region=ctx.support_region,
+                        working_bounds_xy=ctx.surface_bounds_xy,
+                        working_bounds_source=ctx.support_working_bounds_source,
+                    ),
                     **self.diagnostics_extra(ctx),
                 }
                 if curation:
@@ -1622,7 +1999,9 @@ class BasePipeline(ABC):
         # -- Find support surface object by category -------------------------
         pre = args._pre_selection
         surface_category = pre["_surface_category"]
+        selected_surface_name = pre.get("_surface_name")
         forced_name = getattr(ctx.curation, "surface_name", None) if ctx.curation else None
+        forced_name = forced_name or selected_surface_name
         target_category = getattr(ctx.curation, "support_category", None) if ctx.curation else surface_category
 
         support_obj = None
@@ -1644,6 +2023,26 @@ class BasePipeline(ABC):
 
         ctx.support_obj = support_obj
         ctx.surface_name = getattr(support_obj, "name", "")
+        ctx.support_category = str(getattr(support_obj, "category", "") or target_category or "")
+        ctx.support_model = str(getattr(support_obj, "model", "") or pre.get("_surface_model") or "")
+        ctx.support_profile = lookup_support_surface_profile(ctx.support_category, ctx.support_model)
+        ctx.support_profile_world_regions = tuple()
+        if ctx.support_profile:
+            try:
+                from omnigibson.task_generation.support_surface_profiles import profile_regions_to_world
+
+                support_pos, support_orn = support_obj.get_position_orientation()
+                support_scale = getattr(support_obj, "scale", (1.0, 1.0, 1.0))
+                ctx.support_profile_world_regions = tuple(
+                    profile_regions_to_world(
+                        ctx.support_profile,
+                        position_xyz_world=support_pos,
+                        orientation_xyzw_world=support_orn,
+                        scale_xyz=support_scale,
+                    )
+                )
+            except Exception:
+                ctx.support_profile_world_regions = tuple()
 
         # Analyze the surface for obstacle/approach info.
         from omnigibson.utils.surface_discovery import analyze_surface
@@ -1688,14 +2087,27 @@ class BasePipeline(ABC):
         og.sim.step()
 
         aabb_min, aabb_max = support_obj.aabb
-        ctx.surface_bounds_xy = (
+        ctx.support_aabb_bounds_xy = (
             (float(aabb_min[0]), float(aabb_min[1])),
             (float(aabb_max[0]), float(aabb_max[1])),
         )
+        ctx.surface_bounds_xy = ctx.support_aabb_bounds_xy
+        ctx.table_top_z = float(aabb_max[2])
+        required_area_m2 = float(pre.get("required_area_m2", 0.0) or 0.0)
+        selected_region = choose_support_working_region(
+            ctx,
+            required_area_m2=required_area_m2,
+            required_span_xy_m=pre.get("required_span_xy_m"),
+        )
+        if selected_region is not None:
+            print(
+                f"[Pipeline] Support region: {selected_region.get('region_id')} "
+                f"bounds={ctx.surface_bounds_xy} top_z={ctx.table_top_z:.3f}"
+            )
         if ctx.curation and getattr(ctx.curation, "surface_bounds_override_xy", None):
             ctx.surface_bounds_xy = ctx.curation.surface_bounds_override_xy
+            ctx.support_working_bounds_source = "curation_override"
             print(f"[Pipeline] Surface bounds override: {ctx.surface_bounds_xy}")
-        ctx.table_top_z = float(aabb_max[2])
         ctx.floor_z = float(aabb_min[2])
 
         clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
@@ -1743,6 +2155,8 @@ class BasePipeline(ABC):
         preferred_edge = None
         if ctx.curation and ctx.curation.preferred_edge:
             preferred_edge = ctx.curation.preferred_edge
+        elif ctx.support_region and ctx.support_region.get("reachable_edge_labels"):
+            preferred_edge = ctx.support_region["reachable_edge_labels"][0]
         if ctx.surface_info and ctx.surface_info.approach_edges:
             preferred_edge = preferred_edge or ctx.surface_info.approach_edges[0]
 
