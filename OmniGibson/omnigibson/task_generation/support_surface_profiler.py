@@ -28,6 +28,7 @@ from omnigibson.task_generation.support_surface_profiles import (
     load_support_surface_profiles,
     mask_to_usable_regions,
     normalize_bounds,
+    prune_regions_for_generation,
     region_span_xy,
     save_support_surface_profiles,
     select_dominant_top_plane_height,
@@ -63,6 +64,13 @@ def parse_args():
     parser.add_argument("--normal-min-z", type=float, default=0.9)
     parser.add_argument("--min-component-cells", type=int, default=4)
     parser.add_argument("--min-region-area-m2", type=float, default=0.01)
+    parser.add_argument("--max-usable-regions", type=int, default=2)
+    parser.add_argument("--min-region-short-side-m", type=float, default=0.09)
+    parser.add_argument("--sliver-max-aspect-ratio", type=float, default=8.0)
+    parser.add_argument("--sliver-short-side-relief-m", type=float, default=0.18)
+    parser.add_argument("--secondary-region-min-area-ratio", type=float, default=0.10)
+    parser.add_argument("--secondary-region-min-area-m2", type=float, default=0.04)
+    parser.add_argument("--allow-unreachable-regions", dest="require_reachable_regions", action="store_false")
     parser.add_argument("--ray-start-margin-m", type=float, default=0.15)
     parser.add_argument("--ray-end-margin-m", type=float, default=0.20)
     parser.add_argument("--mount-gap-m", type=float, default=0.03)
@@ -81,8 +89,14 @@ def parse_args():
     parser.add_argument("--output-json", default=DEFAULT_PROFILE_PATH)
     parser.add_argument("--debug-jsonl", default=None)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "--overwrite-rejected",
+        action="store_true",
+        help="Re-profile entries already manually marked as rejected in the output JSON",
+    )
     parser.add_argument("--showcase-gui", action="store_true")
     parser.add_argument("--skip-plots", action="store_true")
+    parser.set_defaults(require_reachable_regions=True)
     return parser.parse_args()
 
 
@@ -662,6 +676,28 @@ def _profile_single_model(args, category: str, model: str, surface_catalog: dict
                 reachable_region_ids.append(region["region_id"])
                 reachable_edge_labels.update(reach["edge_labels"])
 
+        raw_region_count = len(usable_regions)
+        raw_region_area_m2 = float(sum(float(region["area_m2"]) for region in usable_regions))
+        usable_regions, prune_diagnostics = prune_regions_for_generation(
+            usable_regions,
+            max_regions=args.max_usable_regions,
+            min_short_side_m=args.min_region_short_side_m,
+            sliver_max_aspect_ratio=args.sliver_max_aspect_ratio,
+            sliver_short_side_relief_m=args.sliver_short_side_relief_m,
+            secondary_min_area_ratio=args.secondary_region_min_area_ratio,
+            secondary_min_area_m2=args.secondary_region_min_area_m2,
+            prefer_reachable=True,
+            require_reachable=args.require_reachable_regions,
+        )
+        reachable_region_ids = [region["region_id"] for region in usable_regions if bool(region.get("reachable", False))]
+        reachable_edge_labels = sorted(
+            {
+                edge_label
+                for region in usable_regions
+                for edge_label in (region.get("reachable_edge_labels", ()) or ())
+            }
+        )
+
         raw_hit_count = int(raw_mask.sum())
         top_hit_count = int(top_mask.sum())
         occupancy_area_m2 = _cell_area_sum(top_mask, x_edges_local, y_edges_local)
@@ -681,8 +717,12 @@ def _profile_single_model(args, category: str, model: str, surface_catalog: dict
             exclusion_reasons.append("no_support_hits")
         if top_hit_count == 0:
             exclusion_reasons.append("no_dominant_top_plane")
-        if not usable_regions:
+        if raw_region_count == 0:
             exclusion_reasons.append("no_usable_regions")
+        if raw_region_count > 0 and not usable_regions:
+            exclusion_reasons.append("no_regions_after_pruning")
+            if args.require_reachable_regions:
+                exclusion_reasons.append("no_reachable_regions")
 
         candidate_for_generation = bool(usable_regions)
         review_artifacts = {}
@@ -737,14 +777,17 @@ def _profile_single_model(args, category: str, model: str, surface_catalog: dict
                 "dominant_top_plane_hit_count": top_hit_count,
                 "dominant_top_plane_band_count": int(dominant_count),
                 "component_count": int(component_count),
+                "raw_region_count": int(raw_region_count),
                 "region_count": int(region_count),
                 "reachable_region_count": len(reachable_region_ids),
                 "largest_region_area_m2": round(float(largest_region_area_m2), 6),
                 "largest_region_span_xy_m": largest_region_span_xy_m,
+                "raw_effective_area_m2": round(float(raw_region_area_m2), 6),
                 "usable_to_aabb_ratio": round(float(effective_area_m2 / max(aabb_area_m2, 1e-6)), 6),
                 "occupancy_to_aabb_ratio": round(float(occupancy_area_m2 / max(aabb_area_m2, 1e-6)), 6),
                 "region_cover_to_occupancy_ratio": round(float(effective_area_m2 / max(occupancy_area_m2, 1e-6)), 6),
                 "dropped_occupancy_area_m2": round(max(0.0, float(occupancy_area_m2 - effective_area_m2)), 6),
+                "region_pruning": prune_diagnostics,
                 "artifact_dir": os.path.relpath(artifact_dir, _PROJECT_ROOT),
             },
             "provenance": {
@@ -799,6 +842,20 @@ def main():
     success_count = 0
     for idx, (category, model) in enumerate(targets, start=1):
         existing = load_support_surface_profiles(args.output_json).get("profiles", {}).get(category, {}).get(model)
+        if (
+            existing is not None
+            and existing.get("review_status") == "rejected"
+            and not args.overwrite_rejected
+        ):
+            print(f"[Profiler] Preserve rejected {idx}/{len(targets)}: {category}/{model}")
+            append_jsonl(args.debug_jsonl, {
+                "event": "skip_rejected_existing",
+                "category": category,
+                "model": model,
+                "review_status": existing.get("review_status"),
+                "exclusion_reasons": list(existing.get("exclusion_reasons") or ()),
+            })
+            continue
         if existing is not None and not args.overwrite:
             print(f"[Profiler] Skip existing {idx}/{len(targets)}: {category}/{model}")
             append_jsonl(args.debug_jsonl, {

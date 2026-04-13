@@ -17,6 +17,7 @@ from omnigibson.task_generation.support_surface_profiles import (
     maximal_rectangle_cover,
     profile_generation_area_m2,
     profile_regions_to_world,
+    prune_regions_for_generation,
     region_bounds_xy,
     save_support_surface_profiles,
     select_dominant_top_plane_height,
@@ -146,6 +147,111 @@ class TestReachability:
 
 
 class TestRegionSelection:
+    def test_prune_regions_keeps_only_top_two_meaningful_regions(self):
+        regions = [
+            {
+                "region_id": "region_00",
+                "xy_min": [0.0, 0.0],
+                "xy_max": [0.8, 0.8],
+                "span_xy_m": [0.8, 0.8],
+                "area_m2": 0.64,
+                "reachable": True,
+                "reachable_edge_labels": ["x_min"],
+            },
+            {
+                "region_id": "region_01",
+                "xy_min": [0.9, 0.0],
+                "xy_max": [1.5, 0.5],
+                "span_xy_m": [0.6, 0.5],
+                "area_m2": 0.30,
+                "reachable": True,
+                "reachable_edge_labels": ["x_max"],
+            },
+            {
+                "region_id": "region_02",
+                "xy_min": [1.6, 0.0],
+                "xy_max": [1.8, 0.2],
+                "span_xy_m": [0.2, 0.2],
+                "area_m2": 0.04,
+                "reachable": True,
+                "reachable_edge_labels": ["y_min"],
+            },
+        ]
+        kept, diagnostics = prune_regions_for_generation(regions)
+        assert [region["region_id"] for region in kept] == ["region_00", "region_01"]
+        assert diagnostics["kept_region_count"] == 2
+        assert diagnostics["pruned_max_regions_count"] == 1
+
+    def test_prune_regions_drops_duplicate_sliver_and_unreachable_regions(self):
+        regions = [
+            {
+                "region_id": "region_00",
+                "xy_min": [0.0, 0.0],
+                "xy_max": [0.9, 0.5],
+                "span_xy_m": [0.9, 0.5],
+                "area_m2": 0.45,
+                "reachable": True,
+                "reachable_edge_labels": ["x_min"],
+            },
+            {
+                "region_id": "region_01",
+                "xy_min": [0.0, 0.0],
+                "xy_max": [0.9, 0.5],
+                "span_xy_m": [0.9, 0.5],
+                "area_m2": 0.45,
+                "reachable": True,
+                "reachable_edge_labels": ["x_min"],
+            },
+            {
+                "region_id": "region_02",
+                "xy_min": [1.0, 0.0],
+                "xy_max": [1.03, 0.9],
+                "span_xy_m": [0.03, 0.9],
+                "area_m2": 0.027,
+                "reachable": True,
+                "reachable_edge_labels": ["y_min"],
+            },
+            {
+                "region_id": "region_03",
+                "xy_min": [1.2, 0.0],
+                "xy_max": [1.7, 0.4],
+                "span_xy_m": [0.5, 0.4],
+                "area_m2": 0.20,
+                "reachable": False,
+                "reachable_edge_labels": [],
+            },
+        ]
+        kept, diagnostics = prune_regions_for_generation(regions)
+        assert [region["region_id"] for region in kept] == ["region_00"]
+        assert diagnostics["pruned_duplicate_count"] == 1
+        assert diagnostics["pruned_short_side_count"] == 1
+        assert diagnostics["pruned_unreachable_count"] == 1
+
+    def test_prune_regions_drops_tiny_second_region_by_relative_area(self):
+        regions = [
+            {
+                "region_id": "region_00",
+                "xy_min": [0.0, 0.0],
+                "xy_max": [1.0, 0.8],
+                "span_xy_m": [1.0, 0.8],
+                "area_m2": 0.8,
+                "reachable": True,
+                "reachable_edge_labels": ["x_min"],
+            },
+            {
+                "region_id": "region_01",
+                "xy_min": [1.1, 0.0],
+                "xy_max": [1.45, 0.12],
+                "span_xy_m": [0.35, 0.12],
+                "area_m2": 0.042,
+                "reachable": True,
+                "reachable_edge_labels": ["x_max"],
+            },
+        ]
+        kept, diagnostics = prune_regions_for_generation(regions)
+        assert [region["region_id"] for region in kept] == ["region_00"]
+        assert diagnostics["pruned_secondary_area_ratio_count"] == 1
+
     def test_profile_generation_area_returns_largest_region(self):
         profile = {
             "usable_regions": [

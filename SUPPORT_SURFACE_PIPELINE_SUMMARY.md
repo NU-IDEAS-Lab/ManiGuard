@@ -9,14 +9,18 @@ Current frozen assets:
 - Canonical profile database:
   - `OmniGibson/omnigibson/task_generation/support_surface_profiles_v1.json`
 - Canonical reviewed artifact root:
-  - `outputs/support_surface_profiles/catalog_batch_full_20260412_v1`
-- Reviewed full-batch artifact archive:
+  - `outputs/support_surface_profiles/catalog_batch_full_20260413_top2_reachable_v2`
+- Legacy reviewed artifact archive before the top-2 / reachability freeze:
   - `outputs/support_surface_profiles/catalog_batch_full_20260412_v1.zip`
 
 Current reviewed batch status:
 
 - `187/187` assets profiled from `surface_catalog.json`
 - `185/187` assets currently marked candidate-for-generation
+- candidate region histogram:
+  - `161` assets with `1` kept usable region
+  - `24` assets with `2` kept usable regions
+  - `2` manually rejected assets with `0` usable regions
 - manually rejected:
   - `flat_bench/iisaia`
   - `pool_table/atjfhn`
@@ -91,11 +95,33 @@ The output shape model is intentionally conservative:
 - axis-aligned in the support local frame
 - geometry-first, not visually prettified
 
-### 4. Reachability annotation
+### 4. Generation-oriented region pruning
 
-Each local usable region is also annotated with a lightweight Franka-mounted reachability diagnostic.
+The maximal-rectangle pass can over-produce narrow edge strips or tiny fragments on irregular assets. The frozen pipeline therefore keeps only a generation-oriented subset of those rectangles.
 
-Current frozen reachability parameters:
+Pruning flow:
+
+1. Deduplicate numerically identical rectangles.
+2. Drop rectangles whose short side is below the minimum placement width.
+3. Drop sliver rectangles if they are both:
+   - too elongated in aspect ratio, and
+   - still narrow enough to count as strip-like geometry.
+4. Annotate each remaining rectangle with a lightweight Franka-mounted reachability check.
+5. By default, require the kept regions to be reachable.
+6. Sort the survivors by generation usefulness and keep at most the top `2`.
+7. For the secondary region, also require it to clear a minimum absolute / relative area bar.
+
+Frozen pruning defaults:
+
+- `max_usable_regions = 2`
+- `min_region_short_side_m = 0.09`
+- `sliver_max_aspect_ratio = 8.0`
+- `sliver_short_side_relief_m = 0.18`
+- `secondary_region_min_area_ratio = 0.10`
+- `secondary_region_min_area_m2 = 0.04`
+- `require_reachable_regions = true`
+
+Frozen reachability parameters:
 
 - reach distance range: `[0.45, 1.10] m`
 - mount gap: `0.03 m`
@@ -103,7 +129,11 @@ Current frozen reachability parameters:
 - robot half extent: `(0.15, 0.15) m`
 - edge margin: `0.08 m`
 
-This annotation is currently diagnostic metadata. It is not yet the only hard gate for candidate inclusion.
+Important consequence:
+
+- `usable_regions` in the frozen JSON are not the raw full rectangle cover
+- they are the final generation-facing kept regions after geometric pruning + reachability filtering
+- the raw rectangle count is still retained in diagnostics as `diagnostics.region_pruning.raw_region_count`
 
 ### 5. Review artifact generation
 
@@ -167,9 +197,11 @@ Each `profiles[category][model]` entry stores:
   - `aabb_area_m2`
 - occupancy summary:
   - `occupancy_area_m2`
-  - `effective_area_m2`
+- `effective_area_m2`
 - usable region list:
   - `usable_regions`
+- raw-to-final pruning diagnostics:
+  - `diagnostics.region_pruning`
 - generation gate:
   - `candidate_for_generation`
   - `exclusion_reasons`
@@ -218,6 +250,19 @@ Meaning of the main fields:
 - `component_ids`:
   - which connected top-plane mask component(s) this rectangle belongs to
 
+Because the frozen database now keeps at most two usable regions per asset, these entries are already the final generation-facing candidates, not the full raw decomposition.
+
+Per-entry pruning metadata also records:
+
+- `diagnostics.region_pruning.raw_region_count`
+- `diagnostics.region_pruning.kept_region_ids`
+- `diagnostics.region_pruning.thresholds`
+
+So downstream code can recover both:
+
+- what survived into the frozen generation-facing database
+- which freeze thresholds were used for that specific asset entry
+
 ### Region indexing stability
 
 Within a frozen JSON file, each region can be referenced stably by:
@@ -257,6 +302,7 @@ Not explicitly stored in `v1`:
 - full local AABB height extent of the asset
 - arbitrary polygonal support shapes
 - scene-level occupancy subtraction from sinks, stoves, or clutter already placed on the surface
+- the discarded raw rectangles themselves after pruning
 
 ## Task-Time Integration
 
@@ -282,7 +328,7 @@ Current region selection policy:
 The key split is:
 
 - asset profiling answers: "where is the real support geometry?"
-- task generation answers: "which recorded region should this task use?"
+- generation-time filtering answers: "which of the recorded regions can fit this object set in this scene?"
 
 ## Reproduction Commands
 
@@ -293,12 +339,15 @@ Use the `behavior` Python environment and run the module commands from `OmniGibs
 Example:
 
 ```bash
+source /home/yiyanpeng/miniconda3/etc/profile.d/conda.sh
+conda activate behavior
 cd /home/yiyanpeng/project/SENTINEL-Lite/OmniGibson
-/home/yiyanpeng/miniconda3/envs/behavior/bin/python -m omnigibson.task_generation.support_surface_profiler \
+python -m omnigibson.task_generation.support_surface_profiler \
   --category coffee_table \
   --model fqluyq \
   --grid-step-m 0.03 \
-  --run-dir /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/profile_coffee_table_20260412_010334 \
+  --max-usable-regions 2 \
+  --run-dir /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/profile_debug_coffee_table_fqluyq \
   --output-json /home/yiyanpeng/project/SENTINEL-Lite/OmniGibson/omnigibson/task_generation/support_surface_profiles_v1.json \
   --overwrite
 ```
@@ -308,19 +357,22 @@ Useful variants:
 - add `--showcase-gui` for interactive visual debug
 - swap `--category` and `--model` to inspect a different asset
 - point `--run-dir` to a fresh folder if the run should be kept separately
+- add `--allow-unreachable-regions` only for diagnostic experiments; the frozen batch uses reachable regions by default
 
 ### 2. Single-category batch profiling
 
 Example:
 
 ```bash
+source /home/yiyanpeng/miniconda3/etc/profile.d/conda.sh
+conda activate behavior
 cd /home/yiyanpeng/project/SENTINEL-Lite/OmniGibson
-/home/yiyanpeng/miniconda3/envs/behavior/bin/python -m omnigibson.task_generation.support_surface_batch_runner \
+python -m omnigibson.task_generation.support_surface_batch_runner \
   --categories coffee_table \
   --order alpha \
   --grid-step-m 0.03 \
-  --batch-root /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_full_20260412_v1 \
-  --progress-json /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_full_20260412_v1/batch_progress.json \
+  --batch-root /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_debug_coffee_table_top2 \
+  --progress-json /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_debug_coffee_table_top2/batch_progress.json \
   --output-json /home/yiyanpeng/project/SENTINEL-Lite/OmniGibson/omnigibson/task_generation/support_surface_profiles_v1.json \
   --overwrite
 ```
@@ -337,19 +389,21 @@ This writes:
 Frozen full-batch command pattern:
 
 ```bash
+source /home/yiyanpeng/miniconda3/etc/profile.d/conda.sh
+conda activate behavior
 cd /home/yiyanpeng/project/SENTINEL-Lite/OmniGibson
-/home/yiyanpeng/miniconda3/envs/behavior/bin/python -m omnigibson.task_generation.support_surface_batch_runner \
+python -m omnigibson.task_generation.support_surface_batch_runner \
   --order size_asc \
   --grid-step-m 0.03 \
-  --batch-root /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_full_20260412_v1 \
-  --progress-json /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_full_20260412_v1/batch_progress.json \
+  --batch-root /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_full_20260413_top2_reachable_v2 \
+  --progress-json /home/yiyanpeng/project/SENTINEL-Lite/outputs/support_surface_profiles/catalog_batch_full_20260413_top2_reachable_v2/batch_progress.json \
   --output-json /home/yiyanpeng/project/SENTINEL-Lite/OmniGibson/omnigibson/task_generation/support_surface_profiles_v1.json \
   --overwrite
 ```
 
 This is the command family that produced the canonical reviewed artifact tree under:
 
-- `outputs/support_surface_profiles/catalog_batch_full_20260412_v1`
+- `outputs/support_surface_profiles/catalog_batch_full_20260413_top2_reachable_v2`
 
 Manual review overrides were applied afterward for:
 
@@ -363,9 +417,12 @@ Main new or modified files:
 - `OmniGibson/omnigibson/task_generation/support_surface_profiles.py`
   - added the profile document schema
   - added geometry helpers, rectangle decomposition, reachability checks, and task-time region selection helpers
+  - added `prune_regions_for_generation(...)` to collapse raw rectangle covers into at most two generation-facing regions
 - `OmniGibson/omnigibson/task_generation/support_surface_profiler.py`
   - added empty-scene profiling with raycast-based surface discovery
   - added review-plot generation and simulation highlight renders
+  - now annotates raw regions with reachability and applies generation-oriented pruning before writing the final JSON
+  - now preserves manually rejected entries during reruns unless `--overwrite-rejected` is explicitly requested
   - writes `profile_summary.json` per asset and updates the main JSON database
 - `OmniGibson/omnigibson/task_generation/support_surface_batch_runner.py`
   - added category-batch orchestration
@@ -377,6 +434,7 @@ Main new or modified files:
   - records support-profile diagnostics in pipeline logs
 - `OmniGibson/tests/test_support_surface_profiles.py`
   - added unit tests for schema IO, dominant-plane selection, mask decomposition, reachability, and region selection
+  - added focused regression coverage for top-2 pruning, duplicate removal, sliver rejection, unreachable-region filtering, and secondary-area filtering
 
 Manual reviewed overrides currently frozen into the database:
 

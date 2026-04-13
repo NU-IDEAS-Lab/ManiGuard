@@ -492,6 +492,153 @@ def choose_profile_region(
     return chosen
 
 
+def prune_regions_for_generation(
+    regions: Sequence[dict],
+    *,
+    max_regions: int = 2,
+    min_short_side_m: float = 0.09,
+    sliver_max_aspect_ratio: float = 8.0,
+    sliver_short_side_relief_m: float = 0.18,
+    secondary_min_area_ratio: float = 0.10,
+    secondary_min_area_m2: float = 0.04,
+    prefer_reachable: bool = True,
+    require_reachable: bool = True,
+    dedupe_round_ndigits: int = 6,
+) -> Tuple[List[dict], dict]:
+    raw_regions = [copy.deepcopy(region) for region in regions or ()]
+    diagnostics = {
+        "raw_region_count": int(len(raw_regions)),
+        "raw_effective_area_m2": round(
+            float(sum(region_area_m2(region) or 0.0 for region in raw_regions)),
+            6,
+        ),
+        "pruned_duplicate_count": 0,
+        "pruned_invalid_geometry_count": 0,
+        "pruned_short_side_count": 0,
+        "pruned_sliver_aspect_count": 0,
+        "pruned_unreachable_count": 0,
+        "pruned_secondary_area_ratio_count": 0,
+        "pruned_secondary_area_m2_count": 0,
+        "pruned_max_regions_count": 0,
+        "kept_region_ids": [],
+        "kept_region_count": 0,
+        "kept_effective_area_m2": 0.0,
+        "thresholds": {
+            "max_regions": int(max_regions),
+            "min_short_side_m": float(min_short_side_m),
+            "sliver_max_aspect_ratio": float(sliver_max_aspect_ratio),
+            "sliver_short_side_relief_m": float(sliver_short_side_relief_m),
+            "secondary_min_area_ratio": float(secondary_min_area_ratio),
+            "secondary_min_area_m2": float(secondary_min_area_m2),
+            "prefer_reachable": bool(prefer_reachable),
+            "require_reachable": bool(require_reachable),
+        },
+    }
+    if max_regions <= 0 or not raw_regions:
+        return [], diagnostics
+
+    deduped_regions: List[dict] = []
+    seen_bounds = set()
+    for region in raw_regions:
+        bounds = region_bounds_xy(region)
+        if bounds is None:
+            diagnostics["pruned_invalid_geometry_count"] += 1
+            continue
+        dedupe_key = tuple(
+            round(float(value), int(dedupe_round_ndigits))
+            for value in (
+                bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1],
+            )
+        )
+        if dedupe_key in seen_bounds:
+            diagnostics["pruned_duplicate_count"] += 1
+            continue
+        seen_bounds.add(dedupe_key)
+        deduped_regions.append(region)
+
+    candidates: List[dict] = []
+    for region in deduped_regions:
+        span = region_span_xy(region)
+        area = region_area_m2(region)
+        if span is None or area is None:
+            diagnostics["pruned_invalid_geometry_count"] += 1
+            continue
+        short_side = min(float(span[0]), float(span[1]))
+        long_side = max(float(span[0]), float(span[1]))
+        aspect_ratio = long_side / max(short_side, 1e-9)
+        if short_side + 1e-9 < float(min_short_side_m):
+            diagnostics["pruned_short_side_count"] += 1
+            continue
+        if (
+            short_side + 1e-9 < float(sliver_short_side_relief_m)
+            and aspect_ratio > float(sliver_max_aspect_ratio) + 1e-9
+        ):
+            diagnostics["pruned_sliver_aspect_count"] += 1
+            continue
+        if require_reachable and not bool(region.get("reachable", False)):
+            diagnostics["pruned_unreachable_count"] += 1
+            continue
+        enriched = copy.deepcopy(region)
+        enriched["_selection_area_m2"] = float(area)
+        enriched["_short_side_m"] = float(short_side)
+        enriched["_aspect_ratio"] = float(aspect_ratio)
+        candidates.append(enriched)
+
+    if not candidates:
+        return [], diagnostics
+
+    candidates = sorted(
+        candidates,
+        key=lambda region: (
+            0 if (prefer_reachable and bool(region.get("reachable", False))) else 1,
+            -float(region["_selection_area_m2"]),
+            -float(region["_short_side_m"]),
+            float(region["_aspect_ratio"]),
+            str(region.get("region_id") or ""),
+        ),
+    )
+
+    kept: List[dict] = []
+    primary_area = None
+    for idx, region in enumerate(candidates):
+        if len(kept) >= int(max_regions):
+            diagnostics["pruned_max_regions_count"] += len(candidates) - idx
+            break
+        if not kept:
+            kept.append(region)
+            primary_area = float(region["_selection_area_m2"])
+            continue
+
+        min_secondary_area = max(
+            float(secondary_min_area_m2),
+            float(secondary_min_area_ratio) * float(primary_area),
+        )
+        if float(region["_selection_area_m2"]) + 1e-9 < min_secondary_area:
+            remaining = len(candidates) - idx
+            if float(region["_selection_area_m2"]) + 1e-9 < float(secondary_min_area_m2):
+                diagnostics["pruned_secondary_area_m2_count"] += remaining
+            else:
+                diagnostics["pruned_secondary_area_ratio_count"] += remaining
+            break
+        kept.append(region)
+
+    finalized: List[dict] = []
+    for region in kept:
+        cleaned = copy.deepcopy(region)
+        cleaned.pop("_selection_area_m2", None)
+        cleaned.pop("_short_side_m", None)
+        cleaned.pop("_aspect_ratio", None)
+        finalized.append(cleaned)
+
+    diagnostics["kept_region_ids"] = [region.get("region_id") for region in finalized]
+    diagnostics["kept_region_count"] = int(len(finalized))
+    diagnostics["kept_effective_area_m2"] = round(
+        float(sum(region_area_m2(region) or 0.0 for region in finalized)),
+        6,
+    )
+    return finalized, diagnostics
+
+
 def _normalize_interval(lo: float, hi: float) -> Tuple[float, float]:
     return (min(lo, hi), max(lo, hi))
 
@@ -708,6 +855,7 @@ __all__ = [
     "normalize_bounds",
     "profile_generation_area_m2",
     "profile_regions_to_world",
+    "prune_regions_for_generation",
     "region_area_m2",
     "region_bounds_xy",
     "region_satisfies_min_span",
