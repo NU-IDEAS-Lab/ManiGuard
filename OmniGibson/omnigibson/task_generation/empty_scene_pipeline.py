@@ -684,6 +684,7 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         active_objects_by_inst=objects_by_inst,
         robot=robot, target_obj=target_obj,
         args=args, episode=ep, rng=rng,
+        support_obj=support_obj,
     )
 
     append_jsonl(args.debug_jsonl, {
@@ -798,6 +799,31 @@ def run_sim(args):
             )],
             objects=all_objects,
             task=dict(type="DummyTask"),
+            # 3 external cameras for multi-view recording (same layout as
+            # BasePipeline's scene-based pipelines).
+            env={"external_sensors": [
+                {
+                    "sensor_type": "VisionSensor",
+                    "name": "cam_opposite",
+                    "relative_prim_path": "/cam_opposite",
+                    "modalities": ["rgb"],
+                    "sensor_kwargs": {"image_height": 720, "image_width": 1280},
+                },
+                {
+                    "sensor_type": "VisionSensor",
+                    "name": "cam_left",
+                    "relative_prim_path": "/cam_left",
+                    "modalities": ["rgb"],
+                    "sensor_kwargs": {"image_height": 720, "image_width": 1280},
+                },
+                {
+                    "sensor_type": "VisionSensor",
+                    "name": "cam_right",
+                    "relative_prim_path": "/cam_right",
+                    "modalities": ["rgb"],
+                    "sensor_kwargs": {"image_height": 720, "image_width": 1280},
+                },
+            ]},
         )
 
         print(f"\n[Pipeline] Batch {batch_start//batch_size + 1}: "
