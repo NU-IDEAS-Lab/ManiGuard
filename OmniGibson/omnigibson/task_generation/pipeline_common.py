@@ -493,6 +493,53 @@ def robot_half_extent_xy(robot):
     return (0.15, 0.15)
 
 
+# Categories whose AABB physically blocks the robot base at floor level.
+# Probed on Rs_int: walls (7), doors (2) — all axis-aligned boxes with
+# valid .aabb on DatasetObject. Kept narrow so is_structural_object()'s
+# broader keyword filter (which catches floors, ceilings, floor_lamp) is
+# not reused here.
+BASE_BLOCKING_CATEGORIES = frozenset({"walls", "wall", "door"})
+
+
+def make_base_collision_checker(env, robot_half_extent_xy, min_clearance_m=0.05):
+    """Return a callable (x, y, yaw) -> list of colliding blocker names.
+
+    Snapshots walls / doors from the loaded scene at call time. Each frame:
+    axis-aligned expansion of the robot footprint by robot half-extent +
+    min_clearance_m, then rectangle-rectangle overlap against each blocker's
+    precomputed XY AABB. Pose yaw is ignored (conservative; safe upper bound
+    on footprint). No try/except: if .aabb fails on a blocker, the build
+    crashes so the caller sees it immediately.
+    """
+    blockers = []
+    for obj in env.scene.objects:
+        cat = str(getattr(obj, "category", "") or "").lower()
+        if cat not in BASE_BLOCKING_CATEGORIES:
+            continue
+        mn, mx = obj.aabb
+        blockers.append((
+            str(getattr(obj, "name", "?")),
+            (float(mn[0]), float(mn[1])),
+            (float(mx[0]), float(mx[1])),
+        ))
+
+    hx, hy = float(robot_half_extent_xy[0]), float(robot_half_extent_xy[1])
+    pad = float(min_clearance_m)
+
+    def check(pose_xyyaw):
+        x, y, _yaw = pose_xyyaw
+        lo_x, hi_x = x - hx - pad, x + hx + pad
+        lo_y, hi_y = y - hy - pad, y + hy + pad
+        hits = []
+        for name, (bx0, by0), (bx1, by1) in blockers:
+            if lo_x <= bx1 and hi_x >= bx0 and lo_y <= by1 and hi_y >= by0:
+                hits.append(name)
+        return hits
+
+    check.blocker_count = len(blockers)
+    return check
+
+
 # ---------------------------------------------------------------------------
 # Pack callback factories
 # ---------------------------------------------------------------------------
@@ -1746,16 +1793,21 @@ class BasePipeline(ABC):
         if ctx.surface_info and ctx.surface_info.approach_edges:
             preferred_edge = preferred_edge or ctx.surface_info.approach_edges[0]
 
+        robot_half_xy = robot_half_extent_xy(ctx.robot)
+        base_checker = make_base_collision_checker(env, robot_half_xy, min_clearance_m=0.05)
+        print(f"[Pipeline] Base collision checker: tracking {base_checker.blocker_count} walls/doors")
+
         edge_request = EdgeAlignRequest(
             table_aabb_xy=zone.surface_bounds,
             pack_objects_world=tuple(pack_objects_world),
             role_weights=DEFAULT_ROLE_WEIGHTS,
-            robot_half_extent_xy=robot_half_extent_xy(ctx.robot),
+            robot_half_extent_xy=robot_half_xy,
             edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
             scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
                             0.15, -0.15, 0.20, -0.20),
             preferred_edge=preferred_edge,
             anchor_offset_m=getattr(args, "mount_anchor_offset_m", 0.0) or 0.0,
+            collision_checker=base_checker,
         )
         override_pose = getattr(args, "mount_base_pose_xyyaw", None)
         if override_pose is None:
@@ -1806,7 +1858,9 @@ class BasePipeline(ABC):
         else:
             og.sim.step()
         print(f"[Pipeline] Robot: edge={ctx.edge_result.edge_label}, "
-              f"gap={ctx.edge_result.gap_actual:.3f}")
+              f"gap={ctx.edge_result.gap_actual:.3f}, "
+              f"collision_hits={list(ctx.edge_result.collision_hits)}, "
+              f"failure_reason={ctx.edge_result.failure_reason}")
 
         # -- Gate -----------------------------------------------------------
         rp = [float(v) for v in ctx.robot.get_position_orientation()[0][:3]]
