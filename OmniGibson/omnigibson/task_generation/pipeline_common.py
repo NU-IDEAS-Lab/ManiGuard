@@ -257,6 +257,36 @@ def _yaw_from_quat(quat):
     return math.atan2(siny_cosp, cosy_cosp)
 
 
+def region_bounds_to_world_xy(region, support_obj):
+    """Axis-aligned world xy bounds of a placeable region, given the live support pose.
+
+    The region dict carries object-local xy_min/xy_max (scale-normalized).
+    We apply support_obj's world scale + yaw + position to the four corners
+    and return the axis-aligned xy bounds that enclose them. Pitch/roll are
+    ignored; tables are assumed upright.
+    """
+    pos, quat = support_obj.get_position_orientation()
+    pos = [float(v) for v in pos]
+    quat = [float(v) for v in quat]
+    scale_vec = support_obj.scale
+    sx, sy = float(scale_vec[0]), float(scale_vec[1])
+    yaw = _yaw_from_quat(quat)
+    c, s = math.cos(yaw), math.sin(yaw)
+
+    xy_min = region["xy_min"]
+    xy_max = region["xy_max"]
+    corners = []
+    for (lx, ly) in ((xy_min[0], xy_min[1]), (xy_min[0], xy_max[1]),
+                     (xy_max[0], xy_min[1]), (xy_max[0], xy_max[1])):
+        ex, ey = lx * sx, ly * sy
+        wx = pos[0] + c * ex - s * ey
+        wy = pos[1] + s * ex + c * ey
+        corners.append((wx, wy))
+    xs = [p[0] for p in corners]
+    ys = [p[1] for p in corners]
+    return ((min(xs), min(ys)), (max(xs), max(ys)))
+
+
 def _oriented_keepout_bounds_xy(base_xy, yaw, x_min, x_max, y_min, y_max):
     c, s = math.cos(yaw), math.sin(yaw)
     corners = []
@@ -1558,10 +1588,15 @@ class BasePipeline(ABC):
         og.sim.step()
 
         aabb_min, aabb_max = support_obj.aabb
-        ctx.surface_bounds_xy = (
-            (float(aabb_min[0]), float(aabb_min[1])),
-            (float(aabb_max[0]), float(aabb_max[1])),
-        )
+        # surface_bounds_xy comes from the raycast-validated placeable region
+        # (object-local, scale-invariant) carried in picked, transformed into
+        # world via support_obj's live pose. NOT the full object world AABB:
+        # this respects L/U shaped tables where the AABB includes empty
+        # corners, and picks the specific region (region_00 or region_01) the
+        # picker selected -- so 2-region models can expose their smaller
+        # region on its own merit.
+        ctx.surface_bounds_xy = region_bounds_to_world_xy(picked, support_obj)
+        ctx.picked_region = picked
         if ctx.curation and getattr(ctx.curation, "surface_bounds_override_xy", None):
             ctx.surface_bounds_xy = ctx.curation.surface_bounds_override_xy
             print(f"[Pipeline] Surface bounds override: {ctx.surface_bounds_xy}")

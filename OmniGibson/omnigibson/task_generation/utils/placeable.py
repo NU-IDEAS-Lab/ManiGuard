@@ -27,13 +27,91 @@ def load_placeable_surfaces():
     return _placeable_doc_cache
 
 
-def _model_area_index():
+def _surface_entry(s, height_m):
+    """Flatten a surfaces[] row into a self-contained pickable dict."""
+    return {
+        "category": s["category"],
+        "model": s["model"],
+        "region_id": s["region_id"],
+        "xy_min": list(s["xy_min"]),
+        "xy_max": list(s["xy_max"]),
+        "top_plane_z_local": float(s["top_plane_z_local"]),
+        "area_m2": float(s["area_m2"]),
+        "reachable_edge_labels": list(s.get("reachable_edge_labels") or ()),
+        "height_m": float(height_m) if height_m is not None else None,
+    }
+
+
+def list_eligible_surfaces(
+    required_area_m2=0.0,
+    required_category=None,
+    required_model=None,
+):
+    """Return all placeable regions passing the area / category / model filter.
+
+    Operates at REGION granularity: each region is an independent candidate
+    (a 2-region model contributes two entries), so smaller regions can be
+    picked on their own merit. Returns a list of self-contained surface
+    dicts; scene info is not included here -- use pick_scene_from_placeable
+    for that.
+    """
     doc = load_placeable_surfaces()
-    model_area = {}
+    by_model = doc.get("by_model") or {}
+    out = []
     for s in doc["surfaces"]:
-        key = (s["category"], s["model"])
-        model_area[key] = model_area.get(key, 0.0) + s["area_m2"]
-    return doc, model_area
+        if s["area_m2"] < required_area_m2:
+            continue
+        if required_category and s["category"] != required_category:
+            continue
+        if required_model and s["model"] != required_model:
+            continue
+        height_m = (by_model.get(s["category"]) or {}).get(s["model"], {}).get("height_m")
+        out.append(_surface_entry(s, height_m))
+    return out
+
+
+def _choose_from(candidates, rng, weighted_by_area):
+    if weighted_by_area:
+        import numpy as _np
+        weights = _np.array([c["area_m2"] for c in candidates], dtype=float)
+        probs = weights / weights.sum()
+        return candidates[int(rng.choice(len(candidates), p=probs))]
+    return candidates[rng.integers(len(candidates))]
+
+
+def pick_surface_from_placeable(
+    rng,
+    required_area_m2,
+    required_category=None,
+    required_model=None,
+    weighted_by_area=False,
+):
+    """Pick one placeable region by area (no scene constraint).
+
+    Each region is its own candidate (2-region models contribute two entries).
+    Intended for empty-scene pipelines that don't care which B1K scene the
+    model came from.
+
+    Returns a surface dict with category / model / region_id / xy_min / xy_max /
+    top_plane_z_local / area_m2 / reachable_edge_labels / height_m.
+    Raises RuntimeError if no region passes the filter.
+    """
+    candidates = list_eligible_surfaces(
+        required_area_m2=required_area_m2,
+        required_category=required_category,
+        required_model=required_model,
+    )
+    if not candidates:
+        extras = []
+        if required_category:
+            extras.append(f"category={required_category!r}")
+        if required_model:
+            extras.append(f"model={required_model!r}")
+        suffix = f" ({', '.join(extras)})" if extras else ""
+        raise RuntimeError(
+            f"No placeable region with area >= {required_area_m2:.3f} m²{suffix}."
+        )
+    return _choose_from(candidates, rng, weighted_by_area)
 
 
 def pick_scene_from_placeable(
@@ -42,62 +120,33 @@ def pick_scene_from_placeable(
     scene_model=None,
     required_category=None,
     required_model=None,
-    require_scene=True,
     weighted_by_area=False,
 ):
-    """Pick (scene_model, category, model, room_instance, area) from placeable.
+    """Pick one (placeable region, scene, room) triple.
 
-    Source of truth is placeable_surfaces_v1.json. Each by_model entry carries:
-      - summed usable region area (from surfaces[])
-      - scenes: list of (scene_model, room_instance) where this model appears
+    Filters regions by area / category / model, then expands each kept region
+    against the model's scenes[] list. Restricts to scene_model if specified.
+    Each (region, scene, room) combination is an independent candidate.
 
-    Filters (all optional):
-      - required_area_m2: minimum summed usable area
-      - scene_model: restrict to entries in this scene
-      - required_category / required_model: pin category / model
-      - require_scene: if True (default), only models with >=1 scene entry are
-        eligible; if False, models with no scene still pass and are returned
-        with scene_model=room_instance=None (use for empty-scene pipelines).
-
-    Selection: uniform random over all (model, scene) pairs passing the filter,
-    or area-weighted if weighted_by_area=True.
-
-    Returns a dict: {scene_model, category, model, room_instance, area_m2}.
-    Raises RuntimeError if nothing matches.
+    Returns a dict merging the surface fields (see pick_surface_from_placeable)
+    with scene_model and room_instance. Raises RuntimeError on no match.
     """
-    doc, model_area = _model_area_index()
-    by_model = doc["by_model"]
-
+    doc = load_placeable_surfaces()
+    by_model = doc.get("by_model") or {}
     eligible = []
-    for (cat, model), area in model_area.items():
-        if area < required_area_m2:
-            continue
-        if required_category and cat != required_category:
-            continue
-        if required_model and model != required_model:
-            continue
-        scenes = (by_model.get(cat) or {}).get(model, {}).get("scenes") or []
-        if not scenes:
-            if require_scene:
-                continue
-            eligible.append({
-                "scene_model": None,
-                "category": cat,
-                "model": model,
-                "room_instance": None,
-                "area_m2": float(area),
-            })
-            continue
+    for surface in list_eligible_surfaces(
+        required_area_m2=required_area_m2,
+        required_category=required_category,
+        required_model=required_model,
+    ):
+        scenes = (by_model.get(surface["category"]) or {}).get(surface["model"], {}).get("scenes") or []
         for sc in scenes:
             if scene_model is not None and sc["scene_model"] != scene_model:
                 continue
-            eligible.append({
-                "scene_model": sc["scene_model"],
-                "category": cat,
-                "model": model,
-                "room_instance": sc["room_instance"],
-                "area_m2": float(area),
-            })
+            entry = dict(surface)
+            entry["scene_model"] = sc["scene_model"]
+            entry["room_instance"] = sc["room_instance"]
+            eligible.append(entry)
 
     if not eligible:
         extras = []
@@ -109,12 +158,7 @@ def pick_scene_from_placeable(
             extras.append(f"model={required_model!r}")
         suffix = f" ({', '.join(extras)})" if extras else ""
         raise RuntimeError(
-            f"No (scene, model) pair in placeable_surfaces_v1.json with "
-            f"usable area >= {required_area_m2:.3f} m²{suffix}."
+            f"No (region, scene) pair in placeable_surfaces_v1.json with "
+            f"region area >= {required_area_m2:.3f} m²{suffix}."
         )
-    if weighted_by_area:
-        import numpy as _np
-        weights = _np.array([e["area_m2"] for e in eligible], dtype=float)
-        probs = weights / weights.sum()
-        return eligible[int(rng.choice(len(eligible), p=probs))]
-    return eligible[rng.integers(len(eligible))]
+    return _choose_from(eligible, rng, weighted_by_area)

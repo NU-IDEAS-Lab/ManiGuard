@@ -160,48 +160,30 @@ def _pick_synset_with_model(pool, rng, exclude=None):
     return None
 
 
-def _surface_spawn_info(category: str, model: str):
-    """Return (height_m, top_plane_z_local, largest_region) for a support model.
-
-    Used by the empty-scene pipeline to place the support at height_m/2 so the
-    object's bottom sits at z=0 under the B1K center-origin convention, and to
-    compute placement bounds from the largest usable region in object-local
-    coordinates (x,y in meters, z = top_plane_z_local above the object origin).
-    """
-    from omnigibson.task_generation.utils.placeable import load_placeable_surfaces
-    doc = load_placeable_surfaces()
-    model_info = (doc.get("by_model") or {}).get(category, {}).get(model)
-    if model_info is None:
-        raise KeyError(f"{category}/{model} not in placeable_surfaces_v1.json")
-    height_m = model_info.get("height_m")
-    if height_m is None:
-        raise ValueError(f"{category}/{model} missing height_m in placeable_surfaces_v1.json")
-    regions = [s for s in doc["surfaces"] if s["category"] == category and s["model"] == model]
-    if not regions:
-        raise ValueError(f"{category}/{model} has no usable_regions")
-    largest = max(regions, key=lambda r: r["area_m2"])
-    return float(height_m), float(largest["top_plane_z_local"]), largest
-
-
 def _pick_surface(rng, category=None, model=None, min_area=None):
-    """Pick a surface (category, model, synset) from placeable, filtered by
-    minimum total usable region area. Area-weighted random: larger surfaces
-    are preferred. Scene filter disabled since empty-scene spawns its own
-    bare Scene. True object height is read from the live world AABB after
-    env.reset(), so no height filter here.
+    """Pick a surface region from placeable, filtered by minimum region area.
+
+    Operates at region granularity: 2-region models contribute both regions
+    as independent candidates, so the smaller one is also eligible on its
+    own merit. Area-weighted random: larger regions preferred. No height
+    filter -- true object height is read from live world AABB post-reset.
+
+    Returns (pick, synset) where pick is a self-contained dict carrying
+    category / model / region_id / xy_min / xy_max / top_plane_z_local /
+    area_m2 / reachable_edge_labels / height_m.
     """
-    from omnigibson.task_generation.utils.placeable import pick_scene_from_placeable
+    from omnigibson.task_generation.utils.placeable import pick_surface_from_placeable
     if min_area is None:
         min_area = _MIN_SURFACE_AREA_M2
-    pick = pick_scene_from_placeable(
+    pick = pick_surface_from_placeable(
         rng, required_area_m2=min_area,
         required_category=category, required_model=model,
-        require_scene=False, weighted_by_area=True,
+        weighted_by_area=True,
     )
     synset = _resolve_synset(pick["category"])
     print(f"[Pipeline] Picked surface: {pick['category']}/{pick['model']} "
-          f"(area={pick['area_m2']:.4f} m²)")
-    return pick["category"], pick["model"], synset
+          f"(region={pick['region_id']}, area={pick['area_m2']:.4f} m²)")
+    return pick, synset
 
 
 def _make_obj_cfg(name, category, model, position, fixed_base=False, bounding_box=None):
@@ -420,9 +402,10 @@ def setup_run_dir(args):
 
 def run_dry_run(args):
     rng = np.random.default_rng(args.seed)
-    surface_cat, surface_model, support_synset = _pick_surface(
+    pick, support_synset = _pick_surface(
         rng, args.surface_category, args.surface_model,
     )
+    surface_cat = pick["category"]
     args.surface_category = surface_cat
     activity_name = args.activity_name or f"auto_{args.setup}_empty_{surface_cat}"
 
@@ -456,7 +439,7 @@ def run_dry_run(args):
         args, activity_name, support_synset, rng, selection=dry_sel,
     )
     print(f"[Pipeline] Dry-run (empty scene, setup={args.setup}):")
-    print(f"  Surface:    {surface_cat} / {surface_model}")
+    print(f"  Surface:    {pick['category']} / {pick['model']}")
     print(f"  BDDL:       {bddl_path}")
     print(f"  ltl_safety: {json_path}")
     print(f"  activity:   {activity_name}")
@@ -465,7 +448,7 @@ def run_dry_run(args):
 
     append_jsonl(args.debug_jsonl, {
         "event": "dry_run", "activity_name": activity_name,
-        "setup": args.setup, "surface": f"{surface_cat}/{surface_model}",
+        "setup": args.setup, "surface": f"{pick['category']}/{pick['model']}",
         **({"selection": selection} if selection else {}),
     })
 
@@ -782,10 +765,12 @@ def run_sim(args):
 
         # -- Pick surface for the batch (area >= max footprint) ------------
         rng_surface = np.random.default_rng(args.seed + batch_start)
-        surface_cat, surface_model, support_synset = _pick_surface(
+        surface_pick, support_synset = _pick_surface(
             rng_surface, args.surface_category, args.surface_model,
             min_area=max_footprint,
         )
+        surface_cat = surface_pick["category"]
+        surface_model = surface_pick["model"]
         activity_name = args.activity_name or f"auto_{args.setup}_empty_{surface_cat}"
         print(f"[Pipeline] Max footprint across batch: {max_footprint:.4f} m²")
 
@@ -802,11 +787,11 @@ def run_sim(args):
         # -- Build env config with surface + all objects -------------------
         # Spawn the support with its origin at z = height_m/2 so the bottom
         # sits on the floor (z=0) under the B1K center-origin convention.
-        # Placement bounds for objects on the tabletop are computed from the
-        # placeable region (object-local) below, transformed by the spawn pose.
-        surface_height_m, surface_top_plane_z_local, surface_region = _surface_spawn_info(
-            surface_cat, surface_model,
-        )
+        # Placement bounds come from the SAME region surface_pick selected so
+        # 2-region models stay self-consistent across picker and spawn.
+        surface_height_m = float(surface_pick["height_m"])
+        surface_top_plane_z_local = float(surface_pick["top_plane_z_local"])
+        surface_region = surface_pick
         surface_spawn_xyz = (0.0, 0.0, surface_height_m / 2.0)
         surface_cfg = _make_obj_cfg(
             name="support_surface", category=surface_cat,
