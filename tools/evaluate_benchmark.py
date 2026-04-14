@@ -60,7 +60,30 @@ def parse_args():
     p.add_argument("--headless", action="store_true")
     p.add_argument("--output-dir", default=str(REPO_ROOT / "outputs" / "benchmark_eval"))
     p.add_argument("--save-video", action="store_true")
+    p.add_argument("--policy-external-cameras", nargs="+", default=None,
+                   help="External cameras fed to the policy's main_images "
+                        "(one or more of cam_opposite / cam_left / cam_right). "
+                        "Multiple values are concatenated along the width axis. "
+                        "Default: cam_opposite.")
+    p.add_argument("--camera-resolution", type=int, default=256,
+                   help="Side length for all external cameras (square).")
     return p.parse_args()
+
+
+def _build_eval_external_sensors(args):
+    from omnigibson.utils.camera_setup import (
+        EXTERNAL_CAMERA_NAMES,
+        build_external_camera_configs,
+        normalize_policy_cameras,
+    )
+    policy_cams = normalize_policy_cameras(args.policy_external_cameras)
+    # Load all cameras the user asked for, plus cam_opposite (fallback for
+    # single-camera eval) so obs dict always has at least one known entry.
+    names = []
+    for name in list(policy_cams) + [EXTERNAL_CAMERA_NAMES[0]]:
+        if name not in names:
+            names.append(name)
+    return build_external_camera_configs(names=names, resolution=args.camera_resolution)
 
 
 # ---------------------------------------------------------------------------
@@ -194,13 +217,7 @@ def build_og_config(scene_info: dict, args):
         "action_frequency": args.action_frequency,
         "rendering_frequency": args.rendering_frequency,
         "physics_frequency": args.physics_frequency,
-        "external_sensors": [{
-            "sensor_type": "VisionSensor",
-            "name": "external_sensor0",
-            "relative_prim_path": "/external_sensor0",
-            "modalities": ["rgb"],
-            "sensor_kwargs": {"image_height": 256, "image_width": 256},
-        }],
+        "external_sensors": _build_eval_external_sensors(args),
     }
 
     # No BDDL task — use DummyTask
@@ -227,10 +244,17 @@ def quat2axisangle(quat):
     return (axis * angle).astype(np.float32)
 
 
-def extract_obs(env, robot, prompt):
+def extract_obs(env, robot, prompt, policy_cameras=None):
+    from omnigibson.utils.camera_setup import compose_main_image, normalize_policy_cameras
+
     raw_obs, _ = env.get_obs()
     external = raw_obs.get("external", {})
-    main_rgb = external["external_sensor0"]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
+    cams = normalize_policy_cameras(policy_cameras)
+    rgb_by_cam = {
+        name: external[name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
+        for name in cams
+    }
+    main_rgb = compose_main_image(rgb_by_cam, cams)
 
     robot_obs = raw_obs.get(robot.name, {})
     wrist_rgb = None
@@ -348,6 +372,15 @@ def main():
                 og.clear()
 
             env = og.Environment(configs=cfg)
+            # Force sensor resolution via setters (Kit viewport init can
+            # override the VisionSensor.__init__ kwargs back to the app
+            # default), then reload obs space so reset() doesn't fail.
+            ext_sensors = env.external_sensors or {}
+            if ext_sensors:
+                for _cam in ext_sensors.values():
+                    _cam.image_height = args.camera_resolution
+                    _cam.image_width = args.camera_resolution
+                env.load_observation_space()
             env.reset()
         except Exception as e:
             print(f"  FAILED to load scene: {e}")
@@ -376,7 +409,7 @@ def main():
         for _ in range(2):
             og.sim.render()
 
-        obs = extract_obs(env, robot, scene_info["prompt"])
+        obs = extract_obs(env, robot, scene_info["prompt"], policy_cameras=args.policy_external_cameras)
         frames = [obs["main_images"]] if args.save_video else []
 
         # Rollout
@@ -397,7 +430,7 @@ def main():
                 raw_obs, reward, terminated, truncated, info = env.step(
                     torch.from_numpy(action_clipped).unsqueeze(0)
                 )
-                obs = extract_obs(env, robot, scene_info["prompt"])
+                obs = extract_obs(env, robot, scene_info["prompt"], policy_cameras=args.policy_external_cameras)
                 if args.save_video:
                     frames.append(obs["main_images"])
                 step_idx += 1
