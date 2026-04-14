@@ -13,7 +13,7 @@ Terminal 1 (Python 3.12)              Terminal 2 (Python 3.10)
 │  joint reading       │──────────>  │  IK controller           │
 │  + Forward Kinematics│   60 Hz     │  + Physics simulation    │
 │                      │              │                          │
-│  so101_server.py     │              │  so101_franka_demo.py    │
+│  so101_server.py     │              │  so101_franka_teleop.py  │
 └─────────────────────┘              └──────────────────────────┘
 ```
 
@@ -154,28 +154,16 @@ Publishing at 60.0 Hz. Press Ctrl+C to stop.
 
 In a **separate terminal**:
 
-### Simple scene (table + a few objects)
-
 ```bash
 conda activate behavior
 cd ~/Desktop/projects/SENTINEL-Lite
-python -m omnigibson.examples.teleoperation.so101_franka_demo
+python -m omnigibson.examples.teleoperation.so101_franka_teleop \
+    --snapshot outputs/pipeline_runs/<run>/scene_ep1.json
 ```
 
-### Load a saved pipeline scene
-
-```bash
-python -m omnigibson.examples.teleoperation.so101_franka_demo \
-    --snapshot outputs/pipeline_runs/empty_random_clutter_20260409_132528/scene_ep1.json
-```
-
-### Generate a fresh task scene
-
-```bash
-python -m omnigibson.examples.teleoperation.so101_franka_demo --task clutter
-python -m omnigibson.examples.teleoperation.so101_franka_demo --task stack
-python -m omnigibson.examples.teleoperation.so101_franka_demo --task transfer
-```
+The snapshot must be a pipeline-generated `scene_ep*.json` (produced by any of
+the `task_generation/*_pipeline.py` scripts). To record a trajectory, add
+`--output-hdf5 outputs/teleop/<name>.hdf5`.
 
 ## Tuning Parameters
 
@@ -245,4 +233,5 @@ pip install numpy==1.26.4
 |------|-------------|---------|
 | `teleop_bridge/so101_server.py` | lerobot (3.12) | Reads SO-101, computes FK, publishes EE pose via ZMQ |
 | `OmniGibson/omnigibson/teleop/so101_teleop.py` | behavior (3.10) | ZMQ subscriber, delta computation, TeleopAction generation |
-| `OmniGibson/omnigibson/examples/teleoperation/so101_franka_demo.py` | behavior (3.10) | Demo entry point with scene loading options |
+| `OmniGibson/omnigibson/examples/teleoperation/so101_franka_teleop.py` | behavior (3.10) | Teleop entry point: loads arbitrary scene snapshots, records trajectories |
+| `OmniGibson/omnigibson/examples/teleoperation/so101_franka_playback.py` | behavior (3.10) | Replay a recorded trajectory HDF5, optionally dump observations |

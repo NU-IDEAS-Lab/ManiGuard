@@ -28,7 +28,13 @@ class SO101TeleopConfig:
     position_scale: float = 5.0     # SO-101 workspace is small (~13cm reach), scale up for Franka
     rotation_scale: float = 1.0     # rotation scaling
     deadzone: float = 0.001         # meters, ignore tiny movements
-    gripper_threshold: float = 0.5  # above = open, below = closed
+    # Gripper mapping. The leader reports a 0-1 value (lerobot normalizes raw
+    # encoder counts to its calibrated range). Semantics of "which end of the
+    # range is physically closed" depend on how you calibrated the SO-101,
+    # so both a threshold and an invert flag are exposed.
+    gripper_threshold: float = 0.5  # above -> one state, below -> the other
+    gripper_invert: bool = False    # flip if your leader reports closed=high
+    gripper_debug: bool = False     # print raw value each get_action() call
 
 
 class SO101TeleopAgent:
@@ -99,8 +105,13 @@ class SO101TeleopAgent:
         R_delta = ee_rot @ self._prev_rot.T
         delta_euler = self._rotmat_to_euler(R_delta) * self.config.rotation_scale
 
-        # Map gripper
-        gripper_val = 1.0 if gripper > self.config.gripper_threshold else 0.0
+        # Map gripper to binary-mode native range: +1 = open, -1 = closed.
+        is_open = gripper > self.config.gripper_threshold
+        if self.config.gripper_invert:
+            is_open = not is_open
+        gripper_val = 1.0 if is_open else -1.0
+        if self.config.gripper_debug:
+            print(f"[SO101] gripper raw={gripper:.3f} -> {'OPEN' if is_open else 'CLOSE'}")
 
         # Build TeleopAction
         # ManipulationRobot expects right[0:3]=pos, right[3:6]=euler, right[6]=gripper

@@ -651,30 +651,13 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
     if args.strict_gate and not gate_pass:
         raise RuntimeError("Strict gate failed.")
 
-    # Save episode state — only active objects, not parked ones.
-    scene_save = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
-    import json as _json
-    ep_state = {
-        "episode": ep + 1,
-        "surface": {"category": surface_cat, "model": surface_model},
-        "gate_pass": gate_pass,
-        "objects": {},
-    }
-    for inst, obj in objects_by_inst.items():
-        try:
-            pos = [float(v) for v in obj.get_position_orientation()[0][:3]]
-            ori = [float(v) for v in obj.get_position_orientation()[1][:4]]
-        except Exception:
-            pos, ori = [0, 0, 0], [0, 0, 0, 1]
-        ep_state["objects"][inst] = {
-            "category": str(getattr(obj, "category", "")),
-            "role": roles_by_inst.get(inst, ""),
-            "position": pos,
-            "orientation": ori,
-        }
-    with open(scene_save, "w") as f:
-        _json.dump(ep_state, f, indent=2)
-    print(f"[Pipeline] Scene saved: {scene_save}")
+    # Save full Omniverse scene snapshot (same format BasePipeline uses):
+    # objects_info.init_info + state.registry.object_registry, replayable by
+    # og.sim.load() and by so101_franka_teleop's _build_from_snapshot.
+    if gate_pass:
+        scene_save = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
+        og.sim.save(json_paths=[scene_save])
+        print(f"[Pipeline] Scene saved: {scene_save}")
 
     # -- LTL rollout -------------------------------------------------------
     rng = np.random.default_rng(ep_seed)
