@@ -160,53 +160,6 @@ def _pick_synset_with_model(pool, rng, exclude=None):
     return None
 
 
-_PLACEABLE_SURFACES_CACHE = None
-_PLACEABLE_MODEL_INDEX_CACHE = None
-
-
-def _load_placeable_surfaces():
-    """Load the consumer-facing placeable surfaces JSON (cached)."""
-    global _PLACEABLE_SURFACES_CACHE
-    if _PLACEABLE_SURFACES_CACHE is None:
-        import json
-        path = os.path.join(os.path.dirname(__file__), "utils", "placeable_surfaces_v1.json")
-        with open(path, "r", encoding="utf-8") as f:
-            _PLACEABLE_SURFACES_CACHE = json.load(f)
-    return _PLACEABLE_SURFACES_CACHE
-
-
-def _placeable_model_index():
-    """Aggregate placeable surfaces[] by (category, model).
-
-    Returns a dict keyed by (category, model) with:
-        total_area_m2         : sum of effective region areas
-        top_plane_z_local     : tabletop z in object-local frame (same for all regions)
-        height_m              : full object height (meters) from by_model
-        regions               : list of region dicts verbatim from the JSON
-    """
-    global _PLACEABLE_MODEL_INDEX_CACHE
-    if _PLACEABLE_MODEL_INDEX_CACHE is not None:
-        return _PLACEABLE_MODEL_INDEX_CACHE
-    doc = _load_placeable_surfaces()
-    by_model = doc.get("by_model", {})
-    idx = {}
-    for s in doc["surfaces"]:
-        key = (s["category"], s["model"])
-        entry = idx.setdefault(
-            key,
-            {
-                "total_area_m2": 0.0,
-                "top_plane_z_local": s["top_plane_z_local"],
-                "height_m": (by_model.get(s["category"]) or {}).get(s["model"], {}).get("height_m"),
-                "regions": [],
-            },
-        )
-        entry["total_area_m2"] += s["area_m2"]
-        entry["regions"].append(s)
-    _PLACEABLE_MODEL_INDEX_CACHE = idx
-    return idx
-
-
 def _surface_spawn_info(category: str, model: str):
     """Return (height_m, top_plane_z_local, largest_region) for a support model.
 
@@ -215,56 +168,40 @@ def _surface_spawn_info(category: str, model: str):
     compute placement bounds from the largest usable region in object-local
     coordinates (x,y in meters, z = top_plane_z_local above the object origin).
     """
-    info = _placeable_model_index().get((category, model))
-    if info is None:
+    from omnigibson.task_generation.utils.placeable import load_placeable_surfaces
+    doc = load_placeable_surfaces()
+    model_info = (doc.get("by_model") or {}).get(category, {}).get(model)
+    if model_info is None:
         raise KeyError(f"{category}/{model} not in placeable_surfaces_v1.json")
-    height_m = info["height_m"]
+    height_m = model_info.get("height_m")
     if height_m is None:
         raise ValueError(f"{category}/{model} missing height_m in placeable_surfaces_v1.json")
-    regions = info["regions"] or []
+    regions = [s for s in doc["surfaces"] if s["category"] == category and s["model"] == model]
     if not regions:
         raise ValueError(f"{category}/{model} has no usable_regions")
     largest = max(regions, key=lambda r: r["area_m2"])
-    return float(height_m), float(info["top_plane_z_local"]), largest
+    return float(height_m), float(largest["top_plane_z_local"]), largest
 
 
 def _pick_surface(rng, category=None, model=None, min_area=None):
-    """Pick a surface category + model, filtering by minimum usable area.
-
-    If *category* and *model* are both given they are used as-is (no filtering).
-    Otherwise candidates are drawn from placeable_surfaces_v1.json and rejected
-    if the summed usable region area is below *min_area*. No height filter:
-    true object height is read from the live world AABB after env.reset().
+    """Pick a surface (category, model, synset) from placeable, filtered by
+    minimum total usable region area. Area-weighted random: larger surfaces
+    are preferred. Scene filter disabled since empty-scene spawns its own
+    bare Scene. True object height is read from the live world AABB after
+    env.reset(), so no height filter here.
     """
+    from omnigibson.task_generation.utils.placeable import pick_scene_from_placeable
     if min_area is None:
         min_area = _MIN_SURFACE_AREA_M2
-
-    if category is not None and model is not None:
-        synset = _resolve_synset(category)
-        return category, model, synset
-
-    idx = _placeable_model_index()
-    candidates = []
-    for (cat, m), info in idx.items():
-        if category is not None and cat != category:
-            continue
-        total_area = info["total_area_m2"]
-        if total_area >= min_area:
-            candidates.append((cat, m, total_area))
-
-    if not candidates:
-        raise RuntimeError(
-            f"No surface models found with area >= {min_area:.2f} m²"
-            + (f" in category {category!r}" if category else "")
-        )
-
-    areas = np.array([c[2] for c in candidates])
-    probs = areas / areas.sum()
-    pick_idx = rng.choice(len(candidates), p=probs)
-    cat, m, area = candidates[pick_idx]
-    synset = _resolve_synset(cat)
-    print(f"[Pipeline] Picked surface: {cat}/{m} (area={area:.4f} m²)")
-    return cat, m, synset
+    pick = pick_scene_from_placeable(
+        rng, required_area_m2=min_area,
+        required_category=category, required_model=model,
+        require_scene=False, weighted_by_area=True,
+    )
+    synset = _resolve_synset(pick["category"])
+    print(f"[Pipeline] Picked surface: {pick['category']}/{pick['model']} "
+          f"(area={pick['area_m2']:.4f} m²)")
+    return pick["category"], pick["model"], synset
 
 
 def _make_obj_cfg(name, category, model, position, fixed_base=False, bounding_box=None):

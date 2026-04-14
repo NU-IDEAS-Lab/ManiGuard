@@ -173,81 +173,11 @@ def discover_from_scene_json(scene_json_path, category_filter_fn, priority_map=N
     return candidates[0]
 
 
-# ---------------------------------------------------------------------------
-# Placeable-driven scene selection
-# ---------------------------------------------------------------------------
-
-_PLACEABLE_SURFACES_PATH = os.path.join(
-    os.path.dirname(__file__), "utils", "placeable_surfaces_v1.json",
+# Placeable-driven scene selection helpers live in utils/placeable.py.
+from omnigibson.task_generation.utils.placeable import (  # noqa: F401
+    load_placeable_surfaces,
+    pick_scene_from_placeable,
 )
-_placeable_doc_cache = None
-
-
-def _load_placeable_surfaces():
-    global _placeable_doc_cache
-    if _placeable_doc_cache is None:
-        with open(_PLACEABLE_SURFACES_PATH, "r", encoding="utf-8") as f:
-            _placeable_doc_cache = json.load(f)
-    return _placeable_doc_cache
-
-
-def _model_area_index():
-    doc = _load_placeable_surfaces()
-    model_area = {}
-    for s in doc["surfaces"]:
-        key = (s["category"], s["model"])
-        model_area[key] = model_area.get(key, 0.0) + s["area_m2"]
-    return doc, model_area
-
-
-def pick_scene_from_placeable(rng, required_area_m2, scene_model=None, required_category=None):
-    """Pick (scene_model, category, model, room_instance, area) from placeable.
-
-    Source of truth is placeable_surfaces_v1.json. Each by_model entry carries:
-      - summed usable region area (from surfaces[])
-      - scenes: list of (scene_model, room_instance) where this model appears
-
-    Filter: summed area >= required_area_m2 AND the model has at least one
-    matching scene entry. If scene_model is given, only entries in that scene
-    are considered. If required_category is given, only that category.
-
-    Selection: uniform random over all (model, scene) pairs passing the filter.
-    Returns a dict: {scene_model, category, model, room_instance, area_m2}.
-    Raises RuntimeError if nothing matches.
-    """
-    doc, model_area = _model_area_index()
-    by_model = doc["by_model"]
-
-    eligible = []
-    for (cat, model), area in model_area.items():
-        if area < required_area_m2:
-            continue
-        if required_category and cat != required_category:
-            continue
-        scenes = (by_model.get(cat) or {}).get(model, {}).get("scenes") or []
-        for sc in scenes:
-            if scene_model is not None and sc["scene_model"] != scene_model:
-                continue
-            eligible.append({
-                "scene_model": sc["scene_model"],
-                "category": cat,
-                "model": model,
-                "room_instance": sc["room_instance"],
-                "area_m2": float(area),
-            })
-
-    if not eligible:
-        extras = []
-        if scene_model:
-            extras.append(f"scene={scene_model!r}")
-        if required_category:
-            extras.append(f"category={required_category!r}")
-        suffix = f" ({', '.join(extras)})" if extras else ""
-        raise RuntimeError(
-            f"No (scene, model) pair in placeable_surfaces_v1.json with "
-            f"usable area >= {required_area_m2:.3f} m²{suffix}."
-        )
-    return eligible[rng.integers(len(eligible))]
 
 
 # ---------------------------------------------------------------------------
