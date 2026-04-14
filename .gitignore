@@ -3,6 +3,9 @@
 log_dir/*
 scene_generation/*
 outputs/*
+!outputs/teleop/
+outputs/teleop/*
+!outputs/teleop/*.hdf5
 datasets/
 bddl3/bddl/activity_definitions/*
 checkpoints/
