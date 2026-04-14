@@ -853,7 +853,7 @@ LID_FOOD_POOL = [
 # ---------------------------------------------------------------------------
 
 _FOOTPRINT_CATALOG_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "task_generation", "object_footprints.json",
+    os.path.dirname(__file__), "..", "task_generation", "utils", "object_footprints.json",
 )
 
 
@@ -1558,7 +1558,7 @@ def generate_wet_transport_activity(
 # ---------------------------------------------------------------------------
 
 _LID_PAIRS_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "task_generation", "lid_container_pairs.json",
+    os.path.dirname(__file__), "..", "task_generation", "utils", "lid_container_pairs.json",
 )
 
 
