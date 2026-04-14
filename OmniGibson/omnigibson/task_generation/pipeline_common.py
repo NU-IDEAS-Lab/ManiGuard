@@ -814,7 +814,18 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
             base_path = f"{stem}_{view['label']}.mp4"
             video_path = expected_video_path(base_path, episode)
             print(f"[Pipeline] Video: {video_path} (sensor={view['sensor_name']})")
-            writer = init_video_writer(base_path, episode, args.video_fps, robot=None)
+            # Pin the MP4 stream size to the sensor's actual render size so
+            # PyAV doesn't silently upscale. `sensor.image_height` reads the
+            # Kit viewport's current texture resolution, not whatever we
+            # asked for in sensor_kwargs.
+            sensor = env.external_sensors.get(view["sensor_name"])
+            frame_hw = (
+                (int(sensor.image_height), int(sensor.image_width))
+                if sensor is not None else None
+            )
+            writer = init_video_writer(
+                base_path, episode, args.video_fps, robot=None, frame_hw=frame_hw,
+            )
             if writer is None:
                 raise RuntimeError(f"Failed to initialize video writer for {video_path}.")
             video_writers.append({"view": view, "writer": writer, "path": video_path, "cam": view["sensor_name"]})
@@ -1207,30 +1218,10 @@ class BasePipeline(ABC):
 
         self.configure_task(cfg, selection)
 
-        # Add 3 external cameras for simultaneous multi-view recording
-        cfg.setdefault("env", {})["external_sensors"] = [
-            {
-                "sensor_type": "VisionSensor",
-                "name": "cam_opposite",
-                "relative_prim_path": "/cam_opposite",
-                "modalities": ["rgb"],
-                "sensor_kwargs": {"image_height": 720, "image_width": 1280},
-            },
-            {
-                "sensor_type": "VisionSensor",
-                "name": "cam_left",
-                "relative_prim_path": "/cam_left",
-                "modalities": ["rgb"],
-                "sensor_kwargs": {"image_height": 720, "image_width": 1280},
-            },
-            {
-                "sensor_type": "VisionSensor",
-                "name": "cam_right",
-                "relative_prim_path": "/cam_right",
-                "modalities": ["rgb"],
-                "sensor_kwargs": {"image_height": 720, "image_width": 1280},
-            },
-        ]
+        # 3 external cameras (canonical names + resolution shared across
+        # task-generation, teleop, training, eval).
+        from omnigibson.utils.camera_setup import build_external_camera_configs
+        cfg.setdefault("env", {})["external_sensors"] = build_external_camera_configs()
 
         print(f"[Pipeline] scene={scene_label}, activity={activity_name}, "
               f"strict_gate={args.strict_gate}")

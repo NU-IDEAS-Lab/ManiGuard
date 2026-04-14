@@ -14,7 +14,16 @@ import numpy as np
 import torch as th
 
 
-def init_video_writer(base_path, episode, fps, robot=None):
+def init_video_writer(base_path, episode, fps, robot=None, frame_hw=None):
+    """Initialize a PyAV video writer.
+
+    Args:
+        frame_hw: (height, width) of the frames that will be pushed into the
+            stream. If None, falls back to viewer_camera's resolution -- which
+            is only correct if you're actually rendering viewer frames. For
+            external_sensor recordings, pass the sensor's image_height/width
+            so PyAV doesn't silently upscale via swscale.
+    """
     try:
         import av
     except ImportError:
@@ -22,11 +31,14 @@ def init_video_writer(base_path, episode, fps, robot=None):
         return None
     import omnigibson as og
 
-    try:
-        rgb = og.sim.viewer_camera.get_obs()[0]["rgb"]
-        vh, vw = int(rgb.shape[0]), int(rgb.shape[1])
-    except Exception:
-        vh, vw = 720, 1280
+    if frame_hw is not None:
+        vh, vw = int(frame_hw[0]), int(frame_hw[1])
+    else:
+        try:
+            rgb = og.sim.viewer_camera.get_obs()[0]["rgb"]
+            vh, vw = int(rgb.shape[0]), int(rgb.shape[1])
+        except Exception:
+            vh, vw = 720, 1280
 
     # Find wrist camera for picture-in-picture overlay.
     wrist = None
@@ -243,8 +255,9 @@ def setup_cameras(env, video_views):
     Returns list of view dicts with position/orientation added.
     """
     import omnigibson as og
+    from omnigibson.utils.camera_setup import EXTERNAL_CAMERA_NAMES
 
-    cam_names = ["cam_opposite", "cam_left", "cam_right"]
+    cam_names = list(EXTERNAL_CAMERA_NAMES)
     for view, cam_name in zip(video_views, cam_names):
         eye = [float(v) for v in view["eye"]]
         lookat = [float(v) for v in view["lookat"]]

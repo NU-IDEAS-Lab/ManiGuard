@@ -66,29 +66,9 @@ def _robot_cfg(robot_type="FrankaPanda"):
 # Scene builders
 # ---------------------------------------------------------------------------
 
-_EXTERNAL_CAMERAS = [
-    {
-        "sensor_type": "VisionSensor",
-        "name": "cam_opposite",
-        "relative_prim_path": "/cam_opposite",
-        "modalities": ["rgb"],
-        "sensor_kwargs": {"image_height": 720, "image_width": 1280},
-    },
-    {
-        "sensor_type": "VisionSensor",
-        "name": "cam_left",
-        "relative_prim_path": "/cam_left",
-        "modalities": ["rgb"],
-        "sensor_kwargs": {"image_height": 720, "image_width": 1280},
-    },
-    {
-        "sensor_type": "VisionSensor",
-        "name": "cam_right",
-        "relative_prim_path": "/cam_right",
-        "modalities": ["rgb"],
-        "sensor_kwargs": {"image_height": 720, "image_width": 1280},
-    },
-]
+from omnigibson.utils.camera_setup import build_external_camera_configs
+
+_EXTERNAL_CAMERAS = build_external_camera_configs()
 
 
 def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
