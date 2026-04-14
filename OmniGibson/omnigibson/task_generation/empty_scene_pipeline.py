@@ -64,27 +64,9 @@ _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 _PARK_POS = (100.0, 100.0, -100.0)
 
-# Surface categories suitable for the empty-scene pipeline.
-# Criteria: adequate height for FrankaMounted (>0.5m), reasonable surface area
-# for multi-object tasks (>0.4 m²).
-# See /tmp/surface_catalog.py for the full catalog with dimensions.
-SURFACE_CATEGORY_POOL = [
-    "breakfast_table",      # 32 models, avg 1.28 m², avg H 0.64m
-    "desk",                 # 44 models, avg 1.31 m², avg H 0.76m
-    "conference_table",     #  4 models, avg 5.03 m², avg H 0.72m
-    "lab_table",            #  3 models, avg 4.06 m², avg H 1.27m
-    "commercial_kitchen_table",  # 5 models, avg 1.92 m², avg H 0.94m
-    "pedestal_table",       # 21 models, avg 0.74 m², avg H 0.65m
-    "coffee_table",         # 40 models, avg 0.70 m², avg H 0.42m — short but many models
-]
-
 # Minimum usable surface area (m²).  Tables smaller than this are skipped
 # because most task objects won't fit.
 _MIN_SURFACE_AREA_M2 = 0.35
-
-# Minimum surface height (m).  Tables shorter than this produce poor
-# camera framing and are impractical for FrankaMounted manipulation.
-_MIN_SURFACE_HEIGHT_M = 0.50
 
 
 # ---------------------------------------------------------------------------
@@ -178,56 +160,108 @@ def _pick_synset_with_model(pool, rng, exclude=None):
     return None
 
 
-def _load_surface_catalog():
-    """Load the pre-computed surface catalog JSON."""
-    import json
-    catalog_path = os.path.join(os.path.dirname(__file__), "surface_catalog.json")
-    with open(catalog_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+_PLACEABLE_SURFACES_CACHE = None
+_PLACEABLE_MODEL_INDEX_CACHE = None
 
 
-def _pick_surface(rng, category=None, model=None, min_area=None,
-                   min_height=None):
-    """Pick a surface category + model, filtering by minimum area and height.
+def _load_placeable_surfaces():
+    """Load the consumer-facing placeable surfaces JSON (cached)."""
+    global _PLACEABLE_SURFACES_CACHE
+    if _PLACEABLE_SURFACES_CACHE is None:
+        import json
+        path = os.path.join(os.path.dirname(__file__), "utils", "placeable_surfaces_v1.json")
+        with open(path, "r", encoding="utf-8") as f:
+            _PLACEABLE_SURFACES_CACHE = json.load(f)
+    return _PLACEABLE_SURFACES_CACHE
+
+
+def _placeable_model_index():
+    """Aggregate placeable surfaces[] by (category, model).
+
+    Returns a dict keyed by (category, model) with:
+        total_area_m2         : sum of effective region areas
+        top_plane_z_local     : tabletop z in object-local frame (same for all regions)
+        height_m              : full object height (meters) from by_model
+        regions               : list of region dicts verbatim from the JSON
+    """
+    global _PLACEABLE_MODEL_INDEX_CACHE
+    if _PLACEABLE_MODEL_INDEX_CACHE is not None:
+        return _PLACEABLE_MODEL_INDEX_CACHE
+    doc = _load_placeable_surfaces()
+    by_model = doc.get("by_model", {})
+    idx = {}
+    for s in doc["surfaces"]:
+        key = (s["category"], s["model"])
+        entry = idx.setdefault(
+            key,
+            {
+                "total_area_m2": 0.0,
+                "top_plane_z_local": s["top_plane_z_local"],
+                "height_m": (by_model.get(s["category"]) or {}).get(s["model"], {}).get("height_m"),
+                "regions": [],
+            },
+        )
+        entry["total_area_m2"] += s["area_m2"]
+        entry["regions"].append(s)
+    _PLACEABLE_MODEL_INDEX_CACHE = idx
+    return idx
+
+
+def _surface_spawn_info(category: str, model: str):
+    """Return (height_m, top_plane_z_local, largest_region) for a support model.
+
+    Used by the empty-scene pipeline to place the support at height_m/2 so the
+    object's bottom sits at z=0 under the B1K center-origin convention, and to
+    compute placement bounds from the largest usable region in object-local
+    coordinates (x,y in meters, z = top_plane_z_local above the object origin).
+    """
+    info = _placeable_model_index().get((category, model))
+    if info is None:
+        raise KeyError(f"{category}/{model} not in placeable_surfaces_v1.json")
+    height_m = info["height_m"]
+    if height_m is None:
+        raise ValueError(f"{category}/{model} missing height_m in placeable_surfaces_v1.json")
+    regions = info["regions"] or []
+    if not regions:
+        raise ValueError(f"{category}/{model} has no usable_regions")
+    largest = max(regions, key=lambda r: r["area_m2"])
+    return float(height_m), float(info["top_plane_z_local"]), largest
+
+
+def _pick_surface(rng, category=None, model=None, min_area=None):
+    """Pick a surface category + model, filtering by minimum usable area.
 
     If *category* and *model* are both given they are used as-is (no filtering).
-    Otherwise candidates are drawn from the catalog and rejected if their
-    surface area is below *min_area* or height is below *min_height*.
+    Otherwise candidates are drawn from placeable_surfaces_v1.json and rejected
+    if the summed usable region area is below *min_area*. No height filter:
+    true object height is read from the live world AABB after env.reset().
     """
     if min_area is None:
         min_area = _MIN_SURFACE_AREA_M2
-    if min_height is None:
-        min_height = _MIN_SURFACE_HEIGHT_M
 
     if category is not None and model is not None:
         synset = _resolve_synset(category)
         return category, model, synset
 
-    catalog = _load_surface_catalog()
-
-    # Build a list of (category, model, area) candidates.
+    idx = _placeable_model_index()
     candidates = []
-    cats_to_try = [category] if category else list(SURFACE_CATEGORY_POOL)
-    for cat in cats_to_try:
-        cat_models = catalog.get(cat, {})
-        for m, info in cat_models.items():
-            area = info["surface_area_m2"]
-            height = info.get("height_m", 0.0)
-            if area >= min_area and height >= min_height:
-                candidates.append((cat, m, area))
+    for (cat, m), info in idx.items():
+        if category is not None and cat != category:
+            continue
+        total_area = info["total_area_m2"]
+        if total_area >= min_area:
+            candidates.append((cat, m, total_area))
 
     if not candidates:
         raise RuntimeError(
-            f"No surface models found with area >= {min_area:.2f} m² "
-            f"and height >= {min_height:.2f} m "
-            f"(categories searched: {cats_to_try})"
+            f"No surface models found with area >= {min_area:.2f} m²"
+            + (f" in category {category!r}" if category else "")
         )
 
-    # Weighted random: prefer larger surfaces (weight = area).
     areas = np.array([c[2] for c in candidates])
     probs = areas / areas.sum()
-    idx = rng.choice(len(candidates), p=probs)
-    cat, m, area = candidates[idx]
+    pick_idx = rng.choice(len(candidates), p=probs)
+    cat, m, area = candidates[pick_idx]
     synset = _resolve_synset(cat)
     print(f"[Pipeline] Picked surface: {cat}/{m} (area={area:.4f} m²)")
     return cat, m, synset
@@ -829,14 +863,17 @@ def run_sim(args):
                     all_obj_cfgs_map[name] = parked
 
         # -- Build env config with surface + all objects -------------------
-        catalog = _load_surface_catalog()
-        surface_height = catalog.get(surface_cat, {}).get(
-            surface_model, {}).get("height_m", 0.75)
-        surface_z = surface_height / 2.0
-
+        # Spawn the support with its origin at z = height_m/2 so the bottom
+        # sits on the floor (z=0) under the B1K center-origin convention.
+        # Placement bounds for objects on the tabletop are computed from the
+        # placeable region (object-local) below, transformed by the spawn pose.
+        surface_height_m, surface_top_plane_z_local, surface_region = _surface_spawn_info(
+            surface_cat, surface_model,
+        )
+        surface_spawn_xyz = (0.0, 0.0, surface_height_m / 2.0)
         surface_cfg = _make_obj_cfg(
             name="support_surface", category=surface_cat,
-            model=surface_model, position=[0.0, 0.0, surface_z],
+            model=surface_model, position=list(surface_spawn_xyz),
             fixed_base=True,
         )
 
@@ -875,15 +912,25 @@ def run_sim(args):
             if support_obj is None:
                 raise RuntimeError("Support surface not found in scene.")
 
-            aabb_min, aabb_max = support_obj.aabb
+            # Placement bounds come from the placeable region (object-local),
+            # translated by the spawn pose. Identity orientation + center-origin
+            # convention -> world = spawn + local. This is the raycast-validated
+            # usable zone (may be a strict subset of the full object AABB, e.g.
+            # excludes overhangs and occluded areas).
+            region_xy_min = surface_region["xy_min"]
+            region_xy_max = surface_region["xy_max"]
             surface_bounds_xy = (
-                (float(aabb_min[0]), float(aabb_min[1])),
-                (float(aabb_max[0]), float(aabb_max[1])),
+                (surface_spawn_xyz[0] + float(region_xy_min[0]),
+                 surface_spawn_xyz[1] + float(region_xy_min[1])),
+                (surface_spawn_xyz[0] + float(region_xy_max[0]),
+                 surface_spawn_xyz[1] + float(region_xy_max[1])),
             )
-            table_top_z = float(aabb_max[2])
-            floor_z = float(aabb_min[2])
+            table_top_z = surface_spawn_xyz[2] + surface_top_plane_z_local
+            floor_z = 0.0
             print(f"[Pipeline] Surface bounds: {surface_bounds_xy}, "
-                  f"top_z={table_top_z:.3f}")
+                  f"top_z={table_top_z:.3f}  "
+                  f"(region={surface_region['region_id']}, "
+                  f"area={surface_region['area_m2']:.3f} m^2)")
 
             # -- Run each episode in the batch -----------------------------
             for idx, (obj_cfgs, roles, selection, ep_seed) in enumerate(episode_data):
