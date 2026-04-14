@@ -3,8 +3,10 @@
   "source": {
     "profile_file": "support_surface_profiles_v1.json",
     "profile_sha256": "1ed747681f05c87c7cc656b21bc2039775a9de2b5b82b189b00b18f9a2220806",
-    "generated_at": "2026-04-13T23:24:59+00:00",
-    "tool": "build_placeable_surfaces.py"
+    "generated_at": "2026-04-14T00:44:31+00:00",
+    "tool": "build_placeable_surfaces.py",
+    "require_ready": true,
+    "complaints_file": "complaints.json"
   },
   "frame_convention": {
     "type": "object_local_top_plane_xy",
@@ -14,32 +16,61 @@
   },
   "robot_assumption": "franka_mounted",
   "counts": {
-    "categories": 14,
-    "models": 192,
-    "surfaces": 218
+    "categories": 13,
+    "models": 145,
+    "surfaces": 165,
+    "skipped_not_ready": 47
   },
+  "skipped_not_ready": [
+    "bar/byvbuc",
+    "bar/udatjt",
+    "checkout_counter/odcaop",
+    "coffee_table/aoojzy",
+    "coffee_table/gpkbiw",
+    "coffee_table/hmwkkt",
+    "coffee_table/mjyitq",
+    "coffee_table/rkdwxe",
+    "coffee_table/stocuk",
+    "coffee_table/tzmkgq",
+    "coffee_table/vcgabn",
+    "coffee_table/ytlgdt",
+    "coffee_table/zzqwse",
+    "commercial_kitchen_table/bwlfnu",
+    "commercial_kitchen_table/wodpss",
+    "conference_table/hdomxc",
+    "console_table/emeeke",
+    "console_table/fihyuz",
+    "console_table/iuxsao",
+    "console_table/tzkfqa",
+    "console_table/xqlxni",
+    "countertop/fjkase",
+    "desk/ampuyz",
+    "desk/bhkhxo",
+    "desk/bptvoy",
+    "desk/cnewsu",
+    "desk/ctaxkd",
+    "desk/egzdgz",
+    "desk/iufjhy",
+    "desk/jfhurf",
+    "desk/kmmlna",
+    "desk/nafjjg",
+    "desk/ntezkg",
+    "desk/phavlj",
+    "desk/slgrxc",
+    "desk/tdhgko",
+    "desk/tmukzm",
+    "desk/uxgyui",
+    "desk/vpwmkm",
+    "desk/xhjsub",
+    "desk/yezrwt",
+    "lab_table/ishrsy",
+    "lab_table/jkemfk",
+    "lab_table/vujgjq",
+    "nightstand/gjwjtj",
+    "pedestal_table/gkkxaj",
+    "reception_desk/qztpgl"
+  ],
   "surfaces": [
-    {
-      "category": "bar",
-      "model": "byvbuc",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.277548,
-        -1.047908
-      ],
-      "xy_max": [
-        0.327596,
-        1.046828
-      ],
-      "top_plane_z_local": 0.485896,
-      "area_m2": 1.267617,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
     {
       "category": "bar",
       "model": "cowjqr",
@@ -154,27 +185,6 @@
       ],
       "top_plane_z_local": 0.549001,
       "area_m2": 1.116738,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "bar",
-      "model": "udatjt",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.632183,
-        -1.497545
-      ],
-      "xy_max": [
-        0.513044,
-        1.496734
-      ],
-      "top_plane_z_local": 0.389627,
-      "area_m2": 3.429131,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -935,47 +945,6 @@
     },
     {
       "category": "checkout_counter",
-      "model": "odcaop",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.056793,
-        -1.076526
-      ],
-      "xy_max": [
-        0.382807,
-        0.689999
-      ],
-      "top_plane_z_local": 0.36022,
-      "area_m2": 0.776564,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "checkout_counter",
-      "model": "odcaop",
-      "region_id": "region_01",
-      "xy_min": [
-        -0.730846,
-        0.210941
-      ],
-      "xy_max": [
-        -0.115406,
-        0.660058
-      ],
-      "top_plane_z_local": 0.36022,
-      "area_m2": 0.276404,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max"
-      ]
-    },
-    {
-      "category": "checkout_counter",
       "model": "sckdal",
       "region_id": "region_00",
       "xy_min": [
@@ -1028,27 +997,6 @@
       ],
       "top_plane_z_local": 0.286676,
       "area_m2": 3.157324,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
-      "model": "aoojzy",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.226403,
-        -0.495395
-      ],
-      "xy_max": [
-        0.269091,
-        0.495206
-      ],
-      "top_plane_z_local": 0.104984,
-      "area_m2": 0.490837,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -1205,27 +1153,6 @@
     },
     {
       "category": "coffee_table",
-      "model": "gpkbiw",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.309997,
-        -0.520895
-      ],
-      "xy_max": [
-        0.313834,
-        0.519669
-      ],
-      "top_plane_z_local": 0.049815,
-      "area_m2": 0.649135,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
       "model": "hbgcej",
       "region_id": "region_00",
       "xy_min": [
@@ -1238,27 +1165,6 @@
       ],
       "top_plane_z_local": 0.069208,
       "area_m2": 0.251451,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
-      "model": "hmwkkt",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.140208,
-        -0.189542
-      ],
-      "xy_max": [
-        0.167108,
-        0.190387
-      ],
-      "top_plane_z_local": 0.081717,
-      "area_m2": 0.116759,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -1412,27 +1318,6 @@
     },
     {
       "category": "coffee_table",
-      "model": "mjyitq",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.345931,
-        -0.34743
-      ],
-      "xy_max": [
-        0.346152,
-        0.347021
-      ],
-      "top_plane_z_local": 0.068496,
-      "area_m2": 0.480618,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
       "model": "mtchfd",
       "region_id": "region_00",
       "xy_min": [
@@ -1559,27 +1444,6 @@
     },
     {
       "category": "coffee_table",
-      "model": "rkdwxe",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.442965,
-        -0.614114
-      ],
-      "xy_max": [
-        0.44388,
-        0.613855
-      ],
-      "top_plane_z_local": 0.044505,
-      "area_m2": 1.089018,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
       "model": "rlsebe",
       "region_id": "region_00",
       "xy_min": [
@@ -1634,69 +1498,6 @@
       ],
       "top_plane_z_local": 0.055623,
       "area_m2": 0.118705,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
-      "model": "stocuk",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.172433,
-        -0.238073
-      ],
-      "xy_max": [
-        0.173004,
-        0.236812
-      ],
-      "top_plane_z_local": 0.117958,
-      "area_m2": 0.164042,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
-      "model": "tzmkgq",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.174205,
-        -0.253996
-      ],
-      "xy_max": [
-        0.164152,
-        0.252345
-      ],
-      "top_plane_z_local": 0.062742,
-      "area_m2": 0.171324,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
-      "model": "vcgabn",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.092287,
-        -0.337081
-      ],
-      "xy_max": [
-        0.109564,
-        0.337297
-      ],
-      "top_plane_z_local": 0.061772,
-      "area_m2": 0.136124,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -1811,27 +1612,6 @@
     },
     {
       "category": "coffee_table",
-      "model": "ytlgdt",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.135963,
-        -0.394432
-      ],
-      "xy_max": [
-        0.12818,
-        0.399521
-      ],
-      "top_plane_z_local": 0.094213,
-      "area_m2": 0.209717,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
       "model": "zehult",
       "region_id": "region_00",
       "xy_min": [
@@ -1865,48 +1645,6 @@
       ],
       "top_plane_z_local": 0.095037,
       "area_m2": 0.425091,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "coffee_table",
-      "model": "zzqwse",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.139662,
-        -0.138819
-      ],
-      "xy_max": [
-        0.139942,
-        0.140732
-      ],
-      "top_plane_z_local": 0.095889,
-      "area_m2": 0.078164,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "commercial_kitchen_table",
-      "model": "bwlfnu",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.226882,
-        -0.859591
-      ],
-      "xy_max": [
-        0.22688,
-        0.859656
-      ],
-      "top_plane_z_local": 0.193886,
-      "area_m2": 0.780129,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -1978,27 +1716,6 @@
       ]
     },
     {
-      "category": "commercial_kitchen_table",
-      "model": "wodpss",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.296511,
-        -1.495779
-      ],
-      "xy_max": [
-        0.313088,
-        1.405191
-      ],
-      "top_plane_z_local": 0.275947,
-      "area_m2": 1.76843,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
       "category": "conference_table",
       "model": "fpkmyw",
       "region_id": "region_00",
@@ -2012,27 +1729,6 @@
       ],
       "top_plane_z_local": 0.18484,
       "area_m2": 5.119092,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "conference_table",
-      "model": "hdomxc",
-      "region_id": "region_00",
-      "xy_min": [
-        -1.153993,
-        -2.555231
-      ],
-      "xy_max": [
-        1.153993,
-        2.550177
-      ],
-      "top_plane_z_local": 0.098773,
-      "area_m2": 11.783212,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -2084,69 +1780,6 @@
     },
     {
       "category": "console_table",
-      "model": "emeeke",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.152214,
-        -0.460857
-      ],
-      "xy_max": [
-        0.152597,
-        0.46338
-      ],
-      "top_plane_z_local": 0.098838,
-      "area_m2": 0.281718,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "console_table",
-      "model": "fihyuz",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.145912,
-        -0.499097
-      ],
-      "xy_max": [
-        0.158897,
-        0.378935
-      ],
-      "top_plane_z_local": 0.137989,
-      "area_m2": 0.267632,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "console_table",
-      "model": "iuxsao",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.251774,
-        -0.511333
-      ],
-      "xy_max": [
-        0.212955,
-        0.511256
-      ],
-      "top_plane_z_local": 0.361715,
-      "area_m2": 0.475227,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "console_table",
       "model": "tvhett",
       "region_id": "region_00",
       "xy_min": [
@@ -2159,48 +1792,6 @@
       ],
       "top_plane_z_local": 0.082616,
       "area_m2": 0.118502,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "console_table",
-      "model": "tzkfqa",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.308116,
-        -0.317969
-      ],
-      "xy_max": [
-        0.298587,
-        0.32244
-      ],
-      "top_plane_z_local": 0.182295,
-      "area_m2": 0.388538,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "console_table",
-      "model": "xqlxni",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.317882,
-        -0.594749
-      ],
-      "xy_max": [
-        0.375481,
-        0.513658
-      ],
-      "top_plane_z_local": 0.257714,
-      "area_m2": 0.768529,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -2245,27 +1836,6 @@
       "reachable_edge_labels": [
         "x_max",
         "x_min",
-        "y_min"
-      ]
-    },
-    {
-      "category": "countertop",
-      "model": "fjkase",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.326151,
-        -1.224603
-      ],
-      "xy_max": [
-        0.324313,
-        1.224575
-      ],
-      "top_plane_z_local": 0.01895,
-      "area_m2": 1.593103,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
         "y_min"
       ]
     },
@@ -2559,69 +2129,6 @@
     },
     {
       "category": "desk",
-      "model": "ampuyz",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.275,
-        -0.408431
-      ],
-      "xy_max": [
-        0.307219,
-        0.408165
-      ],
-      "top_plane_z_local": 0.216805,
-      "area_m2": 0.475438,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "bhkhxo",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.329232,
-        -0.908605
-      ],
-      "xy_max": [
-        0.342744,
-        0.905302
-      ],
-      "top_plane_z_local": 0.273202,
-      "area_m2": 1.218903,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "bptvoy",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.268486,
-        -0.596896
-      ],
-      "xy_max": [
-        0.328416,
-        0.567057
-      ],
-      "top_plane_z_local": 0.240151,
-      "area_m2": 0.694766,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
       "model": "ccxuey",
       "region_id": "region_00",
       "xy_min": [
@@ -2680,89 +2187,6 @@
         "x_max",
         "x_min",
         "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "cnewsu",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.232578,
-        -0.603408
-      ],
-      "xy_max": [
-        0.258078,
-        0.603288
-      ],
-      "top_plane_z_local": 0.096617,
-      "area_m2": 0.592074,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "ctaxkd",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.308767,
-        -1.077415
-      ],
-      "xy_max": [
-        0.389624,
-        1.069856
-      ],
-      "top_plane_z_local": 0.398422,
-      "area_m2": 1.499634,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "egzdgz",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.272375,
-        -0.952332
-      ],
-      "xy_max": [
-        0.176793,
-        0.804354
-      ],
-      "top_plane_z_local": 0.191157,
-      "area_m2": 0.789047,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "egzdgz",
-      "region_id": "region_01",
-      "xy_min": [
-        0.176793,
-        -0.952332
-      ],
-      "xy_max": [
-        0.596017,
-        -0.475943
-      ],
-      "top_plane_z_local": 0.191157,
-      "area_m2": 0.199714,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
         "y_min"
       ]
     },
@@ -2828,48 +2252,6 @@
     },
     {
       "category": "desk",
-      "model": "iufjhy",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.312548,
-        -0.961002
-      ],
-      "xy_max": [
-        0.397845,
-        0.530597
-      ],
-      "top_plane_z_local": 0.265987,
-      "area_m2": 1.059621,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "jfhurf",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.196608,
-        -0.595271
-      ],
-      "xy_max": [
-        0.197092,
-        0.598526
-      ],
-      "top_plane_z_local": 0.127665,
-      "area_m2": 0.469999,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
       "model": "juzwaf",
       "region_id": "region_00",
       "xy_min": [
@@ -2882,27 +2264,6 @@
       ],
       "top_plane_z_local": 0.100842,
       "area_m2": 0.922095,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "kmmlna",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.10943,
-        -0.556078
-      ],
-      "xy_max": [
-        0.172988,
-        0.55566
-      ],
-      "top_plane_z_local": 0.282927,
-      "area_m2": 0.313975,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -2933,27 +2294,6 @@
     },
     {
       "category": "desk",
-      "model": "nafjjg",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.269674,
-        -0.676246
-      ],
-      "xy_max": [
-        0.269846,
-        0.678783
-      ],
-      "top_plane_z_local": 0.111244,
-      "area_m2": 0.731065,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
       "model": "nbpuns",
       "region_id": "region_00",
       "xy_min": [
@@ -2966,27 +2306,6 @@
       ],
       "top_plane_z_local": 0.12361,
       "area_m2": 0.613945,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "ntezkg",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.259726,
-        -0.565557
-      ],
-      "xy_max": [
-        0.297525,
-        0.56157
-      ],
-      "top_plane_z_local": 0.088215,
-      "area_m2": 0.628092,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -3054,27 +2373,6 @@
         "x_max",
         "x_min",
         "y_max"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "phavlj",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.310119,
-        -0.600703
-      ],
-      "xy_max": [
-        0.329303,
-        0.609933
-      ],
-      "top_plane_z_local": 0.128365,
-      "area_m2": 0.774109,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
       ]
     },
     {
@@ -3243,48 +2541,6 @@
     },
     {
       "category": "desk",
-      "model": "slgrxc",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.369287,
-        -1.146083
-      ],
-      "xy_max": [
-        0.461517,
-        1.144675
-      ],
-      "top_plane_z_local": 0.345547,
-      "area_m2": 1.903171,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "tdhgko",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.265438,
-        -0.426355
-      ],
-      "xy_max": [
-        0.293272,
-        0.424736
-      ],
-      "top_plane_z_local": 0.105244,
-      "area_m2": 0.475514,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
       "model": "tmluxa",
       "region_id": "region_00",
       "xy_min": [
@@ -3297,27 +2553,6 @@
       ],
       "top_plane_z_local": 0.098294,
       "area_m2": 0.311545,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "tmukzm",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.232947,
-        -0.615359
-      ],
-      "xy_max": [
-        0.217357,
-        0.586848
-      ],
-      "top_plane_z_local": 0.18535,
-      "area_m2": 0.541359,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -3389,45 +2624,6 @@
     },
     {
       "category": "desk",
-      "model": "uxgyui",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.155294,
-        -0.710517
-      ],
-      "xy_max": [
-        0.017756,
-        0.42386
-      ],
-      "top_plane_z_local": 0.897272,
-      "area_m2": 0.196304,
-      "reachable_edge_labels": [
-        "x_max"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "vpwmkm",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.160387,
-        -0.571709
-      ],
-      "xy_max": [
-        0.157255,
-        0.57208
-      ],
-      "top_plane_z_local": 0.11007,
-      "area_m2": 0.363316,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
       "model": "wtlxfr",
       "region_id": "region_00",
       "xy_min": [
@@ -3444,68 +2640,6 @@
         "x_max",
         "x_min",
         "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "xhjsub",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.452033,
-        -0.864319
-      ],
-      "xy_max": [
-        0.109893,
-        0.644726
-      ],
-      "top_plane_z_local": 0.352563,
-      "area_m2": 0.847972,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "yezrwt",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.134615,
-        -0.478408
-      ],
-      "xy_max": [
-        0.314253,
-        0.475317
-      ],
-      "top_plane_z_local": 0.275669,
-      "area_m2": 0.428096,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "desk",
-      "model": "yezrwt",
-      "region_id": "region_01",
-      "xy_min": [
-        0.015008,
-        -0.716839
-      ],
-      "xy_max": [
-        0.284328,
-        -0.478408
-      ],
-      "top_plane_z_local": 0.275669,
-      "area_m2": 0.064214,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
         "y_min"
       ]
     },
@@ -3594,127 +2728,6 @@
       ]
     },
     {
-      "category": "lab_table",
-      "model": "ishrsy",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.691611,
-        -1.984638
-      ],
-      "xy_max": [
-        0.691799,
-        -0.522249
-      ],
-      "top_plane_z_local": 0.402863,
-      "area_m2": 2.023083,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_min"
-      ]
-    },
-    {
-      "category": "lab_table",
-      "model": "ishrsy",
-      "region_id": "region_01",
-      "xy_min": [
-        -0.691611,
-        0.522315
-      ],
-      "xy_max": [
-        0.691799,
-        1.984704
-      ],
-      "top_plane_z_local": 0.402863,
-      "area_m2": 2.023083,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max"
-      ]
-    },
-    {
-      "category": "lab_table",
-      "model": "jkemfk",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.344652,
-        -1.144065
-      ],
-      "xy_max": [
-        0.429296,
-        0.315179
-      ],
-      "top_plane_z_local": 0.404457,
-      "area_m2": 1.129379,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "lab_table",
-      "model": "jkemfk",
-      "region_id": "region_01",
-      "xy_min": [
-        -0.344652,
-        0.315179
-      ],
-      "xy_max": [
-        -0.106514,
-        1.089472
-      ],
-      "top_plane_z_local": 0.404457,
-      "area_m2": 0.184388,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max"
-      ]
-    },
-    {
-      "category": "lab_table",
-      "model": "vujgjq",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.753128,
-        -1.086793
-      ],
-      "xy_max": [
-        -0.214515,
-        1.066925
-      ],
-      "top_plane_z_local": 0.318412,
-      "area_m2": 1.160019,
-      "reachable_edge_labels": [
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "lab_table",
-      "model": "vujgjq",
-      "region_id": "region_01",
-      "xy_min": [
-        -0.214515,
-        -0.428713
-      ],
-      "xy_max": [
-        1.431245,
-        -0.039847
-      ],
-      "top_plane_z_local": 0.318412,
-      "area_m2": 0.63998,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_min"
-      ]
-    },
-    {
       "category": "nightstand",
       "model": "aykehx",
       "region_id": "region_00",
@@ -3749,27 +2762,6 @@
       ],
       "top_plane_z_local": 0.112832,
       "area_m2": 0.444599,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "nightstand",
-      "model": "gjwjtj",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.19822,
-        -0.261948
-      ],
-      "xy_max": [
-        0.168493,
-        0.261943
-      ],
-      "top_plane_z_local": 0.202309,
-      "area_m2": 0.192117,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -4039,27 +3031,6 @@
       ],
       "top_plane_z_local": 0.106374,
       "area_m2": 0.314895,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "pedestal_table",
-      "model": "gkkxaj",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.325228,
-        -0.31326
-      ],
-      "xy_max": [
-        0.309769,
-        0.313062
-      ],
-      "top_plane_z_local": 0.137608,
-      "area_m2": 0.397713,
       "reachable_edge_labels": [
         "x_max",
         "x_min",
@@ -4480,27 +3451,6 @@
     },
     {
       "category": "reception_desk",
-      "model": "qztpgl",
-      "region_id": "region_00",
-      "xy_min": [
-        -0.513922,
-        -1.210213
-      ],
-      "xy_max": [
-        0.447404,
-        1.210211
-      ],
-      "top_plane_z_local": 0.284619,
-      "area_m2": 2.326818,
-      "reachable_edge_labels": [
-        "x_max",
-        "x_min",
-        "y_max",
-        "y_min"
-      ]
-    },
-    {
-      "category": "reception_desk",
       "model": "ukonss",
       "region_id": "region_00",
       "xy_min": [
@@ -4544,16 +3494,6 @@
   ],
   "by_model": {
     "bar": {
-      "byvbuc": {
-        "aabb_xy_min": [
-          -0.277548,
-          -1.107758
-        ],
-        "aabb_xy_max": [
-          0.327596,
-          1.046828
-        ]
-      },
       "cowjqr": {
         "aabb_xy_min": [
           -1.416682,
@@ -4562,7 +3502,8 @@
         "aabb_xy_max": [
           0.565544,
           1.317898
-        ]
+        ],
+        "height_m": 1.098763
       },
       "egwapq": {
         "aabb_xy_min": [
@@ -4572,7 +3513,8 @@
         "aabb_xy_max": [
           0.355477,
           1.141631
-        ]
+        ],
+        "height_m": 0.895664
       },
       "joihle": {
         "aabb_xy_min": [
@@ -4582,7 +3524,8 @@
         "aabb_xy_max": [
           0.421645,
           0.505683
-        ]
+        ],
+        "height_m": 1.03322
       },
       "jvkwcc": {
         "aabb_xy_min": [
@@ -4592,17 +3535,8 @@
         "aabb_xy_max": [
           0.275353,
           1.016273
-        ]
-      },
-      "udatjt": {
-        "aabb_xy_min": [
-          -0.632183,
-          -1.497545
         ],
-        "aabb_xy_max": [
-          0.513044,
-          1.496734
-        ]
+        "height_m": 1.234549
       },
       "ukorzz": {
         "aabb_xy_min": [
@@ -4612,7 +3546,8 @@
         "aabb_xy_max": [
           0.226715,
           2.2025
-        ]
+        ],
+        "height_m": 0.85
       }
     },
     "breakfast_table": {
@@ -4624,7 +3559,8 @@
         "aabb_xy_max": [
           0.356786,
           0.887332
-        ]
+        ],
+        "height_m": 0.7412
       },
       "bmnubh": {
         "aabb_xy_min": [
@@ -4634,7 +3570,8 @@
         "aabb_xy_max": [
           0.250934,
           0.600532
-        ]
+        ],
+        "height_m": 0.3449
       },
       "dcdtsr": {
         "aabb_xy_min": [
@@ -4644,7 +3581,8 @@
         "aabb_xy_max": [
           0.488111,
           1.144373
-        ]
+        ],
+        "height_m": 0.8327
       },
       "hggsao": {
         "aabb_xy_min": [
@@ -4654,7 +3592,8 @@
         "aabb_xy_max": [
           0.346767,
           0.596899
-        ]
+        ],
+        "height_m": 0.4974
       },
       "hmzwxn": {
         "aabb_xy_min": [
@@ -4664,7 +3603,8 @@
         "aabb_xy_max": [
           0.352366,
           0.612222
-        ]
+        ],
+        "height_m": 0.8298
       },
       "iaritq": {
         "aabb_xy_min": [
@@ -4674,7 +3614,8 @@
         "aabb_xy_max": [
           0.355128,
           0.353806
-        ]
+        ],
+        "height_m": 0.749
       },
       "idnnmz": {
         "aabb_xy_min": [
@@ -4684,7 +3625,8 @@
         "aabb_xy_max": [
           0.248385,
           0.596898
-        ]
+        ],
+        "height_m": 0.4233
       },
       "jcqdlx": {
         "aabb_xy_min": [
@@ -4694,7 +3636,8 @@
         "aabb_xy_max": [
           0.507187,
           0.900366
-        ]
+        ],
+        "height_m": 0.749
       },
       "jruvif": {
         "aabb_xy_min": [
@@ -4704,7 +3647,8 @@
         "aabb_xy_max": [
           0.36422,
           0.693131
-        ]
+        ],
+        "height_m": 1.0505
       },
       "kpwegp": {
         "aabb_xy_min": [
@@ -4714,7 +3658,8 @@
         "aabb_xy_max": [
           0.305447,
           0.604119
-        ]
+        ],
+        "height_m": 0.5645
       },
       "kwmfdg": {
         "aabb_xy_min": [
@@ -4724,7 +3669,8 @@
         "aabb_xy_max": [
           0.314409,
           0.601013
-        ]
+        ],
+        "height_m": 0.4138
       },
       "lcsizg": {
         "aabb_xy_min": [
@@ -4734,7 +3680,8 @@
         "aabb_xy_max": [
           0.379673,
           0.552155
-        ]
+        ],
+        "height_m": 0.639
       },
       "lnwggc": {
         "aabb_xy_min": [
@@ -4744,7 +3691,8 @@
         "aabb_xy_max": [
           0.373451,
           0.378985
-        ]
+        ],
+        "height_m": 0.4411
       },
       "lwtcfh": {
         "aabb_xy_min": [
@@ -4754,7 +3702,8 @@
         "aabb_xy_max": [
           0.39517,
           0.53821
-        ]
+        ],
+        "height_m": 0.5148
       },
       "mwsyqb": {
         "aabb_xy_min": [
@@ -4764,7 +3713,8 @@
         "aabb_xy_max": [
           0.357457,
           0.596943
-        ]
+        ],
+        "height_m": 0.6461
       },
       "nvoqyl": {
         "aabb_xy_min": [
@@ -4774,7 +3724,8 @@
         "aabb_xy_max": [
           0.3815,
           0.6015
-        ]
+        ],
+        "height_m": 0.7412
       },
       "pdpkuw": {
         "aabb_xy_min": [
@@ -4784,7 +3735,8 @@
         "aabb_xy_max": [
           0.484995,
           0.778189
-        ]
+        ],
+        "height_m": 0.8322
       },
       "pllvrt": {
         "aabb_xy_min": [
@@ -4794,7 +3746,8 @@
         "aabb_xy_max": [
           0.292086,
           0.596905
-        ]
+        ],
+        "height_m": 0.4813
       },
       "qjiray": {
         "aabb_xy_min": [
@@ -4804,7 +3757,8 @@
         "aabb_xy_max": [
           0.514057,
           1.668345
-        ]
+        ],
+        "height_m": 0.7485
       },
       "rhjoby": {
         "aabb_xy_min": [
@@ -4814,7 +3768,8 @@
         "aabb_xy_max": [
           0.591218,
           1.462917
-        ]
+        ],
+        "height_m": 0.7811
       },
       "rjgmmy": {
         "aabb_xy_min": [
@@ -4824,7 +3779,8 @@
         "aabb_xy_max": [
           0.380074,
           0.476169
-        ]
+        ],
+        "height_m": 0.5821
       },
       "sfxqtk": {
         "aabb_xy_min": [
@@ -4834,7 +3790,8 @@
         "aabb_xy_max": [
           0.378459,
           0.378479
-        ]
+        ],
+        "height_m": 0.2862
       },
       "skczfi": {
         "aabb_xy_min": [
@@ -4844,7 +3801,8 @@
         "aabb_xy_max": [
           0.255263,
           0.603328
-        ]
+        ],
+        "height_m": 0.4808
       },
       "uhrsex": {
         "aabb_xy_min": [
@@ -4854,7 +3812,8 @@
         "aabb_xy_max": [
           0.30319,
           0.598271
-        ]
+        ],
+        "height_m": 0.4282
       },
       "wdbwhc": {
         "aabb_xy_min": [
@@ -4864,7 +3823,8 @@
         "aabb_xy_max": [
           0.451214,
           0.45557
-        ]
+        ],
+        "height_m": 0.7634
       },
       "wnrior": {
         "aabb_xy_min": [
@@ -4874,7 +3834,8 @@
         "aabb_xy_max": [
           0.395966,
           0.794196
-        ]
+        ],
+        "height_m": 0.7122
       },
       "xftrki": {
         "aabb_xy_min": [
@@ -4884,7 +3845,8 @@
         "aabb_xy_max": [
           0.465295,
           0.745291
-        ]
+        ],
+        "height_m": 0.6791
       },
       "yaanqr": {
         "aabb_xy_min": [
@@ -4894,7 +3856,8 @@
         "aabb_xy_max": [
           0.357063,
           0.556555
-        ]
+        ],
+        "height_m": 0.749
       },
       "yclkbw": {
         "aabb_xy_min": [
@@ -4904,7 +3867,8 @@
         "aabb_xy_max": [
           0.579909,
           1.762424
-        ]
+        ],
+        "height_m": 0.943
       },
       "ylykeh": {
         "aabb_xy_min": [
@@ -4914,7 +3878,8 @@
         "aabb_xy_max": [
           0.756876,
           1.00665
-        ]
+        ],
+        "height_m": 0.8
       },
       "ytelxk": {
         "aabb_xy_min": [
@@ -4924,7 +3889,8 @@
         "aabb_xy_max": [
           0.56266,
           1.162669
-        ]
+        ],
+        "height_m": 0.75
       },
       "zypvuv": {
         "aabb_xy_min": [
@@ -4934,7 +3900,8 @@
         "aabb_xy_max": [
           0.381479,
           0.594062
-        ]
+        ],
+        "height_m": 0.397
       }
     },
     "checkout_counter": {
@@ -4946,17 +3913,8 @@
         "aabb_xy_max": [
           0.40089,
           1.272082
-        ]
-      },
-      "odcaop": {
-        "aabb_xy_min": [
-          -0.789459,
-          -1.076526
         ],
-        "aabb_xy_max": [
-          0.441421,
-          0.71994
-        ]
+        "height_m": 1.0133
       },
       "sckdal": {
         "aabb_xy_min": [
@@ -4966,7 +3924,8 @@
         "aabb_xy_max": [
           0.394156,
           1.795575
-        ]
+        ],
+        "height_m": 0.9693
       },
       "umnoqh": {
         "aabb_xy_min": [
@@ -4976,20 +3935,11 @@
         "aabb_xy_max": [
           0.457448,
           1.70299
-        ]
+        ],
+        "height_m": 0.8124
       }
     },
     "coffee_table": {
-      "aoojzy": {
-        "aabb_xy_min": [
-          -0.226403,
-          -0.495395
-        ],
-        "aabb_xy_max": [
-          0.269091,
-          0.495206
-        ]
-      },
       "cjjayg": {
         "aabb_xy_min": [
           -0.37818,
@@ -4998,7 +3948,8 @@
         "aabb_xy_max": [
           0.377978,
           0.378115
-        ]
+        ],
+        "height_m": 0.2848
       },
       "dnsjnv": {
         "aabb_xy_min": [
@@ -5008,7 +3959,8 @@
         "aabb_xy_max": [
           0.377291,
           0.377273
-        ]
+        ],
+        "height_m": 0.3381
       },
       "ejlbho": {
         "aabb_xy_min": [
@@ -5018,7 +3970,8 @@
         "aabb_xy_max": [
           0.305388,
           0.305984
-        ]
+        ],
+        "height_m": 0.4719
       },
       "elhvfw": {
         "aabb_xy_min": [
@@ -5028,7 +3981,8 @@
         "aabb_xy_max": [
           0.272488,
           0.800851
-        ]
+        ],
+        "height_m": 0.4616
       },
       "fhqimf": {
         "aabb_xy_min": [
@@ -5038,7 +3992,8 @@
         "aabb_xy_max": [
           0.303147,
           0.601221
-        ]
+        ],
+        "height_m": 0.49
       },
       "fqluyq": {
         "aabb_xy_min": [
@@ -5048,7 +4003,8 @@
         "aabb_xy_max": [
           0.265834,
           0.602539
-        ]
+        ],
+        "height_m": 0.4071
       },
       "gcollb": {
         "aabb_xy_min": [
@@ -5058,17 +4014,8 @@
         "aabb_xy_max": [
           0.229535,
           0.495322
-        ]
-      },
-      "gpkbiw": {
-        "aabb_xy_min": [
-          -0.339703,
-          -0.550625
         ],
-        "aabb_xy_max": [
-          0.34354,
-          0.549399
-        ]
+        "height_m": 0.4244
       },
       "hbgcej": {
         "aabb_xy_min": [
@@ -5078,17 +4025,8 @@
         "aabb_xy_max": [
           0.354585,
           0.353216
-        ]
-      },
-      "hmwkkt": {
-        "aabb_xy_min": [
-          -0.140208,
-          -0.189542
         ],
-        "aabb_xy_max": [
-          0.167108,
-          0.190387
-        ]
+        "height_m": 0.3723
       },
       "ixvmic": {
         "aabb_xy_min": [
@@ -5098,7 +4036,8 @@
         "aabb_xy_max": [
           0.37877,
           0.378769
-        ]
+        ],
+        "height_m": 0.1877
       },
       "jkhlnp": {
         "aabb_xy_min": [
@@ -5108,7 +4047,8 @@
         "aabb_xy_max": [
           0.384592,
           0.384054
-        ]
+        ],
+        "height_m": 0.6638
       },
       "koagbh": {
         "aabb_xy_min": [
@@ -5118,7 +4058,8 @@
         "aabb_xy_max": [
           0.407958,
           0.837816
-        ]
+        ],
+        "height_m": 0.4063
       },
       "lpwbgm": {
         "aabb_xy_min": [
@@ -5128,7 +4069,8 @@
         "aabb_xy_max": [
           0.359924,
           0.359342
-        ]
+        ],
+        "height_m": 0.2646
       },
       "lyhpbr": {
         "aabb_xy_min": [
@@ -5138,7 +4080,8 @@
         "aabb_xy_max": [
           0.300418,
           0.300309
-        ]
+        ],
+        "height_m": 0.5564
       },
       "metubv": {
         "aabb_xy_min": [
@@ -5148,17 +4091,8 @@
         "aabb_xy_max": [
           0.379457,
           0.604113
-        ]
-      },
-      "mjyitq": {
-        "aabb_xy_min": [
-          -0.345931,
-          -0.34743
         ],
-        "aabb_xy_max": [
-          0.346152,
-          0.347021
-        ]
+        "height_m": 0.4365
       },
       "mtchfd": {
         "aabb_xy_min": [
@@ -5168,7 +4102,8 @@
         "aabb_xy_max": [
           0.377463,
           0.377532
-        ]
+        ],
+        "height_m": 0.4456
       },
       "osroux": {
         "aabb_xy_min": [
@@ -5178,7 +4113,8 @@
         "aabb_xy_max": [
           0.399671,
           0.728845
-        ]
+        ],
+        "height_m": 0.3558
       },
       "puwazg": {
         "aabb_xy_min": [
@@ -5188,7 +4124,8 @@
         "aabb_xy_max": [
           0.429787,
           0.426597
-        ]
+        ],
+        "height_m": 0.3354
       },
       "qlmqyy": {
         "aabb_xy_min": [
@@ -5198,7 +4135,8 @@
         "aabb_xy_max": [
           0.257273,
           0.323285
-        ]
+        ],
+        "height_m": 0.3947
       },
       "qplrhv": {
         "aabb_xy_min": [
@@ -5208,7 +4146,8 @@
         "aabb_xy_max": [
           0.302992,
           0.303879
-        ]
+        ],
+        "height_m": 0.4719
       },
       "qtwqqb": {
         "aabb_xy_min": [
@@ -5218,17 +4157,8 @@
         "aabb_xy_max": [
           0.446757,
           0.877504
-        ]
-      },
-      "rkdwxe": {
-        "aabb_xy_min": [
-          -0.442965,
-          -0.614114
         ],
-        "aabb_xy_max": [
-          0.44388,
-          0.613855
-        ]
+        "height_m": 0.4686
       },
       "rlsebe": {
         "aabb_xy_min": [
@@ -5238,7 +4168,8 @@
         "aabb_xy_max": [
           0.487437,
           0.487437
-        ]
+        ],
+        "height_m": 0.2692
       },
       "semdkc": {
         "aabb_xy_min": [
@@ -5248,7 +4179,8 @@
         "aabb_xy_max": [
           0.669896,
           0.668862
-        ]
+        ],
+        "height_m": 0.3668
       },
       "skseyx": {
         "aabb_xy_min": [
@@ -5258,37 +4190,8 @@
         "aabb_xy_max": [
           0.289275,
           0.563327
-        ]
-      },
-      "stocuk": {
-        "aabb_xy_min": [
-          -0.172433,
-          -0.238073
         ],
-        "aabb_xy_max": [
-          0.173004,
-          0.236812
-        ]
-      },
-      "tzmkgq": {
-        "aabb_xy_min": [
-          -0.174205,
-          -0.253996
-        ],
-        "aabb_xy_max": [
-          0.192348,
-          0.252345
-        ]
-      },
-      "vcgabn": {
-        "aabb_xy_min": [
-          -0.092287,
-          -0.337081
-        ],
-        "aabb_xy_max": [
-          0.109564,
-          0.337297
-        ]
+        "height_m": 0.3462
       },
       "wgtaip": {
         "aabb_xy_min": [
@@ -5298,7 +4201,8 @@
         "aabb_xy_max": [
           0.680414,
           1.654436
-        ]
+        ],
+        "height_m": 0.758
       },
       "wwgaym": {
         "aabb_xy_min": [
@@ -5308,7 +4212,8 @@
         "aabb_xy_max": [
           0.255086,
           0.255043
-        ]
+        ],
+        "height_m": 0.4221
       },
       "wwsikw": {
         "aabb_xy_min": [
@@ -5318,7 +4223,8 @@
         "aabb_xy_max": [
           0.332149,
           0.603532
-        ]
+        ],
+        "height_m": 0.4833
       },
       "wzyqgx": {
         "aabb_xy_min": [
@@ -5328,7 +4234,8 @@
         "aabb_xy_max": [
           0.499056,
           0.637916
-        ]
+        ],
+        "height_m": 0.3304
       },
       "xshzms": {
         "aabb_xy_min": [
@@ -5338,17 +4245,8 @@
         "aabb_xy_max": [
           0.256656,
           0.25675
-        ]
-      },
-      "ytlgdt": {
-        "aabb_xy_min": [
-          -0.135963,
-          -0.394432
         ],
-        "aabb_xy_max": [
-          0.12818,
-          0.399521
-        ]
+        "height_m": 0.2319
       },
       "zehult": {
         "aabb_xy_min": [
@@ -5358,7 +4256,8 @@
         "aabb_xy_max": [
           0.281639,
           0.221277
-        ]
+        ],
+        "height_m": 0.5983
       },
       "zisekv": {
         "aabb_xy_min": [
@@ -5368,30 +4267,11 @@
         "aabb_xy_max": [
           0.26615,
           0.461286
-        ]
-      },
-      "zzqwse": {
-        "aabb_xy_min": [
-          -0.139662,
-          -0.138819
         ],
-        "aabb_xy_max": [
-          0.139942,
-          0.140732
-        ]
+        "height_m": 0.4551
       }
     },
     "commercial_kitchen_table": {
-      "bwlfnu": {
-        "aabb_xy_min": [
-          -0.226882,
-          -0.889233
-        ],
-        "aabb_xy_max": [
-          0.22688,
-          0.889298
-        ]
-      },
       "hmwzxn": {
         "aabb_xy_min": [
           -0.492522,
@@ -5400,7 +4280,8 @@
         "aabb_xy_max": [
           0.376274,
           2.248543
-        ]
+        ],
+        "height_m": 0.8938
       },
       "nisnrl": {
         "aabb_xy_min": [
@@ -5410,7 +4291,8 @@
         "aabb_xy_max": [
           0.385351,
           0.563229
-        ]
+        ],
+        "height_m": 0.9435
       },
       "vxvtec": {
         "aabb_xy_min": [
@@ -5420,17 +4302,8 @@
         "aabb_xy_max": [
           0.403809,
           1.40443
-        ]
-      },
-      "wodpss": {
-        "aabb_xy_min": [
-          -0.296511,
-          -1.645314
         ],
-        "aabb_xy_max": [
-          0.313088,
-          1.405191
-        ]
+        "height_m": 0.8668
       }
     },
     "conference_table": {
@@ -5442,17 +4315,8 @@
         "aabb_xy_max": [
           0.759783,
           1.701894
-        ]
-      },
-      "hdomxc": {
-        "aabb_xy_min": [
-          -1.183967,
-          -2.585087
         ],
-        "aabb_xy_max": [
-          1.183967,
-          2.580033
-        ]
+        "height_m": 0.6699
       },
       "jxixdw": {
         "aabb_xy_min": [
@@ -5462,7 +4326,8 @@
         "aabb_xy_max": [
           0.506433,
           1.01048
-        ]
+        ],
+        "height_m": 0.7313
       },
       "qzmjrj": {
         "aabb_xy_min": [
@@ -5472,40 +4337,11 @@
         "aabb_xy_max": [
           0.361019,
           0.906558
-        ]
+        ],
+        "height_m": 0.7216
       }
     },
     "console_table": {
-      "emeeke": {
-        "aabb_xy_min": [
-          -0.152214,
-          -0.460857
-        ],
-        "aabb_xy_max": [
-          0.152597,
-          0.46338
-        ]
-      },
-      "fihyuz": {
-        "aabb_xy_min": [
-          -0.145912,
-          -0.499097
-        ],
-        "aabb_xy_max": [
-          0.158897,
-          0.378935
-        ]
-      },
-      "iuxsao": {
-        "aabb_xy_min": [
-          -0.251774,
-          -0.511333
-        ],
-        "aabb_xy_max": [
-          0.212955,
-          0.511256
-        ]
-      },
       "tvhett": {
         "aabb_xy_min": [
           -0.142813,
@@ -5514,27 +4350,8 @@
         "aabb_xy_max": [
           0.166686,
           0.191822
-        ]
-      },
-      "tzkfqa": {
-        "aabb_xy_min": [
-          -0.308116,
-          -0.317969
         ],
-        "aabb_xy_max": [
-          0.298587,
-          0.32244
-        ]
-      },
-      "xqlxni": {
-        "aabb_xy_min": [
-          -0.317882,
-          -0.594749
-        ],
-        "aabb_xy_max": [
-          0.404371,
-          0.513658
-        ]
+        "height_m": 0.4531
       }
     },
     "countertop": {
@@ -5546,17 +4363,8 @@
         "aabb_xy_max": [
           0.317216,
           1.654155
-        ]
-      },
-      "fjkase": {
-        "aabb_xy_min": [
-          -0.326151,
-          -1.224603
         ],
-        "aabb_xy_max": [
-          0.324313,
-          1.224575
-        ]
+        "height_m": 0.05
       },
       "ikwqer": {
         "aabb_xy_min": [
@@ -5566,7 +4374,8 @@
         "aabb_xy_max": [
           0.327644,
           2.304036
-        ]
+        ],
+        "height_m": 0.0379
       },
       "jveutp": {
         "aabb_xy_min": [
@@ -5576,7 +4385,8 @@
         "aabb_xy_max": [
           0.275203,
           0.775069
-        ]
+        ],
+        "height_m": 0.0185
       },
       "kelker": {
         "aabb_xy_min": [
@@ -5586,7 +4396,8 @@
         "aabb_xy_max": [
           0.431274,
           1.722838
-        ]
+        ],
+        "height_m": 0.0361
       },
       "kelzer": {
         "aabb_xy_min": [
@@ -5596,7 +4407,8 @@
         "aabb_xy_max": [
           0.546021,
           1.577194
-        ]
+        ],
+        "height_m": 0.0361
       },
       "ncqmrq": {
         "aabb_xy_min": [
@@ -5606,7 +4418,8 @@
         "aabb_xy_max": [
           1.051734,
           1.237501
-        ]
+        ],
+        "height_m": 0.0694
       },
       "qfhqhy": {
         "aabb_xy_min": [
@@ -5616,7 +4429,8 @@
         "aabb_xy_max": [
           0.409999,
           1.050106
-        ]
+        ],
+        "height_m": 0.05
       },
       "sjxber": {
         "aabb_xy_min": [
@@ -5626,7 +4440,8 @@
         "aabb_xy_max": [
           0.222366,
           0.487706
-        ]
+        ],
+        "height_m": 0.0379
       },
       "tpuwys": {
         "aabb_xy_min": [
@@ -5636,7 +4451,8 @@
         "aabb_xy_max": [
           0.279169,
           0.511074
-        ]
+        ],
+        "height_m": 0.0317
       },
       "zkhelh": {
         "aabb_xy_min": [
@@ -5646,7 +4462,8 @@
         "aabb_xy_max": [
           0.264261,
           2.220919
-        ]
+        ],
+        "height_m": 0.0955
       }
     },
     "desk": {
@@ -5658,37 +4475,8 @@
         "aabb_xy_max": [
           0.349081,
           0.725922
-        ]
-      },
-      "ampuyz": {
-        "aabb_xy_min": [
-          -0.275,
-          -0.408431
         ],
-        "aabb_xy_max": [
-          0.307219,
-          0.408165
-        ]
-      },
-      "bhkhxo": {
-        "aabb_xy_min": [
-          -0.329232,
-          -0.908605
-        ],
-        "aabb_xy_max": [
-          0.342744,
-          0.905302
-        ]
-      },
-      "bptvoy": {
-        "aabb_xy_min": [
-          -0.268486,
-          -0.596896
-        ],
-        "aabb_xy_max": [
-          0.328416,
-          0.596902
-        ]
+        "height_m": 0.7854
       },
       "ccxuey": {
         "aabb_xy_min": [
@@ -5698,7 +4486,8 @@
         "aabb_xy_max": [
           0.321087,
           0.627318
-        ]
+        ],
+        "height_m": 0.8818
       },
       "cjhriz": {
         "aabb_xy_min": [
@@ -5708,7 +4497,8 @@
         "aabb_xy_max": [
           0.393068,
           0.594521
-        ]
+        ],
+        "height_m": 0.5306
       },
       "clenrz": {
         "aabb_xy_min": [
@@ -5718,37 +4508,8 @@
         "aabb_xy_max": [
           0.258489,
           0.812449
-        ]
-      },
-      "cnewsu": {
-        "aabb_xy_min": [
-          -0.232578,
-          -0.603408
         ],
-        "aabb_xy_max": [
-          0.258078,
-          0.603288
-        ]
-      },
-      "ctaxkd": {
-        "aabb_xy_min": [
-          -0.308767,
-          -1.077415
-        ],
-        "aabb_xy_max": [
-          0.389624,
-          1.069856
-        ]
-      },
-      "egzdgz": {
-        "aabb_xy_min": [
-          -0.302319,
-          -0.952332
-        ],
-        "aabb_xy_max": [
-          0.625961,
-          0.804354
-        ]
+        "height_m": 0.6018
       },
       "ghtnfq": {
         "aabb_xy_min": [
@@ -5758,7 +4519,8 @@
         "aabb_xy_max": [
           1.146781,
           1.536132
-        ]
+        ],
+        "height_m": 0.7494
       },
       "iotfzl": {
         "aabb_xy_min": [
@@ -5768,27 +4530,8 @@
         "aabb_xy_max": [
           0.270217,
           0.703246
-        ]
-      },
-      "iufjhy": {
-        "aabb_xy_min": [
-          -0.342147,
-          -0.961002
         ],
-        "aabb_xy_max": [
-          0.427445,
-          0.560429
-        ]
-      },
-      "jfhurf": {
-        "aabb_xy_min": [
-          -0.196608,
-          -0.595271
-        ],
-        "aabb_xy_max": [
-          0.197092,
-          0.598526
-        ]
+        "height_m": 0.7282
       },
       "juzwaf": {
         "aabb_xy_min": [
@@ -5798,17 +4541,8 @@
         "aabb_xy_max": [
           0.344967,
           0.750873
-        ]
-      },
-      "kmmlna": {
-        "aabb_xy_min": [
-          -0.165914,
-          -0.556078
         ],
-        "aabb_xy_max": [
-          0.20123,
-          0.55566
-        ]
+        "height_m": 0.77
       },
       "mdhelw": {
         "aabb_xy_min": [
@@ -5818,17 +4552,8 @@
         "aabb_xy_max": [
           0.487891,
           1.407032
-        ]
-      },
-      "nafjjg": {
-        "aabb_xy_min": [
-          -0.269674,
-          -0.705703
         ],
-        "aabb_xy_max": [
-          0.269846,
-          0.70824
-        ]
+        "height_m": 0.77
       },
       "nbpuns": {
         "aabb_xy_min": [
@@ -5838,17 +4563,8 @@
         "aabb_xy_max": [
           0.283024,
           0.549933
-        ]
-      },
-      "ntezkg": {
-        "aabb_xy_min": [
-          -0.259726,
-          -0.565557
         ],
-        "aabb_xy_max": [
-          0.297525,
-          0.56157
-        ]
+        "height_m": 0.5426
       },
       "obvwds": {
         "aabb_xy_min": [
@@ -5858,7 +4574,8 @@
         "aabb_xy_max": [
           0.404651,
           0.749489
-        ]
+        ],
+        "height_m": 0.7699
       },
       "ohjotf": {
         "aabb_xy_min": [
@@ -5868,7 +4585,8 @@
         "aabb_xy_max": [
           0.284893,
           0.829432
-        ]
+        ],
+        "height_m": 0.6683
       },
       "pfsjbc": {
         "aabb_xy_min": [
@@ -5878,17 +4596,8 @@
         "aabb_xy_max": [
           0.603887,
           2.006249
-        ]
-      },
-      "phavlj": {
-        "aabb_xy_min": [
-          -0.310119,
-          -0.600703
         ],
-        "aabb_xy_max": [
-          0.329303,
-          0.609933
-        ]
+        "height_m": 1.0847
       },
       "pniubv": {
         "aabb_xy_min": [
@@ -5898,7 +4607,8 @@
         "aabb_xy_max": [
           0.324709,
           1.678276
-        ]
+        ],
+        "height_m": 0.85
       },
       "puapey": {
         "aabb_xy_min": [
@@ -5908,7 +4618,8 @@
         "aabb_xy_max": [
           0.808215,
           0.80629
-        ]
+        ],
+        "height_m": 1.0336
       },
       "qpuflh": {
         "aabb_xy_min": [
@@ -5918,7 +4629,8 @@
         "aabb_xy_max": [
           1.146674,
           1.278697
-        ]
+        ],
+        "height_m": 0.75
       },
       "rzyfxk": {
         "aabb_xy_min": [
@@ -5928,7 +4640,8 @@
         "aabb_xy_max": [
           0.345053,
           0.74945
-        ]
+        ],
+        "height_m": 0.77
       },
       "sfstso": {
         "aabb_xy_min": [
@@ -5938,7 +4651,8 @@
         "aabb_xy_max": [
           0.42078,
           0.635799
-        ]
+        ],
+        "height_m": 0.4671
       },
       "sjugsf": {
         "aabb_xy_min": [
@@ -5948,27 +4662,8 @@
         "aabb_xy_max": [
           0.275482,
           1.971295
-        ]
-      },
-      "slgrxc": {
-        "aabb_xy_min": [
-          -0.369287,
-          -1.146083
         ],
-        "aabb_xy_max": [
-          0.461517,
-          1.144675
-        ]
-      },
-      "tdhgko": {
-        "aabb_xy_min": [
-          -0.294844,
-          -0.426355
-        ],
-        "aabb_xy_max": [
-          0.322678,
-          0.424736
-        ]
+        "height_m": 0.4868
       },
       "tmluxa": {
         "aabb_xy_min": [
@@ -5978,17 +4673,8 @@
         "aabb_xy_max": [
           0.26292,
           0.355485
-        ]
-      },
-      "tmukzm": {
-        "aabb_xy_min": [
-          -0.232947,
-          -0.615359
         ],
-        "aabb_xy_max": [
-          0.217357,
-          0.586848
-        ]
+        "height_m": 0.7001
       },
       "uffjvo": {
         "aabb_xy_min": [
@@ -5998,7 +4684,8 @@
         "aabb_xy_max": [
           0.318226,
           0.603689
-        ]
+        ],
+        "height_m": 0.4777
       },
       "uqcmzf": {
         "aabb_xy_min": [
@@ -6008,27 +4695,8 @@
         "aabb_xy_max": [
           1.052317,
           0.89473
-        ]
-      },
-      "uxgyui": {
-        "aabb_xy_min": [
-          -0.155294,
-          -0.710517
         ],
-        "aabb_xy_max": [
-          0.335015,
-          0.57312
-        ]
-      },
-      "vpwmkm": {
-        "aabb_xy_min": [
-          -0.160387,
-          -0.571709
-        ],
-        "aabb_xy_max": [
-          0.186132,
-          0.57208
-        ]
+        "height_m": 0.7151
       },
       "wtlxfr": {
         "aabb_xy_min": [
@@ -6038,27 +4706,8 @@
         "aabb_xy_max": [
           0.419673,
           0.672073
-        ]
-      },
-      "xhjsub": {
-        "aabb_xy_min": [
-          -0.452033,
-          -0.864319
         ],
-        "aabb_xy_max": [
-          0.760545,
-          0.644726
-        ]
-      },
-      "yezrwt": {
-        "aabb_xy_min": [
-          -0.224388,
-          -0.716839
-        ],
-        "aabb_xy_max": [
-          0.314253,
-          0.743552
-        ]
+        "height_m": 0.72
       },
       "zjbhgq": {
         "aabb_xy_min": [
@@ -6068,7 +4717,8 @@
         "aabb_xy_max": [
           0.42351,
           0.883484
-        ]
+        ],
+        "height_m": 0.5981
       },
       "zlyqcq": {
         "aabb_xy_min": [
@@ -6078,7 +4728,8 @@
         "aabb_xy_max": [
           0.268952,
           0.635454
-        ]
+        ],
+        "height_m": 0.7525
       },
       "ztsyqx": {
         "aabb_xy_min": [
@@ -6088,7 +4739,8 @@
         "aabb_xy_max": [
           0.348042,
           0.375877
-        ]
+        ],
+        "height_m": 0.7848
       }
     },
     "garden_coffee_table": {
@@ -6100,39 +4752,8 @@
         "aabb_xy_max": [
           0.637708,
           0.361265
-        ]
-      }
-    },
-    "lab_table": {
-      "ishrsy": {
-        "aabb_xy_min": [
-          -0.721045,
-          -2.014482
         ],
-        "aabb_xy_max": [
-          0.721233,
-          2.014549
-        ]
-      },
-      "jkemfk": {
-        "aabb_xy_min": [
-          -0.37442,
-          -1.173845
-        ],
-        "aabb_xy_max": [
-          0.459063,
-          1.119252
-        ]
-      },
-      "vujgjq": {
-        "aabb_xy_min": [
-          -0.753128,
-          -1.086793
-        ],
-        "aabb_xy_max": [
-          1.431245,
-          1.066925
-        ]
+        "height_m": 0.4728
       }
     },
     "nightstand": {
@@ -6144,7 +4765,8 @@
         "aabb_xy_max": [
           0.251703,
           0.321495
-        ]
+        ],
+        "height_m": 0.3025
       },
       "geeldi": {
         "aabb_xy_min": [
@@ -6154,17 +4776,8 @@
         "aabb_xy_max": [
           0.314018,
           0.359666
-        ]
-      },
-      "gjwjtj": {
-        "aabb_xy_min": [
-          -0.19822,
-          -0.261948
         ],
-        "aabb_xy_max": [
-          0.168493,
-          0.261943
-        ]
+        "height_m": 0.7557
       },
       "hessxe": {
         "aabb_xy_min": [
@@ -6174,7 +4787,8 @@
         "aabb_xy_max": [
           0.253247,
           0.260043
-        ]
+        ],
+        "height_m": 0.5964
       },
       "kanola": {
         "aabb_xy_min": [
@@ -6184,7 +4798,8 @@
         "aabb_xy_max": [
           0.263499,
           0.306425
-        ]
+        ],
+        "height_m": 0.7557
       },
       "ljtrka": {
         "aabb_xy_min": [
@@ -6194,7 +4809,8 @@
         "aabb_xy_max": [
           0.236592,
           0.234982
-        ]
+        ],
+        "height_m": 0.7558
       },
       "roxnbe": {
         "aabb_xy_min": [
@@ -6204,7 +4820,8 @@
         "aabb_xy_max": [
           0.297668,
           0.387989
-        ]
+        ],
+        "height_m": 0.7
       },
       "uudzva": {
         "aabb_xy_min": [
@@ -6214,7 +4831,8 @@
         "aabb_xy_max": [
           0.17526,
           0.230001
-        ]
+        ],
+        "height_m": 0.7
       },
       "uzxrlg": {
         "aabb_xy_min": [
@@ -6224,7 +4842,8 @@
         "aabb_xy_max": [
           0.251627,
           0.387093
-        ]
+        ],
+        "height_m": 0.347
       },
       "wbxekb": {
         "aabb_xy_min": [
@@ -6234,7 +4853,8 @@
         "aabb_xy_max": [
           0.226359,
           0.387727
-        ]
+        ],
+        "height_m": 0.347
       }
     },
     "pedestal_table": {
@@ -6246,7 +4866,8 @@
         "aabb_xy_max": [
           0.453397,
           0.456553
-        ]
+        ],
+        "height_m": 0.7213
       },
       "djflkd": {
         "aabb_xy_min": [
@@ -6256,7 +4877,8 @@
         "aabb_xy_max": [
           0.489559,
           0.484057
-        ]
+        ],
+        "height_m": 0.8041
       },
       "dmghrm": {
         "aabb_xy_min": [
@@ -6266,7 +4888,8 @@
         "aabb_xy_max": [
           0.555049,
           0.539242
-        ]
+        ],
+        "height_m": 0.6932
       },
       "gikdir": {
         "aabb_xy_min": [
@@ -6276,17 +4899,8 @@
         "aabb_xy_max": [
           0.397092,
           0.397052
-        ]
-      },
-      "gkkxaj": {
-        "aabb_xy_min": [
-          -0.325228,
-          -0.31326
         ],
-        "aabb_xy_max": [
-          0.309769,
-          0.313062
-        ]
+        "height_m": 0.3597
       },
       "ifmhpn": {
         "aabb_xy_min": [
@@ -6296,7 +4910,8 @@
         "aabb_xy_max": [
           0.570541,
           0.566984
-        ]
+        ],
+        "height_m": 0.9601
       },
       "jdilum": {
         "aabb_xy_min": [
@@ -6306,7 +4921,8 @@
         "aabb_xy_max": [
           0.46553,
           0.425298
-        ]
+        ],
+        "height_m": 0.77
       },
       "ktevfe": {
         "aabb_xy_min": [
@@ -6316,7 +4932,8 @@
         "aabb_xy_max": [
           0.37814,
           0.377681
-        ]
+        ],
+        "height_m": 0.6726
       },
       "mbojpo": {
         "aabb_xy_min": [
@@ -6326,7 +4943,8 @@
         "aabb_xy_max": [
           0.370296,
           0.370612
-        ]
+        ],
+        "height_m": 0.762
       },
       "nlfgwe": {
         "aabb_xy_min": [
@@ -6336,7 +4954,8 @@
         "aabb_xy_max": [
           0.542511,
           0.542532
-        ]
+        ],
+        "height_m": 0.7656
       },
       "nyprvh": {
         "aabb_xy_min": [
@@ -6346,7 +4965,8 @@
         "aabb_xy_max": [
           0.311584,
           0.31097
-        ]
+        ],
+        "height_m": 0.5937
       },
       "oqclwq": {
         "aabb_xy_min": [
@@ -6356,7 +4976,8 @@
         "aabb_xy_max": [
           0.453764,
           0.453235
-        ]
+        ],
+        "height_m": 0.5721
       },
       "pljlcn": {
         "aabb_xy_min": [
@@ -6366,7 +4987,8 @@
         "aabb_xy_max": [
           0.298312,
           0.298
-        ]
+        ],
+        "height_m": 0.3448
       },
       "poukwl": {
         "aabb_xy_min": [
@@ -6376,7 +4998,8 @@
         "aabb_xy_max": [
           0.455096,
           0.452998
-        ]
+        ],
+        "height_m": 0.3043
       },
       "pyybeq": {
         "aabb_xy_min": [
@@ -6386,7 +5009,8 @@
         "aabb_xy_max": [
           0.339271,
           0.335018
-        ]
+        ],
+        "height_m": 0.7594
       },
       "ssnzie": {
         "aabb_xy_min": [
@@ -6396,7 +5020,8 @@
         "aabb_xy_max": [
           0.310752,
           0.312432
-        ]
+        ],
+        "height_m": 0.3594
       },
       "swgvxs": {
         "aabb_xy_min": [
@@ -6406,7 +5031,8 @@
         "aabb_xy_max": [
           0.507753,
           0.508074
-        ]
+        ],
+        "height_m": 0.76
       },
       "tdpuit": {
         "aabb_xy_min": [
@@ -6416,7 +5042,8 @@
         "aabb_xy_max": [
           0.441105,
           0.624992
-        ]
+        ],
+        "height_m": 0.6634
       },
       "wnqrci": {
         "aabb_xy_min": [
@@ -6426,7 +5053,8 @@
         "aabb_xy_max": [
           0.419508,
           0.419679
-        ]
+        ],
+        "height_m": 0.5703
       },
       "xcnvsy": {
         "aabb_xy_min": [
@@ -6436,7 +5064,8 @@
         "aabb_xy_max": [
           0.198979,
           0.770189
-        ]
+        ],
+        "height_m": 0.7025
       },
       "xrrhik": {
         "aabb_xy_min": [
@@ -6446,7 +5075,8 @@
         "aabb_xy_max": [
           0.388052,
           0.389429
-        ]
+        ],
+        "height_m": 0.6845
       }
     },
     "reception_desk": {
@@ -6458,17 +5088,8 @@
         "aabb_xy_max": [
           0.245577,
           0.725641
-        ]
-      },
-      "qztpgl": {
-        "aabb_xy_min": [
-          -0.513922,
-          -1.210213
         ],
-        "aabb_xy_max": [
-          0.447404,
-          1.210211
-        ]
+        "height_m": 0.8128
       },
       "ukonss": {
         "aabb_xy_min": [
@@ -6478,7 +5099,8 @@
         "aabb_xy_max": [
           0.277253,
           1.295188
-        ]
+        ],
+        "height_m": 1.0063
       },
       "vxombm": {
         "aabb_xy_min": [
@@ -6488,7 +5110,8 @@
         "aabb_xy_max": [
           0.256358,
           1.079999
-        ]
+        ],
+        "height_m": 0.8
       }
     }
   }

@@ -1,5 +1,15 @@
 # Task Generation Pipeline — Dev Log
 
+## 2026-04-13
+
+### placeable_surfaces_v1.json: filter not-ready models from B1K knowledgebase
+- `build_placeable_surfaces.py` now drops any `(category, model)` flagged as not-ready in `bddl3/bddl/generated_data/complaints.json` (objects with unprocessed QA complaints). The knowledgebase's `ready` property considers only unprocessed complaints (`bddl3/bddl/knowledge_base/processing.py:484`).
+- Counts: 192 → 145 models, 218 → 165 surfaces, 14 → 13 categories (`lab_table` dropped entirely — all 3 models had unprocessed complaints).
+- 47 skipped models are listed verbatim in the JSON's `skipped_not_ready` field for auditability.
+- Skipped by category: desk (19), coffee_table (10), console_table (5), lab_table (3), bar (2), commercial_kitchen_table (2), checkout_counter / conference_table / countertop / nightstand / pedestal_table / reception_desk (1 each).
+- Dominant unprocessed complaint types: `nth-metalink` (30), `material` (13), `appearance` (7) — all cosmetic / metadata issues, none structural (no `collision`/`scale`/`joint`/`category`).
+- Override: pass `--no-require-ready` to keep not-ready entries (for debugging).
+
 ## 2026-04-09
 
 ### Empty-scene pipeline refactor
