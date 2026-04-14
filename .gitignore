@@ -8,3 +8,5 @@ bddl3/bddl/activity_definitions/*
 checkpoints/
 RLinf-*/
 RLinf/.venv*/
+.vscode/
+teleop_bridge/SO-ARM100/
