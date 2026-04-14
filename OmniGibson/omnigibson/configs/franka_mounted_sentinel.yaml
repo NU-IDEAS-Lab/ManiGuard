@@ -7,8 +7,8 @@ env:
   initial_pos_z_offset: 0.1
   external_sensors:
     - sensor_type: VisionSensor
-      name: external_sensor0
-      relative_prim_path: /external_sensor0
+      name: cam_opposite
+      relative_prim_path: /cam_opposite
       modalities: [rgb]
       sensor_kwargs:
         image_height: 240

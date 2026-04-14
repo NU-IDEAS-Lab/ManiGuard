@@ -1149,7 +1149,7 @@ class SentinelEnv(gym.Env):
             return
         geometry = self._compute_workspace_geometry(env, target_obj, support_obj)
         canonical_view = self._build_policy_main_camera_view(geometry)
-        sensor = env.external_sensors["external_sensor0"]
+        sensor = env.external_sensors["cam_opposite"]
         position, orientation = self._build_camera_pose(
             eye=canonical_view["eye"],
             lookat=canonical_view["lookat"],
@@ -1171,8 +1171,17 @@ class SentinelEnv(gym.Env):
         }
 
     def _extract_obs(self, env, raw_obs, spec: SentinelSceneSpec):
+        from omnigibson.utils.camera_setup import compose_main_image, normalize_policy_cameras
+
         external = raw_obs.get("external", {})
-        main_rgb = external["external_sensor0"]["rgb"].to(torch.uint8)[..., :3]
+        policy_cams = normalize_policy_cameras(
+            getattr(self.cfg.sentinel_cfg, "policy_external_cameras", None)
+        )
+        rgb_by_cam = {
+            name: external[name]["rgb"].to(torch.uint8)[..., :3]
+            for name in policy_cams
+        }
+        main_rgb = compose_main_image(rgb_by_cam, policy_cams)
 
         robot = env.robots[0]
         robot_obs = raw_obs[robot.name]
@@ -1586,7 +1595,7 @@ class SentinelEnv(gym.Env):
             if info["success"]:
                 terminated = True
             if self.video_cfg.save_video:
-                frame = raw_obs["external"]["external_sensor0"]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
+                frame = raw_obs["external"]["cam_opposite"]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
                 self._frames[env_idx].append(frame)
             obs_items.append(self._extract_obs(env, raw_obs, spec))
             rewards.append(float(reward))
