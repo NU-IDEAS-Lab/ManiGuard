@@ -39,6 +39,7 @@ import numpy as np
 from omnigibson.task_generation.pipeline_common import (
     append_jsonl,
     make_settle_fn,
+    object_aabb_dims,
     pipeline_exit,
     refresh_activity_cache,
     robot_half_extent_xy,
@@ -380,19 +381,10 @@ def _generate_bddl(args, activity_name, support_synset, rng, selection=None):
 # ---------------------------------------------------------------------------
 
 def setup_run_dir(args):
-    if args.run_dir is None:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        label = args.surface_category or "random"
-        args.run_dir = os.path.join(_DEFAULT_RUNS_DIR, f"empty_{label}_{args.setup}_{ts}")
-    os.makedirs(args.run_dir, exist_ok=True)
-    if args.debug_jsonl is None:
-        args.debug_jsonl = os.path.join(args.run_dir, "diagnostics.jsonl")
-    if args.save_video is True:
-        args.save_video = os.path.join(args.run_dir, "rollout.mp4")
-    elif args.save_video is False:
-        args.save_video = None
+    from omnigibson.task_generation.pipeline_common import init_run_dir
+    label = f"empty_{args.surface_category or 'random'}_{args.setup}"
+    init_run_dir(args, label)
     args.scene_model = f"empty_{args.surface_category or 'random'}"
-    print(f"[Pipeline] Run directory: {args.run_dir}")
     sys.stdout.flush()
 
 
@@ -495,13 +487,10 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
         descriptors = []
         for inst, obj in objects_by_inst.items():
-            try:
-                a_min, a_max = obj.aabb
-                dx = max(0.01, float(a_max[0] - a_min[0]))
-                dy = max(0.01, float(a_max[1] - a_min[1]))
-                dz = max(0.01, float(a_max[2] - a_min[2]))
-            except Exception:
+            dims = object_aabb_dims(obj)
+            if dims is None:
                 continue
+            dx, dy, dz = dims
             descriptors.append(ClutterObjectDescriptor(
                 instance_id=inst, role=roles_by_inst[inst],
                 half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
@@ -542,13 +531,10 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
         stack_descs = []
         for inst, obj in objects_by_inst.items():
-            try:
-                a_min, a_max = obj.aabb
-                dx = max(0.01, float(a_max[0] - a_min[0]))
-                dy = max(0.01, float(a_max[1] - a_min[1]))
-                dz = max(0.01, float(a_max[2] - a_min[2]))
-            except Exception:
+            dims = object_aabb_dims(obj)
+            if dims is None:
                 continue
+            dx, dy, dz = dims
             stack_descs.append(StackObjectDescriptor(
                 instance_id=inst, role=roles_by_inst[inst],
                 half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
