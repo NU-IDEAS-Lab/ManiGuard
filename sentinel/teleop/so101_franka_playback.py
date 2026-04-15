@@ -7,11 +7,11 @@ into an output HDF5.
 
 Examples:
     # Watch in the viewer, no obs dump
-    python -m omnigibson.examples.teleoperation.so101_franka_playback \\
+    python -m sentinel.teleop.so101_franka_playback \\
         --input outputs/teleop/demo.hdf5
 
     # Dump RGB observations to a new HDF5
-    python -m omnigibson.examples.teleoperation.so101_franka_playback \\
+    python -m sentinel.teleop.so101_franka_playback \\
         --input outputs/teleop/demo.hdf5 \\
         --output outputs/teleop/demo_obs.hdf5 --record
 """

@@ -1,5 +1,17 @@
 # SENTINEL-Lite — Dev Log
 
+## 2026-04-15 (continued)
+
+### Decouple teleop from OmniGibson
+- Moved the three Sentinel-specific teleop sources out of `OmniGibson/` into `sentinel/teleop/`:
+  - `OmniGibson/omnigibson/teleop/so101_teleop.py` → `sentinel/teleop/so101_teleop.py`
+  - `OmniGibson/omnigibson/examples/teleoperation/so101_franka_teleop.py` → `sentinel/teleop/so101_franka_teleop.py`
+  - `OmniGibson/omnigibson/examples/teleoperation/so101_franka_playback.py` → `sentinel/teleop/so101_franka_playback.py`
+- Dropped the now-empty `OmniGibson/omnigibson/teleop/` package (it was ours from day one; upstream never had it).
+- Rewrote internal imports: `omnigibson.teleop.so101_teleop` → `sentinel.teleop.so101_teleop`. Updated `teleop_bridge/README.md` launch example to `python -m sentinel.teleop.so101_franka_teleop`.
+- Populated `sentinel/teleop/__init__.py` with the module docstring that pointed to this follow-up.
+- OmniGibson subtree is now one step closer to pure-upstream; remaining Sentinel-specific code there is only `omnigibson/task_generation/*` and a few utility helpers (`camera_setup.py`, LTL hooks). Those stay for now because they're deeply integrated into the pipeline and OmniGibson utility surface.
+
 ## 2026-04-15
 
 ### Teleop → SFT data pipeline (Pi0.5 / OpenPI)

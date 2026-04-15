@@ -157,7 +157,7 @@ In a **separate terminal**:
 ```bash
 conda activate behavior
 cd ~/Desktop/projects/SENTINEL-Lite
-python -m omnigibson.examples.teleoperation.so101_franka_teleop \
+python -m sentinel.teleop.so101_franka_teleop \
     --snapshot outputs/pipeline_runs/<run>/scene_ep1.json
 ```
 

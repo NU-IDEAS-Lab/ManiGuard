@@ -7,7 +7,7 @@ pipeline-generated scene snapshot and optionally records a trajectory via
 DataCollectionWrapper.
 
 Usage:
-    python -m omnigibson.examples.teleoperation.so101_franka_teleop \
+    python -m sentinel.teleop.so101_franka_teleop \
         --snapshot outputs/pipeline_runs/<run>/scene_ep1.json
 
 Prerequisites:
@@ -16,7 +16,7 @@ Prerequisites:
         python teleop_bridge/so101_server.py --port /dev/ttyACM0  # real hardware
 
     Terminal 2 (behavior conda):
-        python -m omnigibson.examples.teleoperation.so101_franka_teleop \
+        python -m sentinel.teleop.so101_franka_teleop \
             --snapshot <path>
 """
 
@@ -28,7 +28,7 @@ import sys
 import omnigibson as og
 import omnigibson.lazy as lazy
 from omnigibson.envs import DataCollectionWrapper
-from omnigibson.teleop.so101_teleop import SO101TeleopAgent, SO101TeleopConfig
+from sentinel.teleop.so101_teleop import SO101TeleopAgent, SO101TeleopConfig
 from omnigibson.utils.ui_utils import KeyboardEventHandler
 
 
