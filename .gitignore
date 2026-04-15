@@ -1,4 +1,7 @@
 .DS_Store
+__pycache__/
+*.pyc
+*.pyo
 .context/
 log_dir/*
 scene_generation/*
