@@ -322,29 +322,6 @@ _CONFIGS = [
         num_train_steps=30_000,
     ),
     TrainConfig(
-        # SFT for SO-101 teleop demos collected via so101_franka_teleop.py
-        # and converted to LeRobot v2.1 by tools/hdf5_to_lerobot.py. 7D EEF
-        # delta action matches OmniGibsonDataConfig exactly, so no extra
-        # delta transform at the data layer. Prompt is pulled from the
-        # dataset's tasks.jsonl ("pick up the goblet and place it on the plate").
-        name="pi05_sentinel_goblet",
-        model=pi0_config.Pi0Config(
-            pi05=True, action_horizon=10, discrete_state_input=False
-        ),
-        data=OmniGibsonDataConfig(
-            repo_id="sentinel/goblet_pick_place",
-            base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(
-                assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets",
-                asset_id="sentinel_goblet_pick_place",
-            ),
-            extra_delta_transform=False,
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(_DEFAULT_PI05_BEHAVIOR_BASE),
-        pytorch_weight_path=_DEFAULT_PI05_BEHAVIOR_BASE,
-        num_train_steps=5_000,
-    ),
-    TrainConfig(
         name="pi0_custom",
         model=pi0_config.Pi0Config(),
         data=CustomDataConfig(
