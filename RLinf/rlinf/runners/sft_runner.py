@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from omegaconf.dictconfig import DictConfig
 from tqdm import tqdm
@@ -21,16 +22,20 @@ from tqdm import tqdm
 from rlinf.scheduler import WorkerGroupFuncResult as Handle
 from rlinf.utils.distributed import ScopedTimer
 from rlinf.utils.metric_logger import MetricLogger
-from rlinf.utils.metric_utils import compute_evaluate_metrics
-from rlinf.utils.runner_utils import check_progress
-from rlinf.workers.sft.fsdp_sft_worker import FSDPSftWorker
+from rlinf.utils.runner_utils import EarlyStopController, check_progress
+
+if TYPE_CHECKING:
+    from rlinf.workers.reward.reward_worker import FSDPRewardWorker
+    from rlinf.workers.sft.fsdp_sft_worker import FSDPSftWorker
+
+logger = logging.getLogger(__name__)
 
 
 class SFTRunner:
     def __init__(
         self,
         cfg: DictConfig,
-        actor: FSDPSftWorker,
+        actor: Union["FSDPSftWorker", "FSDPRewardWorker"],
         run_timer: Optional[ScopedTimer] = None,
     ) -> None:
         self.cfg = cfg
@@ -42,6 +47,10 @@ class SFTRunner:
         self.consumed_samples = 0
         # the step here is GRPO step
         self.global_step = 0
+        early_stop_cfg = cfg.runner.get("early_stop", None)
+        self.early_stop = (
+            EarlyStopController(early_stop_cfg) if early_stop_cfg is not None else None
+        )
 
         # compute `max_steps`
         self.set_max_steps()
@@ -65,25 +74,6 @@ class SFTRunner:
         self.actor.load_checkpoint(actor_checkpoint_path).wait()
         self.global_step = int(resume_dir.split("global_step_")[-1])
 
-    def _sync_weights(self) -> None:
-        rollout_handle: Handle = self.rollout.sync_model_from_actor()
-        actor_handle: Handle = self.actor.sync_model_to_rollout()
-        actor_handle.wait()
-        rollout_handle.wait()
-
-    def evaluate(self) -> dict[str, float]:
-        env_handle: Handle = self.env.evaluate(
-            input_channel=self.rollout_channel, output_channel=self.env_channel
-        )
-        rollout_handle: Handle = self.rollout.evaluate(
-            input_channel=self.env_channel, output_channel=self.rollout_channel
-        )
-        env_results = env_handle.wait()
-        rollout_handle.wait()
-        eval_metrics_list = [results for results in env_results if results is not None]
-        eval_metrics = compute_evaluate_metrics(eval_metrics_list)
-        return eval_metrics
-
     def run(self) -> None:
         start_step = self.global_step
         global_pbar = tqdm(
@@ -93,18 +83,17 @@ class SFTRunner:
             ncols=800,
         )
         for _step in range(start_step, self.max_steps):
-            # set global step
-            self.actor.set_global_step(self.global_step)
+            if hasattr(self.actor, "set_global_step"):
+                # set global step
+                self.actor.set_global_step(self.global_step)
 
-            # RL Training
             with self.timer("step"):
-                # Actor training.
                 actor_handle: Handle = self.actor.run_training()
                 actor_metrics = actor_handle.wait()
 
                 self.global_step += 1
 
-                _, save_model, _ = check_progress(
+                eval_model, save_model, _ = check_progress(
                     self.global_step,
                     self.max_steps,
                     self.cfg.runner.val_check_interval,
@@ -116,8 +105,22 @@ class SFTRunner:
                 if save_model:
                     self._save_checkpoint()
 
+                should_stop = False
+                if eval_model:
+                    eval_handle: Handle = self.actor.run_eval()
+                    eval_metrics = eval_handle.wait()
+
+                    if self.early_stop is not None:
+                        should_stop, best_val_acc_improved = self.early_stop.update(
+                            eval_metrics[0]
+                        )
+                        if best_val_acc_improved:
+                            self._save_checkpoint(is_best=True)
+
             time_metrics = self.timer.consume_durations()
             time_metrics["training"] = actor_handle.consume_duration()
+            if eval_model:
+                time_metrics["evaluate"] = eval_handle.consume_duration()
             time_metrics = {f"time/{k}": v for k, v in time_metrics.items()}
             training_metrics = {f"train/{k}": v for k, v in actor_metrics[0].items()}
             self.metric_logger.log(time_metrics, _step)
@@ -126,20 +129,64 @@ class SFTRunner:
             logging_metrics = time_metrics
             logging_metrics.update(training_metrics)
 
+            if eval_model:
+                evaluate_metrics = {f"eval/{k}": v for k, v in eval_metrics[0].items()}
+                logging_metrics.update(evaluate_metrics)
+                self.metric_logger.log(evaluate_metrics, _step)
+
             global_pbar.set_postfix(logging_metrics, refresh=False)
             global_pbar.update(1)
+            if should_stop:
+                break
 
+        if self.early_stop is not None and self.early_stop.best_val_acc > 0:
+            logger.info(
+                f"Early stopping triggered! Best val_acc: {self.early_stop.best_val_acc:.4f}"
+            )
         self.metric_logger.finish()
 
-    def _save_checkpoint(self) -> None:
-        base_output_dir = os.path.join(
+    def run_eval(self) -> None:
+        with self.timer("evaluate"):
+            eval_handle: Handle = self.actor.run_eval()
+            eval_metrics = eval_handle.wait()
+
+        time_metrics = self.timer.consume_durations()
+        time_metrics["evaluate"] = eval_handle.consume_duration()
+        time_metrics = {f"time/{k}": v for k, v in time_metrics.items()}
+
+        raw_eval = (
+            eval_metrics[0]
+            if isinstance(eval_metrics, (list, tuple)) and len(eval_metrics) > 0
+            else {}
+        )
+        evaluate_metrics = {f"eval/{k}": v for k, v in raw_eval.items()}
+
+        logging_metrics = {}
+        logging_metrics.update(time_metrics)
+        logging_metrics.update(evaluate_metrics)
+
+        logger.info(f"Eval metrics: {evaluate_metrics}")
+        self.metric_logger.finish()
+
+    def _save_checkpoint(self, is_best: bool = False) -> None:
+        checkpoint_root = os.path.join(
             self.cfg.runner.logger.log_path,
             self.cfg.runner.logger.experiment_name,
-            f"checkpoints/global_step_{self.global_step}",
         )
+        if is_best:
+            base_output_dir = os.path.join(checkpoint_root, "checkpoints/best_model")
+        else:
+            base_output_dir = os.path.join(
+                checkpoint_root,
+                f"checkpoints/global_step_{self.global_step}",
+            )
         actor_save_path = os.path.join(base_output_dir, "actor")
         os.makedirs(actor_save_path, exist_ok=True)
         self.actor.save_checkpoint(actor_save_path, self.global_step).wait()
+        if is_best and self.early_stop is not None:
+            logger.info(
+                f"Saved best model (val_acc={self.early_stop.best_val_acc:.4f}) to {base_output_dir}"
+            )
 
     def set_max_steps(self) -> None:
         self.num_steps_per_epoch = 1

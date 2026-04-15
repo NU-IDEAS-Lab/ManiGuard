@@ -22,16 +22,18 @@ class SupportedEnvType(Enum):
     ISAACLAB = "isaaclab"
     METAWORLD = "metaworld"
     BEHAVIOR = "behavior"
-    SENTINEL = "sentinel"
     CALVIN = "calvin"
     ROBOCASA = "robocasa"
     REALWORLD = "realworld"
     FRANKASIM = "frankasim"
     HABITAT = "habitat"
     OPENSORAWM = "opensora_wm"
+    WANWM = "wan_wm"
+    EMBODICHAIN = "embodichain"
+    ROBOVERSE = "roboverse"
 
 
-def get_env_cls(env_type: str, env_cfg=None, enable_offload=False):
+def get_env_cls(env_type: str, env_cfg=None):
     """
     Get environment class based on environment type.
 
@@ -46,14 +48,14 @@ def get_env_cls(env_type: str, env_cfg=None, enable_offload=False):
     env_type = SupportedEnvType(env_type)
 
     if env_type == SupportedEnvType.MANISKILL:
-        if not enable_offload:
-            from rlinf.envs.maniskill.maniskill_env import ManiskillEnv
-        else:
-            from rlinf.envs.maniskill.maniskill_offload_env import (
-                ManiskillOffloadEnv as ManiskillEnv,
-            )
+        if env_cfg.get("enable_offload", False):
+            from rlinf.envs.maniskill.maniskill_offload_env import ManiskillOffloadEnv
 
-        return ManiskillEnv
+            return ManiskillOffloadEnv
+        else:
+            from rlinf.envs.maniskill.maniskill_env import ManiskillEnv
+
+            return ManiskillEnv
     elif env_type == SupportedEnvType.LIBERO:
         from rlinf.envs.libero.libero_env import LiberoEnv
 
@@ -85,10 +87,6 @@ def get_env_cls(env_type: str, env_cfg=None, enable_offload=False):
         from rlinf.envs.behavior.behavior_env import BehaviorEnv
 
         return BehaviorEnv
-    elif env_type == SupportedEnvType.SENTINEL:
-        from rlinf.envs.sentinel.sentinel_env import SentinelEnv
-
-        return SentinelEnv
     elif env_type == SupportedEnvType.CALVIN:
         from rlinf.envs.calvin.calvin_gym_env import CalvinEnv
 
@@ -113,5 +111,17 @@ def get_env_cls(env_type: str, env_cfg=None, enable_offload=False):
         from rlinf.envs.world_model.world_model_opensora_env import OpenSoraEnv
 
         return OpenSoraEnv
+    elif env_type == SupportedEnvType.WANWM:
+        from rlinf.envs.world_model.world_model_wan_env import WanEnv
+
+        return WanEnv
+    elif env_type == SupportedEnvType.EMBODICHAIN:
+        from rlinf.envs.embodichain.embodichain_env import EmbodiChainEnv
+
+        return EmbodiChainEnv
+    elif env_type == SupportedEnvType.ROBOVERSE:
+        from rlinf.envs.roboverse.roboverse_env import RoboVerseEnv
+
+        return RoboVerseEnv
     else:
         raise NotImplementedError(f"Environment type {env_type} not implemented")

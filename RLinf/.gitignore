@@ -18,8 +18,5 @@ outputs/*
 .docs-venv
 uv.lock
 rlinf/envs/maniskill/assets
-
-RLinf-Pi0-Behavior
-
-
-!.gitignore
+PKG-INFO
+*.egg-info/

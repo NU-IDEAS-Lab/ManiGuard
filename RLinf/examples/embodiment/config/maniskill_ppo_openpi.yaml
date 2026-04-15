@@ -50,6 +50,8 @@ algorithm:
   adv_type: gae
   loss_type: actor_critic
   loss_agg_func: "token-mean" 
+
+  bootstrap_type: always # [standard, always]. Bootstrap Q-values according to terminations and truncations. "standard" only bootstraps when truncations, while "always" bootstraps when truncations or terminations.
   kl_beta: 0.0
   entropy_bonus: 0.005
   clip_ratio_high: 0.2
@@ -83,7 +85,7 @@ algorithm:
 
 env:
   group_name: "EnvGroup"
-  enable_offload: False
+
   # Override the default values in env/train or env/eval
   train:
     total_num_envs: 320
@@ -117,7 +119,7 @@ rollout:
   pipeline_stage_num: 1
 
   model:
-    model_path: "/path/to/model/RLinf-Pi0-ManiSkill-25Main-SFT"
+    model_path: "/path/to/model/RLinf-Pi0-ManiSkill-25Main-SFT" # https://huggingface.co/RLinf/RLinf-Pi0-ManiSkill-25Main-SFT
     precision: ${actor.model.precision}
 
 actor:
@@ -129,7 +131,7 @@ actor:
   enable_offload: False
   # Override the default values in model/pi0
   model:
-    model_path: "/path/to/model/RLinf-Pi0-ManiSkill-25Main-SFT"
+    model_path: "/path/to/model/RLinf-Pi0-ManiSkill-25Main-SFT" # https://huggingface.co/RLinf/RLinf-Pi0-ManiSkill-25Main-SFT
     model_name: "openpi"
     precision: null    # bf16
     num_action_chunks: 5 # interface for the env

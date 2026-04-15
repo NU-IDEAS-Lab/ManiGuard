@@ -11,21 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import copy
-import os
 from typing import Optional, Union
 
 import gymnasium as gym
 import numpy as np
-import robocasa  # noqa: F401 Robocasa must be imported to register envs
 import torch
 from omegaconf import OmegaConf
 
 from rlinf.envs.robocasa.utils import (
-    put_info_on_image,
-    save_rollout_video,
-    tile_images,
+    OBS_KEY_CAMERA_NAME_MAPPING,
+    OBS_KEY_ROBOCASA_IMAGE_MAPPING,
+    get_image_space,
 )
 from rlinf.envs.robocasa.venv import RobocasaSubprocEnv
 from rlinf.envs.utils import (
@@ -40,9 +37,9 @@ class RobocasaEnv(gym.Env):
         self.cfg = cfg
         self.total_num_processes = total_num_processes
         self.worker_info = worker_info
+        self.num_envs = num_envs
         self.seed = self.cfg.seed + seed_offset
         self._is_start = True
-        self.num_envs = num_envs
         self.group_size = self.cfg.group_size
         self.num_group = self.num_envs // self.group_size
         self.use_fixed_reset_state_ids = cfg.get("use_fixed_reset_state_ids", False)
@@ -60,9 +57,6 @@ class RobocasaEnv(gym.Env):
         )
         self.num_tasks = len(self.task_names)
 
-        # Task descriptions
-        self.task_descriptions_all = self._load_task_descriptions()
-
         # Initialize reset state IDs for group_size repetition
         # Each unique scenario (num_group) will be repeated group_size times
         self._init_reset_state_ids()
@@ -76,44 +70,21 @@ class RobocasaEnv(gym.Env):
         self._elapsed_steps = np.zeros(self.num_envs, dtype=np.int32)
 
         self.video_cfg = cfg.video_cfg
-        self.video_cnt = 0
-        self.render_images = []
 
-    def _load_task_descriptions(self):
-        """Load task descriptions for robocasa tasks."""
-        # Map task names to natural language descriptions for all 24 atomic tasks
-        # (excluding NavigateKitchen)
-        task_desc_map = {
-            # Door tasks
-            "OpenSingleDoor": "open cabinet or microwave door",
-            "CloseSingleDoor": "close cabinet or microwave door",
-            "OpenDoubleDoor": "open double cabinet doors",
-            "CloseDoubleDoor": "close double cabinet doors",
-            "OpenDrawer": "open drawer",
-            "CloseDrawer": "close drawer",
-            # Pick and place tasks
-            "PnPCounterToCab": "pick and place from counter to cabinet",
-            "PnPCabToCounter": "pick and place from cabinet to counter",
-            "PnPCounterToSink": "pick and place from counter to sink",
-            "PnPSinkToCounter": "pick and place from sink to counter",
-            "PnPCounterToStove": "pick and place from counter to stove",
-            "PnPStoveToCounter": "pick and place from stove to counter",
-            "PnPCounterToMicrowave": "pick and place from counter to microwave",
-            "PnPMicrowaveToCounter": "pick and place from microwave to counter",
-            # Appliance control tasks
-            "TurnOnMicrowave": "turn on microwave",
-            "TurnOffMicrowave": "turn off microwave",
-            "TurnOnSinkFaucet": "turn on sink faucet",
-            "TurnOffSinkFaucet": "turn off sink faucet",
-            "TurnSinkSpout": "turn sink spout",
-            "TurnOnStove": "turn on stove",
-            "TurnOffStove": "turn off stove",
-            # Coffee tasks
-            "CoffeeSetupMug": "setup mug for coffee",
-            "CoffeeServeMug": "serve coffee into mug",
-            "CoffeePressButton": "press coffee machine button",
-        }
-        return [task_desc_map.get(task, task) for task in self.task_names]
+    @property
+    def camera_names(self):
+        """Set the camaera names given image_space"""
+        # Idealy, the env shall provide the full info. However, the number of cameras would lower the efficiency.
+        # SO we only setup cameras in need.
+        image_space = get_image_space(self.cfg.image_space)
+
+        camera_names = [
+            OBS_KEY_CAMERA_NAME_MAPPING[obs_key]
+            for obs_key in image_space
+            if obs_key in OBS_KEY_CAMERA_NAME_MAPPING
+        ]
+
+        return camera_names
 
     def _init_reset_state_ids(self):
         """Initialize reset state IDs - simplified version.
@@ -124,9 +95,9 @@ class RobocasaEnv(gym.Env):
 
         We simply assign each parallel environment a unique, fixed seed.
         """
-        # Assign sequential seeds to each environment: seed_offset*num_envs + [0, 1, 2, ...]
-        base_seed = self.seed
-        self.env_seeds = [base_seed + i for i in range(self.num_envs)]
+        local_env_ids = np.arange(self.num_envs, dtype=np.int64)
+        global_env_ids = self.seed_offset * self.num_envs + local_env_ids
+        self.env_seeds = (self.cfg.seed + global_env_ids).astype(np.int64)
 
     def update_reset_state_ids(self):
         """Update reset state IDs for the next rollout.
@@ -137,6 +108,8 @@ class RobocasaEnv(gym.Env):
 
     def _init_env(self):
         """Initialize robocasa environments using subprocess isolation."""
+        import robocasa  # noqa: F401 Robocasa must be imported to register envs
+
         self.task_ids = []
 
         # Determine task IDs for each environment
@@ -161,7 +134,6 @@ class RobocasaEnv(gym.Env):
             env_seed = self.env_seeds[env_id]
 
             # Convert OmegaConf configs to standard Python types
-            camera_names = OmegaConf.to_container(self.cfg.camera_names, resolve=True)
             camera_widths = self.cfg.init_params.camera_widths
             camera_heights = self.cfg.init_params.camera_heights
             robot_name = self.cfg.robot_name
@@ -169,7 +141,6 @@ class RobocasaEnv(gym.Env):
             def env_fn(
                 task=task_name,
                 seed=env_seed,
-                cameras=camera_names,
                 width=camera_widths,
                 height=camera_heights,
                 robot=robot_name,
@@ -187,7 +158,7 @@ class RobocasaEnv(gym.Env):
                     env_name=task,
                     robots=robot,
                     controller_configs=controller_config,
-                    camera_names=cameras,
+                    camera_names=self.camera_names,
                     camera_widths=width,
                     camera_heights=height,
                     has_renderer=False,
@@ -260,74 +231,85 @@ class RobocasaEnv(gym.Env):
         """Extract images and states from robocasa observations.
 
         Pi0 expects:
-        - Two 128x128 images: robot0_agentview_left_image, robot0_eye_in_hand_image
-        - 16D state matching training data (padded to 32D internally by Pi0)
+        - Three 224x224 images: robot0_agentview_left_image, robot0_eye_in_hand_image, robot0_agentview_right_image
+        - 25D state matching training data (padded to 32D internally by Pi0)
 
         Based on dataset analysis and norm_stats.json, Pi0 expects 16D state:
-        [0:2]   robot0_base_pos (x, y) - 2D
-        [2:5]   zeros (padding, base z is constant) - 3D
-        [5:9]   robot0_base_to_eef_quat - 4D
-        [9:12]  robot0_base_to_eef_pos - 3D
-        [12:14] robot0_gripper_qvel - 2D (gripper velocities)
-        [14:16] robot0_gripper_qpos - 2D (gripper positions)
+        [0:3]   robot0_eef_pos (x, y, z) - 3D
+        [3:7]   robot0_eef_quat (w, x, y, z) - 4D
+        [7:9]   robot0_gripper_qpos (l, r) - 2D
+        [9:11]  robot0_gripper_qvel (l, r) - 2D
+        [11:14] robot0_base_to_eef_pos (x, y, z) - 3D
+        [14:18] robot0_base_to_eef_quat (w, x, y, z) - 4D
+        [18:21] robot0_base_pos - (x, y, z) 3D
+        [21:25] robot0_base_quat - (w, x, y, z) 4D
         """
-        base_images = []
+        left_images = []
         wrist_images = []
+        right_images = []
         states = []
 
         for env_id in range(len(obs)):
             # Get camera images
-            base_img = obs[env_id].get("robot0_agentview_left_image")
+            left_img = obs[env_id].get("robot0_agentview_left_image")
             wrist_img = obs[env_id].get("robot0_eye_in_hand_image")
+            right_img = obs[env_id].get("robot0_agentview_right_image")
 
             # Flip images vertically (OpenGL coordinates are upside down)
-            if base_img is not None:
-                base_img = base_img[::-1]
+
+            if left_img is not None:
+                left_img = left_img[::-1]
             if wrist_img is not None:
                 wrist_img = wrist_img[::-1]
+            if right_img is not None:
+                right_img = right_img[::-1]
 
-            base_images.append(base_img)
+            left_images.append(left_img)
             wrist_images.append(wrist_img)
+            right_images.append(right_img)
 
-            # Construct 16D state matching Pi0's training format
-            state_16d = np.zeros(16, dtype=np.float32)
+            # Construct full 25D state matching Pi0's training format
+            state_25d = np.zeros(25, dtype=np.float32)
+            state_25d[0:3] = obs[env_id]["robot0_eef_pos"]
+            state_25d[3:7] = obs[env_id]["robot0_eef_quat"]
+            state_25d[7:9] = obs[env_id]["robot0_gripper_qpos"]
+            state_25d[9:11] = obs[env_id]["robot0_gripper_qvel"]
+            state_25d[11:14] = obs[env_id]["robot0_base_to_eef_pos"]
+            state_25d[14:18] = obs[env_id]["robot0_base_to_eef_quat"]
+            state_25d[18:21] = obs[env_id]["robot0_base_pos"]
+            state_25d[21:25] = obs[env_id]["robot0_base_quat"]
 
-            if "robot0_base_pos" in obs[env_id]:
-                base_pos = obs[env_id]["robot0_base_pos"]  # 3D
-                base_to_eef_pos = obs[env_id]["robot0_base_to_eef_pos"]  # 3D
-                base_to_eef_quat = obs[env_id]["robot0_base_to_eef_quat"]  # 4D
-                gripper_qpos = obs[env_id]["robot0_gripper_qpos"]  # 2D
-                gripper_qvel = obs[env_id]["robot0_gripper_qvel"]  # 2D
-
-                # Map to Pi0's expected format (inferred from dataset analysis):
-                state_16d[0:2] = base_pos[0:2]  # base x, y (z is constant)
-                # [2:5] remain zeros (padding)
-                state_16d[5:9] = (
-                    base_to_eef_quat  # end-effector quaternion relative to base
-                )
-                state_16d[9:12] = (
-                    base_to_eef_pos  # end-effector position relative to base
-                )
-                state_16d[12:14] = gripper_qvel  # gripper joint velocities ✅ NEW!
-                state_16d[14:16] = gripper_qpos  # gripper joint positions
-
-            states.append(state_16d)
+            states.append(state_25d)
 
         return {
-            "base_image": np.array(base_images),
-            "wrist_image": np.array(wrist_images),
+            "robot0_agentview_left_image": np.array(left_images),
+            "robot0_eye_in_hand_image": np.array(wrist_images),
+            "robot0_agentview_right_image": np.array(
+                right_images
+            ),  # can be [None, None, ...]
             "state": np.array(states),
         }
 
-    def _wrap_obs(self, obs_list):
-        extracted = self._extract_image_and_state(obs_list)
+    def _extract_task_description(self, info_list):
+        return [info.get("ep_meta", {}).get("lang", "") for info in info_list]
+
+    def _wrap_obs(self, obs_list, info_list):
+        extracted_obs = self._extract_image_and_state(obs_list)
+        task_description_list = self._extract_task_description(info_list)
 
         images_and_states_list = []
         for idx in range(self.num_envs):
             images_and_states = {
-                "base_image": extracted["base_image"][idx],
-                "wrist_image": extracted["wrist_image"][idx],
-                "state": extracted["state"][idx],
+                "robot0_agentview_left_image": extracted_obs[
+                    "robot0_agentview_left_image"
+                ][idx],
+                "robot0_eye_in_hand_image": extracted_obs["robot0_eye_in_hand_image"][
+                    idx
+                ],
+                "robot0_agentview_right_image": extracted_obs[
+                    "robot0_agentview_right_image"
+                ][idx],
+                "state": extracted_obs["state"][idx],
             }
             images_and_states_list.append(images_and_states)
 
@@ -335,25 +317,24 @@ class RobocasaEnv(gym.Env):
             list_of_dict_to_dict_of_list(images_and_states_list)
         )
 
-        # Convert images from [H, W, C] -> [B, H, W, C]
-        full_image_tensor = torch.stack(
-            [value.clone() for value in images_and_states_tensor["base_image"]]
-        )
-        wrist_image_tensor = torch.stack(
-            [value.clone() for value in images_and_states_tensor["wrist_image"]]
-        )
-
         states = images_and_states_tensor["state"]
 
         # Flatten structure to match libero format
         obs = {
-            "main_images": full_image_tensor,
-            "wrist_images": wrist_image_tensor,
             "states": states,
-            "task_descriptions": [
-                self.task_descriptions_all[task_id] for task_id in self.task_ids
-            ],
+            "task_descriptions": task_description_list,
         }
+
+        # Convert images from [H, W, C] -> [B, H, W, C]
+        for obs_key_name, img_name in OBS_KEY_ROBOCASA_IMAGE_MAPPING.items():
+            if images_and_states_tensor[img_name][0] is None:
+                img_tensor = None
+            else:
+                img_tensor = torch.stack(
+                    [value.clone() for value in images_and_states_tensor[img_name]]
+                )
+            obs.update({obs_key_name: img_tensor})
+
         return obs
 
     def reset(
@@ -364,14 +345,17 @@ class RobocasaEnv(gym.Env):
         if env_idx is None:
             env_idx = np.arange(self.num_envs)
 
+        if self.is_start:
+            self._is_start = False
+
         if isinstance(env_idx, int):
             env_idx = [env_idx]
 
         # Reset using vectorized environment (subprocess isolation avoids OpenGL issues)
         # Use libero's SubprocVectorEnv reset interface
-        raw_obs = self.env.reset(id=env_idx)
+        raw_obs, info_list = self.env.reset(id=env_idx)
 
-        obs = self._wrap_obs(raw_obs)
+        obs = self._wrap_obs(raw_obs, info_list)
         self._reset_metrics(env_idx)
         infos = {}
         return obs, infos
@@ -382,7 +366,6 @@ class RobocasaEnv(gym.Env):
         if self.is_start:
             # Initial reset at the start of evaluation
             obs, infos = self.reset()
-            self._is_start = False
             terminations = np.zeros(self.num_envs, dtype=bool)
             truncations = np.zeros(self.num_envs, dtype=bool)
             rewards = np.zeros(self.num_envs, dtype=np.float32)
@@ -410,19 +393,9 @@ class RobocasaEnv(gym.Env):
             [info.get("success", False) for info in info_lists]
         ).astype(bool)
         truncations = self._elapsed_steps >= self.cfg.max_episode_steps
-        obs = self._wrap_obs(raw_obs)
+        obs = self._wrap_obs(raw_obs, info_lists)
 
         step_reward = self._calc_step_reward(terminations)
-
-        if self.video_cfg.save_video:
-            plot_infos = {
-                "rewards": step_reward,
-                "terminations": terminations,
-                "task": [
-                    self.task_descriptions_all[task_id] for task_id in self.task_ids
-                ],
-            }
-            self.add_new_frames(raw_obs, plot_infos)
 
         infos = list_of_dict_to_dict_of_list(info_lists)
         infos = self._record_metrics(step_reward, terminations, infos)
@@ -445,6 +418,8 @@ class RobocasaEnv(gym.Env):
     def chunk_step(self, chunk_actions):
         # chunk_actions: [num_envs, chunk_step, action_dim]
         chunk_size = chunk_actions.shape[1]
+        obs_list = []
+        infos_list = []
 
         chunk_rewards = []
 
@@ -455,6 +430,8 @@ class RobocasaEnv(gym.Env):
             extracted_obs, step_reward, terminations, truncations, infos = self.step(
                 actions, auto_reset=False
             )
+            obs_list.append(extracted_obs)
+            infos_list.append(infos)
 
             chunk_rewards.append(step_reward)
             raw_chunk_terminations.append(terminations)
@@ -473,8 +450,8 @@ class RobocasaEnv(gym.Env):
         past_dones = torch.logical_or(past_terminations, past_truncations)
 
         if past_dones.any() and self.auto_reset:
-            extracted_obs, infos = self._handle_auto_reset(
-                past_dones.cpu().numpy(), extracted_obs, infos
+            obs_list[-1], infos_list[-1] = self._handle_auto_reset(
+                past_dones.cpu().numpy(), obs_list[-1], infos_list[-1]
             )
 
         if self.auto_reset or self.ignore_terminations:
@@ -487,11 +464,11 @@ class RobocasaEnv(gym.Env):
             chunk_terminations = raw_chunk_terminations.clone()
             chunk_truncations = raw_chunk_truncations.clone()
         return (
-            extracted_obs,
+            obs_list,
             chunk_rewards,
             chunk_terminations,
             chunk_truncations,
-            infos,
+            infos_list,
         )
 
     def _handle_auto_reset(self, dones, _final_obs, infos):
@@ -516,48 +493,6 @@ class RobocasaEnv(gym.Env):
             return reward_diff
         else:
             return reward
-
-    def add_new_frames(self, obs, plot_infos):
-        """Render video frames using observation images.
-
-        With subprocess isolation, each environment has its own OpenGL context,
-        so observation images are guaranteed to be correct.
-
-        Only save left agentview for video recording.
-        """
-        images = []
-        for env_id in range(self.num_envs):
-            # Use left agentview image for video recording
-            img = obs[env_id].get("robot0_agentview_left_image")
-
-            if img is None or img.size == 0:
-                # Fallback: skip if no image available
-                continue
-
-            # Flip image vertically (OpenGL coordinates are upside down)
-            img = img[::-1]
-
-            # Add info overlay
-            info_item = {
-                k: v if np.size(v) == 1 else v[env_id] for k, v in plot_infos.items()
-            }
-            img = put_info_on_image(img, info_item)
-            images.append(img)
-
-        full_image = tile_images(images, nrows=int(np.sqrt(self.num_envs)))
-        self.render_images.append(full_image)
-
-    def flush_video(self, video_sub_dir: Optional[str] = None):
-        output_dir = os.path.join(self.video_cfg.video_base_dir, f"seed_{self.seed}")
-        if video_sub_dir is not None:
-            output_dir = os.path.join(output_dir, f"{video_sub_dir}")
-        save_rollout_video(
-            self.render_images,
-            output_dir=output_dir,
-            video_name=f"{self.video_cnt}",
-        )
-        self.video_cnt += 1
-        self.render_images = []
 
     def close(self):
         """Close all environments."""

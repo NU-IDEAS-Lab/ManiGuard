@@ -23,6 +23,7 @@ class ForwardType(Enum):
     SAC_Q = "sac_q"
     CROSSQ = "crossq"
     CROSSQ_Q = "crossq_q"
+    NFT = "nft"
 
 
 class BasePolicy(ABC):
@@ -40,6 +41,7 @@ class BasePolicy(ABC):
         - sac_q_forward
         - crossq_forward
         - crossq_q_forward
+        - prepare_dagger_sft_batch
     """
 
     def forward(self, forward_type=ForwardType.DEFAULT, **kwargs):
@@ -60,11 +62,39 @@ class BasePolicy(ABC):
     def crossq_q_forward(self, **kwargs):
         raise NotImplementedError
 
+    def prepare_dagger_sft_batch(self, batch):
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support DAgger SFT training."
+        )
+
     @abstractmethod
     def default_forward(self, **kwargs): ...
 
     @abstractmethod
     def predict_action_batch(self, **kwargs): ...
 
-    def enable_torch_compile(self, mode: str = "max-autotune-no-cudagraphs"):
-        return
+    def enable_torch_compile(
+        self,
+        mode: str = "max-autotune-no-cudagraphs",
+    ):
+        raise NotImplementedError(
+            "torch compile is not supported for current policy, please set `enable_torch_compile=False` for now"
+        )
+
+    def capture_cuda_graph(self, train_batch_size: int, eval_batch_size: int):
+        raise NotImplementedError(
+            "cuda graph is not supported for current policy, please set `enable_cuda_graph=False` for now"
+        )
+
+    def release_cuda_graph(self):
+        from rlinf.utils.cuda_graph import CUDAGraphManager
+
+        if self.is_cuda_graph_enabled():
+            self.cuda_graph_manager: CUDAGraphManager
+            self.cuda_graph_manager.destroy()
+            self.cuda_graph_manager = None
+
+    def is_cuda_graph_enabled(self) -> bool:
+        return (
+            hasattr(self, "cuda_graph_manager") and self.cuda_graph_manager is not None
+        )

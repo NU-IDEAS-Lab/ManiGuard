@@ -15,7 +15,9 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    actor,env,rollout: all
+    actor: 0
+    env: 0
+    rollout: 1
 
 runner:
   task_type: embodied
@@ -81,12 +83,12 @@ algorithm:
 
 env:
   group_name: "EnvGroup"
-  enable_offload: False
 
   # Override the default values in env/metaworld_50
   train:
-    total_num_envs: 16
+    total_num_envs: 4
     max_episode_steps: 10
+    max_steps_per_rollout_epoch: 10
   eval:
     total_num_envs: 1
     max_episode_steps: 10
@@ -105,7 +107,7 @@ rollout:
   generation_backend: "huggingface"
   recompute_logprobs: False
   unnorm_key: libero_10
-  enable_offload: False
+  enable_offload: True
   pipeline_stage_num: 1
 
   model:
@@ -115,10 +117,10 @@ rollout:
 actor:
   group_name: "ActorGroup"
   training_backend: "fsdp"
-  micro_batch_size: 4
-  global_batch_size: 32 # maximum : global batch size = micro batch size * actor num_processes.
+  micro_batch_size: 2
+  global_batch_size: 4 # maximum : global batch size = micro batch size * actor num_processes.
   seed: 42
-  enable_offload: False
+  enable_offload: True
 
   # Override the default values in model/pi0
   model:

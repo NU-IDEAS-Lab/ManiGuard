@@ -81,12 +81,14 @@ if [ "$ubuntu_codename" != "focal" ]; then
 fi
 
 # libfranka dependencies
-sudo apt-get install -y libpoco-dev libeigen3-dev libfmt-dev
+sudo apt-get install -y libpoco-dev libeigen3-dev libfmt-dev libhidapi-dev
 sudo apt-get install -y lsb-release curl
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL http://robotpkg.openrobots.org/packages/debian/robotpkg.asc | sudo tee /etc/apt/keyrings/robotpkg.asc
 echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/robotpkg.asc] http://robotpkg.openrobots.org/packages/debian/pub $ubuntu_codename robotpkg" | sudo tee /etc/apt/sources.list.d/robotpkg.list
 sudo apt-get update
+sudo apt-get install -y robotpkg-simde=0.8.0 
+sudo apt-get install -y robotpkg-casadi=3.6.7
 sudo apt-get install -y robotpkg-pinocchio
 
 # franka_ros dependencies
@@ -98,5 +100,8 @@ sudo apt-get install -y --no-install-recommends \
     ros-noetic-gazebo-ros-control \
     ros-noetic-urdfdom-py \
     ros-noetic-tf-conversions \
-    ros-noetic-kdl-parser
+    ros-noetic-kdl-parser \
+    ros-noetic-xacro \
+    ros-noetic-robot-state-publisher \
+    ros-noetic-joint-state-publisher
 

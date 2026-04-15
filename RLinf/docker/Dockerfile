@@ -15,6 +15,12 @@ FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-isaaclab
 FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-robotwin
 FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-opensora
 FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-frankasim
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-wan
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-liberopro
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-liberoplus
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-embodichain
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04 AS base-image-embodied-roboverse
+
 
 # Franka depends on ros-noetic, which is not available on Ubuntu 22.04
 FROM ubuntu:20.04 AS base-image-embodied-franka
@@ -90,7 +96,7 @@ RUN chmod +x /usr/local/bin/switch_env
 ##################################################################################################
 FROM base-image AS reason-image
 
-RUN bash requirements/install.sh reason --venv reason
+RUN bash requirements/install.sh agentic --venv reason
 
 # Set default env
 RUN echo "source ${UV_PATH}/reason/bin/activate" >> ~/.bashrc
@@ -146,7 +152,8 @@ RUN bash requirements/install.sh embodied --venv openvla --model openvla --env m
     bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft --env maniskill_libero && \
     bash requirements/install.sh embodied --venv openpi --model openpi --env maniskill_libero && \
     bash requirements/install.sh embodied --venv gr00t --model gr00t --env maniskill_libero && \
-    bash requirements/install.sh embodied --venv dexbotic --model dexbotic --env maniskill_libero
+    bash requirements/install.sh embodied --venv dexbotic --model dexbotic --env maniskill_libero && \
+    bash requirements/install.sh embodied --venv starvla --model starvla --env maniskill_libero
 
 RUN source switch_env openvla && download_assets --dir /opt/assets --assets maniskill,openpi
 RUN link_assets
@@ -162,6 +169,9 @@ RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft
 # omnigibson downloads assets to /tmp during initialization
 RUN source switch_env openvla-oft && python -c "import omnigibson as og; cfg={}; og.Environment(cfg); og.shutdown()" || exit 0
 
+# Set default env
+RUN echo "source ${UV_PATH}/openvla-oft/bin/activate" >> ~/.bashrc
+
 FROM embodied-common-image AS embodied-behavior-openpi-image
 
 # Install openpi env
@@ -170,17 +180,20 @@ RUN bash requirements/install.sh embodied --venv openpi --model openpi --env beh
 # omnigibson downloads assets to /tmp during initialization
 RUN source switch_env openpi && python -c "import omnigibson as og; cfg={}; og.Environment(cfg); og.shutdown()" || exit 0
 
-# Set default env
-RUN echo "source ${UV_PATH}/openvla-oft/bin/activate" >> ~/.bashrc
+RUN source switch_env openpi && download_assets --dir /opt/assets --assets openpi
+RUN link_assets
 
+# Set default env
+RUN echo "source ${UV_PATH}/openpi/bin/activate" >> ~/.bashrc
 
 ##################################################################################################
 # Embodied: MetaWorld
 ##################################################################################################
 FROM embodied-common-image AS embodied-metaworld-image
 
-# Install openpi env
-RUN bash requirements/install.sh embodied --venv openpi --model openpi --env metaworld
+# Install openvla-oft and openpi envs
+RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft --env metaworld && \
+    bash requirements/install.sh embodied --venv openpi --model openpi --env metaworld
 
 RUN source switch_env openpi && download_assets --dir /opt/assets --assets openpi
 RUN link_assets
@@ -194,8 +207,9 @@ RUN echo "source ${UV_PATH}/openpi/bin/activate" >> ~/.bashrc
 ##################################################################################################
 FROM embodied-common-image AS embodied-calvin-image
 
-# Install openpi env
-RUN bash requirements/install.sh embodied --venv openpi --model openpi --env calvin
+# Install openvla-oft and openpi envs
+RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft --env calvin && \
+    bash requirements/install.sh embodied --venv openpi --model openpi --env calvin
 
 RUN source switch_env openpi && download_assets --dir /opt/assets --assets openpi
 RUN link_assets
@@ -224,8 +238,9 @@ RUN echo "source ${UV_PATH}/openpi/bin/activate" >> ~/.bashrc
 ##################################################################################################
 FROM embodied-common-image AS embodied-isaaclab-image
 
-# Install gr00t env
-RUN bash requirements/install.sh embodied --venv gr00t --model gr00t --env isaaclab
+# Install gr00t env, and openpi env
+RUN bash requirements/install.sh embodied --venv gr00t --model gr00t --env isaaclab && \
+    bash requirements/install.sh embodied --venv openpi --model openpi --env isaaclab
 
 # Set default env
 RUN echo "source ${UV_PATH}/gr00t/bin/activate" >> ~/.bashrc
@@ -250,9 +265,10 @@ RUN echo "source ${UV_PATH}/franka-0.15.0/bin/activate" >> ~/.bashrc
 ##################################################################################################
 FROM embodied-common-image AS embodied-robotwin-image
 
-# Install openvla-oft env
+# Install openvla-oft, openpi, and lingbotvla envs
 RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft --env robotwin && \
-    bash requirements/install.sh embodied --venv openpi --model openpi --env robotwin
+    bash requirements/install.sh embodied --venv openpi --model openpi --env robotwin && \
+    bash requirements/install.sh embodied --venv lingbotvla --model lingbotvla --env robotwin
 
 RUN source switch_env openpi && download_assets --dir /opt/assets --assets openpi
 RUN link_assets
@@ -273,6 +289,17 @@ RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft
 RUN echo "source ${UV_PATH}/openvla-oft/bin/activate" >> ~/.bashrc
 
 ##################################################################################################
+# Embodied: WAN
+##################################################################################################
+FROM embodied-common-image AS embodied-wan-image
+
+# Install openvla-oft env
+RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft --env wan
+
+# Set default env
+RUN echo "source ${UV_PATH}/openvla-oft/bin/activate" >> ~/.bashrc
+
+##################################################################################################
 # Embodied: FrankaSim
 ##################################################################################################
 FROM embodied-common-image AS embodied-frankasim-image
@@ -282,6 +309,48 @@ RUN bash requirements/install.sh embodied --venv openvla --model openvla --env f
 
 # Set default env
 RUN echo "source ${UV_PATH}/openvla/bin/activate" >> ~/.bashrc
+
+##################################################################################################
+# Embodied: EmbodiChain
+##################################################################################################
+FROM embodied-common-image AS embodied-embodichain-image
+
+RUN bash requirements/install.sh embodied --venv embodichain --env embodichain
+
+RUN echo "source ${UV_PATH}/embodichain/bin/activate" >> ~/.bashrc
+
+##################################################################################################
+# Embodied: LIBERO-Pro
+##################################################################################################
+FROM embodied-common-image AS embodied-liberopro-image
+
+# Install openvla-oft env for LIBERO-Pro
+RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft --env liberopro
+
+# Set default env
+RUN echo "source ${UV_PATH}/openvla-oft/bin/activate" >> ~/.bashrc
+
+##################################################################################################
+# Embodied: LIBERO-Plus
+##################################################################################################
+FROM embodied-common-image AS embodied-liberoplus-image
+
+# Install openvla-oft env for LIBERO-Plus
+RUN bash requirements/install.sh embodied --venv openvla-oft --model openvla-oft --env liberoplus
+
+# Set default env
+RUN echo "source ${UV_PATH}/openvla-oft/bin/activate" >> ~/.bashrc
+
+##################################################################################################
+# Embodied: RoboVerse
+##################################################################################################
+FROM embodied-common-image AS embodied-roboverse-image
+
+# Install openpi env for RoboVerse
+RUN bash requirements/install.sh embodied --venv openpi --model openpi --env roboverse
+
+# Set default env
+RUN echo "source ${UV_PATH}/openpi/bin/activate" >> ~/.bashrc
 
 ##################################################################################################
 # Final image selection

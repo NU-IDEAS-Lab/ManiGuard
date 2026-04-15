@@ -77,11 +77,11 @@ RLinf 提供两种安装方式。我们 **推荐使用 Docker**，因为这可�
 
 - **具身智能镜像：**
 
-  - ``rlinf/rlinf:agentic-rlinf0.1-maniskill_libero`` （适用于Libero或ManiSkill基准测试环境，对于其它的基准测试环境，请参考 :doc:`../examples/index`）
+  - ``rlinf/rlinf:agentic-rlinf0.2-maniskill_libero`` （适用于Libero或ManiSkill基准测试环境，对于其它的基准测试环境，请参考 :doc:`../examples/index`）
   
 - **数学推理镜像：**
 
-  - ``rlinf/rlinf:math-rlinf0.1-torch2.6.0-sglang0.4.6.post5-vllm0.8.5-megatron0.13.0-te2.1`` （用于增强大语言模型在 MATH 任务中的推理能力）
+  - ``rlinf/rlinf:math-rlinf0.2-torch2.6.0-sglang0.4.6.post5-vllm0.8.5-megatron0.13.0-te2.1`` （用于增强大语言模型在 MATH 任务中的推理能力）
 
 
 确认适合你任务的镜像后，拉取镜像：
@@ -175,7 +175,7 @@ RLinf 提供两种安装方式。我们 **推荐使用 Docker**，因为这可�
 
 .. code-block:: shell
 
-  bash requirements/install.sh reason
+  bash requirements/install.sh agentic
 
 你也可以通过 ``--venv`` 参数覆盖默认虚拟环境目录，例如：
 
@@ -183,3 +183,21 @@ RLinf 提供两种安装方式。我们 **推荐使用 Docker**，因为这可�
 
   bash requirements/install.sh embodied --model openpi --env maniskill_libero --venv openpi-venv
   source openpi-venv/bin/activate
+
+.. _install-as-library:
+
+作为库安装
+------------
+
+.. warning::
+  `rlinf` 包不管理 env 和模型依赖，只管理 RLinf 核心系统的依赖。
+
+  因此你需要额外安装目标实验所需的依赖。
+
+  它不是直接用于 RL 实验的，而是希望作为其它系统的依赖库被安装。
+
+RLinf 现在也可以作为第三方库安装。
+
+- 使用 `pip install rlinf[embodied]` 安装具身智能相关的依赖。
+- 使用 `pip install rlinf[agentic-sglang]` 安装基于SGLang的Agentic相关的依赖。
+- 使用 `pip install rlinf[agentic-vllm]` 安装基于vLLM的Agentic相关的依赖。

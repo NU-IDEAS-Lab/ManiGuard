@@ -29,7 +29,7 @@ runner:
   save_interval: 2000
 
 data:
-  data_path: "/path/to/libero-data"
+  train_data_paths: "/path/to/libero-data"
 
 algorithm:
   adv_type: gae
@@ -46,7 +46,7 @@ actor:
     precision: null
     model_path: "/path/to/pi0-model"
     num_action_chunks: 4 # interface for the env
-    add_value_head: True
+    add_value_head: False
     openpi:
       config_name: "pi0_libero"
       detach_critic_input: True

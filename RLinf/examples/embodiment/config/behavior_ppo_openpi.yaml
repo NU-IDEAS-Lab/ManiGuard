@@ -1,7 +1,7 @@
 defaults:
   - env/behavior_r1pro@env.train
   - env/behavior_r1pro@env.eval
-  - model/pi0_5@actor.model
+  - model/pi0@actor.model
   - training_backend/fsdp@actor.fsdp_config
   - override hydra/job_logging: stdout
 
@@ -15,9 +15,8 @@ hydra:
 cluster:
   num_nodes: 1
   component_placement:
-    env: 0      # simulation envs on GPU 0 1 2 3
-    rollout: 1  # inference rollout on GPU 4 5 6 7
-    actor: 1    # actor (Trainers) on GPU 0 1 2 3 4 5 6 7
+    actor: 0-0
+    env,rollout: 1-1
 
 runner:
   task_type: embodied
@@ -83,22 +82,18 @@ algorithm:
 
 env:
   group_name: "EnvGroup"
-  enable_offload: False
 
   # Override the default values in env/behavior_r1pro
   train:
     total_num_envs: 1
     max_episode_steps: 20 # max episode steps for truncation
     max_steps_per_rollout_epoch: 20
-    video_cfg:
-      save_video: False  # Disable video during training to reduce overhead
   eval:
     total_num_envs: 1
     max_episode_steps: 20 # max episode steps for truncation
     max_steps_per_rollout_epoch: 20
     video_cfg:
       save_video: True
-      info_on_video: True
       video_base_dir: ${runner.logger.log_path}/video/eval
 
 rollout:
@@ -108,9 +103,7 @@ rollout:
   pipeline_stage_num: 1
 
   model:
-    # Quest: model_path: "/gpfs/projects/p33203/checkpoints/pi05_base" or override at CLI
-    # model_path: "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
-    model_path: "/gpfs/projects/p33203/checkpoints/pi05_base"
+    model_path: "/path/to/model/RLinf-Pi0-SFT" # https://huggingface.co/RLinf/RLinf-Pi0-Behavior
     precision: ${actor.model.precision}
 
 actor:
@@ -123,15 +116,12 @@ actor:
 
   # Override the default values in model/openpi
   model:
-    # Quest: model_path: "/gpfs/projects/p33203/checkpoints/pi05_base"
-    # model_path: "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
-    model_path: "/gpfs/projects/p33203/checkpoints/pi05_base"
-
+    model_path: "/path/to/model/RLinf-Pi0-SFT" # https://huggingface.co/RLinf/RLinf-Pi0-Behavior
     add_value_head: True
     num_images_in_input: 3
     proprio_dim: 32
     openpi:
-      config_name: "pi05_behavior"
+      config_name: "pi0_behavior"
       detach_critic_input: True
       joint_logprob: False
       noise_level: 0.5

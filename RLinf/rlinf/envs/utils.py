@@ -22,17 +22,17 @@ from PIL import Image, ImageDraw, ImageFont
 
 try:
     import tensorflow as tf
-except ImportError:  # pragma: no cover - optional dependency for image crop helpers
+except ImportError:  # pragma: no cover
     tf = None
 
 
 def to_tensor(
     array: Union[dict, torch.Tensor, np.ndarray, list, Any], device: str = "cpu"
-) -> Union[dict, torch.Tensor]:
+) -> Union[dict, torch.Tensor, list, None]:
     """
     Copied from ManiSkill!
     Maps any given sequence to a torch tensor on the CPU/GPU. If physx gpu is not enabled then we use CPU, otherwise GPU, unless specified
-    by the device argument
+    by the device argument. Also handles None inputs (or lists/arrays containing None) by returning None or a list of None/Tensors.
 
     Args:
         array: The data to map to a tensor
@@ -40,26 +40,53 @@ def to_tensor(
             and CPU otherwise
 
     """
-    if isinstance(array, (dict)):
+    if array is None:
+        return None
+
+    if isinstance(array, dict):
         return {k: to_tensor(v, device=device) for k, v in array.items()}
     elif isinstance(array, torch.Tensor):
         ret = array.to(device)
     elif isinstance(array, np.ndarray):
+        if array.dtype == object:
+            return [to_tensor(x, device=device) for x in array]
+
         if array.dtype == np.uint16:
             array = array.astype(np.int32)
         elif array.dtype == np.uint32:
             array = array.astype(np.int64)
         ret = torch.tensor(array).to(device)
     else:
-        if isinstance(array, list) and isinstance(array[0], np.ndarray):
-            ret = torch.tensor(np.array(array), device=device)
-        elif isinstance(array, list) and isinstance(array[0], torch.Tensor):
-            ret = torch.stack(array).to(device)
-        else:
-            ret = torch.tensor(array, device=device)
+        if isinstance(array, list) and any(x is None for x in array):
+            return [to_tensor(x, device=device) for x in array]
+
+        if (
+            isinstance(array, list)
+            and len(array) > 0
+            and isinstance(array[0], np.ndarray)
+        ):
+            array = np.array(array)
+            if array.dtype == object:
+                return [to_tensor(x, device=device) for x in array]
+
+        ret = torch.tensor(array, device=device)
+
     if ret.dtype == torch.float64:
         ret = ret.to(torch.float32)
     return ret
+
+
+def recursive_to_device(obj, device):
+    if isinstance(obj, torch.Tensor):
+        return obj.to(device)
+    elif isinstance(obj, list):
+        return [recursive_to_device(elem, device) for elem in obj]
+    elif isinstance(obj, tuple):
+        return tuple(recursive_to_device(elem, device) for elem in obj)
+    elif isinstance(obj, dict):
+        return {k: recursive_to_device(v, device) for k, v in obj.items()}
+    else:
+        return obj
 
 
 def list_of_dict_to_dict_of_list(
@@ -247,9 +274,8 @@ def crop_and_resize(image, crop_scale, batch_size):
     distribution shift at test time.
     """
     if tf is None:
-        raise ImportError(
-            "tensorflow is required for crop_and_resize but is not installed."
-        )
+        raise ImportError("tensorflow is required for crop_and_resize")
+
     assert image.shape.ndims == 3 or image.shape.ndims == 4
     expanded_dims = False
     if image.shape.ndims == 3:
@@ -287,9 +313,8 @@ def crop_and_resize(image, crop_scale, batch_size):
 
 def center_crop_image(image):
     if tf is None:
-        raise ImportError(
-            "tensorflow is required for center_crop_image but is not installed."
-        )
+        raise ImportError("tensorflow is required for crop_and_resize")
+
     batch_size = 1
     crop_scale = 0.9
 

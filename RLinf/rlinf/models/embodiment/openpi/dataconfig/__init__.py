@@ -15,13 +15,7 @@
 
 import dataclasses
 import difflib
-import os
 from typing import Optional
-
-# Pi0.5 BEHAVIOR checkpoint base path. Default: original path; set SENTINEL_PI05_BASE for Quest (e.g. /gpfs/projects/p33203/checkpoints/pi05_base).
-_DEFAULT_PI05_BEHAVIOR_BASE = os.environ.get(
-    "SENTINEL_PI05_BASE", "/data/juc9508/SENTINEL-Lite/checkpoints/pi05_base"
-)
 
 import openpi.models.pi0_config as pi0_config
 import openpi.training.optimizer as _optimizer
@@ -38,17 +32,23 @@ from rlinf.models.embodiment.openpi.dataconfig.behavior_dataconfig import (
 from rlinf.models.embodiment.openpi.dataconfig.calvin_dataconfig import (
     LeRobotCalvinDataConfig,
 )
+from rlinf.models.embodiment.openpi.dataconfig.franka_co_training_dataconfig import (
+    LeRobotFrankaEEDataConfig,
+)
+from rlinf.models.embodiment.openpi.dataconfig.franka_dagger_dataconfig import (
+    LeRobotFrankaDaggerDataConfig,
+)
 from rlinf.models.embodiment.openpi.dataconfig.franka_dataconfig import (
     CustomDataConfig,
 )
 from rlinf.models.embodiment.openpi.dataconfig.gsenv_dataconfig import (
     LeRobotGSEnvDataConfig,
 )
+from rlinf.models.embodiment.openpi.dataconfig.isaaclab_dataconfig import (
+    LeRobotIsaacLabStackCubeDataConfig,
+)
 from rlinf.models.embodiment.openpi.dataconfig.libero_dataconfig import (
     LeRobotLiberoDataConfig,
-)
-from rlinf.models.embodiment.openpi.dataconfig.omnigibson_dataconfig import (
-    OmniGibsonDataConfig,
 )
 from rlinf.models.embodiment.openpi.dataconfig.maniskill_dataconfig import (
     LeRobotManiSkillDataConfig,
@@ -145,6 +145,58 @@ _CONFIGS = [
         save_interval=250,
     ),
     TrainConfig(
+        name="pi05_franka",
+        model=pi0_config.Pi0Config(
+            pi05=True, action_horizon=8, discrete_state_input=False
+        ),  # discrete_state_input=False: stateless policy, True: with state policy
+        data=LeRobotFrankaEEDataConfig(
+            repo_id="physical-intelligence/real_rl",  # Not important
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir="checkpoints/torch/pi05_franka_pretrained/assets"
+            ),
+            output_action_dim=6,
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "checkpoints/jax/pi05_base"
+        ),
+        pytorch_weight_path="checkpoints/torch/pi05_base",
+        seed=0,
+        batch_size=16,
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        num_workers=8,
+        num_train_steps=5_000,
+        log_interval=5,
+        save_interval=250,
+    ),
+    TrainConfig(
+        name="pi05_maniskill_sim_real_co_training",
+        model=pi0_config.Pi0Config(
+            pi05=True, action_horizon=8, discrete_state_input=False
+        ),  # discrete_state_input=False: stateless policy, True: with state policy
+        data=LeRobotFrankaEEDataConfig(
+            repo_id="physical-intelligence/pick_and_place_real",
+            default_prompt="default prompt",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir="checkpoints/torch/pi05_maniskill_sim_real_co_training/assets"
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "checkpoints/jax/pi05_base"
+        ),
+        pytorch_weight_path="checkpoints/torch/pi05_base",
+        seed=0,
+        batch_size=16,
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        num_workers=8,
+        num_train_steps=5_000,
+        log_interval=5,
+        save_interval=250,
+    ),
+    TrainConfig(
         name="pi0_metaworld",
         model=pi0_config.Pi0Config(action_horizon=5),
         data=LeRobotMetaworldDataConfig(
@@ -211,32 +263,49 @@ _CONFIGS = [
         num_train_steps=30_000,
     ),
     TrainConfig(
-        name="pi0_robocasa",
-        model=pi0_config.Pi0Config(action_horizon=10),
+        name="pi0_robocasa_human",
+        model=pi0_config.Pi0Config(action_horizon=5),
         data=LeRobotRobocasaDataConfig(
-            repo_id="physical-intelligence/robocasa",
+            repo_id="daixianjie/robocasa_human_lerobot",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(assets_dir="checkpoints/torch/pi0_robocasa/assets"),
+            assets=AssetsConfig(asset_id="physical-intelligence/robocasa_all_human"),
             extra_delta_transform=False,
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(
             "checkpoints/jax/pi0_base/params"
         ),
         pytorch_weight_path="checkpoints/torch/pi0_base",
-        num_train_steps=30_000,
+        num_train_steps=100_000,
     ),
     TrainConfig(
         name="pi0_aloha_robotwin",
-        model=pi0_config.Pi0Config(),
+        model=pi0_config.Pi0Config(discrete_state_input=False),
         data=LeRobotAlohaDataConfig(
-            repo_id="robotwin/place_empty_cup_random",
-            base_config=DataConfig(
-                prompt_from_task=True
-            ),  # we need language instruction
-            assets=AssetsConfig(assets_dir="checkpoints/torch/pi0_robotwin/assets"),
+            repo_id="physical-intelligence/robotwin",
+            adapt_to_pi=False,
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir="checkpoints/torch/pi0_aloha_robotwin/assets"
+            ),
             extra_delta_transform=True,  # True for delta action, False for abs_action
         ),
+        freeze_filter=pi0_config.Pi0Config().get_freeze_filter(),
         pytorch_weight_path="checkpoints/torch/pi0_base",
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="pi05_aloha_robotwin",
+        model=pi0_config.Pi0Config(pi05=True, discrete_state_input=True),
+        data=LeRobotAlohaDataConfig(
+            repo_id="physical-intelligence/robotwin",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir="checkpoints/torch/pi05_aloha_robotwin/assets"
+            ),
+            extra_delta_transform=True,  # True for delta action, False for abs_action
+        ),
+        pytorch_weight_path="checkpoints/torch/pi05_base",
+        num_train_steps=20_000,
     ),
     TrainConfig(
         name="pi0_behavior",
@@ -255,17 +324,20 @@ _CONFIGS = [
     ),
     TrainConfig(
         name="pi05_behavior",
-        model=pi0_config.Pi0Config(
-            pi05=True, action_horizon=10, discrete_state_input=False
-        ),
+        model=pi0_config.Pi0Config(pi05=True, action_horizon=32),
         data=LeRobotBehaviorDataConfig(
             repo_id="physical-intelligence/behavior",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets"),
-            extra_delta_transform=True,
+            assets=AssetsConfig(assets_dir="checkpoints/torch/pi05_behavior/assets"),
+            extra_delta_transform=False,
+            extract_state_from_proprio=True,
+            use_all_wrist_images=True,
+            use_quantile_norm=True,
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(_DEFAULT_PI05_BEHAVIOR_BASE),
-        pytorch_weight_path=_DEFAULT_PI05_BEHAVIOR_BASE,
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "checkpoints/jax/pi0_base/params"
+        ),
+        pytorch_weight_path="checkpoints/torch/pi0_base",
         num_train_steps=30_000,
     ),
     TrainConfig(
@@ -286,40 +358,15 @@ _CONFIGS = [
         num_train_steps=30_000,
     ),
     TrainConfig(
-        name="pi05_franka_tabletop",
-        model=pi0_config.Pi0Config(
-            pi05=True, action_horizon=10, discrete_state_input=False
-        ),
-        data=CustomDataConfig(
-            repo_id="physical-intelligence/franka_tabletop",
+        name="pi0_franka_dagger",
+        model=pi0_config.Pi0Config(action_horizon=10),
+        data=LeRobotFrankaDaggerDataConfig(
+            repo_id="franka_dagger",
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(
-                assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets",
-                asset_id="franka",
-            ),
+            assets=AssetsConfig(assets_dir="checkpoints/torch/pi0_base/assets"),
             extra_delta_transform=False,
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(_DEFAULT_PI05_BEHAVIOR_BASE),
-        pytorch_weight_path=_DEFAULT_PI05_BEHAVIOR_BASE,
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="pi05_omnigibson_stack_cube",
-        model=pi0_config.Pi0Config(
-            pi05=True, action_horizon=10, discrete_state_input=False
-        ),
-        data=OmniGibsonDataConfig(
-            repo_id="RLinf/IsaacLab-Stack-Cube-Data",
-            base_config=DataConfig(prompt_from_task=False),
-            assets=AssetsConfig(
-                assets_dir=f"{_DEFAULT_PI05_BEHAVIOR_BASE}/assets",
-                asset_id="IsaacLab-Stack-Cube-Data",
-            ),
-            extra_delta_transform=False,
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader(_DEFAULT_PI05_BEHAVIOR_BASE),
-        pytorch_weight_path=_DEFAULT_PI05_BEHAVIOR_BASE,
-        num_train_steps=30_000,
+        pytorch_weight_path="checkpoints/torch/pi0_base",
     ),
     TrainConfig(
         name="pi0_custom",
@@ -335,6 +382,21 @@ _CONFIGS = [
         ),
         pytorch_weight_path="checkpoints/torch/pi0_base",
     ),
+    TrainConfig(
+        name="pi05_isaaclab_stack_cube",
+        model=pi0_config.Pi0Config(
+            pi05=True, action_horizon=10, discrete_state_input=False
+        ),
+        data=LeRobotIsaacLabStackCubeDataConfig(
+            repo_id="RLinf/IsaacLab-Stack-Cube-Data",
+            base_config=DataConfig(prompt_from_task=False),
+            assets=AssetsConfig(assets_dir="checkpoints/torch/pi0_isaaclab/assets"),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "checkpoints/jax/pi05_base/params"
+        ),
+        pytorch_weight_path="checkpoints/torch/pi05_base",
+    ),
 ]
 
 if len({config.name for config in _CONFIGS}) != len(_CONFIGS):
@@ -344,7 +406,6 @@ _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 
 def _override_with_model_path(config: TrainConfig, model_path: str) -> TrainConfig:
     """Return a copy of the config with assets/weight paths set from model_path."""
-    assets_path = os.path.join(model_path, "assets")
     data_config = config.data
     if (
         dataclasses.is_dataclass(data_config)
@@ -353,7 +414,7 @@ def _override_with_model_path(config: TrainConfig, model_path: str) -> TrainConf
     ):
         data_config = dataclasses.replace(
             data_config,
-            assets=dataclasses.replace(data_config.assets, assets_dir=assets_path),
+            assets=dataclasses.replace(data_config.assets, assets_dir=model_path),
         )
 
     replace_kwargs = {
@@ -363,13 +424,23 @@ def _override_with_model_path(config: TrainConfig, model_path: str) -> TrainConf
     if dataclasses.is_dataclass(config) and any(
         field.name == "assets_dirs" for field in dataclasses.fields(config)
     ):
-        replace_kwargs["assets_dirs"] = assets_path
+        replace_kwargs["assets_dirs"] = model_path
 
     return dataclasses.replace(config, **replace_kwargs)
 
 
+def _override_with_data_kwargs(config: TrainConfig, data_kwargs: dict) -> TrainConfig:
+    """Return a copy of the config with data_config set from openpi_data."""
+    data_config = dataclasses.replace(config.data, **data_kwargs)
+    replace_kwargs = {"data": data_config}
+    return dataclasses.replace(config, **replace_kwargs)
+
+
 def get_openpi_config(
-    config_name: str, model_path: Optional[str] = None, batch_size: Optional[int] = None
+    config_name: str,
+    model_path: Optional[str] = None,
+    data_kwargs: Optional[dict] = None,
+    batch_size: Optional[int] = None,
 ) -> TrainConfig:
     """Get a config by name."""
     if config_name not in _CONFIGS_DICT:
@@ -382,6 +453,8 @@ def get_openpi_config(
     config = _CONFIGS_DICT[config_name]
     if model_path is not None:
         config = _override_with_model_path(config, model_path)
+    if data_kwargs is not None:
+        config = _override_with_data_kwargs(config, data_kwargs)
     if batch_size is not None:
         config = dataclasses.replace(config, batch_size=batch_size)
 

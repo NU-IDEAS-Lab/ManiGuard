@@ -13,12 +13,10 @@
 # limitations under the License.
 # openpi model configs
 
-import logging
 import os
 
+import torch
 from omegaconf import DictConfig
-
-logger = logging.getLogger(__name__)
 
 
 def get_model(cfg: DictConfig, torch_dtype=None):
@@ -37,18 +35,29 @@ def get_model(cfg: DictConfig, torch_dtype=None):
 
     # config
     config_name = getattr(cfg.openpi, "config_name", None)
-    actor_train_config = get_openpi_config(config_name, model_path=cfg.model_path)
+    data_kwargs = getattr(cfg, "openpi_data", None)
+    actor_train_config = get_openpi_config(
+        config_name, model_path=cfg.model_path, data_kwargs=data_kwargs
+    )
+
     actor_model_config = actor_train_config.model
     actor_model_config = OpenPi0Config(**actor_model_config.__dict__)
-    override_config_kwargs = cfg.openpi
-    if override_config_kwargs is not None:
-        for key, val in override_config_kwargs.items():
+    override_model_config_kwargs = cfg.openpi
+    if override_model_config_kwargs is not None:
+        for key, val in override_model_config_kwargs.items():
             actor_model_config.__dict__[key] = val
+
     # load model
     checkpoint_dir = download.maybe_download(str(cfg.model_path))
-    weight_paths = sorted(glob.glob(os.path.join(checkpoint_dir, "*.safetensors")))
-    if not weight_paths:
-        weight_paths = [os.path.join(checkpoint_dir, "model.safetensors")]
+
+    # Check if this is a checkpoint directory (saved by FSDP)
+    # Check for model_state_dict/full_weights.pt (direct checkpoint) or actor/model_state_dict/full_weights.pt (from runner)
+    full_weights_path = os.path.join(
+        checkpoint_dir, "model_state_dict", "full_weights.pt"
+    )
+    actor_full_weights_path = os.path.join(
+        checkpoint_dir, "actor", "model_state_dict", "full_weights.pt"
+    )
 
     model: OpenPi0ForRLActionPrediction = OpenPi0ForRLActionPrediction(
         actor_model_config
@@ -57,8 +66,26 @@ def get_model(cfg: DictConfig, torch_dtype=None):
     if actor_model_config.train_expert_only:
         model.freeze_vlm()
 
-    for weight_path in weight_paths:
-        safetensors.torch.load_model(model, weight_path, strict=False)
+    # Load weights from checkpoint if it's a checkpoint directory, otherwise load from safetensors
+    if os.path.exists(full_weights_path):
+        # Direct checkpoint directory
+        model_state_dict = torch.load(full_weights_path, map_location="cpu")
+        model.load_state_dict(model_state_dict, strict=False)
+    elif os.path.exists(actor_full_weights_path):
+        # Checkpoint directory from runner
+        model_state_dict = torch.load(actor_full_weights_path, map_location="cpu")
+        model.load_state_dict(model_state_dict, strict=False)
+    else:
+        # Original model directory with safetensors files
+        weight_paths = sorted(glob.glob(os.path.join(checkpoint_dir, "*.safetensors")))
+        if not weight_paths:
+            weight_paths = [os.path.join(checkpoint_dir, "model.safetensors")]
+        all_state_dict = {}
+        for weight_path in weight_paths:
+            state_dict = safetensors.torch.load_file(weight_path, device="cpu")
+            all_state_dict.update(state_dict)
+        model.load_state_dict(all_state_dict, strict=False)
+
     model.paligemma_with_expert.to_bfloat16_for_selected_params("bfloat16")
     # fsdp replace
     # model.paligemma_with_expert.replace_gemma_decoder_layers()
@@ -72,37 +99,7 @@ def get_model(cfg: DictConfig, torch_dtype=None):
         # that the policy is using the same normalization stats as the original training process.
         if data_config.asset_id is None:
             raise ValueError("Asset id is required to load norm stats.")
-        # Search for norm_stats.json in multiple possible locations
-        norm_stats_base = None
-        search_paths = [
-            os.path.join(checkpoint_dir, "assets"),
-            os.path.join(checkpoint_dir, "physical-intelligence"),
-            checkpoint_dir,
-        ]
-        # Also search recursively for the asset_id directory
-        for root, dirs, files in os.walk(checkpoint_dir):
-            if data_config.asset_id in dirs:
-                search_paths.append(root)
-        for sp in search_paths:
-            candidate = os.path.join(sp, data_config.asset_id, "norm_stats.json")
-            if os.path.isfile(candidate):
-                norm_stats_base = sp
-                logger.info(f"Found norm stats at {candidate}")
-                break
-        if norm_stats_base is None:
-            # Last resort: find any norm_stats.json and use its parent's parent
-            for root, dirs, files in os.walk(checkpoint_dir):
-                if "norm_stats.json" in files:
-                    norm_stats_base = os.path.dirname(root)
-                    logger.info(f"Found norm stats via search at {os.path.join(root, 'norm_stats.json')}")
-                    break
-        if norm_stats_base is None:
-            raise FileNotFoundError(
-                f"Could not find norm_stats.json for asset_id={data_config.asset_id} in {checkpoint_dir}"
-            )
-        norm_stats = _checkpoints.load_norm_stats(
-            norm_stats_base, data_config.asset_id
-        )
+        norm_stats = _checkpoints.load_norm_stats(checkpoint_dir, data_config.asset_id)
     # wrappers
     repack_transforms = transforms.Group()
     default_prompt = None

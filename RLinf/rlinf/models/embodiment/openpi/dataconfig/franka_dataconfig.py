@@ -33,22 +33,17 @@ class CustomDataConfig(DataConfigFactory):
 
     # If provided, will be injected into the input data if the "prompt" key is not present.
     default_prompt: str | None = None
-    # If False, this adapter assumes the dataset / inference environment uses
-    # absolute Franka joint targets plus an absolute gripper scalar. We then
-    # convert only the 7 joint dimensions to/from delta space around the current
-    # state, while keeping the gripper absolute.
-    extra_delta_transform: bool = True
-    # Legacy option for alternate action parameterizations. Not used by the
-    # current 8D Franka tabletop contract.
+    # Finally we will use delta actions to train, but we can input abs_action(get delta for training via abs_action-state) or delta_action(no other process)
+    extra_delta_transform: bool = True  # False for additional process(abs_action - state) to get delta action for training
+    # train actions using rotation_6d
     action_train_with_rotation_6d: bool = False
 
     def generate_observations(
-        image: np.ndarray, wrist_image: np.ndarray, state: np.ndarray, prompt: str
+        image: np.ndarray, state: np.ndarray, prompt: str
     ) -> dict:
         """Creates an input example for the Franka policy."""
         return {
             "observation/image": image,
-            "observation/wrist_image": wrist_image,
             "observation/state": state,
             "prompt": prompt,
         }
@@ -62,7 +57,6 @@ class CustomDataConfig(DataConfigFactory):
                 _transforms.RepackTransform(
                     {
                         "observation/image": "image",
-                        "observation/wrist_image": "wrist_image",
                         "observation/state": "state",
                         "actions": "actions",
                         "prompt": "prompt",
@@ -86,12 +80,10 @@ class CustomDataConfig(DataConfigFactory):
             ],
         )
 
-        if not self.extra_delta_transform:
-            # Pi0.5 Franka tabletop uses 8D actions:
-            #   dims 0:7   -> absolute joint position targets
-            #   dim 7      -> absolute gripper scalar
-            # Only the 7 arm joints should be converted to/from delta space.
-            delta_action_mask = _transforms.make_bool_mask(7, -1)
+        if not self.extra_delta_transform:  # for abs_action
+            delta_action_mask = _transforms.make_bool_mask(
+                9, -1
+            )  # [True]x9 + [False]x1, [x,y,z,rotation_6d,gripper] for 10 dim
             data_transforms = data_transforms.push(
                 inputs=[_transforms.DeltaActions(delta_action_mask)],
                 outputs=[_transforms.AbsoluteActions(delta_action_mask)],

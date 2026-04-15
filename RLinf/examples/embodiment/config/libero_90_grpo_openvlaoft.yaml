@@ -83,7 +83,6 @@ algorithm:
 
 env:
   group_name: "EnvGroup"
-  enable_offload: False
 
   # Override the default values in env/libero_90
   train:
@@ -115,7 +114,7 @@ rollout:
   pipeline_stage_num: 1
 
   model:
-    model_path: "/path/to/model/RLinf-OpenVLAOFT-LIBERO-90-Base-Lora/"
+    model_path: "/path/to/model/RLinf-OpenVLAOFT-LIBERO-90-Base-Lora/" # https://huggingface.co/RLinf/RLinf-OpenVLAOFT-LIBERO-90-Base-Lora
     precision: ${actor.model.precision}
 
 actor:
@@ -128,7 +127,7 @@ actor:
 
   # Override the default values in model/openvla_oft
   model:
-    model_path: "/path/to/model/RLinf-OpenVLAOFT-LIBERO-90-Base-Lora/"
+    model_path: "/path/to/model/RLinf-OpenVLAOFT-LIBERO-90-Base-Lora/" # https://huggingface.co/RLinf/RLinf-OpenVLAOFT-LIBERO-90-Base-Lora
     model_type: "openvla_oft"
     unnorm_key: libero_90_no_noops_trajall
     max_prompt_length: 128

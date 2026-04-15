@@ -80,7 +80,6 @@ algorithm:
 
 env:
   group_name: "EnvGroup"
-  enable_offload: False
 
   # Override the default values in env/maniskill_put_on_plate_in_scene_25_main
   train:
@@ -106,7 +105,7 @@ rollout:
   pipeline_stage_num: 2
 
   model:
-    model_path: "/path/to/model/rl4vla/openvla-7b-rlvla-warmup/"
+    model_path: "/path/to/model/rl4vla/openvla-7b-rlvla-warmup/" # https://huggingface.co/gen-robot/openvla-7b-rlvla-warmup
     precision: ${actor.model.precision}
 
 actor:
@@ -119,7 +118,7 @@ actor:
 
   # Override the default values in model/openvla
   model:
-    model_path: "/path/to/model/rl4vla/openvla-7b-rlvla-warmup/"
+    model_path: "/path/to/model/rl4vla/openvla-7b-rlvla-warmup/" # https://huggingface.co/gen-robot/openvla-7b-rlvla-warmup
 
     max_prompt_length: 30
 

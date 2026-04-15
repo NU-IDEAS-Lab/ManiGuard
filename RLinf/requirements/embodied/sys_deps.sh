@@ -82,10 +82,12 @@ fi
 # Install packages based on package manager
 install_deps_apt() {
     sudo apt-get update -y
+    sudo apt-get install -y --no-install-recommends libgl1-mesa-glx || sudo apt-get install -y --no-install-recommends libglx-mesa0
     sudo apt-get install -y --no-install-recommends \
         wget \
         unzip \
         curl \
+        cmake \
         lsb-release \
         libavutil-dev \
         libavcodec-dev \
@@ -102,7 +104,6 @@ install_deps_apt() {
         libglvnd-dev \
         libglfw3-dev \
         libgl1-mesa-dev \
-        libgl1-mesa-glx \
         libglib2.0-0 \
         libsm6 \
         libxext6 \
@@ -112,7 +113,15 @@ install_deps_apt() {
         libxcursor-dev \
         libxi-dev \
         libaio-dev \
-        libgomp1 || sudo apt-get install -y --no-install-recommends libglx-mesa0 || {
+        libgomp1 \
+        libexpat1 \
+        libfontconfig1-dev \
+        libpython3-stdlib \
+        imagemagick \
+        libmagickwand-dev \
+        libvulkan1 \
+        vulkan-tools \
+        mesa-vulkan-drivers || {
             echo "apt-get install failed. Please check your repositories or install dependencies manually." >&2
             exit 1
         }
@@ -128,6 +137,7 @@ install_deps_dnf() {
         wget \
         unzip \
         curl \
+        cmake \
         ffmpeg-free-devel \
         libibverbs-devel \
         ncurses \
@@ -149,7 +159,11 @@ install_deps_dnf() {
         libXcursor-devel \
         libXi-devel \
         libaio-devel \
-        libgomp || {
+        libgomp \
+        expat \
+        fontconfig \
+        python3-devel \
+        ImageMagick-devel || {
             echo "dnf install failed. Please check your repositories or install dependencies manually." >&2
             exit 1
         }
@@ -162,6 +176,7 @@ install_deps_yum() {
         wget \
         unzip \
         curl \
+        cmake \
         ffmpeg-devel \
         libibverbs-devel \
         ncurses \
@@ -183,7 +198,11 @@ install_deps_yum() {
         libXcursor-devel \
         libXi-devel \
         libaio-devel \
-        libgomp || {
+        libgomp \
+        expat \
+        fontconfig \
+        python3-devel \
+        ImageMagick-devel || {
             echo "yum install failed. Please check your repositories or install dependencies manually." >&2
             exit 1
         }
@@ -196,6 +215,7 @@ install_deps_pacman() {
         unzip \
         curl \
         lsb-release \
+        cmake \
         ffmpeg \
         rdma-core \
         ncurses \
@@ -214,7 +234,11 @@ install_deps_pacman() {
         libxcursor \
         libxi \
         libaio \
-        gcc || {
+        gcc \
+        libgomp \
+        expat \
+        fontconfig \
+        imagemagick || {
             echo "pacman install failed. Please check your repositories or install dependencies manually." >&2
             exit 1
         }

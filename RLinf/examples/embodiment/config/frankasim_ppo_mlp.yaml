@@ -83,7 +83,6 @@ algorithm:
 
 env:
   group_name: EnvGroup
-  enable_offload: false
 
   train:
     total_num_envs: 128
@@ -120,6 +119,7 @@ rollout:
     precision: ${actor.model.precision}
 
   enable_torch_compile: True
+  enable_cuda_graph: False
 actor:
   group_name: ActorGroup
   training_backend: fsdp
@@ -170,10 +170,12 @@ actor:
       reduce_dtype: ${actor.model.precision}
       buffer_dtype: ${actor.model.precision}
 
-    amp:
+    amp_autocast:  
       enabled: false
-      precision: bf16
-      use_grad_scaler: false
+      precision: "bf16"
+    
+    grad_scaler:
+      enabled: false
 
 reward:
   use_reward_model: false
