@@ -36,6 +36,7 @@ export SENTINEL_LOG_ROOT="${SENTINEL_LOG_ROOT:-$REPO_ROOT/outputs/rlinf_logs}"
 # Hydra's yaml uses ${oc.env:EMBODIED_PATH}/config/ in its searchpath to
 # resolve the model/env/training_backend defaults vendored with RLinf.
 export EMBODIED_PATH="$REPO_ROOT/RLinf/examples/sft"
+export SENTINEL_CONFIG_ROOT="$REPO_ROOT/configs"
 export PYTHONPATH="$REPO_ROOT:$REPO_ROOT/RLinf:${PYTHONPATH:-}"
 
 VENV_PY="$REPO_ROOT/RLinf/.venv/bin/python"

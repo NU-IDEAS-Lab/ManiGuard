@@ -1,0 +1,30 @@
+env_type: sentinel
+total_num_envs: null
+auto_reset: False
+ignore_terminations: True
+use_rel_reward: True
+seed: 0
+group_size: 1
+use_fixed_reset_state_ids: False
+max_steps_per_rollout_epoch: 20
+max_episode_steps: 20
+image_size: [224, 224]
+omnigibson_cfg: null
+
+video_cfg:
+  save_video: True
+  info_on_video: True
+  video_base_dir: ${runner.logger.log_path}/video/eval
+
+base_config_name: franka_mounted_sentinel
+
+sentinel_cfg:
+  embodiment_profile: franka_tabletop_single_arm_v1
+  benchmark_root: ${oc.env:SENTINEL_BENCHMARK_ROOT,/home/yiyanpeng/project/SENTINEL-Lite/datasets/canonical_tabletop_20260407/benchmark_20260407_Curated_Full_Canonical}
+  activity_root: ${oc.env:SENTINEL_ACTIVITY_ROOT,/home/yiyanpeng/project/SENTINEL-Lite/datasets/canonical_tabletop_20260407/benchmark_20260407_Curated_Full_Canonical_activity_definitions}
+  max_scenes: 1
+  scene_names: null
+  camera_source: deterministic_eval
+  headless: False
+  use_gpu_dynamics: False
+  policy_wrist_local_position_offset: [0.02, 0.0, 0.04]

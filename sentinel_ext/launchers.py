@@ -41,9 +41,13 @@ def _run_rlinf_entry(relative_path: str) -> None:
 
 
 def sft_main() -> None:
-    """Entry point for SFT: RLinf/examples/sft/train_embodied_sft.py."""
+    """Entry point for SFT: RLinf/examples/sft/train_vla_sft.py.
+
+    Upstream renamed train_embodied_sft.py -> train_vla_sft.py when it
+    split VLA (Pi0.5 etc.) from VLM SFT in late 2026.
+    """
     _configure_runtime_env()
-    _run_rlinf_entry("examples/sft/train_embodied_sft.py")
+    _run_rlinf_entry("examples/sft/train_vla_sft.py")
 
 
 def rl_main() -> None:

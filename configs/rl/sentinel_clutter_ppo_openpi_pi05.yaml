@@ -28,7 +28,10 @@ hydra:
     dir: .
   output_subdir: null
   searchpath:
+    # RLinf vendored model/, training_backend/, etc. defaults.
     - file://${oc.env:EMBODIED_PATH}/config/
+    # Sentinel env yamls live in our repo, not in RLinf's tree.
+    - file://${oc.env:SENTINEL_CONFIG_ROOT}/
 
 cluster:
   num_nodes: 1

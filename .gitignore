@@ -13,3 +13,4 @@ RLinf-*/
 RLinf/.venv*/
 .vscode/
 teleop_bridge/SO-ARM100/
+RLinf_local/*

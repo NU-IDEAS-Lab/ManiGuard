@@ -29,7 +29,7 @@ try:  # pragma: no cover - depends on the local Isaac runtime
 except ImportError:
     isaacsim = None
 
-from rlinf.envs.sentinel.sentinel_env import SentinelEnv
+from sentinel_ext.envs.sentinel_env import SentinelEnv
 
 
 def parse_args() -> argparse.Namespace:
@@ -188,7 +188,7 @@ def _load_pi05_state_mean(checkpoint_dir: str) -> list[float]:
 
 def build_env_cfg(args: argparse.Namespace):
     env_defaults = OmegaConf.load(
-        REPO_ROOT / "RLinf/examples/embodiment/config/env/sentinel_franka_tabletop.yaml"
+        REPO_ROOT / "configs/env/sentinel_franka_tabletop.yaml"
     )
     og_cfg = OmegaConf.load(
         REPO_ROOT

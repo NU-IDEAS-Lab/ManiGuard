@@ -34,6 +34,7 @@ export SENTINEL_BENCHMARK_ROOT="${SENTINEL_BENCHMARK_ROOT:-$REPO_ROOT/datasets/s
 export SENTINEL_ACTIVITY_ROOT="${SENTINEL_ACTIVITY_ROOT:-$REPO_ROOT/bddl3/bddl/activity_definitions}"
 export SENTINEL_LOG_ROOT="${SENTINEL_LOG_ROOT:-$REPO_ROOT/outputs/rlinf_logs}"
 export EMBODIED_PATH="$REPO_ROOT/RLinf/examples/embodiment"
+export SENTINEL_CONFIG_ROOT="$REPO_ROOT/configs"
 export PYTHONPATH="$REPO_ROOT:$REPO_ROOT/RLinf:${PYTHONPATH:-}"
 
 # OmniGibson launch-time env from run_embodiment.sh.

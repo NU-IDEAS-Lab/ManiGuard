@@ -31,9 +31,7 @@ from openpi.training.config import AssetsConfig, DataConfig, TrainConfig
 # Pull RLinf's registry dict + its OmniGibsonDataConfig. These are the
 # only things we touch from the RLinf source tree.
 from rlinf.models.embodiment.openpi.dataconfig import _CONFIGS_DICT
-from rlinf.models.embodiment.openpi.dataconfig.omnigibson_dataconfig import (
-    OmniGibsonDataConfig,
-)
+from sentinel_ext.openpi.omnigibson_dataconfig import OmniGibsonDataConfig
 
 
 # Pi0.5 base checkpoint path -- can be overridden via env var so the same
