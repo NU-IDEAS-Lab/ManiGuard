@@ -1,8 +1,8 @@
 """Thin launcher wrappers that run RLinf's training entry points after
-importing `sentinel_ext` (which registers our Sentinel-specific
+importing `sentinel` (which registers our Sentinel-specific
 TrainConfigs into RLinf's registry at import time).
 
-Invoke via ``python -m sentinel_ext.launchers.sft_main ...`` style or
+Invoke via ``python -m sentinel.launchers.sft_main ...`` style or
 via the launcher shells in ``tools/``. All CLI args after the script
 name are forwarded verbatim to the wrapped hydra main, so hydra
 overrides (e.g. ``runner.max_steps=1``) work unchanged.
@@ -15,7 +15,8 @@ import runpy
 import sys
 from pathlib import Path
 
-import sentinel_ext  # noqa: F401  # register OpenPI configs
+import sentinel.rlinf.patches  # noqa: F401  # patch RLinf surfaces
+import sentinel.openpi.configs  # noqa: F401  # register TrainConfigs
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _RLINF_ROOT = _REPO_ROOT / "RLinf"
@@ -70,5 +71,5 @@ if __name__ == "__main__":  # pragma: no cover
         rl_main()
     else:
         sys.exit(
-            "Usage: python -m sentinel_ext.launchers {sft|rl} [hydra overrides...]"
+            "Usage: python -m sentinel.launchers {sft|rl} [hydra overrides...]"
         )

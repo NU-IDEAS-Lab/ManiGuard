@@ -18,7 +18,7 @@ import websockets
 import websockets.asyncio.server as _server
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 RLINF_ROOT = REPO_ROOT / "RLinf"
 if str(RLINF_ROOT) not in sys.path:
     sys.path.insert(0, str(RLINF_ROOT))

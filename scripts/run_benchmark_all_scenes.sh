@@ -5,7 +5,7 @@ set -euo pipefail
 # OmniGibson can't reliably reload scenes in the same process.
 #
 # Usage:
-#   bash tools/run_benchmark_all_scenes.sh \
+#   bash scripts/run_benchmark_all_scenes.sh \
 #       --benchmark-root outputs/local_eval_benchmark/clutter_all_scene_20260319 \
 #       --host 192.168.x.x --port 8000
 
@@ -61,7 +61,7 @@ for scene_name in "${SCENES[@]}"; do
     OMNI_KIT_ACCEPT_EULA=yes \
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 \
-    python "${REPO_ROOT}/tools/evaluate_benchmark.py" \
+    python -m sentinel.eval.benchmark \
         --benchmark-root "$BENCHMARK_ROOT" \
         --scenes "$scene_name" \
         --max-scenes 1 \

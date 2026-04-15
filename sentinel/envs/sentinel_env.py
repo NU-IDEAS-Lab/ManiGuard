@@ -13,8 +13,8 @@ import torch
 from omegaconf import OmegaConf
 from omnigibson.macros import gm
 
-from sentinel_ext.envs.embodiment_profile import get_sentinel_embodiment_profile
-from sentinel_ext.envs.registry import (
+from sentinel.envs.embodiment_profile import get_sentinel_embodiment_profile
+from sentinel.envs.registry import (
     DEFAULT_SENTINEL_ROBOT_NAME,
     SentinelSceneSpec,
     build_runtime_scene_info,

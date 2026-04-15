@@ -12,7 +12,7 @@ have RLinf dispatch on ``env_type: sentinel`` and bring up our
    in-tree BEHAVIOR branch does for r1pro_behavior.yaml).
 
 All patches are idempotent. Importing this module multiple times is
-safe; importing ``sentinel_ext`` triggers it.
+safe; importing ``sentinel`` triggers it.
 
 Why monkey-patch instead of upstreaming a register hook? RLinf doesn't
 expose one for env types yet, only for SupportedModel. If/when upstream
@@ -49,7 +49,10 @@ def _patch_supported_env_type() -> None:
     SupportedEnvType._value2member_map_[_SENTINEL_ENV_VALUE] = new_member
     if hasattr(SupportedEnvType, "_member_names_"):
         SupportedEnvType._member_names_.append(_SENTINEL_ENUM_NAME)
-    setattr(SupportedEnvType, _SENTINEL_ENUM_NAME, new_member)
+    # NOTE: no setattr(cls, name, member) -- EnumMeta.__setattr__ guards
+    # against reassigning anything already in _member_map_. Attribute
+    # access `SupportedEnvType.SENTINEL` still works because EnumMeta's
+    # __getattr__ falls back to _member_map_ when normal lookup fails.
 
 
 def _patch_get_env_cls() -> None:
@@ -68,11 +71,11 @@ def _patch_get_env_cls() -> None:
 
     def _patched(env_type, env_cfg=None):
         if isinstance(env_type, str) and env_type == _SENTINEL_ENV_VALUE:
-            from sentinel_ext.envs.sentinel_env import SentinelEnv
+            from sentinel.envs.sentinel_env import SentinelEnv
             return SentinelEnv
         from rlinf.envs import SupportedEnvType
         if isinstance(env_type, SupportedEnvType) and env_type.value == _SENTINEL_ENV_VALUE:
-            from sentinel_ext.envs.sentinel_env import SentinelEnv
+            from sentinel.envs.sentinel_env import SentinelEnv
             return SentinelEnv
         return _orig(env_type, env_cfg)
 
@@ -136,5 +139,5 @@ def apply_all_patches() -> None:
     logger.debug("Sentinel patches applied to RLinf.")
 
 
-# Apply on import so `import sentinel_ext` is enough.
+# Apply on import so `import sentinel` is enough.
 apply_all_patches()

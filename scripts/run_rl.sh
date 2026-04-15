@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pi0.5 PPO post-train launcher for a Sentinel task family.
 #
-# Imports sentinel_ext before invoking RLinf's RL entry point so our
+# Imports sentinel before invoking RLinf's RL entry point so our
 # Sentinel-specific TrainConfigs are in RLinf's registry.
 #
 # Prep:
@@ -18,7 +18,7 @@
 #   # Needed by OmniGibson at import time:
 #   export OMNIGIBSON_DATA_PATH=/path/to/behavior-1k-assets_parent
 #   export ISAAC_PATH=/path/to/isaac-sim
-#   bash tools/run_rl.sh sentinel_clutter_ppo_openpi_pi05
+#   bash scripts/run_rl.sh sentinel_clutter_ppo_openpi_pi05
 
 set -euo pipefail
 
@@ -35,7 +35,10 @@ export SENTINEL_ACTIVITY_ROOT="${SENTINEL_ACTIVITY_ROOT:-$REPO_ROOT/bddl3/bddl/a
 export SENTINEL_LOG_ROOT="${SENTINEL_LOG_ROOT:-$REPO_ROOT/outputs/rlinf_logs}"
 export EMBODIED_PATH="$REPO_ROOT/RLinf/examples/embodiment"
 export SENTINEL_CONFIG_ROOT="$REPO_ROOT/configs"
-export PYTHONPATH="$REPO_ROOT:$REPO_ROOT/RLinf:${PYTHONPATH:-}"
+# sitecustomize.py in _autoimport/ makes every Python subprocess
+# (including Ray workers) auto-import sentinel on startup, so our
+# patches reach all processes instead of just the launcher.
+export PYTHONPATH="$REPO_ROOT/sentinel/_autoimport:$REPO_ROOT:$REPO_ROOT/RLinf:${PYTHONPATH:-}"
 
 # OmniGibson launch-time env from run_embodiment.sh.
 export OMNIGIBSON_DATASET_PATH="${OMNIGIBSON_DATASET_PATH:-$OMNIGIBSON_DATA_PATH/behavior-1k-assets/}"
@@ -57,7 +60,7 @@ LOG_DIR="$SENTINEL_LOG_ROOT/rl_$(date +'%Y%m%d-%H%M%S')"
 mkdir -p "$LOG_DIR"
 
 exec sudo -E env PATH="$PATH" PYTHONPATH="$PYTHONPATH" \
-    python -m sentinel_ext.launchers rl \
+    python -m sentinel.launchers rl \
     --config-path "$REPO_ROOT/configs/rl" \
     --config-name "$CONFIG_NAME" \
     "runner.logger.log_path=$LOG_DIR" \

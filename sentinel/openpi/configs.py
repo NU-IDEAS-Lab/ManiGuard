@@ -14,7 +14,7 @@ The two entries we add mirror what used to live in RLinf:
                                    family (clutter, stack, transfer, ...).
 
 This module registers on import. Import order:
-    python -c "import sentinel_ext; import rlinf..."
+    python -c "import sentinel; import rlinf..."
 or
     PYTHONPATH=$REPO_ROOT python ... and set a hydra pre-hook.
 The launcher scripts in tools/run_{sft,rl}.sh do the former.
@@ -31,7 +31,7 @@ from openpi.training.config import AssetsConfig, DataConfig, TrainConfig
 # Pull RLinf's registry dict + its OmniGibsonDataConfig. These are the
 # only things we touch from the RLinf source tree.
 from rlinf.models.embodiment.openpi.dataconfig import _CONFIGS_DICT
-from sentinel_ext.openpi.omnigibson_dataconfig import OmniGibsonDataConfig
+from sentinel.openpi.omnigibson_dataconfig import OmniGibsonDataConfig
 
 
 # Pi0.5 base checkpoint path -- can be overridden via env var so the same
@@ -107,6 +107,6 @@ def register_sentinel_configs() -> None:
         _CONFIGS_DICT[cfg.name] = cfg
 
 
-# Register on import so `import sentinel_ext` is enough to make the
+# Register on import so `import sentinel` is enough to make the
 # configs visible to RLinf.
 register_sentinel_configs()

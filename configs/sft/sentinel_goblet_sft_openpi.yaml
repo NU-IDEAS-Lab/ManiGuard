@@ -46,7 +46,7 @@ runner:
 
 data:
   # HF_LEROBOT_HOME root. Dataset lives under ${data_path}/sentinel/goblet_pick_place/.
-  data_path: "${oc.env:SENTINEL_LEROBOT_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/outputs/lerobot_datasets}"
+  train_data_paths: "${oc.env:SENTINEL_LEROBOT_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/outputs/lerobot_datasets}"
 
 algorithm:
   adv_type: gae

@@ -17,7 +17,7 @@
 # Usage:
 #   cd /home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite
 #   export SENTINEL_PI05_BASE=$PWD/RLinf-pi05-SFT-Stack-cube
-#   bash tools/prepare_sft_data.sh
+#   bash scripts/prepare_sft_data.sh
 
 set -euo pipefail
 
@@ -53,7 +53,7 @@ for in_path in "$INPUT_DIR"/traj_*.hdf5; do
     echo "[Prep] Stage 1: $in_path"
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 \
-    "$PY" tools/playback_teleop_to_hdf5.py \
+    "$PY" python -m sentinel.data.playback \
         --input "$in_path" --output "$out_path" --save-mp4
 done
 
@@ -63,7 +63,7 @@ if [[ -d "$DATASET_ROOT/data" ]]; then
     echo "[Prep] Dataset already exists at $DATASET_ROOT (delete to regenerate)"
 else
     echo "[Prep] Stage 2: building LeRobot dataset at $DATASET_ROOT"
-    "$PY" tools/hdf5_to_lerobot.py \
+    "$PY" python -m sentinel.data.lerobot_export \
         --input-dir "$RENDERED_DIR" \
         --repo-id "$REPO_ID" \
         --prompt "$PROMPT" \
@@ -73,7 +73,7 @@ fi
 # -- Stage 3: norm_stats.json next to the Pi0.5 ckpt ------------------------
 NORM_DIR="$SENTINEL_PI05_BASE/assets/$ASSET_ID"
 echo "[Prep] Stage 3: writing norm_stats to $NORM_DIR"
-"$PY" tools/compute_norm_stats.py \
+"$PY" python -m sentinel.data.norm_stats \
     --dataset-root "$DATASET_ROOT" \
     --output-dir "$NORM_DIR"
 

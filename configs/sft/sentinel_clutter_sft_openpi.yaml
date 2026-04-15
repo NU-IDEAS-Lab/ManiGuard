@@ -45,7 +45,7 @@ runner:
 data:
   # HF_LEROBOT_HOME root. The dataset lives at
   # ${data_path}/${SENTINEL_LEROBOT_REPO_ID}/.
-  data_path: ${oc.env:SENTINEL_LEROBOT_ROOT}
+  train_data_paths: ${oc.env:SENTINEL_LEROBOT_ROOT}
 
 algorithm:
   adv_type: gae

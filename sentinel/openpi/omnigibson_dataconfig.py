@@ -11,7 +11,7 @@ import openpi.transforms as _transforms
 from openpi.training.config import DataConfig, DataConfigFactory, ModelTransformFactory
 from typing_extensions import override
 
-from sentinel_ext.openpi import omnigibson_policy
+from sentinel.openpi import omnigibson_policy
 
 
 @dataclasses.dataclass(frozen=True)

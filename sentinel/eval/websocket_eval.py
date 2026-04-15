@@ -16,7 +16,7 @@ from omnigibson.learning.utils.network_utils import WebsocketClientPolicy
 from PIL import Image
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 RLINF_ROOT = REPO_ROOT / "RLinf"
 if str(RLINF_ROOT) not in sys.path:
     sys.path.insert(0, str(RLINF_ROOT))
@@ -29,7 +29,7 @@ try:  # pragma: no cover - depends on the local Isaac runtime
 except ImportError:
     isaacsim = None
 
-from sentinel_ext.envs.sentinel_env import SentinelEnv
+from sentinel.envs.sentinel_env import SentinelEnv
 
 
 def parse_args() -> argparse.Namespace:
