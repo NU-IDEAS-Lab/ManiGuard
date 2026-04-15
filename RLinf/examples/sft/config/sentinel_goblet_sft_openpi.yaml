@@ -1,0 +1,107 @@
+# SFT for the SENTINEL "goblet → plate" teleop dataset.
+#
+# Prereqs:
+#   - Stage 1 + 2 done: outputs/lerobot_datasets/sentinel/goblet_pick_place/
+#     contains a valid LeRobot v2.1 dataset (see tools/playback_teleop_to_hdf5.py
+#     and tools/hdf5_to_lerobot.py).
+#   - Pi0.5 base checkpoints on disk; pass the path via SENTINEL_PI05_BASE env var
+#     (read by rlinf/models/embodiment/openpi/dataconfig/__init__.py).
+#   - actor.model.model_path below must point at the same Pi0.5 directory.
+#
+# Launch (from repo root):
+#   export SENTINEL_PI05_BASE=/path/to/pi05_base
+#   export EMBODIED_PATH=$PWD/RLinf/examples/sft
+#   bash RLinf/examples/sft/run_embodiment_sft.sh sentinel_goblet_sft_openpi
+defaults:
+  - model/pi0@actor.model
+  - training_backend/fsdp@actor.fsdp_config
+  - override hydra/job_logging: stdout
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  searchpath:
+    - file://${oc.env:EMBODIED_PATH}/config/
+
+cluster:
+  num_nodes: 1
+  component_placement:
+    actor,env,rollout: 0-0
+
+runner:
+  task_type: sft
+  logger:
+    log_path: "../results"
+    project_name: rlinf
+    experiment_name: "sentinel_goblet_sft"
+    logger_backends: ["tensorboard"]
+
+  # Override with runner.max_steps=1 on the CLI to run a smoke test:
+  #   bash run_embodiment_sft.sh sentinel_goblet_sft_openpi runner.max_steps=1
+  max_epochs: 5000
+  max_steps: -1
+  val_check_interval: -1
+  save_interval: 500
+
+data:
+  # HF_LEROBOT_HOME root. Dataset lives under ${data_path}/sentinel/goblet_pick_place/.
+  data_path: "${oc.env:SENTINEL_LEROBOT_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/outputs/lerobot_datasets}"
+
+algorithm:
+  adv_type: gae
+
+actor:
+  group_name: "ActorGroup"
+  training_backend: "fsdp"
+  # This machine has 31 GB RAM; bumping bs crashes Ray worker OOM.
+  micro_batch_size: 1
+  global_batch_size: 1
+  seed: 0
+
+  model:
+    precision: null
+    # Pi0.5 checkpoint to initialise from. The stack-cube SFT ckpt ships with
+    # an 8D state norm_stats; our dataset is 7D (eef_pos + eef_axisangle +
+    # gripper). SFT will likely fail at the state projection layer unless
+    # either (a) we pad our state to 8D, or (b) we re-init from a pure
+    # Pi0.5 base (no SFT norm_stats baked in). Flagged for follow-up.
+    model_path: "${oc.env:SENTINEL_PI05_BASE,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/RLinf-pi05-SFT-Stack-cube}"
+    num_action_chunks: 4
+    # SFT doesn't need the critic head; turning it off saves params + RAM.
+    add_value_head: False
+    # LoRA adapters only -- this machine has 31 GB RAM which is too tight
+    # for full-parameter SFT of Pi0.5 (2B + 300M params, even with FSDP).
+    is_lora: True
+    lora_rank: 32
+    openpi:
+      config_name: "pi05_sentinel_goblet"
+      detach_critic_input: True
+
+  optim:
+    lr: 2.5e-5
+    value_lr: 1.55e-4
+    adam_beta1: 0.9
+    adam_beta2: 0.95
+    adam_eps: 1.0e-08
+    weight_decay: 1.0e-10
+    clip_grad: 1.0
+    warmup_style: "cosine"
+    lr_warmup_steps: 500
+    total_training_steps: 5000
+
+  fsdp_config:
+    strategy: "fsdp"
+    sharding_strategy: "full_shard"
+    use_orig_params: False
+    gradient_checkpointing: False
+    mixed_precision:
+      param_dtype: ${actor.model.precision}
+      reduce_dtype: ${actor.model.precision}
+      buffer_dtype: ${actor.model.precision}
+
+reward:
+  use_reward_model: False
+
+critic:
+  use_critic_model: False
