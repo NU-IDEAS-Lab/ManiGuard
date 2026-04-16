@@ -41,6 +41,19 @@ fi
 
 export PYTHONPATH="${REPO_ROOT}:${REPO_ROOT}/RLinf:${PYTHONPATH:-}"
 
+# The per-scene eval needs the behavior conda env (OmniGibson + Isaac Sim).
+# Auto-detect or accept override via PYTHON_CMD.
+if [[ -n "${PYTHON_CMD:-}" ]]; then
+    PY="$PYTHON_CMD"
+elif command -v conda &>/dev/null && conda run -n behavior python --version &>/dev/null 2>&1; then
+    PY="conda run --no-capture-output -n behavior python"
+elif [[ -x "/home/nu-ideas-4080/miniconda3/envs/behavior/bin/python" ]]; then
+    PY="/home/nu-ideas-4080/miniconda3/envs/behavior/bin/python"
+else
+    PY="python"
+fi
+echo "[batch] Using python: $PY"
+
 OUTPUT_DIR="${REPO_ROOT}/outputs/benchmark_eval"
 mkdir -p "$OUTPUT_DIR"
 RESULTS_FILE="${OUTPUT_DIR}/results.jsonl"
@@ -54,14 +67,13 @@ RESULTS_FILE="${OUTPUT_DIR}/results.jsonl"
 # -----------------------------------------------------------------------
 echo "[batch] Discovering scenes from: ${BENCHMARK_ROOT} @ ${BENCHMARK_REVISION}"
 
-SCENE_LIST=$(OMNI_KIT_ACCEPT_EULA=yes python -c "
+SCENE_LIST=$(python -c "
 import sys, json
 sys.path.insert(0, '${REPO_ROOT}')
 from sentinel.data.hf_benchmark import resolve_benchmark_root
-from sentinel.eval.benchmark import discover_scenes
+from sentinel.eval.scene_discovery import discover_scenes
 root = resolve_benchmark_root('${BENCHMARK_ROOT}', revision='${BENCHMARK_REVISION}')
 scenes = discover_scenes(str(root))
-# Print one JSON per line: {name, resolved_root}
 for s in scenes:
     print(json.dumps({'name': s['name'], 'root': str(root)}))
 " 2>/dev/null)
@@ -99,15 +111,18 @@ for scene_name in "${SCENES[@]}"; do
     # Each scene gets its own python process. --scenes filters to just
     # this one scene; --benchmark-root is the resolved local path (not
     # the HF repo_id) so we skip re-downloading inside the child.
+    # Isaac Sim segfaults on og.clear() shutdown (exit 139) even when
+    # the eval itself succeeded. Tolerate non-zero exits here — the
+    # results.jsonl tally below determines real success/failure.
     OMNI_KIT_ACCEPT_EULA=yes \
     VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/nvidia_icd.json}" \
     CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}" \
-    python -m sentinel.eval.benchmark \
+    $PY -m sentinel.eval.benchmark \
         --benchmark-root "$RESOLVED_ROOT" \
         --scenes "$scene_name" \
         --max-scenes 1 \
         --output-dir "$OUTPUT_DIR" \
-        "${EXTRA_ARGS[@]}" 2>&1 | tail -5
+        "${EXTRA_ARGS[@]}" 2>&1 | tail -5 || true
 
     # Tally from the last result line
     if [[ -f "$RESULTS_FILE" ]]; then
