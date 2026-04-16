@@ -46,7 +46,14 @@ gm.ENABLE_TRANSITION_RULES = False
 
 def parse_args():
     p = argparse.ArgumentParser(description="Evaluate VLA on SENTINEL benchmark (no BDDL).")
-    p.add_argument("--benchmark-root", required=True)
+    p.add_argument("--benchmark-root", required=True,
+                   help="Local directory OR a HuggingFace dataset repo_id "
+                        "(<owner>/<name>). HF repos are snapshot_download'd "
+                        "into the standard HF cache the first time and reused "
+                        "on subsequent runs (incremental by file hash).")
+    p.add_argument("--benchmark-revision", default="main",
+                   help="HF dataset revision to snapshot (main / tag / commit). "
+                        "Ignored when --benchmark-root is a local directory.")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--use-openpi-client", action="store_true")
@@ -90,56 +97,148 @@ def _build_eval_external_sensors(args):
 # Scene discovery
 # ---------------------------------------------------------------------------
 
+def _iter_scene_dirs(root: Path):
+    """Yield every directory under ``root`` that looks like a scene.
+
+    A scene directory must contain both ``scene_ep1.json`` and
+    ``diagnostics.jsonl``. The walk is depth-limited to 3 levels so HF
+    datasets laid out as ``<task_family>/<trial_N>/`` work transparently
+    without re-scanning the whole tree.
+    """
+    if not root.is_dir():
+        return
+    stack = [(root, 0)]
+    max_depth = 3
+    while stack:
+        current, depth = stack.pop()
+        try:
+            entries = sorted(current.iterdir())
+        except OSError:
+            continue
+        is_scene = (current / "scene_ep1.json").is_file() and (current / "diagnostics.jsonl").is_file()
+        if is_scene:
+            yield current
+            continue
+        if depth >= max_depth:
+            continue
+        for entry in entries:
+            if entry.is_dir() and not entry.name.startswith((".", "_")):
+                stack.append((entry, depth + 1))
+
+
+def _scene_key(root: Path, scene_dir: Path) -> str:
+    """Stable scene identifier: either the dir name, or <family>/<trial>
+    for HF-style two-level layouts. Lets ``--scenes`` filter on either."""
+    try:
+        rel = scene_dir.relative_to(root)
+    except ValueError:
+        return scene_dir.name
+    return rel.as_posix()
+
+
 def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
-    """Discover valid benchmark scenes with diagnostics."""
+    """Discover valid benchmark scenes with diagnostics.
+
+    Handles both 1-level layouts (``<root>/<scene>/``) and 2-level
+    layouts (``<root>/<task_family>/<scene>/``), the latter produced by
+    task-generation benchmark corpora on HuggingFace.
+    """
     root = Path(benchmark_root)
     scenes = []
-    for scene_dir in sorted(root.iterdir()):
-        if not scene_dir.is_dir():
-            continue
+    for scene_dir in _iter_scene_dirs(root):
         scene_file = scene_dir / "scene_ep1.json"
         diag_file = scene_dir / "diagnostics.jsonl"
-        if not scene_file.is_file() or not diag_file.is_file():
-            continue
-        if scene_names and scene_dir.name not in scene_names:
+        scene_key = _scene_key(root, scene_dir)
+        if scene_names and scene_key not in scene_names and scene_dir.name not in scene_names:
             continue
 
         diag = json.loads(diag_file.read_text(encoding="utf-8").strip().split("\n")[0])
+        scene_info_json = json.loads(scene_file.read_text(encoding="utf-8"))
+        init_info = scene_info_json.get("objects_info", {}).get("init_info", {})
+        sel = diag.get("selection", {})
+        pipeline = diag.get("pipeline", "")
+        surface_name = diag.get("surface", "")
+        surface_label = (
+            init_info.get(surface_name, {}).get("args", {}).get("category", "")
+            or surface_name or "table"
+        )
+
+        # ----------------------------------------------------------------
+        # Pipeline-aware scene parsing: each pipeline type has different
+        # diagnostics keys and different natural-language instructions.
+        # ----------------------------------------------------------------
         target_name = None
-        for entry in diag.get("active_object_summary", []):
-            if entry.get("role") == "target":
-                target_name = entry.get("scene_object_name")
-                break
+        prompt = None
+
+        if pipeline in ("lid_transport_food", "lid_transport_liquid"):
+            # Lid transport: place lid on container then pick up container.
+            container_synset = sel.get("container_synset", "")
+            container_label = container_synset.split(".n.")[0].replace("_", " ") if ".n." in container_synset else container_synset
+            # Find the container object by matching category to container_category
+            container_cat = sel.get("container_category", "")
+            for obj_name, obj_info in init_info.items():
+                if obj_info.get("args", {}).get("category") == container_cat:
+                    target_name = obj_name
+                    break
+            prompt = f"Place the lid on the {container_label}, then pick up the {container_label}."
+
+        elif pipeline == "transfer":
+            # Food transfer: move food from source to dest.
+            food_synset = sel.get("food_synset", "")
+            source_synset = sel.get("source_synset", "")
+            dest_synset = sel.get("dest_synset", "")
+            food_label = food_synset.split(".n.")[0].replace("_", " ") if ".n." in food_synset else "food"
+            source_label = source_synset.split(".n.")[0].replace("_", " ") if ".n." in source_synset else "source"
+            dest_label = dest_synset.split(".n.")[0].replace("_", " ") if ".n." in dest_synset else "destination"
+            # Find the food object
+            food_cat = food_synset.split(".n.")[0] if ".n." in food_synset else ""
+            for obj_name, obj_info in init_info.items():
+                if obj_info.get("args", {}).get("category") == food_cat:
+                    target_name = obj_name
+                    break
+            prompt = f"Transfer the {food_label} from the {source_label} to the {dest_label}."
+
+        else:
+            # Clutter / liquid_transport / generic pickup: look for target
+            # in active_object_summary or fall back to selection.target_synset.
+            for entry in diag.get("active_object_summary", []):
+                if entry.get("role") == "target":
+                    target_name = entry.get("scene_object_name")
+                    break
+            if not target_name:
+                # Fall back: match target_synset category against init_info
+                target_synset = sel.get("target_synset", "")
+                target_cat = target_synset.split(".n.")[0] if ".n." in target_synset else ""
+                for obj_name, obj_info in init_info.items():
+                    if obj_info.get("args", {}).get("category") == target_cat:
+                        target_name = obj_name
+                        break
+            target_synset = sel.get("target_synset", "")
+            target_label = target_synset.split(".n.")[0].replace("_", " ") if ".n." in target_synset else "object"
+            prompt = f"Pick up the {target_label} on the {surface_label}."
+
         if not target_name:
-            print(f"  Skipping {scene_dir.name}: no target in diagnostics")
+            print(f"  Skipping {scene_key}: could not resolve target object (pipeline={pipeline})")
             continue
+        if not prompt:
+            prompt = f"Manipulate the objects on the {surface_label}."
 
         # Determine target room from scene JSON
-        scene_info = json.loads(scene_file.read_text(encoding="utf-8"))
-        init_info = scene_info.get("objects_info", {}).get("init_info", {})
         target_obj = init_info.get(target_name, {})
         target_rooms = target_obj.get("args", {}).get("in_rooms", [])
-
-        # Also include surface's room
-        surface_name = diag.get("surface", "")
         if surface_name and surface_name in init_info:
             surface_rooms = init_info[surface_name].get("args", {}).get("in_rooms", [])
             target_rooms = list(set(target_rooms + surface_rooms))
 
-        # Build prompt
-        target_synset = diag.get("selection", {}).get("target_synset", "")
-        target_label = target_synset.split(".n.")[0].replace("_", " ") if ".n." in target_synset else target_synset
-        surface_label = init_info.get(surface_name, {}).get("args", {}).get("category", surface_name or "table")
-        prompt = f"Pick up the {target_label} on the {surface_label}."
-
         scenes.append({
-            "name": scene_dir.name,
+            "name": scene_key,
             "scene_file": str(scene_file),
             "scene_model": diag.get("scene_model", scene_dir.name),
             "target_name": target_name,
             "surface_name": surface_name,
             "target_rooms": target_rooms,
             "prompt": prompt,
+            "pipeline": pipeline,
             "activity_name": diag.get("activity_name", ""),
         })
 
@@ -406,9 +505,20 @@ def main():
 
     import omnigibson as og
 
+    # Resolve benchmark source: local path or HF dataset repo_id. HF
+    # repos are snapshot-downloaded into the hf cache; subsequent runs
+    # reuse via content-hash.
+    from sentinel.data.hf_benchmark import resolve_benchmark_root
+    resolved_root = resolve_benchmark_root(
+        args.benchmark_root, revision=args.benchmark_revision,
+    )
+    if str(resolved_root) != args.benchmark_root:
+        print(f"Resolved benchmark '{args.benchmark_root}' @ {args.benchmark_revision} "
+              f"-> {resolved_root}")
+
     # Discover scenes
     scenes = discover_scenes(
-        args.benchmark_root,
+        str(resolved_root),
         scene_names=args.scenes,
         max_scenes=args.max_scenes,
     )
