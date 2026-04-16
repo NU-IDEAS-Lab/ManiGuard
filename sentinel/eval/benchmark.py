@@ -431,6 +431,15 @@ def main():
         except Exception:
             print(f"  Warning: target object '{scene_info['target_name']}' not found in scene")
 
+        # Build goal checker from pipeline type + diagnostics
+        from sentinel.eval.goal_checker import build_goal_checker
+        goal_checker = build_goal_checker(scene_info)
+        goal_checker.resolve(env)
+        if goal_checker.conditions:
+            print(f"  Goals: {[c.description for c in goal_checker.conditions]}")
+        else:
+            print(f"  Warning: no goal conditions for pipeline={scene_info.get('pipeline')}")
+
         # Settle
         for _ in range(10):
             robot.keep_still()
@@ -446,6 +455,7 @@ def main():
         done = False
         success = False
         total_reward = 0.0
+        goal_detail = {}
 
         while step_idx < args.max_steps and not done:
             chunk = query_policy(policy, obs, client_type)
@@ -466,22 +476,24 @@ def main():
                 step_idx += 1
                 total_reward += float(reward)
 
-                if check_grasp(robot, target_obj):
-                    success = True
+                success, goal_detail = goal_checker.check(env)
+                if success:
                     done = True
                     break
 
             if step_idx % 50 == 0 or step_idx == 1:
-                print(f"  Step {step_idx}/{args.max_steps} | success={success}")
+                print(f"  Step {step_idx}/{args.max_steps} | success={success} | goals={goal_detail}")
 
         result = {
             "scene_name": scene_info["name"],
             "prompt": scene_info["prompt"],
             "target": scene_info["target_name"],
+            "pipeline": scene_info.get("pipeline", ""),
             "rooms": scene_info["target_rooms"],
             "status": "completed",
             "steps": step_idx,
             "success": success,
+            "goal_detail": goal_detail,
             "total_reward": total_reward,
         }
         all_results.append(result)
