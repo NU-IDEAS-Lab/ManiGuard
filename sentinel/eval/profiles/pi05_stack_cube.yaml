@@ -1,0 +1,8 @@
+name: pi05_stack_cube
+state_mode: eef_8d          # eef_pos(3) + axisangle(3) + gripper_qpos(2)
+policy_cameras: [cam_opposite]
+action_dim: 7
+execute_horizon: 5
+gripper_binarize: true
+serve_config_name: pi05_isaaclab_stack_cube
+serve_script: sentinel/serve/pi05_franka.py

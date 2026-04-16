@@ -77,6 +77,11 @@ def parse_args():
     p.add_argument("--random-policy", action="store_true",
                    help="Use uniform random actions instead of a policy "
                         "server. For pipeline smoke-testing only.")
+    p.add_argument("--eval-profile", type=str, default="pi05_stack_cube",
+                   help="Eval profile name (matches a yaml in sentinel/eval/profiles/ "
+                        "or a built-in). Controls state_mode, action_dim, "
+                        "execute_horizon, gripper binarization. "
+                        "Available: pi05_stack_cube, pi0_libero, pi05_libero, gr00t.")
     return p.parse_args()
 
 
@@ -202,7 +207,7 @@ def quat2axisangle(quat):
     return (axis * angle).astype(np.float32)
 
 
-def extract_obs(env, robot, prompt, policy_cameras=None):
+def extract_obs(env, robot, prompt, policy_cameras=None, state_mode="eef_8d"):
     from omnigibson.utils.camera_setup import compose_main_image, normalize_policy_cameras
 
     raw_obs, _ = env.get_obs()
@@ -228,10 +233,21 @@ def extract_obs(env, robot, prompt, policy_cameras=None):
     eef_axisangle = quat2axisangle(eef_quat)
     gripper_idx = robot.gripper_control_idx[robot.default_arm]
     gripper_qpos = robot.get_joint_positions()[gripper_idx].cpu().numpy().astype(np.float32)
-    # 8D state: eef_pos(3) + axisangle(3) + gripper_qpos(2). Matches
-    # the training-time layout in sentinel/data/playback.py so ckpts
-    # trained there can consume eval obs without a shape mismatch.
-    state = np.concatenate([eef_pos, eef_axisangle, gripper_qpos])
+
+    if state_mode == "eef_8d":
+        # eef_pos(3) + axisangle(3) + gripper_qpos(2) — IsaacLab stack-cube layout
+        state = np.concatenate([eef_pos, eef_axisangle, gripper_qpos])
+    elif state_mode == "eef_7d":
+        # eef_pos(3) + axisangle(3) + gripper_scalar(1) — LIBERO layout
+        gripper_scalar = np.mean(gripper_qpos).reshape(1).astype(np.float32)
+        state = np.concatenate([eef_pos, eef_axisangle, gripper_scalar])
+    elif state_mode == "joint":
+        # joint_positions(7) + gripper_scalar(1)
+        arm_positions = robot.get_joint_positions()[robot.arm_control_idx[robot.default_arm]]
+        gripper_scalar = np.mean(gripper_qpos).reshape(1).astype(np.float32)
+        state = np.concatenate([arm_positions.cpu().numpy().astype(np.float32), gripper_scalar])
+    else:
+        raise ValueError(f"Unknown state_mode: {state_mode}")
 
     return {
         "main_images": main_rgb,
@@ -313,6 +329,18 @@ def query_policy(policy, obs, client_type):
 
 def main():
     args = parse_args()
+
+    from sentinel.eval.profiles import get_profile
+    profile = get_profile(args.eval_profile)
+    print(f"[Eval] Profile: {profile.name} (state={profile.state_mode}, "
+          f"action_dim={profile.action_dim}, horizon={profile.execute_horizon})")
+
+    # Profile overrides CLI defaults (CLI still wins if explicitly set).
+    if args.execute_horizon == 5 and profile.execute_horizon != 5:
+        args.execute_horizon = profile.execute_horizon
+    if args.policy_external_cameras is None:
+        args.policy_external_cameras = profile.policy_cameras
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     results_path = output_dir / "results.jsonl"
@@ -410,7 +438,7 @@ def main():
         for _ in range(2):
             og.sim.render()
 
-        obs = extract_obs(env, robot, scene_info["prompt"], policy_cameras=args.policy_external_cameras)
+        obs = extract_obs(env, robot, scene_info["prompt"], policy_cameras=args.policy_external_cameras, state_mode=profile.state_mode)
         frames = [obs["main_images"]] if args.save_video else []
 
         # Rollout
@@ -425,13 +453,14 @@ def main():
 
             for ci in range(chunk_len):
                 action = chunk[ci].copy()
-                action[-1] = np.sign(action[-1]) if abs(action[-1]) > 0.01 else -1.0
+                if profile.gripper_binarize:
+                    action[-1] = np.sign(action[-1]) if abs(action[-1]) > 0.01 else -1.0
                 action_clipped = np.clip(action[:action_space.shape[0]], action_space.low, action_space.high)
 
                 raw_obs, reward, terminated, truncated, info = env.step(
                     torch.from_numpy(action_clipped).unsqueeze(0)
                 )
-                obs = extract_obs(env, robot, scene_info["prompt"], policy_cameras=args.policy_external_cameras)
+                obs = extract_obs(env, robot, scene_info["prompt"], policy_cameras=args.policy_external_cameras, state_mode=profile.state_mode)
                 if args.save_video:
                     frames.append(obs["main_images"])
                 step_idx += 1

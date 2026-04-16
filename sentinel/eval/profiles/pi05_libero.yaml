@@ -1,0 +1,8 @@
+name: pi05_libero
+state_mode: eef_7d          # LIBERO-style 7D
+policy_cameras: [cam_opposite]
+action_dim: 7
+execute_horizon: 5
+gripper_binarize: true
+serve_config_name: pi05_libero
+serve_script: sentinel/serve/pi05_franka.py
