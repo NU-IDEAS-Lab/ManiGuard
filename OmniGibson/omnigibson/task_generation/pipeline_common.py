@@ -1512,6 +1512,15 @@ class BasePipeline(ABC):
             ctx.curation and ctx.curation.save_scene_even_if_gate_fails
         )
         if save_scene:
+            # Assign in_rooms to pipeline-spawned objects (task objects +
+            # robot) so the saved snapshot supports partial room loading
+            # at eval time. Without this, objects have empty in_rooms and
+            # OmniGibson's room filter drops them on restore.
+            _room = ctx.selection.get("_room_instance", "")
+            if _room:
+                for obj in list(ctx.active_objects.values()) + ([ctx.robot] if ctx.robot else []):
+                    if hasattr(obj, "in_rooms") and _room not in (obj.in_rooms or []):
+                        obj.in_rooms = list(set((obj.in_rooms or []) + [_room]))
             scene_save_path = os.path.join(args.run_dir, f"scene_ep{ctx.episode + 1}.json")
             og.sim.save(json_paths=[scene_save_path])
             print(f"[Pipeline] Scene saved: {scene_save_path}")
