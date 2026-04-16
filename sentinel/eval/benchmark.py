@@ -263,76 +263,16 @@ def build_og_config(scene_info: dict, args):
     if args.headless:
         gm.HEADLESS = True
 
-    # Detect scene type from the snapshot so we handle both
-    # InteractiveTraversableScene snapshots (BEHAVIOR scenes like Rs_int)
-    # and pipeline-generated empty Scene snapshots (clutter/stack/transfer
-    # pipelines produce these via og.sim.save() on a base Scene).
-    _scene_header = json.loads(Path(scene_info["scene_file"]).read_text(encoding="utf-8"))
-    _scene_class = _scene_header.get("init_info", {}).get("class_name", "InteractiveTraversableScene")
-
-    if _scene_class == "Scene":
-        # Pipeline-generated snapshot: no named scene_model, just load
-        # the full state from scene_file. Mirrors the teleop pattern.
-        scene_cfg = {
-            "type": "Scene",
-            "scene_file": scene_info["scene_file"],
-        }
-    else:
-        scene_cfg = {
-            "type": "InteractiveTraversableScene",
-            "scene_model": scene_info["scene_model"],
-            "scene_file": scene_info["scene_file"],
-            "scene_instance": None,
-            "include_robots": False,
-        }
-        if scene_info["target_rooms"]:
-            scene_cfg["load_room_instances"] = scene_info["target_rooms"]
-
-    robot_cfg = {
-        "type": "FrankaMounted",
-        "name": "agent_0",
-        "obs_modalities": ["rgb"],
-        "action_normalize": False,
-        "sensor_config": {
-            "VisionSensor": {
-                "sensor_kwargs": {"image_height": 256, "image_width": 256},
-            },
-        },
-        "controller_config": {
-            "arm_0": {
-                "name": "InverseKinematicsController",
-                "mode": "pose_delta_ori",
-                "command_input_limits": [[-1.0] * 6, [1.0] * 6],
-                "command_output_limits": [
-                    [-0.2, -0.2, -0.2, -0.5, -0.5, -0.5],
-                    [0.2, 0.2, 0.2, 0.5, 0.5, 0.5],
-                ],
-            },
-            "gripper_0": {
-                "name": "MultiFingerGripperController",
-                "command_input_limits": [-1.0, 1.0],
-                "command_output_limits": "default",
-                "mode": "smooth",
-                "inverted": True,
-            },
-        },
+    # Always load as a plain Scene from scene_file, regardless of whether
+    # the snapshot was originally saved from an InteractiveTraversableScene.
+    # og.sim.save() captures everything (structure + objects + robot +
+    # state), so Scene + scene_file reconstructs the full world without
+    # needing scene_model, load_room_instances, or the room-based object
+    # filter that drops pipeline-spawned objects with empty in_rooms.
+    scene_cfg = {
+        "type": "Scene",
+        "scene_file": scene_info["scene_file"],
     }
-
-    # Extract robot setup from scene JSON
-    scene_data = json.loads(Path(scene_info["scene_file"]).read_text(encoding="utf-8"))
-    init_info = scene_data.get("objects_info", {}).get("init_info", {})
-    state_registry = scene_data.get("state", {}).get("registry", {}).get("object_registry", {})
-    for obj_name, obj_info in init_info.items():
-        if "robot" in str(obj_info.get("class_module", "")).lower():
-            state = state_registry.get(obj_name, {})
-            root_link = state.get("root_link", {})
-            if root_link.get("pos"):
-                robot_cfg["position"] = root_link["pos"]
-            if root_link.get("ori"):
-                robot_cfg["orientation"] = root_link["ori"]
-            if state.get("joint_pos"):
-                robot_cfg["reset_joint_pos"] = state["joint_pos"]
-            break
 
     env_cfg = {
         "action_frequency": args.action_frequency,
@@ -341,17 +281,12 @@ def build_og_config(scene_info: dict, args):
         "external_sensors": _build_eval_external_sensors(args),
     }
 
-    # No BDDL task — use DummyTask
     task_cfg = {"type": "DummyTask"}
 
-    # For pipeline-generated Scene snapshots, the robot is already baked
-    # into scene_file; passing an extra robot_cfg would double-instantiate.
-    # InteractiveTraversableScene snapshots (BEHAVIOR scenes) don't include
-    # the robot, so we need the explicit robot_cfg there.
-    robots_block = [] if _scene_class == "Scene" else [robot_cfg]
+    # Robot is baked into scene_file — no separate robot_cfg needed.
     return {
         "scene": scene_cfg,
-        "robots": robots_block,
+        "robots": [],
         "objects": [],
         "task": task_cfg,
         "env": env_cfg,
