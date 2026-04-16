@@ -223,12 +223,19 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         if not prompt:
             prompt = f"Manipulate the objects on the {surface_label}."
 
-        # Determine target room from scene JSON
-        target_obj = init_info.get(target_name, {})
-        target_rooms = target_obj.get("args", {}).get("in_rooms", [])
+        # Determine which room(s) to load. Pipeline-spawned objects often
+        # have empty in_rooms; the diagnostics' support_selection.room_instance
+        # is the most reliable source because the pipeline explicitly chose
+        # that room for the surface + robot placement.
+        target_rooms = set()
+        diag_room = diag.get("support_selection", {}).get("room_instance")
+        if diag_room:
+            target_rooms.add(diag_room)
+        target_obj_info = init_info.get(target_name, {})
+        target_rooms.update(target_obj_info.get("args", {}).get("in_rooms", []))
         if surface_name and surface_name in init_info:
-            surface_rooms = init_info[surface_name].get("args", {}).get("in_rooms", [])
-            target_rooms = list(set(target_rooms + surface_rooms))
+            target_rooms.update(init_info[surface_name].get("args", {}).get("in_rooms", []))
+        target_rooms = list(target_rooms)
 
         scenes.append({
             "name": scene_key,
