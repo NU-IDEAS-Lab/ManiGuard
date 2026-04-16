@@ -331,6 +331,11 @@ class PinchPointPipeline(BasePipeline):
             raise RuntimeError("No pack objects for edge alignment.")
         return tuple(result)
 
+    def goal_conditions(self, ctx):
+        if ctx.target_obj:
+            return [{"predicate": "grasping", "subject": "robot", "reference": ctx.target_obj.name}]
+        return []
+
     def extra_gate_checks(self, ctx):
         return getattr(ctx, "_integrity", None) is not None and ctx._integrity.ok
 

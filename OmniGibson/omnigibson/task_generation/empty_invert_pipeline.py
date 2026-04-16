@@ -140,6 +140,11 @@ class EmptyInvertPipeline(BasePipeline):
                 continue
         return tuple(result)
 
+    def goal_conditions(self, ctx):
+        if ctx.target_obj:
+            return [{"predicate": "grasping", "subject": "robot", "reference": ctx.target_obj.name}]
+        return []
+
     def extra_gate_checks(self, ctx):
         # Verify the container still has liquid.
         from omnigibson.object_states import ContainedParticles

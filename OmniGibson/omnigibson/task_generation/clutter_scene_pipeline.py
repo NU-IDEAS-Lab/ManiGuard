@@ -322,6 +322,11 @@ class ClutterPipeline(BasePipeline):
             raise RuntimeError("No pack objects for edge alignment.")
         return objects
 
+    def goal_conditions(self, ctx):
+        if ctx.target_obj:
+            return [{"predicate": "grasping", "subject": "robot", "reference": ctx.target_obj.name}]
+        return []
+
     def extra_gate_checks(self, ctx):
         if getattr(ctx, "_integrity", None) is None or not ctx._integrity.ok:
             return False

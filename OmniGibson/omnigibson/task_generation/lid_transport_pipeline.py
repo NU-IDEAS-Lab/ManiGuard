@@ -182,6 +182,15 @@ class LidTransportPipeline(BasePipeline):
                 continue
         return tuple(result)
 
+    def goal_conditions(self, ctx):
+        conditions = []
+        if ctx._lid_ids and ctx.target_obj:
+            lid_obj = ctx.active_objects.get(ctx._lid_ids[0])
+            if lid_obj:
+                conditions.append({"predicate": "ontop", "subject": lid_obj.name, "reference": ctx.target_obj.name})
+            conditions.append({"predicate": "grasping", "subject": "robot", "reference": ctx.target_obj.name})
+        return conditions
+
     def extra_gate_checks(self, ctx):
         # Verify food is inside or on top of container.
         from omnigibson.object_states.on_top import OnTop

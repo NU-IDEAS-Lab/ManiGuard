@@ -203,6 +203,7 @@ def build_task_config(scene_model, activity_name):
     }
 
 
+
 def iter_scope_objects(env):
     for inst, ent in (getattr(env.task, "object_scope", {}) or {}).items():
         if ent is None or not getattr(ent, "exists", False) or getattr(ent, "is_system", False):
@@ -1076,6 +1077,18 @@ class BasePipeline(ABC):
         """Additional gate conditions beyond the shared ones.  Default: True."""
         return True
 
+    def goal_conditions(self, ctx):
+        """Return resolved goal conditions for this episode.
+
+        Each pipeline subclass fills in its goal template with actual
+        scene object names from ctx. Returns a list of dicts:
+            [{"predicate": "inside", "subject": "potato_124", "reference": "stockpot_122"}]
+
+        Stored in diagnostics.jsonl as "goal_conditions" and consumed by
+        sentinel.eval.goal_checker at eval time. Default returns [].
+        """
+        return []
+
     def diagnostics_extra(self, ctx):
         """Return a dict of extra fields for the diagnostics JSONL."""
         return {}
@@ -1248,6 +1261,7 @@ class BasePipeline(ABC):
                     "steps_executed": ctx.steps_executed if hasattr(ctx, "steps_executed") else 0,
                     "selection": selection,
                     "cameras": list(getattr(args, "_resolved_video_views", ())),
+                    "goal_conditions": self.goal_conditions(ctx),
                     **self.diagnostics_extra(ctx),
                 }
                 if curation:

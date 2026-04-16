@@ -168,6 +168,13 @@ class TransferPipeline(BasePipeline):
         if ctx.target_obj is not None and ctx._source_obj is not None:
             _place_food_on_source(ctx.env, ctx.target_obj, ctx._source_obj)
 
+    def goal_conditions(self, ctx):
+        goal_pred = ctx.selection.get("goal_predicate", "inside")
+        dest_obj = get_scope_obj(ctx.env, ctx._dest_ids[0]) if ctx._dest_ids else None
+        if ctx.target_obj and dest_obj:
+            return [{"predicate": goal_pred, "subject": ctx.target_obj.name, "reference": dest_obj.name}]
+        return []
+
     def extra_gate_checks(self, ctx):
         from omnigibson.object_states.on_top import OnTop
 
