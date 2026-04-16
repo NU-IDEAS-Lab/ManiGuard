@@ -33,15 +33,15 @@ if str(RLINF_ROOT) not in sys.path:
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-try:
-    import isaacsim  # noqa: F401
-except ImportError:
-    pass
-
-from omnigibson.macros import gm
-
-gm.ENABLE_OBJECT_STATES = True
-gm.ENABLE_TRANSITION_RULES = False
+def _init_omnigibson():
+    """Lazy-init Isaac Sim + OmniGibson. Called once before env creation."""
+    try:
+        import isaacsim  # noqa: F401
+    except ImportError:
+        pass
+    from omnigibson.macros import gm
+    gm.ENABLE_OBJECT_STATES = True
+    gm.ENABLE_TRANSITION_RULES = False
 
 
 def parse_args():
@@ -74,6 +74,9 @@ def parse_args():
                         "Default: cam_opposite.")
     p.add_argument("--camera-resolution", type=int, default=256,
                    help="Side length for all external cameras (square).")
+    p.add_argument("--random-policy", action="store_true",
+                   help="Use uniform random actions instead of a policy "
+                        "server. For pipeline smoke-testing only.")
     return p.parse_args()
 
 
@@ -94,164 +97,11 @@ def _build_eval_external_sensors(args):
 
 
 # ---------------------------------------------------------------------------
-# Scene discovery
+# Scene discovery — delegated to lightweight module (no torch/imageio deps)
+# so scripts/run_benchmark_all_scenes.sh can import it from any Python env.
 # ---------------------------------------------------------------------------
 
-def _iter_scene_dirs(root: Path):
-    """Yield every directory under ``root`` that looks like a scene.
-
-    A scene directory must contain both ``scene_ep1.json`` and
-    ``diagnostics.jsonl``. The walk is depth-limited to 3 levels so HF
-    datasets laid out as ``<task_family>/<trial_N>/`` work transparently
-    without re-scanning the whole tree.
-    """
-    if not root.is_dir():
-        return
-    stack = [(root, 0)]
-    max_depth = 3
-    while stack:
-        current, depth = stack.pop()
-        try:
-            entries = sorted(current.iterdir())
-        except OSError:
-            continue
-        is_scene = (current / "scene_ep1.json").is_file() and (current / "diagnostics.jsonl").is_file()
-        if is_scene:
-            yield current
-            continue
-        if depth >= max_depth:
-            continue
-        for entry in entries:
-            if entry.is_dir() and not entry.name.startswith((".", "_")):
-                stack.append((entry, depth + 1))
-
-
-def _scene_key(root: Path, scene_dir: Path) -> str:
-    """Stable scene identifier: either the dir name, or <family>/<trial>
-    for HF-style two-level layouts. Lets ``--scenes`` filter on either."""
-    try:
-        rel = scene_dir.relative_to(root)
-    except ValueError:
-        return scene_dir.name
-    return rel.as_posix()
-
-
-def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
-    """Discover valid benchmark scenes with diagnostics.
-
-    Handles both 1-level layouts (``<root>/<scene>/``) and 2-level
-    layouts (``<root>/<task_family>/<scene>/``), the latter produced by
-    task-generation benchmark corpora on HuggingFace.
-    """
-    root = Path(benchmark_root)
-    scenes = []
-    for scene_dir in _iter_scene_dirs(root):
-        scene_file = scene_dir / "scene_ep1.json"
-        diag_file = scene_dir / "diagnostics.jsonl"
-        scene_key = _scene_key(root, scene_dir)
-        if scene_names and scene_key not in scene_names and scene_dir.name not in scene_names:
-            continue
-
-        diag = json.loads(diag_file.read_text(encoding="utf-8").strip().split("\n")[0])
-        scene_info_json = json.loads(scene_file.read_text(encoding="utf-8"))
-        init_info = scene_info_json.get("objects_info", {}).get("init_info", {})
-        sel = diag.get("selection", {})
-        pipeline = diag.get("pipeline", "")
-        surface_name = diag.get("surface", "")
-        surface_label = (
-            init_info.get(surface_name, {}).get("args", {}).get("category", "")
-            or surface_name or "table"
-        )
-
-        # ----------------------------------------------------------------
-        # Pipeline-aware scene parsing: each pipeline type has different
-        # diagnostics keys and different natural-language instructions.
-        # ----------------------------------------------------------------
-        target_name = None
-        prompt = None
-
-        if pipeline in ("lid_transport_food", "lid_transport_liquid"):
-            # Lid transport: place lid on container then pick up container.
-            container_synset = sel.get("container_synset", "")
-            container_label = container_synset.split(".n.")[0].replace("_", " ") if ".n." in container_synset else container_synset
-            # Find the container object by matching category to container_category
-            container_cat = sel.get("container_category", "")
-            for obj_name, obj_info in init_info.items():
-                if obj_info.get("args", {}).get("category") == container_cat:
-                    target_name = obj_name
-                    break
-            prompt = f"Place the lid on the {container_label}, then pick up the {container_label}."
-
-        elif pipeline == "transfer":
-            # Food transfer: move food from source to dest.
-            food_synset = sel.get("food_synset", "")
-            source_synset = sel.get("source_synset", "")
-            dest_synset = sel.get("dest_synset", "")
-            food_label = food_synset.split(".n.")[0].replace("_", " ") if ".n." in food_synset else "food"
-            source_label = source_synset.split(".n.")[0].replace("_", " ") if ".n." in source_synset else "source"
-            dest_label = dest_synset.split(".n.")[0].replace("_", " ") if ".n." in dest_synset else "destination"
-            # Find the food object
-            food_cat = food_synset.split(".n.")[0] if ".n." in food_synset else ""
-            for obj_name, obj_info in init_info.items():
-                if obj_info.get("args", {}).get("category") == food_cat:
-                    target_name = obj_name
-                    break
-            prompt = f"Transfer the {food_label} from the {source_label} to the {dest_label}."
-
-        else:
-            # Clutter / liquid_transport / generic pickup: look for target
-            # in active_object_summary or fall back to selection.target_synset.
-            for entry in diag.get("active_object_summary", []):
-                if entry.get("role") == "target":
-                    target_name = entry.get("scene_object_name")
-                    break
-            if not target_name:
-                # Fall back: match target_synset category against init_info
-                target_synset = sel.get("target_synset", "")
-                target_cat = target_synset.split(".n.")[0] if ".n." in target_synset else ""
-                for obj_name, obj_info in init_info.items():
-                    if obj_info.get("args", {}).get("category") == target_cat:
-                        target_name = obj_name
-                        break
-            target_synset = sel.get("target_synset", "")
-            target_label = target_synset.split(".n.")[0].replace("_", " ") if ".n." in target_synset else "object"
-            prompt = f"Pick up the {target_label} on the {surface_label}."
-
-        if not target_name:
-            print(f"  Skipping {scene_key}: could not resolve target object (pipeline={pipeline})")
-            continue
-        if not prompt:
-            prompt = f"Manipulate the objects on the {surface_label}."
-
-        # Determine which room(s) to load. Pipeline-spawned objects often
-        # have empty in_rooms; the diagnostics' support_selection.room_instance
-        # is the most reliable source because the pipeline explicitly chose
-        # that room for the surface + robot placement.
-        target_rooms = set()
-        diag_room = diag.get("support_selection", {}).get("room_instance")
-        if diag_room:
-            target_rooms.add(diag_room)
-        target_obj_info = init_info.get(target_name, {})
-        target_rooms.update(target_obj_info.get("args", {}).get("in_rooms", []))
-        if surface_name and surface_name in init_info:
-            target_rooms.update(init_info[surface_name].get("args", {}).get("in_rooms", []))
-        target_rooms = list(target_rooms)
-
-        scenes.append({
-            "name": scene_key,
-            "scene_file": str(scene_file),
-            "scene_model": diag.get("scene_model", scene_dir.name),
-            "target_name": target_name,
-            "surface_name": surface_name,
-            "target_rooms": target_rooms,
-            "prompt": prompt,
-            "pipeline": pipeline,
-            "activity_name": diag.get("activity_name", ""),
-        })
-
-    if max_scenes:
-        scenes = scenes[:max_scenes]
-    return scenes
+from sentinel.eval.scene_discovery import discover_scenes  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
@@ -263,16 +113,27 @@ def build_og_config(scene_info: dict, args):
     if args.headless:
         gm.HEADLESS = True
 
-    # Always load as a plain Scene from scene_file, regardless of whether
-    # the snapshot was originally saved from an InteractiveTraversableScene.
-    # og.sim.save() captures everything (structure + objects + robot +
-    # state), so Scene + scene_file reconstructs the full world without
-    # needing scene_model, load_room_instances, or the room-based object
-    # filter that drops pipeline-spawned objects with empty in_rooms.
-    scene_cfg = {
-        "type": "Scene",
-        "scene_file": scene_info["scene_file"],
-    }
+    # Detect scene type. New pipeline snapshots have correct in_rooms on
+    # all task objects + robot, so InteractiveTraversableScene partial
+    # room loading works. Trimmed scenes also work as plain Scene.
+    _scene_header = json.loads(Path(scene_info["scene_file"]).read_text(encoding="utf-8"))
+    _scene_class = _scene_header.get("init_info", {}).get("class_name", "")
+
+    if _scene_class == "InteractiveTraversableScene" and scene_info.get("scene_model"):
+        scene_cfg = {
+            "type": "InteractiveTraversableScene",
+            "scene_model": scene_info["scene_model"],
+            "scene_file": scene_info["scene_file"],
+            "scene_instance": None,
+            "include_robots": True,
+        }
+        if scene_info.get("target_rooms"):
+            scene_cfg["load_room_instances"] = scene_info["target_rooms"]
+    else:
+        scene_cfg = {
+            "type": "Scene",
+            "scene_file": scene_info["scene_file"],
+        }
 
     env_cfg = {
         "action_frequency": args.action_frequency,
@@ -293,62 +154,40 @@ def build_og_config(scene_info: dict, args):
     }
 
 
-def _setup_eval_cameras(env, scene_info: dict = None) -> None:
-    """Position cam_opposite + companions relative to robot + support surface.
+def _setup_eval_cameras(env, scene_info: dict) -> None:
+    """Position external cameras from diagnostics-saved poses.
 
-    First checks diagnostics-reported camera poses (stored in
-    ``diagnostics.jsonl`` by recent pipelines); falls back to computing
-    poses on the fly via ``build_video_view_specs``. Tries multiple
-    support-object name conventions:
-
-      * ``support_surface`` — empty-scene pipeline
-      * ``surface_name`` from diagnostics — BEHAVIOR benchmark scenes
-      * any non-robot object as last resort
+    The pipeline saves exact camera eye/lookat/orientation in
+    ``diagnostics.jsonl`` (field ``cameras``). We apply those directly —
+    no re-computation, no support-surface lookup, no fallback.
     """
-    try:
-        from omnigibson.task_generation.utils.video import (
-            build_video_view_specs,
-            setup_cameras,
-        )
-    except ImportError as e:
-        print(f"[Eval] WARNING: camera setup helpers not importable ({e}); "
-              f"cam_opposite will stay at its default pose and frames will "
-              f"be blank.")
+    import omnigibson as og
+    from omnigibson.task_generation.utils.video import eye_lookat_to_quat
+
+    cameras = scene_info.get("cameras", [])
+    if not cameras:
+        print("[Eval] WARNING: no cameras in scene_info; frames will be default pose.")
         return
 
-    scene = env.scene
-    if scene is None or not env.robots:
-        return
-    robot = env.robots[0]
+    ext_sensors = env.external_sensors or {}
+    placed = 0
+    for cam_info in cameras:
+        sensor_name = cam_info.get("sensor_name")
+        sensor = ext_sensors.get(sensor_name)
+        if sensor is None:
+            continue
+        eye = cam_info["eye"]
+        lookat = cam_info["lookat"]
+        orientation = cam_info.get("orientation") or eye_lookat_to_quat(eye, lookat).tolist()
+        sensor.set_position_orientation(position=eye, orientation=orientation, frame="world")
+        placed += 1
 
-    # Try multiple surface-name conventions.
-    support_obj = None
-    surface_candidates = ["support_surface"]
-    if scene_info and scene_info.get("surface_name"):
-        surface_candidates.insert(0, scene_info["surface_name"])
-    for name in surface_candidates:
-        support_obj = scene.object_registry("name", name)
-        if support_obj is not None:
-            break
-    if support_obj is None:
-        # Last resort: pick the largest non-robot fixed-base object.
-        for obj in scene.objects:
-            if obj is not robot and getattr(obj, "fixed_base", False):
-                support_obj = obj
-                break
-    if support_obj is None:
-        print("[Eval] WARNING: no support surface found; "
-              "cam_opposite stays at its default pose.")
-        return
+    # Sync viewer camera to cam_opposite.
+    opp = next((c for c in cameras if c.get("sensor_name") == "cam_opposite"), cameras[0])
+    ori = opp.get("orientation") or eye_lookat_to_quat(opp["eye"], opp["lookat"]).tolist()
+    og.sim.viewer_camera.set_position_orientation(position=opp["eye"], orientation=ori)
 
-    target_obj = next(
-        (obj for obj in scene.objects if obj is not robot and obj is not support_obj),
-        support_obj,
-    )
-    views = build_video_view_specs(None, robot, target_obj, support_obj=support_obj)
-    setup_cameras(env, views)
-    print(f"[Eval] Positioned cam_opposite via setup_cameras "
-          f"(target={target_obj.name}, support={support_obj.name}).")
+    print(f"[Eval] Positioned {placed} cameras from diagnostics.")
 
 
 def quat2axisangle(quat):
@@ -430,7 +269,19 @@ def check_grasp(robot, target_obj):
 # Policy client
 # ---------------------------------------------------------------------------
 
+class _RandomPolicy:
+    """Uniform random actions for smoke-testing the eval pipeline."""
+    def __init__(self, action_dim=7):
+        self._dim = action_dim
+    def act(self, obs):
+        return torch.from_numpy(
+            np.random.uniform(-0.05, 0.05, size=(1, self._dim)).astype(np.float32)
+        )
+
+
 def connect_policy(args):
+    if getattr(args, "random_policy", False):
+        return _RandomPolicy(action_dim=7), "random"
     if args.use_openpi_client:
         from openpi_client import websocket_client_policy as _wcp
         return _wcp.WebsocketClientPolicy(host=args.host, port=args.port), "openpi"
@@ -442,7 +293,10 @@ def connect_policy(args):
 
 
 def query_policy(policy, obs, client_type):
-    if client_type == "openpi":
+    if client_type == "random":
+        action = policy.act(obs)
+        chunk = action.numpy() if hasattr(action, "numpy") else np.asarray(action)
+    elif client_type == "openpi":
         result = policy.infer(obs)
         chunk = np.asarray(result["actions"], dtype=np.float32)
     else:
@@ -463,6 +317,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     results_path = output_dir / "results.jsonl"
 
+    _init_omnigibson()
     import omnigibson as og
 
     # Resolve benchmark source: local path or HF dataset repo_id. HF
@@ -486,7 +341,10 @@ def main():
 
     # Connect to policy
     policy, client_type = connect_policy(args)
-    print(f"Connected to policy server at {args.host}:{args.port} ({client_type})")
+    if client_type == "random":
+        print("Using random policy (smoke test mode)")
+    else:
+        print(f"Connected to policy server at {args.host}:{args.port} ({client_type})")
 
     all_results = []
 
