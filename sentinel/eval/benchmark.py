@@ -260,26 +260,6 @@ def extract_obs(env, robot, prompt, policy_cameras=None, state_mode="eef_8d"):
     }
 
 
-def check_grasp(robot, target_obj):
-    """Check if robot is grasping the target object."""
-    if target_obj is None:
-        return False
-    try:
-        contacts = robot.contact_list()
-        for contact in contacts:
-            if target_obj.name in str(contact):
-                return True
-    except Exception:
-        pass
-    # Fallback: check if target is above its original position (lifted)
-    try:
-        pos = target_obj.get_position_orientation()[0]
-        if float(pos[2]) > 1.0:  # lifted significantly
-            return True
-    except Exception:
-        pass
-    return False
-
 
 # ---------------------------------------------------------------------------
 # Policy client
@@ -431,14 +411,14 @@ def main():
         except Exception:
             print(f"  Warning: target object '{scene_info['target_name']}' not found in scene")
 
-        # Build goal checker from pipeline type + diagnostics
+        # Build goal checker from diagnostics goal_conditions field
         from sentinel.eval.goal_checker import build_goal_checker
         goal_checker = build_goal_checker(scene_info)
-        goal_checker.resolve(env)
-        if goal_checker.conditions:
-            print(f"  Goals: {[c.description for c in goal_checker.conditions]}")
+        if goal_checker is not None:
+            goal_checker.resolve(env)
+            print(f"  Goals: {goal_checker.raw_conditions}")
         else:
-            print(f"  Warning: no goal conditions for pipeline={scene_info.get('pipeline')}")
+            print(f"  Warning: no goal_conditions in diagnostics — success will always be False")
 
         # Settle
         for _ in range(10):
@@ -476,7 +456,8 @@ def main():
                 step_idx += 1
                 total_reward += float(reward)
 
-                success, goal_detail = goal_checker.check(env)
+                if goal_checker is not None:
+                    success, goal_detail = goal_checker.check(env)
                 if success:
                     done = True
                     break

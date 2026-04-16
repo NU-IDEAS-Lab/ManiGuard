@@ -145,6 +145,7 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             "pipeline": pipeline,
             "activity_name": diag.get("activity_name", ""),
             "cameras": diag.get("cameras", []),
+            "goal_conditions": diag.get("goal_conditions", []),
         })
 
     if max_scenes:
