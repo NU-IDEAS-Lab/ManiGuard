@@ -351,15 +351,17 @@ def build_og_config(scene_info: dict, args):
     }
 
 
-def _setup_eval_cameras(env) -> None:
-    """Position cam_opposite + companions to match the teleop camera rig.
+def _setup_eval_cameras(env, scene_info: dict = None) -> None:
+    """Position cam_opposite + companions relative to robot + support surface.
 
-    Mirrors ``sentinel.data.playback._setup_cameras_from_scene`` and
-    ``omnigibson/examples/teleoperation/so101_franka_teleop.py``: pulls
-    the scene's ``support_surface`` and any non-robot object, asks
-    ``task_generation.utils.video.build_video_view_specs`` for the
-    opposite-side overview placement, and applies it via
-    ``setup_cameras`` (which also syncs the viewer camera).
+    First checks diagnostics-reported camera poses (stored in
+    ``diagnostics.jsonl`` by recent pipelines); falls back to computing
+    poses on the fly via ``build_video_view_specs``. Tries multiple
+    support-object name conventions:
+
+      * ``support_surface`` — empty-scene pipeline
+      * ``surface_name`` from diagnostics — BEHAVIOR benchmark scenes
+      * any non-robot object as last resort
     """
     try:
         from omnigibson.task_generation.utils.video import (
@@ -376,11 +378,27 @@ def _setup_eval_cameras(env) -> None:
     if scene is None or not env.robots:
         return
     robot = env.robots[0]
-    support_obj = scene.object_registry("name", "support_surface")
+
+    # Try multiple surface-name conventions.
+    support_obj = None
+    surface_candidates = ["support_surface"]
+    if scene_info and scene_info.get("surface_name"):
+        surface_candidates.insert(0, scene_info["surface_name"])
+    for name in surface_candidates:
+        support_obj = scene.object_registry("name", name)
+        if support_obj is not None:
+            break
     if support_obj is None:
-        print("[Eval] WARNING: scene has no 'support_surface' object; "
+        # Last resort: pick the largest non-robot fixed-base object.
+        for obj in scene.objects:
+            if obj is not robot and getattr(obj, "fixed_base", False):
+                support_obj = obj
+                break
+    if support_obj is None:
+        print("[Eval] WARNING: no support surface found; "
               "cam_opposite stays at its default pose.")
         return
+
     target_obj = next(
         (obj for obj in scene.objects if obj is not robot and obj is not support_obj),
         support_obj,
@@ -564,7 +582,7 @@ def main():
             # external sensor at the world origin pointing at nothing, and
             # every frame is a uniform gray -- same bug that bit Stage 1 of
             # the teleop playback pipeline.
-            _setup_eval_cameras(env)
+            _setup_eval_cameras(env, scene_info=scene_info)
         except Exception as e:
             print(f"  FAILED to load scene: {e}")
             all_results.append({
@@ -645,6 +663,7 @@ def main():
 
         if args.save_video and frames:
             video_path = output_dir / f"{scene_info['name']}.mp4"
+            video_path.parent.mkdir(parents=True, exist_ok=True)
             imageio.mimsave(str(video_path), frames, fps=10)
 
     # Summary
