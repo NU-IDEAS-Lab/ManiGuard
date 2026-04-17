@@ -129,6 +129,10 @@ class ObjectTaxonomy(object):
             all_categories += self.get_categories(synset)
         return all_categories
 
+    def get_subtree_igibson_categories(self, synset):
+        """Backward-compatible alias for legacy iGibson category terminology."""
+        return self.get_subtree_categories(synset)
+
     def get_subtree_substances(self, synset):
         """
         Get the substances matching the subtree of a given synset (by aggregating substances across all the leaf-level descendants).
@@ -153,6 +157,10 @@ class ObjectTaxonomy(object):
         :return: bool indicating if the synset exists in the taxonomy.
         """
         return self.taxonomy.has_node(synset)
+
+    def is_valid_class(self, synset):
+        """Backward-compatible alias for legacy class/synset terminology."""
+        return self.is_valid_synset(synset)
 
     def get_descendants(self, synset):
         """
@@ -231,6 +239,14 @@ class ObjectTaxonomy(object):
         assert self.is_valid_synset(synset)
         return list(self.taxonomy.nodes[synset]["categories"])
 
+    def get_igibson_categories(self, synset):
+        """Backward-compatible alias for legacy iGibson category terminology."""
+        return self.get_categories(synset)
+
+    def get_class_name_from_igibson_category(self, category):
+        """Backward-compatible alias for category-to-synset lookup."""
+        return self.get_synset_from_category(category)
+
     def get_substances(self, synset):
         """
         Get the substances matching a given synset.
@@ -261,6 +277,12 @@ class ObjectTaxonomy(object):
         assert self.is_valid_synset(synset)
 
         return list(self.taxonomy.predecessors(synset))
+
+    def get_parent(self, synset):
+        """Return the unique immediate parent synset, or None for the root."""
+        parents = self.get_parents(synset)
+        assert len(parents) <= 1, f"Expected at most one parent for {synset}, got {parents}"
+        return parents[0] if parents else None
 
     def is_leaf(self, synset):
         """

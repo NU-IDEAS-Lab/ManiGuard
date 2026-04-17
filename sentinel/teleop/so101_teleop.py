@@ -10,14 +10,11 @@ The SO-101 workspace is mapped to Franka workspace using relative deltas:
 """
 
 import pickle
-import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import torch as th
 import zmq
-
-import omnigibson.utils.transform_utils as T
 
 
 @dataclass
@@ -35,6 +32,25 @@ class SO101TeleopConfig:
     gripper_threshold: float = 0.5  # above -> one state, below -> the other
     gripper_invert: bool = False    # flip if your leader reports closed=high
     gripper_debug: bool = False     # print raw value each get_action() call
+
+
+@dataclass
+class SO101TeleopAction:
+    """Minimal TeleopAction-compatible payload for OmniGibson robots.
+
+    OmniGibson's full teleop_utils module imports telemoma/mediapipe for VR
+    teleoperation. The SO-101 bridge only needs these tensors, which
+    ManipulationRobot.teleop_data_to_action reads by key.
+    """
+
+    left: th.Tensor = field(default_factory=lambda: th.cat((th.zeros(6), th.ones(1))))
+    right: th.Tensor = field(default_factory=lambda: th.cat((th.zeros(6), th.ones(1))))
+    base: th.Tensor = field(default_factory=lambda: th.zeros(3))
+    torso: float = 0.0
+    extra: dict = field(default_factory=dict)
+
+    def __getitem__(self, key):
+        return getattr(self, key)
 
 
 class SO101TeleopAgent:
@@ -75,12 +91,10 @@ class SO101TeleopAgent:
         Returns:
             th.Tensor: action tensor ready for env.step(), or None if no data
         """
-        from omnigibson.utils.teleop_utils import TeleopAction
-
         msg = self._receive()
         if msg is None:
             # No new data, return zero action
-            action = TeleopAction()
+            action = SO101TeleopAction()
             return robot.teleop_data_to_action(action)
 
         ee_pos = msg["ee_pos"]   # (3,)
@@ -92,7 +106,7 @@ class SO101TeleopAgent:
             self._prev_pos = ee_pos.copy()
             self._prev_rot = ee_rot.copy()
             self._prev_gripper = gripper
-            action = TeleopAction()
+            action = SO101TeleopAction()
             return robot.teleop_data_to_action(action)
 
         # Compute position delta
@@ -122,7 +136,7 @@ class SO101TeleopAgent:
             dtype=th.float32,
         )
 
-        action = TeleopAction()
+        action = SO101TeleopAction()
         action.right = right_action
 
         # Update state

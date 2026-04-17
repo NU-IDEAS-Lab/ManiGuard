@@ -122,20 +122,37 @@ def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
     # `if self._goal is not None`, so a null goal sidesteps the mismatch
     # entirely. joint_pos / joint_vel / root_link are kept so the arm
     # appears in its saved pose.
+    # The pipeline writes a sidecar with the desired arm_base_target_z so we
+    # can place panda_link0 exactly 19 mm below the tabletop. FrankaPanda's
+    # root_link == panda_link0 (no chassis), so setting root_link.pos[2]
+    # directly positions the arm base. Falls back to a +0.5 m raise if the
+    # sidecar is missing (legacy snapshots).
+    meta_path = snapshot_path[:-5] + ".meta.json" if snapshot_path.endswith(".json") else snapshot_path + ".meta.json"
+    target_z = None
+    if os.path.exists(meta_path):
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        target_z = float(meta.get("arm_base_target_z"))
+        print(f"[Teleop] Loaded meta: {meta_path} (arm_base_target_z={target_z:.3f})")
+
     robot_state = snap.get("state", {}).get("registry", {}).get("object_registry", {}).get(robot_key)
     if robot_state is not None:
         robot_state["controllers"] = {
             "arm_0": {"goal_is_valid": False, "goal": None},
             "gripper_0": {"goal_is_valid": False, "goal": None},
         }
-        # Raise the robot base by 0.5m so FrankaPanda reaches the tabletop
-        # comfortably (the snapshot was taken with FrankaMounted on the floor).
         root_link = robot_state.get("root_link")
         if root_link is not None and "pos" in root_link:
-            root_link["pos"][2] = float(root_link["pos"][2]) + 0.5
+            if target_z is not None:
+                root_link["pos"][2] = target_z
+            else:
+                root_link["pos"][2] = float(root_link["pos"][2]) + 0.5
     args_pos = entry.get("args", {}).get("position")
     if args_pos is not None:
-        args_pos[2] = float(args_pos[2]) + 0.5
+        if target_z is not None:
+            args_pos[2] = target_z
+        else:
+            args_pos[2] = float(args_pos[2]) + 0.5
 
     # Write the rewritten snapshot next to the original.
     stem, ext = os.path.splitext(snapshot_path)

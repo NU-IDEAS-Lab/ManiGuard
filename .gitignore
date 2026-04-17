@@ -3,13 +3,19 @@ __pycache__/
 *.pyc
 *.pyo
 .context/
+.codex
+.codex/
 log_dir/*
 scene_generation/*
-outputs/*
-!outputs/teleop/
-outputs/teleop/*
-!outputs/teleop/*.hdf5
+outputs/
 datasets/
+
+# Local-only teleop data + helper scripts (pushed to HuggingFace, not GitHub).
+*.hdf5
+sentinel/data/push_lerobot_dataset.py
+sentinel/data/verify_franka_hdf5.py
+scripts/prepare_mug_bowl_sft_data.sh
+
 bddl3/bddl/activity_definitions/*
 checkpoints/
 RLinf-*/

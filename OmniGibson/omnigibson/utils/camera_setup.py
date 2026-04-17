@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Iterable, Sequence
 
 
-CAMERA_RESOLUTION = 256
+CAMERA_RESOLUTION = 1024
 EXTERNAL_CAMERA_NAMES = ("cam_opposite", "cam_left", "cam_right")
 POLICY_EXTERNAL_CAMERAS_DEFAULT = ("cam_opposite",)
 
