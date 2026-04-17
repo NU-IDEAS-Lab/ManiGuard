@@ -25,6 +25,7 @@ import numpy as np
 from omnigibson.task_generation.pipeline_common import (
     append_jsonl,
     check_interpenetration,
+    force_sensor_resolution,
     init_run_dir,
     make_settle_fn,
     pipeline_exit,
@@ -449,7 +450,7 @@ def _build_env_config(surface_spawn_xyz, object_cfgs):
             *object_cfgs,
         ],
         "task": {"type": "DummyTask"},
-        "env": {"external_sensors": build_external_camera_configs(resolution=(1080, 1920))},
+        "env": {"external_sensors": build_external_camera_configs(resolution=(720, 1080))},
     }
 
 
@@ -553,6 +554,7 @@ def run_sim(args):
 
     env = og.Environment(configs=cfg)
     try:
+        force_sensor_resolution(env, height=720, width=1080)
         env.reset()
         robot = env.robots[0]
         robot.set_position_orientation(position=(50.0, 50.0, floor_z))

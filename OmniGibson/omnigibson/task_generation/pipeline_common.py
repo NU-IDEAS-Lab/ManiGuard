@@ -31,6 +31,26 @@ STRUCTURAL_CATEGORY_KEYWORDS = (
 )
 
 
+def force_sensor_resolution(env, height: int, width: int) -> None:
+    """Set external + robot VisionSensor image dims after env load.
+
+    sensor_kwargs alone is unreliable — Kit's viewport init overrides the
+    requested image_height/image_width with its app default (1280x720).
+    Setting them on each sensor then calling load_observation_space() pins
+    the texture size. See StanfordVL/OmniGibson#266, #1875.
+    """
+    from omnigibson.sensors import VisionSensor
+    for cam in (env.external_sensors or {}).values():
+        cam.image_height = int(height)
+        cam.image_width = int(width)
+    if env.robots:
+        for sensor in env.robots[0].sensors.values():
+            if isinstance(sensor, VisionSensor):
+                sensor.image_height = int(height)
+                sensor.image_width = int(width)
+    env.load_observation_space()
+
+
 # ---------------------------------------------------------------------------
 # Arg parsing
 # ---------------------------------------------------------------------------
