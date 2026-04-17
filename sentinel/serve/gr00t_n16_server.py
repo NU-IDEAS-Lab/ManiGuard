@@ -110,85 +110,102 @@ class N16Adapter:
     # ----- obs construction -----
 
     @staticmethod
-    def _resize_video_to_256(video: np.ndarray, size: int = 256) -> np.ndarray:
-        """[B, H, W, C] uint8 → [B, size, size, C] uint8 via bilinear resize."""
-        if video.ndim != 4:
+    def _resize_video_to_256_5d(video: np.ndarray, size: int = 256) -> np.ndarray:
+        """[B, T, H, W, C] uint8 → [B, T, size, size, C] uint8 via bilinear resize."""
+        if video.ndim != 5:
             return video
-        _, h, w, _ = video.shape
+        b, t_dim, h, w, c = video.shape
         if h == size and w == size:
             return video
-        t = torch.from_numpy(np.array(video, copy=True)).permute(0, 3, 1, 2).float()
-        t = torch.nn.functional.interpolate(
-            t, size=(size, size), mode="bilinear", align_corners=False
+        # Fold B and T together for interpolation, then restore.
+        flat = torch.from_numpy(np.array(video, copy=True)).reshape(b * t_dim, h, w, c)
+        flat = flat.permute(0, 3, 1, 2).float()
+        flat = torch.nn.functional.interpolate(
+            flat, size=(size, size), mode="bilinear", align_corners=False
         )
-        return t.permute(0, 2, 3, 1).clamp(0, 255).to(torch.uint8).numpy()
+        out = flat.permute(0, 2, 3, 1).clamp(0, 255).to(torch.uint8)
+        return out.reshape(b, t_dim, size, size, c).numpy()
 
     def _build_gr00t_obs(self, env_obs: dict) -> dict:
-        """benchmark.py obs → DROID modality dict.
+        """benchmark.py obs -> nested DROID modality dict.
 
-        benchmark.py sends:
-          main_images [H,W,3] uint8
-          wrist_images [H,W,3] uint8
-          states (numpy, 8D for state_mode='joint': 7 arm + 1 gripper)
-          task_descriptions (str)
+        Gr00tPolicy.check_observation expects (see gr00t/policy/gr00t_policy.py
+        :check_observation docstring):
+          {
+            "video":    {<key>: np.uint8  shape (B, T, H, W, C)},
+            "state":    {<key>: np.float32 shape (B, T, D)},
+            "language": {<key>: list[list[str]] shape (B, T)},
+          }
+
+        benchmark.py sends per step (B=T=1):
+          main_images  [H, W, 3] uint8
+          wrist_images [H, W, 3] uint8
+          states       8D float32 (7 arm + 1 gripper for state_mode='joint')
+          task_descriptions str
         """
-        out: dict = {}
+        # ---------- Video ----------
+        def _as_5d(img: np.ndarray) -> np.ndarray:
+            img = np.asarray(img)
+            if img.ndim == 3:
+                img = img[None, None, ...]          # [B=1, T=1, H, W, C]
+            elif img.ndim == 4:
+                img = img[None, ...]                # add batch dim
+            return self._resize_video_to_256_5d(img).astype(np.uint8, copy=False)
 
-        # Video: add a time axis (T=1). gr00t expects [T, H, W, C] uint8.
-        main = np.asarray(env_obs["main_images"])
-        if main.ndim == 3:
-            main = main[None, ...]     # [T=1, H, W, 3]
-        main = self._resize_video_to_256(main)
-        wrist = np.asarray(env_obs.get("wrist_images"))
-        if wrist is None or wrist.size == 0:
-            wrist = np.zeros_like(main)
-        elif wrist.ndim == 3:
-            wrist = wrist[None, ...]
-        wrist = self._resize_video_to_256(wrist)
+        main = _as_5d(env_obs["main_images"])
+        wrist_raw = env_obs.get("wrist_images")
+        wrist = _as_5d(wrist_raw) if (wrist_raw is not None and np.asarray(wrist_raw).size) else np.zeros_like(main)
 
-        # Map to whatever the checkpoint's modality_config.video.modality_keys are.
-        # DROID expects ["exterior_image_1_left", "wrist_image_left"]; if only 1
-        # camera key exists, use main only.
+        video_dict: dict = {}
         if len(self._video_keys) >= 1:
-            out[f"video.{self._video_keys[0]}"] = main
+            video_dict[self._video_keys[0]] = main
         if len(self._video_keys) >= 2:
-            out[f"video.{self._video_keys[1]}"] = wrist
+            video_dict[self._video_keys[1]] = wrist
 
-        # State: slice 8D into 7 arm + 1 gripper based on modality_keys order.
-        # DROID: state.joint_position (7), state.gripper_position (1).
+        # ---------- State ----------
         state = np.asarray(env_obs["states"], dtype=np.float32)
         if state.ndim == 1:
-            state = state[None, :]   # [T=1, D]
-        # Heuristic split: 7D arm, 1D gripper scalar.
-        if len(self._state_keys) == 2:
-            out[f"state.{self._state_keys[0]}"] = state[:, :7]
-            out[f"state.{self._state_keys[1]}"] = state[:, 7:8]
-        else:
-            # Fallback: if the embodiment uses a single state key, send full state.
-            out[f"state.{self._state_keys[0]}"] = state
+            state = state[None, None, :]            # [B=1, T=1, D]
+        elif state.ndim == 2:
+            state = state[None, ...]                # add batch dim
 
-        # Language: expand str -> [T=1] array of str (gr00t handles str arrays).
+        state_dict: dict = {}
+        if len(self._state_keys) == 2:
+            # DROID state: joint_position (7, radians) + gripper_position (1, [0,1]).
+            # benchmark sends gripper as averaged finger qpos in meters ([0, 0.04]
+            # for Franka). Scale to DROID's [0, 1] convention so the state lands
+            # in the training distribution (mean=0.406, std=0.4).
+            state_dict[self._state_keys[0]] = state[..., :7]
+            grip = state[..., 7:8] / 0.04
+            state_dict[self._state_keys[1]] = np.clip(grip, 0.0, 1.0).astype(np.float32)
+        else:
+            state_dict[self._state_keys[0]] = state
+
+        # ---------- Language ----------
         prompt = env_obs.get("task_descriptions") or ""
         if isinstance(prompt, (list, tuple)):
             prompt = prompt[0] if prompt else ""
-        for lk in self._language_keys:
-            out[lk] = np.array([str(prompt)])
+        lang_dict = {lk: [[str(prompt)]] for lk in self._language_keys}  # [B=1, T=1]
 
-        return out
+        return {"video": video_dict, "state": state_dict, "language": lang_dict}
 
     # ----- action extraction -----
 
     def _flatten_action_chunk(self, action: dict) -> np.ndarray:
-        """Action dict from gr00t → [chunk, action_dim] np.float32.
+        """Action dict from Gr00tPolicy.get_action -> [chunk, action_dim] float32.
 
-        For DROID: concat action.joint_position [chunk, 7] + action.gripper_position [chunk, 1] = [chunk, 8].
+        Raw output keys are bare (no 'action.' prefix) with shape [B, chunk, D];
+        see scripts/deployment/standalone_inference_script.py:parse_action_gr00t.
+        For DROID: joint_position [1, 32, 7] + gripper_position [1, 32, 1]
+        -> concat -> [32, 8].
         """
         parts = []
         for key in self._action_keys:
-            arr = np.asarray(action[f"action.{key}"], dtype=np.float32)
-            # Expected shape [chunk, D]; some keys return [chunk] for 1-D scalars.
+            arr = np.asarray(action[key], dtype=np.float32)
+            if arr.ndim == 3:
+                arr = arr[0]                # drop batch -> [chunk, D]
             if arr.ndim == 1:
-                arr = arr[:, None]
+                arr = arr[:, None]          # scalar key -> [chunk, 1]
             parts.append(arr)
         return np.concatenate(parts, axis=-1)
 
@@ -197,7 +214,8 @@ class N16Adapter:
     @torch.no_grad()
     def act(self, env_obs: dict) -> torch.Tensor:
         gr00t_obs = self._build_gr00t_obs(env_obs)
-        action = self.policy.get_action(gr00t_obs)
+        # Gr00tPolicy.get_action returns (action_dict, info). We only need action.
+        action, _ = self.policy.get_action(gr00t_obs)
         chunk = self._flatten_action_chunk(action)
         return torch.from_numpy(chunk)
 

@@ -10,12 +10,22 @@ gripper_binarize: false    # GR00T outputs continuous gripper position
 serve_config_name: gr00t_n16_droid
 serve_script: sentinel/serve/gr00t_n16_server.py
 
-# DROID trains with relative joint position commands; override the scene-baked
-# OSC controller with a JointController in delta mode.
+# DROID's policy outputs absolute joint-position targets in raw radians
+# (use_relative_action=True internally, but decode_action converts back to
+# absolute using the current state). Gripper is [0, 1] absolute.
+# - arm:     accept raw radians (bypass the [-1,1] normalization baked in by
+#            the robot's action_normalize=True).
+# - gripper: map [0, 1] (DROID convention) -> [0, 0.04] m (Franka panda
+#            finger joint limits).
 override_controller_config:
   arm_0:
     name: JointController
     motor_type: position
-    use_delta_commands: true
+    use_delta_commands: false
+    command_input_limits: null
+    command_output_limits: null
   gripper_0:
     name: MultiFingerGripperController
+    mode: smooth
+    command_input_limits: [[0.0], [1.0]]
+    command_output_limits: [[0.0], [0.04]]

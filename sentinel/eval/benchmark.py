@@ -246,36 +246,6 @@ def extract_obs(env, robot, prompt, policy_cameras=None, state_mode="eef_8d",
     gripper_idx = robot.gripper_control_idx[robot.default_arm]
     gripper_qpos = robot.get_joint_positions()[gripper_idx].cpu().numpy().astype(np.float32)
 
-    # One-shot diagnostic: print orientation in both encodings + GR00T training stats.
-    if not getattr(extract_obs, "_orient_printed", False):
-        try:
-            import torch as _torch
-            from omnigibson.utils.transform_utils import quat2euler
-            eef_euler = quat2euler(_torch.as_tensor(eef_quat)).cpu().numpy()
-        except Exception as e:
-            eef_euler = np.array([float("nan")] * 3)
-            print(f"[Diag] quat2euler unavailable: {e}")
-        print(
-            "[Diag] eef orientation comparison (raw quat={}):\n"
-            "       axis-angle  = [{:+.4f}, {:+.4f}, {:+.4f}]   |angle|={:.3f} rad\n"
-            "       Euler (rpy) = [{:+.4f}, {:+.4f}, {:+.4f}]\n"
-            "       GR00T train stats (state.roll/pitch/yaw):\n"
-            "         roll  : mean=+0.5673  std=3.0167   (≈ ±π wrap → Euler)\n"
-            "         pitch : mean=+0.0525  std=0.0422   (tight near 0 → gripper down)\n"
-            "         yaw   : mean=-2.1587  std=2.2538   (wide spread → Euler)\n"
-            "       eef_pos (table-relative, table_top_z={:+.4f}) = "
-            "[{:+.4f}, {:+.4f}, {:+.4f}]   "
-            "GR00T train: x∈[0.34, 0.67], y∈[-0.30, +0.22], z∈[+0.01, +0.29]".format(
-                np.array2string(eef_quat, precision=3),
-                eef_axisangle[0], eef_axisangle[1], eef_axisangle[2],
-                float(np.linalg.norm(eef_axisangle)),
-                eef_euler[0], eef_euler[1], eef_euler[2],
-                float(table_top_z),
-                eef_pos[0], eef_pos[1], eef_pos[2],
-            )
-        )
-        extract_obs._orient_printed = True
-
     if state_mode == "eef_8d":
         # eef_pos(3) + euler_rpy(3) + gripper_qpos(2) — IsaacLab stack-cube layout
         state = np.concatenate([eef_pos, eef_euler, gripper_qpos])
@@ -317,9 +287,9 @@ class _RandomPolicy:
         )
 
 
-def connect_policy(args):
+def connect_policy(args, action_dim=7):
     if getattr(args, "random_policy", False):
-        return _RandomPolicy(action_dim=7), "random"
+        return _RandomPolicy(action_dim=action_dim), "random"
     if args.use_openpi_client:
         from openpi_client import websocket_client_policy as _wcp
         return _wcp.WebsocketClientPolicy(host=args.host, port=args.port), "openpi"
@@ -390,7 +360,7 @@ def main():
     print(f"Discovered {len(scenes)} valid scenes")
 
     # Connect to policy
-    policy, client_type = connect_policy(args)
+    policy, client_type = connect_policy(args, action_dim=profile.action_dim)
     if client_type == "random":
         print("Using random policy (smoke test mode)")
     else:
