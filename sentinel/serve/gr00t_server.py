@@ -21,7 +21,6 @@ import traceback
 import numpy as np
 import torch
 from omegaconf import OmegaConf
-from openpi_client import msgpack_numpy
 import websockets
 import websockets.asyncio.server as _server
 
@@ -32,6 +31,8 @@ if str(RLINF_ROOT) not in sys.path:
     sys.path.insert(0, str(RLINF_ROOT))
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+from sentinel.serve import _msgpack_numpy as msgpack_numpy
 
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,18 @@ class GR00TAdapter:
             "rl_head_config": {
                 "add_value_head": False,
                 "disable_dropout": False,
+                "joint_logprob": False,
+                "noise_method": "flow_sde",
+                "ignore_last": False,
+                "safe_get_logprob": False,
+                "noise_anneal": False,
+                "noise_params": [0.7, 0.3, 400],
+                "noise_level": 0.5,
+                "chunk_critic_input": False,
+                "detach_critic_input": True,
+                "use_vlm_value": False,
+                "value_vlm_mode": "mean_token",
+                "padding_value": 570,
             },
         })
         self.model = get_model(cfg)
@@ -112,6 +125,13 @@ class GR00TAdapter:
         self.num_action_chunks = num_action_chunks
         self.action_convert_fn = ACTION_CONVERSION[obs_converter]
 
+        # SFT checkpoint has no value_head; force compute_values=False on inference.
+        _orig_get_rl_action = self.model.action_head.get_rl_action
+        def _get_rl_action_no_values(*args, **kwargs):
+            kwargs["compute_values"] = False
+            return _orig_get_rl_action(*args, **kwargs)
+        self.model.action_head.get_rl_action = _get_rl_action_no_values
+
     def metadata(self) -> dict:
         return {
             "policy_type": "gr00t_stack_cube",
@@ -121,8 +141,23 @@ class GR00TAdapter:
             "returns_full_chunk": True,
         }
 
+    @staticmethod
+    def _resize_video_to_256(video: np.ndarray, size: int = 256) -> np.ndarray:
+        """Resize [B, H, W, C] uint8 video to [B, size, size, C]."""
+        if video.ndim != 4:
+            return video
+        b, h, w, c = video.shape
+        if h == size and w == size:
+            return video
+        # NHWC -> NCHW tensor, interpolate bilinear, back to NHWC uint8
+        t = torch.from_numpy(video).permute(0, 3, 1, 2).float()
+        t = torch.nn.functional.interpolate(
+            t, size=(size, size), mode="bilinear", align_corners=False
+        )
+        return t.permute(0, 2, 3, 1).clamp(0, 255).to(torch.uint8).numpy()
+
     def _ensure_batch(self, obs: dict) -> dict:
-        """Ensure obs tensors have batch dimension."""
+        """Ensure obs tensors have batch dimension; resize videos to 256x256."""
         batched = dict(obs)
         for key in ("main_images", "wrist_images", "states"):
             value = batched.get(key)
@@ -133,7 +168,13 @@ class GR00TAdapter:
                 value = value[None, :]
             if key != "states" and value.ndim == 3:
                 value = value[None, ...]
-            batched[key] = torch.from_numpy(value)
+            if key in ("main_images", "wrist_images"):
+                # GR00T expects 256x256 RGB videos. [B, H, W, C] -> [B, 256, 256, C]
+                value = self._resize_video_to_256(value)
+            # .copy() always returns a fresh writable, contiguous array
+            # (np.ascontiguousarray may return a non-writable view if input
+            # was already contiguous, which torch.from_numpy warns about).
+            batched[key] = torch.from_numpy(np.array(value, copy=True))
         # states must be float
         if "states" in batched and isinstance(batched["states"], torch.Tensor):
             batched["states"] = batched["states"].float()
@@ -149,19 +190,13 @@ class GR00TAdapter:
     @torch.no_grad()
     def act(self, obs: dict) -> torch.Tensor:
         batched_obs = self._ensure_batch(obs)
-        action_chunk, _ = self.model.predict_action_batch(
-            batched_obs, mode="eval"
-        )
-        # action_chunk is a dict like {"action.x": ..., "action.gripper": ...}
-        # Convert to flat 7D array
-        action_array = self.action_convert_fn(
-            action_chunk, chunk_size=self.num_action_chunks
-        )
-        # action_array shape: [batch, chunk, 7]
-        action = np.asarray(action_array, dtype=np.float32)
+        # predict_action_batch already applies action_convert_fn internally and
+        # returns a torch.Tensor of shape [batch, chunk, 7].
+        raw_action, _ = self.model.predict_action_batch(batched_obs, mode="eval")
+        action = raw_action.detach().cpu().float()
         if action.ndim == 3:
-            action = action[0]  # remove batch dim
-        return torch.from_numpy(action)
+            action = action[0]  # drop batch dim -> [chunk, 7]
+        return action
 
     def reset(self) -> None:
         return None

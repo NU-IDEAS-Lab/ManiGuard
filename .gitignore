@@ -14,6 +14,8 @@ bddl3/bddl/activity_definitions/*
 checkpoints/
 RLinf-*/
 RLinf/.venv*/
+GR00T-*/
+Isaac-GR00T/
 .vscode/
 teleop_bridge/SO-ARM100/
 RLinf_local/*

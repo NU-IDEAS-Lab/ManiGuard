@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -35,6 +35,13 @@ class EvalProfile:
     # -- Server (informational — used by launcher scripts, not benchmark.py) --
     serve_config_name: str = ""
     serve_script: str = "sentinel/serve/pi05_franka.py"
+
+    # -- Env controller override --
+    # If set, benchmark.py will call robot.reload_controllers(...) after scene
+    # load to swap the scene-baked controller (typically OSC from the pipeline)
+    # for the one the policy expects. The robot's joint state is preserved; only
+    # the controller logic + action_space are rebuilt.
+    override_controller_config: Optional[Dict[str, Any]] = None
 
 
 _PROFILES_DIR = Path(__file__).parent / "profiles"

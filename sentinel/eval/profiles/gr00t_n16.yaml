@@ -1,0 +1,21 @@
+name: gr00t_n16
+# GR00T-N1.6-DROID uses the OXE_DROID embodiment: relative joint-position
+# actions over 7 Franka joints + 1 gripper. See Isaac-GR00T processor_config.json
+# -> modality_configs.oxe_droid.
+state_mode: joint          # 7 arm_pos + 1 gripper_scalar = 8D
+policy_cameras: [cam_opposite]
+action_dim: 8
+execute_horizon: 16
+gripper_binarize: false    # GR00T outputs continuous gripper position
+serve_config_name: gr00t_n16_droid
+serve_script: sentinel/serve/gr00t_n16_server.py
+
+# DROID trains with relative joint position commands; override the scene-baked
+# OSC controller with a JointController in delta mode.
+override_controller_config:
+  arm_0:
+    name: JointController
+    motor_type: position
+    use_delta_commands: true
+  gripper_0:
+    name: MultiFingerGripperController
