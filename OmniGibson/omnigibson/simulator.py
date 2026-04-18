@@ -575,7 +575,7 @@ def _launch_simulator(*args, **kwargs):
         def _set_renderer_settings(self):
             lazy.carb.settings.get_settings().set_bool("/rtx/reflections/enabled", True)
             lazy.carb.settings.get_settings().set_bool("/rtx/indirectDiffuse/enabled", True)
-            lazy.carb.settings.get_settings().set_int("/rtx/post/dlss/execMode", 0)  # "Performance"
+            lazy.carb.settings.get_settings().set_int("/rtx/post/dlss/execMode", 2)
             lazy.carb.settings.get_settings().set_bool("/rtx/ambientOcclusion/enabled", True)
             lazy.carb.settings.get_settings().set_bool("/rtx/directLighting/sampledLighting/enabled", True)
             lazy.carb.settings.get_settings().set_int("/rtx/raytracing/showLights", 1)

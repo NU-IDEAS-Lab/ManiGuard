@@ -72,7 +72,7 @@ TASK_OBJECTS = (TARGET_MUG, DEST_BOWL, *DISTRACTORS)
 # Bowl is offset along the edge so it's outside the ring and easy to reach.
 # Tuned for breakfast_table-hggsao (~0.7 m short side x 1.0 m long side).
 _TARGET_ALONG, _TARGET_DEPTH = -0.10, 0.22
-_RING_RADIUS_M = 0.17
+_RING_RADIUS_M = 0.2
 _LAYOUT_BASE = {
     TARGET_MUG.name:     (_TARGET_ALONG, _TARGET_DEPTH),
     DEST_BOWL.name:      ( 0.28, 0.10),
