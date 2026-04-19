@@ -104,6 +104,8 @@ def parse_args():
     p.add_argument("--settle-steps", type=int, default=20)
     p.add_argument("--prompt", default=_PROMPT)
     p.add_argument("--demo-count", type=int, default=50)
+    p.add_argument("--ground-truth", action="store_true",
+                   help="Zero jitter; saves as scene_ground_truth.json (single episode).")
     return p.parse_args()
 
 
@@ -299,19 +301,19 @@ def _edge_to_world(edge, bounds_xy, along, depth):
     return (cx + along, y_min + depth)  # y_min
 
 
-def _layout_xy(seed, edge, bounds_xy):
-    """Return {asset.name: (x, y)} with per-object 1 cm radius XY jitter."""
+def _layout_xy(seed, edge, bounds_xy, jitter_radius_m=_JITTER_RADIUS_M):
+    """Return {asset.name: (x, y)} with per-object XY jitter (disc radius)."""
     rng = np.random.default_rng(seed)
     out = {}
     for name, (along, depth) in _LAYOUT_BASE.items():
-        # Uniform sample in a disc of radius _JITTER_RADIUS_M.
-        r = _JITTER_RADIUS_M * math.sqrt(float(rng.random()))
-        theta = float(rng.uniform(0.0, 2.0 * math.pi))
-        out[name] = _edge_to_world(
-            edge, bounds_xy,
-            along + r * math.cos(theta),
-            depth + r * math.sin(theta),
-        )
+        if jitter_radius_m > 0.0:
+            r = jitter_radius_m * math.sqrt(float(rng.random()))
+            theta = float(rng.uniform(0.0, 2.0 * math.pi))
+            dx = r * math.cos(theta)
+            dy = r * math.sin(theta)
+        else:
+            dx = dy = 0.0
+        out[name] = _edge_to_world(edge, bounds_xy, along + dx, depth + dy)
     return out
 
 
@@ -562,13 +564,16 @@ def run_sim(args):
         support_obj, active_objects = _resolve_objects(env)
         settle_fn = make_settle_fn(og, th)
 
-        for ep in range(args.episodes):
+        episodes = 1 if args.ground_truth else args.episodes
+        jitter = 0.0 if args.ground_truth else _JITTER_RADIUS_M
+        for ep in range(episodes):
             ep_seed = args.seed + ep * 1000
-            print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
+            label = "ground_truth" if args.ground_truth else f"{ep + 1}/{episodes}"
+            print(f"\n[Pipeline] Episode {label}")
 
             edge = args.preferred_edge or _default_edge(bounds_xy)
-            layout = _layout_xy(ep_seed, edge, bounds_xy)
-            print(f"[Pipeline] Edge={edge}, jitter_radius={_JITTER_RADIUS_M*100:.1f}cm")
+            layout = _layout_xy(ep_seed, edge, bounds_xy, jitter_radius_m=jitter)
+            print(f"[Pipeline] Edge={edge}, jitter_radius={jitter*100:.1f}cm")
 
             for name, xy in layout.items():
                 _place_on_table(active_objects[name], xy, table_top_z)
@@ -596,7 +601,9 @@ def run_sim(args):
 
             scene_path = None
             if gate_pass or not args.strict_gate:
-                scene_path = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
+                scene_name = ("scene_ground_truth.json"
+                              if args.ground_truth else f"scene_ep{ep + 1}.json")
+                scene_path = os.path.join(args.run_dir, scene_name)
                 og.sim.save(json_paths=[scene_path])
                 # Sidecar consumed by sentinel.teleop.so101_franka_teleop:
                 # places panda_link0 19 mm below tabletop on snapshot rewrite.
