@@ -14,6 +14,9 @@ from typing import Any, Dict
 
 from sentinel.envs.registry import extract_scene_robot_setup
 from sentinel.eval.scene_discovery import discover_scenes
+# Side-effect: registers PickAndLiftTask (and any future custom tasks) with
+# OG's task registry so ``type: "PickAndLiftTask"`` resolves in the config.
+import sentinel.rl.tasks  # noqa: F401
 
 
 def _scene_info_for_dir(scene_dir: Path) -> Dict[str, Any]:
