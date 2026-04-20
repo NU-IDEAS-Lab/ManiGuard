@@ -7,6 +7,7 @@ pack callbacks, and other utilities reused across different pipeline types
 
 import argparse
 import json
+import logging
 import math
 import os
 import sys
@@ -15,6 +16,8 @@ from datetime import datetime
 import torch as th
 
 import numpy as np
+
+log = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
@@ -129,10 +132,11 @@ def needs_gpu_dynamics(activity_name):
                 if "substance" in taxonomy.get_abilities(synset):
                     print(f"[Pipeline] GPU dynamics enabled (substance: {synset})")
                     return True
-            except Exception:
+            except Exception as exc:
+                log.warning("taxonomy lookup for synset %s failed: %s", synset, exc)
                 continue
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("needs_gpu_dynamics probe failed for %s: %s", activity_name, exc)
     return False
 
 
@@ -319,7 +323,8 @@ def clear_support_area(env, support_obj, surface_bounds_xy, margin_m=0.60):
             continue
         try:
             obj_bounds = _object_bounds_xy(obj)
-        except Exception:
+        except Exception as exc:
+            log.warning("clear_support_area: bounds lookup for %s failed: %s", name, exc)
             continue
         if not _bounds_overlap_xy(obj_bounds, expanded_bounds):
             continue
@@ -361,7 +366,11 @@ def clear_robot_base_region(env, support_obj, base_xy, robot_half_extent_xy,
             continue
         try:
             obj_bounds = _object_bounds_xy(obj)
-        except Exception:
+        except Exception as exc:
+            log.warning(
+                "clear_robot_base_region: bounds lookup for %s failed: %s",
+                getattr(obj, "name", obj), exc,
+            )
             continue
         if not _bounds_overlap_xy(obj_bounds, keepout_bounds):
             continue
@@ -412,7 +421,8 @@ def object_aabb_dims(obj):
     """
     try:
         a_min, a_max = obj.aabb
-    except Exception:
+    except Exception as exc:
+        log.warning("object_aabb_dims(%s) failed: %s", getattr(obj, "name", obj), exc)
         return None
     return (
         max(0.01, float(a_max[0] - a_min[0])),
@@ -438,7 +448,10 @@ def build_descriptors(env, obj_sets):
                 obj_pos = obj.get_position_orientation()[0]
                 aabb_min = obj.aabb[0]
                 root_to_bottom_z = max(0.0, float(obj_pos[2]) - float(aabb_min[2]))
-            except Exception:
+            except Exception as exc:
+                log.warning(
+                    "build_descriptors: pose/aabb lookup for %s failed: %s", inst, exc,
+                )
                 continue
             descriptors.append(ClutterObjectDescriptor(
                 instance_id=inst, role=role,
@@ -457,8 +470,9 @@ def robot_half_extent_xy(robot):
             try:
                 mn, mx = link.aabb
                 return ((float(mx[0] - mn[0])) * 0.5, (float(mx[1] - mn[1])) * 0.5)
-            except Exception:
-                pass
+            except Exception as exc:
+                # Expected fallback — try the next link candidate.
+                log.debug("robot_half_extent_xy: link %s aabb failed: %s", key, exc)
     return (0.15, 0.15)
 
 
@@ -519,20 +533,20 @@ def make_settle_fn(og_mod, th_mod):
             og_mod.sim.step()
         for _ in range(7):
             og_mod.sim.step()
-            for obj in objs.values():
+            for name, obj in objs.items():
                 try:
                     vel = obj.get_linear_velocity()
                     vz = float(vel[2]) if hasattr(vel, '__getitem__') else 0.0
                     obj.set_linear_velocity(th_mod.tensor([0.0, 0.0, min(0.0, vz)]))
                     obj.set_angular_velocity(th_mod.zeros(3))
-                except Exception:
-                    pass
-        for obj in objs.values():
+                except Exception as exc:
+                    log.warning("settle: zero-velocity call for %s failed: %s", name, exc)
+        for name, obj in objs.items():
             try:
                 if hasattr(obj, "keep_still"):
                     obj.keep_still()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("settle: keep_still for %s failed: %s", name, exc)
         og_mod.sim.step()
     return settle
 
@@ -549,9 +563,12 @@ def stabilize_active_objects(og_mod, objs, steps, support_obj=None):
                     support_obj.set_angular_velocity(th.zeros(3))
                 if hasattr(support_obj, "keep_still"):
                     support_obj.keep_still()
-            except Exception:
-                pass
-        for obj in objs.values():
+            except Exception as exc:
+                log.warning(
+                    "stabilize_active_objects: support %s zero-velocity/keep_still failed: %s",
+                    getattr(support_obj, "name", support_obj), exc,
+                )
+        for name, obj in objs.items():
             try:
                 if hasattr(obj, "set_linear_velocity"):
                     obj.set_linear_velocity(th.zeros(3))
@@ -559,8 +576,11 @@ def stabilize_active_objects(og_mod, objs, steps, support_obj=None):
                     obj.set_angular_velocity(th.zeros(3))
                 if hasattr(obj, "keep_still"):
                     obj.keep_still()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning(
+                    "stabilize_active_objects: %s zero-velocity/keep_still failed: %s",
+                    name, exc,
+                )
         og_mod.sim.step()
 
 
@@ -588,7 +608,11 @@ def pin_support_object_to_world(support_obj):
         )
         support_obj.fixed_base = True
         return True
-    except Exception:
+    except Exception as exc:
+        log.warning(
+            "pin_support_object_to_world(%s) failed: %s",
+            getattr(support_obj, "name", support_obj), exc,
+        )
         return False
 
 
@@ -613,8 +637,8 @@ def make_park_fn(og_mod, zone_surface_bounds, floor_z):
                 )
                 if hasattr(passive_objs[inst], "keep_still"):
                     passive_objs[inst].keep_still()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("park: %s set_position/keep_still failed: %s", inst, exc)
         og_mod.sim.step()
     return park
 
@@ -645,7 +669,8 @@ def check_interpenetration(objs, tol):
     for i, a in enumerate(inst_ids):
         try:
             aabb_a = objs[a].aabb
-        except Exception:
+        except Exception as exc:
+            log.warning("check_interpenetration: aabb lookup for %s failed: %s", a, exc)
             continue
         for b in inst_ids[i + 1:]:
             try:
@@ -656,7 +681,10 @@ def check_interpenetration(objs, tol):
                     for d in range(3)
                 ):
                     hits.append((a, b))
-            except Exception:
+            except Exception as exc:
+                log.warning(
+                    "check_interpenetration: aabb overlap (%s, %s) failed: %s", a, b, exc,
+                )
                 continue
     return hits
 
@@ -693,7 +721,8 @@ def _try_upright_objects(og_mod, objects_by_inst):
                 if hasattr(obj, "keep_still"):
                     obj.keep_still()
                 fixed.append(inst)
-        except Exception:
+        except Exception as exc:
+            log.warning("_try_upright_objects: %s reset failed: %s", inst, exc)
             continue
     if fixed:
         og_mod.sim.step()
@@ -856,8 +885,10 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
                         video_frame = av.VideoFrame.from_ndarray(frame, format="rgb24")
                         for packet in writer_info["writer"]["stream"].encode(video_frame):
                             writer_info["writer"]["container"].mux(packet)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        log.warning(
+                            "video mux failed for cam %s: %s", writer_info["cam"], exc,
+                        )
 
         ltl_monitor.step(executed)
         if executed % 50 == 0:
@@ -1334,7 +1365,11 @@ class BasePipeline(ABC):
                         "top_z": float(o_max[2]),
                         "bottom_z": float(o_min[2]),
                     })
-                except Exception:
+                except Exception as exc:
+                    log.warning(
+                        "surface analysis: aabb for %s failed: %s",
+                        getattr(obj, "name", obj), exc,
+                    )
                     continue
             other_aabbs = [
                 d["aabb_xy"] for d in scene_data
