@@ -67,7 +67,11 @@ class TestGenerateBDDLProblem:
         config = self._make_config()
         text = generate_bddl_problem(config)
         assert "agent.n.01_1 - agent.n.01" in text
-        assert "floor" not in text
+        # Sentinel always emits a floor placement for the agent so that
+        # upstream BDDLSampler's kinematic check passes; see
+        # sentinel/utils/bddl_generator.py.
+        assert "floor.n.01_1 - floor.n.01" in text
+        assert "(ontop agent.n.01_1 floor.n.01_1)" in text
 
     def test_grasped_goal_uses_target(self):
         config = self._make_config()
@@ -95,7 +99,11 @@ class TestGenerateBDDLProblem:
         text = generate_bddl_problem(config)
         assert "(inside coffee_cup.n.01_1 bottom_cabinet.n.01_1)" in text
         assert "(inside wineglass.n.01_1 bottom_cabinet.n.01_1)" in text
-        assert "(ontop" not in text
+        # Task objects must use the configured `inside` predicate, not ontop.
+        # (The agent itself gets a separate `(ontop agent.n.01_1 floor.n.01_1)`
+        # line to satisfy upstream BDDLSampler.)
+        assert "(ontop coffee_cup" not in text
+        assert "(ontop wineglass" not in text
 
     def test_support_room(self):
         config = self._make_config()
@@ -113,10 +121,17 @@ class TestGenerateBDDLProblem:
         assert "(inroom countertop.n.01_1 kitchen)" in text
         assert "(inroom cabinet.n.01_1 kitchen)" in text
 
-    def test_placement_goal_no_agent(self):
+    def test_placement_goal_includes_agent_and_floor(self):
+        # Upstream BDDLSampler requires a kinematic placement for every
+        # BDDL instance; sentinel's generator always emits
+        # `(ontop agent.n.01_1 floor.n.01_1)` regardless of goal type.
         config = self._make_placement_config()
         text = generate_bddl_problem(config)
-        assert "agent.n.01" not in text
+        assert "agent.n.01_1 - agent.n.01" in text
+        assert "floor.n.01_1 - floor.n.01" in text
+        assert "(ontop agent.n.01_1 floor.n.01_1)" in text
+        # Goal must still reference the real target, not the agent.
+        assert "(grasped agent.n.01" not in text
 
 
 class TestGenerateLTLSafetyJSON:
