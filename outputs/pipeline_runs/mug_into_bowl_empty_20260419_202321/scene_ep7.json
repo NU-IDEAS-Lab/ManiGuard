@@ -1,0 +1,497 @@
+{
+    "versions": {
+        "omnigibson": {
+            "version": "3.7.2",
+            "git_hash": "e874f58d883a9ab7d13973f644d776a5d3306abf"
+        },
+        "bddl": {
+            "version": "3.7.0",
+            "git_hash": "e874f58d883a9ab7d13973f644d776a5d3306abf"
+        },
+        "behavior-1k-assets": {
+            "version": "3.7.2rc1"
+        },
+        "omnigibson-robot-assets": {
+            "version": null,
+            "git_hash": "e874f58d883a9ab7d13973f644d776a5d3306abf"
+        }
+    },
+    "metadata": {},
+    "state": {
+        "pos": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "ori": [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+        ],
+        "registry": {
+            "system_registry": {},
+            "object_registry": {
+                "support_surface": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            0.0,
+                            0.0,
+                            0.24869999289512634
+                        ],
+                        "ori": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    "non_kin": {}
+                },
+                "target_mug": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            0.09816713631153107,
+                            -0.08437492698431015,
+                            0.3935590386390686
+                        ],
+                        "ori": [
+                            4.169996827840805e-07,
+                            -0.004165123216807842,
+                            -8.366070687770844e-06,
+                            0.9999913573265076
+                        ],
+                        "lin_vel": [
+                            -5.6109427532646805e-05,
+                            4.054588498547673e-05,
+                            -2.0523471903288737e-05
+                        ],
+                        "ang_vel": [
+                            -0.000926936452742666,
+                            -0.001221595797687769,
+                            0.00017468225269112736
+                        ]
+                    },
+                    "non_kin": {
+                        "Temperature": {
+                            "temperature": 23.0
+                        }
+                    }
+                },
+                "dest_bowl": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            0.20295165479183197,
+                            0.27882513403892517,
+                            0.3795480728149414
+                        ],
+                        "ori": [
+                            -0.00898786261677742,
+                            -0.002028370276093483,
+                            -0.00011223995534237474,
+                            0.9999576807022095
+                        ],
+                        "lin_vel": [
+                            4.1874222915794235e-06,
+                            -2.050583134405315e-06,
+                            -1.3500691693479894e-06
+                        ],
+                        "ang_vel": [
+                            3.2300718885380775e-05,
+                            -3.2590614864602685e-06,
+                            0.00013752031372860074
+                        ]
+                    },
+                    "non_kin": {
+                        "Temperature": {
+                            "temperature": 23.0
+                        }
+                    }
+                },
+                "distractor_mug_1": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            0.2858770787715912,
+                            -0.10414053499698639,
+                            0.41896915435791016
+                        ],
+                        "ori": [
+                            1.6875332221388817e-05,
+                            -0.004161478951573372,
+                            -1.4850687875878066e-05,
+                            0.9999914765357971
+                        ],
+                        "lin_vel": [
+                            7.060029747663066e-05,
+                            0.0012974549317732453,
+                            0.00023603909357916564
+                        ],
+                        "ang_vel": [
+                            -0.01480903010815382,
+                            0.00010444206418469548,
+                            0.0032213772647082806
+                        ]
+                    },
+                    "non_kin": {
+                        "Temperature": {
+                            "temperature": 23.0
+                        }
+                    }
+                },
+                "distractor_mug_2": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            -0.11610850691795349,
+                            -0.11036732792854309,
+                            0.4038177728652954
+                        ],
+                        "ori": [
+                            -0.0002047177404165268,
+                            0.004924407694488764,
+                            -7.733996608294547e-05,
+                            0.9999879002571106
+                        ],
+                        "lin_vel": [
+                            0.0005187547067180276,
+                            -0.00018907822959590703,
+                            -0.00019101866928394884
+                        ],
+                        "ang_vel": [
+                            0.003362452844157815,
+                            0.007610424421727657,
+                            0.0016862207558006048
+                        ]
+                    },
+                    "non_kin": {
+                        "Temperature": {
+                            "temperature": 23.0
+                        }
+                    }
+                },
+                "distractor_mug_3": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            0.09627187252044678,
+                            -0.2842363119125366,
+                            0.4036637544631958
+                        ],
+                        "ori": [
+                            0.007569919805973768,
+                            -0.0021285745315253735,
+                            2.3829808924347162e-05,
+                            0.9999691247940063
+                        ],
+                        "lin_vel": [
+                            0.000416909868363291,
+                            1.4950735931051895e-05,
+                            -3.0608200177084655e-05
+                        ],
+                        "ang_vel": [
+                            -0.0003186496323905885,
+                            0.0074409255757927895,
+                            0.0001252347428817302
+                        ]
+                    },
+                    "non_kin": {
+                        "Temperature": {
+                            "temperature": 23.0
+                        }
+                    }
+                },
+                "distractor_mug_4": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            0.09037096053361893,
+                            0.11000540852546692,
+                            0.41584211587905884
+                        ],
+                        "ori": [
+                            -0.0010493802838027477,
+                            -0.004213288892060518,
+                            -2.686782318050973e-05,
+                            0.9999906420707703
+                        ],
+                        "lin_vel": [
+                            4.2145984480157495e-07,
+                            0.00029743617051281035,
+                            -7.84042349550873e-05
+                        ],
+                        "ang_vel": [
+                            -0.0047252424992620945,
+                            -1.433142642781604e-05,
+                            -5.7856872444972396e-05
+                        ]
+                    },
+                    "non_kin": {
+                        "Temperature": {
+                            "temperature": 23.0
+                        }
+                    }
+                },
+                "robot_mzeuoi": {
+                    "is_asleep": false,
+                    "root_link": {
+                        "pos": [
+                            0.5667939186096191,
+                            0.06090506911277771,
+                            -1.4901161193847656e-07
+                        ],
+                        "ori": [
+                            -2.3283064365386963e-10,
+                            -7.275957614183426e-12,
+                            0.9990532398223877,
+                            0.043505288660526276
+                        ],
+                        "lin_vel": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "ang_vel": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ]
+                    },
+                    "joint_pos": [
+                        -4.913178486276593e-07,
+                        -1.2999999523162842,
+                        1.0585345080471598e-06,
+                        -2.869999885559082,
+                        8.069652039921493e-07,
+                        1.9999923706054688,
+                        0.749999463558197,
+                        0.03999997302889824,
+                        0.03999996930360794
+                    ],
+                    "joint_vel": [
+                        -1.1384521712898277e-05,
+                        -0.00020523040439002216,
+                        4.790104412677465e-06,
+                        -0.0002850938471965492,
+                        8.483173587592319e-06,
+                        -0.00016361362941097468,
+                        3.712912803166546e-05,
+                        1.9860958673234563e-06,
+                        3.6220226320438087e-06
+                    ],
+                    "controllers": {
+                        "arm_0": {
+                            "goal_is_valid": true,
+                            "goal": {
+                                "target_pos": [
+                                    0.3032339811325073,
+                                    8.509960025548935e-08,
+                                    1.2107912302017212
+                                ],
+                                "target_ori_mat": [
+                                    [
+                                        0.9083960652351379,
+                                        0.03216894716024399,
+                                        0.4168713688850403
+                                    ],
+                                    [
+                                        0.035390742123126984,
+                                        -0.9993736743927002,
+                                        -2.9802322387695312e-08
+                                    ],
+                                    [
+                                        0.4166102409362793,
+                                        0.014753414317965508,
+                                        -0.9089655876159668
+                                    ]
+                                ]
+                            }
+                        },
+                        "gripper_0": {
+                            "goal_is_valid": true,
+                            "goal": {
+                                "target": [
+                                    1.0
+                                ]
+                            },
+                            "vel_filter": {
+                                "past_samples": [
+                                    [
+                                        0.0,
+                                        -3.1292436233343324e-06
+                                    ],
+                                    [
+                                        4.4703480739372026e-07,
+                                        -4.4703480739372026e-07
+                                    ],
+                                    [
+                                        0.0,
+                                        0.0
+                                    ],
+                                    [
+                                        0.0,
+                                        0.0
+                                    ],
+                                    [
+                                        1.709991806819744e-06,
+                                        2.7360352760297246e-05
+                                    ]
+                                ],
+                                "current_idx": 3,
+                                "fully_filled": true
+                            }
+                        }
+                    },
+                    "non_kin": {}
+                }
+            }
+        }
+    },
+    "init_info": {
+        "class_module": "omnigibson.scenes.scene_base",
+        "class_name": "Scene",
+        "args": {
+            "scene_file": null
+        }
+    },
+    "objects_info": {
+        "init_info": {
+            "support_surface": {
+                "class_module": "omnigibson.objects.dataset_object",
+                "class_name": "DatasetObject",
+                "args": {
+                    "name": "support_surface",
+                    "category": "breakfast_table",
+                    "model": "hggsao",
+                    "fixed_base": true,
+                    "expected_file_hash": "57138a658999c1805c74beb9a9b54b77",
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            "target_mug": {
+                "class_module": "omnigibson.objects.dataset_object",
+                "class_name": "DatasetObject",
+                "args": {
+                    "name": "target_mug",
+                    "category": "coffee_cup",
+                    "model": "nhzrei",
+                    "fixed_base": false,
+                    "expected_file_hash": "b5b15605bf6c0948e3a961392fd213f5",
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            "dest_bowl": {
+                "class_module": "omnigibson.objects.dataset_object",
+                "class_name": "DatasetObject",
+                "args": {
+                    "name": "dest_bowl",
+                    "category": "bowl",
+                    "model": "adciys",
+                    "fixed_base": false,
+                    "expected_file_hash": "710a189367e13b979d2b22382b76844c",
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            "distractor_mug_1": {
+                "class_module": "omnigibson.objects.dataset_object",
+                "class_name": "DatasetObject",
+                "args": {
+                    "name": "distractor_mug_1",
+                    "category": "soda_cup",
+                    "model": "vicaqs",
+                    "fixed_base": false,
+                    "expected_file_hash": "20935c4bd5fbde7484fd3cba2b475b53",
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            "distractor_mug_2": {
+                "class_module": "omnigibson.objects.dataset_object",
+                "class_name": "DatasetObject",
+                "args": {
+                    "name": "distractor_mug_2",
+                    "category": "soda_cup",
+                    "model": "lpanoc",
+                    "fixed_base": false,
+                    "expected_file_hash": "d24ee2844cf881f7cce375c17ad4937f",
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            "distractor_mug_3": {
+                "class_module": "omnigibson.objects.dataset_object",
+                "class_name": "DatasetObject",
+                "args": {
+                    "name": "distractor_mug_3",
+                    "category": "soda_cup",
+                    "model": "fsfsas",
+                    "fixed_base": false,
+                    "expected_file_hash": "8bf85265fd6864452dd22eb018137003",
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            "distractor_mug_4": {
+                "class_module": "omnigibson.objects.dataset_object",
+                "class_name": "DatasetObject",
+                "args": {
+                    "name": "distractor_mug_4",
+                    "category": "mug",
+                    "model": "yxaapv",
+                    "fixed_base": false,
+                    "expected_file_hash": "90dd35b9481c1bb3c00d08cae83fd54b",
+                    "scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            "robot_mzeuoi": {
+                "class_module": "omnigibson.robots.franka_mounted",
+                "class_name": "FrankaMounted",
+                "args": {
+                    "name": "robot_mzeuoi",
+                    "controller_config": {
+                        "arm_0": {
+                            "name": "OperationalSpaceController"
+                        },
+                        "gripper_0": {
+                            "name": "MultiFingerGripperController"
+                        }
+                    },
+                    "action_type": "continuous",
+                    "action_normalize": true,
+                    "obs_modalities": [
+                        "rgb"
+                    ],
+                    "expected_file_hash": "2b622baf93d68b52c810b8358e6f38c6"
+                }
+            }
+        }
+    }
+}

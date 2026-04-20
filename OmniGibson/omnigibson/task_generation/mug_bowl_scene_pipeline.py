@@ -442,6 +442,7 @@ def _build_env_config(surface_spawn_xyz, object_cfgs):
             "obs_modalities": ["rgb"],
             "action_type": "continuous",
             "action_normalize": True,
+            "grasping_mode": "assisted", 
             "controller_config": {
                 "arm_0": {"name": "OperationalSpaceController"},
                 "gripper_0": {"name": "MultiFingerGripperController"},
