@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinel-lite"
+version = "0.1.0"
+description = "LTL safety monitoring, task generation, and VLA policy evaluation for BEHAVIOR-1K manipulation tasks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "NU-IDEAS Lab" }]
+keywords = ["robotics", "simulation", "LTL", "safety", "BEHAVIOR-1K", "OmniGibson", "VLA"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Pure-Python runtime deps that sentinel imports directly.
+# Heavy simulator / model deps (omnigibson, bddl, rlinf, openpi, spot) are
+# installed out-of-band by behavior-1k/setup.sh and the submodules —
+# declaring them here would only cause version conflicts.
+dependencies = [
+    "numpy>=1.23",
+    "torch>=2.0",
+    "networkx>=3.0",
+    "PyYAML>=6.0",
+    "omegaconf>=2.3",
+    "Pillow>=9.0",
+    "einops>=0.6",
+    "imageio>=2.25",
+    "h5py>=3.8",
+    "msgpack>=1.0",
+]
+
+[project.optional-dependencies]
+rl = [
+    "gymnasium>=0.28.1",
+    "stable-baselines3[extra]>=2.0",
+]
+serve = [
+    "websockets>=11.0",
+    "pyzmq>=25.0",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.4",
+]
+
+[project.urls]
+Repository = "https://github.com/NU-IDEAS-Lab/SENTINEL-Lite"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sentinel*"]
+exclude = [
+    "behavior-1k*",
+    "RLinf*",
+    "vla_models*",
+    "tests*",
+    "tools*",
+    "scripts*",
+    "configs*",
+    "teleop_bridge*",
+    "datasets*",
+    "outputs*",
+]
+
+[tool.setuptools.package-data]
+sentinel = [
+    "configs/*.yaml",
+    "eval/profiles/*.yaml",
+    "task_generation/utils/*.json",
+    "task_generation/curation/*.json",
+    "task_generation/*.md",
+    "task_generation/curation/*.md",
+]

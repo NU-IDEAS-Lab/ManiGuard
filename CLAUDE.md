@@ -92,7 +92,10 @@ cd ..
 export OMNIGIBSON_DATA_PATH=$(pwd)/datasets
 # Alternative: ln -sfn ../datasets behavior-1k/datasets
 
-# Importing `sentinel` is enough; editable install is optional.
+# Install sentinel (editable)
+conda activate behavior
+pip install -e .                     # base
+pip install -e ".[rl,serve]"        # with RL + policy-server extras
 ```
 
 ### Testing

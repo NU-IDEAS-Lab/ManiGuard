@@ -62,9 +62,13 @@ VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
    ln -sfn ../datasets behavior-1k/datasets
    ```
 
-4. **Install sentinel** in the conda env. With a `pyproject.toml` in place you
-   can `pip install -e .`; otherwise run from the repo root so
-   `PYTHONPATH` picks up `sentinel/` automatically.
+4. **Install sentinel** in the conda env (editable, from repo root):
+
+   ```bash
+   conda activate behavior
+   pip install -e .                 # base install
+   pip install -e ".[rl,serve]"    # with RL training + websocket policy server extras
+   ```
 
 Importing `sentinel` applies a small set of runtime patches that extend
 OmniGibson with Sentinel-specific object states, BDDL predicates, grasp-goal
