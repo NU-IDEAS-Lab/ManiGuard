@@ -22,6 +22,9 @@ from sentinel.utils.bddl_generator import (
     estimate_object_set_footprint,
     generate_empty_invert_activity,
 )
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class EmptyInvertPipeline(BasePipeline):
@@ -136,7 +139,8 @@ class EmptyInvertPipeline(BasePipeline):
                     name=inst, role="target",
                     position_xy=(float(pos[0]), float(pos[1])),
                 ))
-            except Exception:
+            except Exception as exc:
+                log.warning("empty_invert make_edge_objects: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
                 continue
         return tuple(result)
 

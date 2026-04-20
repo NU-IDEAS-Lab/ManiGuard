@@ -8,6 +8,9 @@ import json
 from collections import Counter
 from pathlib import Path
 from typing import Any
+import logging
+
+log = logging.getLogger(__name__)
 
 
 _CATEGORY_ALIASES = {
@@ -133,7 +136,8 @@ def _compute_scene_floor_z(env) -> float:
             continue
         try:
             _, aabb_max = obj.aabb
-        except Exception:
+        except Exception as exc:
+            log.warning("_compute_scene_floor_z: aabb read for %s failed: %s", getattr(obj, "name", obj), exc)
             continue
         floor_z = max(floor_z, float(aabb_max[2]))
     return floor_z
@@ -201,7 +205,8 @@ def _inspect_loaded_snapshot(env, entry, snapshot_path: str, diagnostics_entry, 
             continue
         try:
             aabb_min, aabb_max = obj.aabb
-        except Exception:
+        except Exception as exc:
+            log.warning("_inspect_loaded_snapshot: aabb read for %s failed: %s", getattr(obj, "name", obj), exc)
             continue
         actual_scene_categories[category] += 1
         bottom_z = float(aabb_min[2])
@@ -218,7 +223,8 @@ def _inspect_loaded_snapshot(env, entry, snapshot_path: str, diagnostics_entry, 
                     if obj.states[OnTop].get_value(candidate):
                         other_support = getattr(candidate, "name", None)
                         break
-                except Exception:
+                except Exception as exc:
+                    log.warning("_inspect_loaded_snapshot: OnTop check failed: %s", exc)
                     continue
         floor_suspect = bottom_z <= floor_z + 0.05
         if on_support:

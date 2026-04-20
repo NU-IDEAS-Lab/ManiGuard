@@ -21,6 +21,9 @@ import subprocess
 import sys
 import time
 from datetime import datetime
+import logging
+
+log = logging.getLogger(__name__)
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", ".."))
@@ -261,7 +264,8 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
                         result["gate_pass"] = entry["gate_pass"]
                     if "ltl_violated" in entry:
                         result["ltl_violated"] = entry["ltl_violated"]
-        except Exception:
+        except Exception as exc:
+            log.warning("run_benchmark: diagnostics read from %s failed: %s", diagnostics_path, exc)
             pass
 
     status_icon = {"success": "OK", "failed": "FAIL", "timeout": "TIME", "error": "ERR"}.get(
@@ -369,7 +373,8 @@ def _find_completed_scenes(output_dir, episodes):
                             entry = json.loads(line.strip())
                             if entry.get("gate_pass"):
                                 completed.add(scene_dir)
-                except Exception:
+                except Exception as exc:
+                    log.warning("run_benchmark: diagnostics scan of %s failed: %s", diag, exc)
                     pass
     return completed
 

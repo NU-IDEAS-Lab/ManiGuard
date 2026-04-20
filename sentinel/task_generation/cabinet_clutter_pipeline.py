@@ -43,6 +43,9 @@ from sentinel.utils.cabinet_discovery import (
     open_cabinet_doors,
     place_robot_facing_cabinet,
 )
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -68,7 +71,8 @@ def run_dry_run(args):
             support_synset = resolve_synset(discovery[0])
             support_room = discovery[1]
             print(f"[Pipeline] Discovered cabinet: {discovery[0]} in {support_room}")
-    except Exception:
+    except Exception as exc:
+        log.warning("cabinet_clutter_pipeline dry-run: scene path lookup for %s failed: %s", args.scene_model, exc)
         pass
 
     bddl_text, ltl_safety, bddl_path, json_path = generate_activity(

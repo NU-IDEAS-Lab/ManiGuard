@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def _iter_scene_dirs(root: Path):
@@ -21,7 +24,8 @@ def _iter_scene_dirs(root: Path):
         current, depth = stack.pop()
         try:
             entries = sorted(current.iterdir())
-        except OSError:
+        except OSError as exc:
+            log.warning("scene dir iteration failed for %s: %s", current, exc)
             continue
         is_scene = (current / "scene_ep1.json").is_file() and (current / "diagnostics.jsonl").is_file()
         if is_scene:

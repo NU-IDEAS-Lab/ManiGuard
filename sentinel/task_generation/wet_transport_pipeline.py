@@ -23,6 +23,9 @@ from sentinel.utils.bddl_generator import (
     WATER_SENSITIVE_POOL,
     generate_wet_transport_activity,
 )
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class WetTransportPipeline(BasePipeline):
@@ -212,7 +215,8 @@ class WetTransportPipeline(BasePipeline):
                     name=inst, role=role,
                     position_xy=(float(pos[0]), float(pos[1])),
                 ))
-            except Exception:
+            except Exception as exc:
+                log.warning("wet_transport make_edge_objects: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
                 continue
         return tuple(result)
 

@@ -14,6 +14,9 @@ import os
 import glob as glob_mod
 
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -211,7 +214,8 @@ def main():
                 frame = _av.VideoFrame.from_ndarray(rgb, format="rgb24")
                 for pkt in video_writer["stream"].encode(frame):
                     video_writer["container"].mux(pkt)
-            except Exception:
+            except Exception as exc:
+                log.warning("molmospaces_usd_demo: optional av import failed: %s", exc)
                 pass
 
     # ---- Report final state ----

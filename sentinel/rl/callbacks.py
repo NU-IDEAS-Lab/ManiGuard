@@ -5,6 +5,9 @@ from __future__ import annotations
 import gc
 
 from stable_baselines3.common.callbacks import BaseCallback
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class SafetyCallback(BaseCallback):
@@ -16,7 +19,8 @@ class SafetyCallback(BaseCallback):
             if infos:
                 violations = sum(1 for info in infos if info.get("ltl_violation"))
                 self.logger.record("safety/ltl_violations", violations)
-        except Exception:
+        except Exception as exc:
+            log.warning("sb3 callback info dict access failed: %s", exc)
             pass
         return True
 

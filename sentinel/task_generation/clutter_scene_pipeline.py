@@ -28,6 +28,9 @@ from sentinel.task_generation.pipeline_common import (
 )
 from sentinel.utils.tabletop_workspace import bounds_overlap
 from sentinel.utils.bddl_generator import generate_clutter_activity
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def _quat_tilt_deg(quat_xyzw):
@@ -54,7 +57,8 @@ def _collect_resident_surface_objects(ctx):
             bottom_z = float(aabb_min[2])
             top_z = float(aabb_max[2])
             position, orientation = obj.get_position_orientation()
-        except Exception:
+        except Exception as exc:
+            log.warning("_collect_resident_surface_objects: aabb read for %s failed: %s", getattr(obj, "name", obj), exc)
             continue
         if not bounds_overlap(bounds_xy, ctx.surface_bounds_xy, tol=1e-6):
             continue
