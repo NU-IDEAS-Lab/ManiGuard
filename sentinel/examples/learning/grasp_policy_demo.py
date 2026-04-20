@@ -23,6 +23,9 @@ from omnigibson.object_states import OnTop, Touching, Upright
 from omnigibson.utils.asset_utils import get_all_object_category_models
 from omnigibson.utils.python_utils import meets_minimum_version
 from sentinel.utils.ltl_utils import LTLMonitor
+import logging
+
+log = logging.getLogger(__name__)
 
 try:
     import gymnasium as gym
@@ -230,7 +233,8 @@ class SafetyCallback(BaseCallback):
             if infos:
                 violations = sum(1 for info in infos if info.get("ltl_violation"))
                 self.logger.record("safety/ltl_violations", violations)
-        except Exception:
+        except Exception as exc:
+            log.warning("grasp_policy_demo callback: info dict access failed: %s", exc)
             pass
         return True
 

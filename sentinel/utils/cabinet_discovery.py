@@ -9,6 +9,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
+import logging
+
+log = logging.getLogger(__name__)
 
 Bounds2D = Tuple[Tuple[float, float], Tuple[float, float]]
 
@@ -154,7 +157,8 @@ def discover_compartments(cabinet_obj, wall_thickness=0.03):
                 interior_bottom_z=comp_bottom_z,
                 interior_top_z=comp_top_z,
             ))
-        except Exception:
+        except Exception as exc:
+            log.warning("cabinet joint %s inspection failed: %s", jn, exc)
             continue
 
     return compartments
@@ -188,7 +192,8 @@ def open_cabinet_doors(cabinet_obj, og_mod, open_fraction=0.90, joint_names=None
             target = lower + open_fraction * (upper - lower)
             joint.set_pos(target)
             opened.append(joint_name)
-        except Exception:
+        except Exception as exc:
+            log.warning("cabinet joint %s inspection failed: %s", jn, exc)
             continue
 
     if opened:
@@ -235,7 +240,8 @@ def _determine_opening_edge(cabinet_obj, scene_objects):
             o_min, o_max = obj.aabb
             ox0, oy0, oz0 = float(o_min[0]), float(o_min[1]), float(o_min[2])
             ox1, oy1, oz1 = float(o_max[0]), float(o_max[1]), float(o_max[2])
-        except Exception:
+        except Exception as exc:
+            log.warning("_determine_opening_edge: aabb read for %s failed: %s", getattr(obj, "name", obj), exc)
             continue
 
         # Only consider objects at roughly the same height.
@@ -276,7 +282,8 @@ def discover_best_cabinet(env):
 
         try:
             aabb_min, aabb_max = obj.aabb
-        except Exception:
+        except Exception as exc:
+            log.warning("discover_best_cabinet: aabb read for %s failed: %s", getattr(obj, "name", obj), exc)
             continue
 
         ext_min = tuple(float(aabb_min[i]) for i in range(3))

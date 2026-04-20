@@ -33,6 +33,9 @@ from sentinel.utils.bddl_generator import (
     generate_ltl_safety_json,
     write_activity_files,
 )
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +328,8 @@ class PinchPointPipeline(BasePipeline):
                     name=inst, role=role,
                     position_xy=(float(pos[0]), float(pos[1])),
                 ))
-            except Exception:
+            except Exception as exc:
+                log.warning("pinch_point make_edge_objects: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
                 continue
         if not result:
             raise RuntimeError("No pack objects for edge alignment.")

@@ -17,6 +17,9 @@ from sentinel.task_generation.pipeline_common import (
     iter_scope_objects,
 )
 from sentinel.utils.bddl_generator import generate_transfer_activity
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def _place_food_on_source(env, food_obj, source_obj):
@@ -203,7 +206,8 @@ class TransferPipeline(BasePipeline):
                     name=inst, role=role,
                     position_xy=(float(pos[0]), float(pos[1])),
                 ))
-            except Exception:
+            except Exception as exc:
+                log.warning("transfer make_edge_objects: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
                 continue
         return tuple(result)
 

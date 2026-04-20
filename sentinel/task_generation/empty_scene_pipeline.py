@@ -60,6 +60,9 @@ from sentinel.utils.bddl_generator import (
     generate_stack_activity,
     generate_transfer_activity,
 )
+import logging
+
+log = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
@@ -600,7 +603,8 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
                 name=inst, role=roles_by_inst[inst],
                 position_xy=(float(pos[0]), float(pos[1])),
             ))
-        except Exception:
+        except Exception as exc:
+            log.warning("empty_scene _run_episode_inner: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
             continue
 
     edge_result = None

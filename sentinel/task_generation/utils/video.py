@@ -12,6 +12,9 @@ import os
 
 import numpy as np
 import torch as th
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def init_video_writer(base_path, episode, fps, robot=None, frame_hw=None):
@@ -64,7 +67,8 @@ def init_video_writer(base_path, episode, fps, robot=None, frame_hw=None):
             wrist_rgb = wrist.get_obs()[0].get("rgb")
             if wrist_rgb is not None:
                 wh, ww = int(wrist_rgb.shape[0]), int(wrist_rgb.shape[1])
-        except Exception:
+        except Exception as exc:
+            log.warning("init_video_writer: wrist rgb probe failed: %s", exc)
             pass
 
     if wh > 0 and ww > 0:
@@ -134,7 +138,8 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
         for obj in active_objects_by_inst.values():
             try:
                 cluster_positions.append(_object_world_position(obj))
-            except Exception:
+            except Exception as exc:
+                log.warning("video view: cluster position lookup failed: %s", exc)
                 continue
     if cluster_positions:
         cluster_center = np.mean(np.stack(cluster_positions, axis=0), axis=0)
@@ -283,5 +288,6 @@ def close_video_writer(vw):
         for packet in vw["stream"].encode():
             vw["container"].mux(packet)
         vw["container"].close()
-    except Exception:
+    except Exception as exc:
+        log.warning("close_video_writer: final packet flush failed: %s", exc)
         pass

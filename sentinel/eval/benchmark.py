@@ -37,7 +37,8 @@ def _init_omnigibson():
     """Lazy-init Isaac Sim + OmniGibson. Called once before env creation."""
     try:
         import isaacsim  # noqa: F401
-    except ImportError:
+    except ImportError as exc:
+        log.debug("isaacsim bootstrap import skipped (OmniGibson will self-bootstrap): %s", exc)
         pass
     from omnigibson.macros import gm
     gm.ENABLE_OBJECT_STATES = True
@@ -107,6 +108,9 @@ def _build_eval_external_sensors(args):
 # ---------------------------------------------------------------------------
 
 from sentinel.eval.scene_discovery import discover_scenes  # noqa: F401
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------

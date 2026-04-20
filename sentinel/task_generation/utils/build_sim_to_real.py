@@ -15,6 +15,9 @@ import argparse
 import json
 import os
 import sys
+import logging
+
+log = logging.getLogger(__name__)
 
 # Default tableware categories to export.
 DEFAULT_CATEGORIES = [
@@ -53,7 +56,8 @@ def read_model_metadata(category, model_id):
     try:
         with open(path) as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        log.warning("read_model_metadata(%s) failed: %s", path, exc)
         return None
 
 

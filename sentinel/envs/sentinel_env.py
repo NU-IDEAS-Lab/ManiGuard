@@ -24,6 +24,9 @@ from sentinel.envs.registry import (
     strip_scene_robots_from_scene_info,
 )
 from rlinf.envs.utils import list_of_dict_to_dict_of_list, to_tensor
+import logging
+
+log = logging.getLogger(__name__)
 
 gm.ENABLE_OBJECT_STATES = True
 gm.ENABLE_TRANSITION_RULES = True
@@ -751,7 +754,8 @@ class SentinelEnv(gym.Env):
         final_local_ori_err = T.orientation_error(goal_ori_mat, T.quat2mat(final_local_quat))
         try:
             robot.reset_joint_pos = full_joint_positions.clone()
-        except Exception:
+        except Exception as exc:
+            log.warning("_apply_profile_post_reset_ready_pose: reset_joint_pos set failed: %s", exc)
             pass
 
         return {
@@ -816,7 +820,8 @@ class SentinelEnv(gym.Env):
         robot.keep_still()
         try:
             robot.reset_joint_pos = joint_positions.clone()
-        except Exception:
+        except Exception as exc:
+            log.warning("_apply_policy_reset_state_override: reset_joint_pos set failed: %s", exc)
             pass
 
         return {
@@ -897,7 +902,8 @@ class SentinelEnv(gym.Env):
             return None
         try:
             return env.scene.object_registry("name", name)
-        except Exception:
+        except Exception as exc:
+            log.warning("_object_by_name(%s) registry lookup failed: %s", name, exc)
             return None
 
     def _build_camera_pose(self, eye, lookat):
@@ -937,7 +943,8 @@ class SentinelEnv(gym.Env):
                 cluster_positions.append(np.asarray(wrapped_obj.get_position_orientation()[0][:3], dtype=np.float32))
                 _, aabb_max = wrapped_obj.aabb
                 object_top_z = max(object_top_z, float(aabb_max[2]))
-            except Exception:
+            except Exception as exc:
+                log.warning("_compute_workspace_geometry: pose read failed: %s", exc)
                 continue
         cluster_center = np.mean(np.stack(cluster_positions, axis=0), axis=0) if cluster_positions else tp
 
@@ -1293,7 +1300,8 @@ class SentinelEnv(gym.Env):
                 if isinstance(natural_goals, dict):
                     return natural_goals.get(value) or natural_goals.get(str(value))
                 return natural_goals[value]
-            except Exception:
+            except Exception as exc:
+                log.warning("_goal_text_lookup failed: %s", exc)
                 return None
         return None
 

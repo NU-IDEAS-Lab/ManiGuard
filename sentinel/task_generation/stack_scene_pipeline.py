@@ -30,6 +30,9 @@ from sentinel.utils.bddl_generator import (
     STACK_HEIGHT_PRESETS,
     generate_stack_activity,
 )
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +54,8 @@ def _build_stack_descriptors(env, target_ids, stack_ids):
             dx = max(0.01, float(aabb_max[0] - aabb_min[0]))
             dy = max(0.01, float(aabb_max[1] - aabb_min[1]))
             dz = max(0.01, float(aabb_max[2] - aabb_min[2]))
-        except Exception:
+        except Exception as exc:
+            log.warning("_build_stack_descriptors: aabb read for %s failed: %s", getattr(obj, "name", obj), exc)
             continue
         descriptors.append(StackObjectDescriptor(
             instance_id=inst, role=role,
