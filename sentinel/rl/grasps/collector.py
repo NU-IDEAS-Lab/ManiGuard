@@ -223,6 +223,7 @@ def collect_valid_grasps(
     cfg: GraspCollectorConfig = GraspCollectorConfig(),
     rng: np.random.Generator | None = None,
     verbose: bool = True,
+    on_failure=None,
 ) -> list[dict]:
     """Validate antipodal candidates and return those that hold a physical grasp.
 
@@ -234,6 +235,10 @@ def collect_valid_grasps(
         cfg: hyperparameters.
         rng: numpy Generator for reproducible shake perturbations.
         verbose: print per-candidate outcomes.
+        on_failure: optional callback invoked for each rejected candidate.
+            Signature ``on_failure(stage, idx, T_local, robot, target_obj)`` where
+            ``stage`` is one of ``"ik"``, ``"no_contact"``, ``"lift"``, ``"shake"``.
+            Useful for dumping failed grasps for visual inspection.
 
     Returns:
         List of dicts, each with:
@@ -366,6 +371,8 @@ def collect_valid_grasps(
         if joint_pos is None:
             if verbose and i < 10:
                 print(f"  [{i:4d}/{total}] IK unreachable")
+            if on_failure is not None:
+                on_failure("ik", i, T_local, robot, target_obj)
             continue
 
         # Step 3: teleport arm + open gripper
@@ -396,6 +403,8 @@ def collect_valid_grasps(
         if not robot.states[Touching].get_value(target_obj):
             if verbose:
                 print(f"  [{i:4d}/{total}] no contact after close, skip", flush=True)
+            if on_failure is not None:
+                on_failure("no_contact", i, T_local, robot, target_obj)
             continue
 
         # Step 6: LIFT PHASE — drive arm +Z through OSC so real contact forces
@@ -440,6 +449,8 @@ def collect_valid_grasps(
             if verbose:
                 reason = "lost contact" if not lifted_touching else f"no rise (z_rise={z_rise:.3f}m)"
                 print(f"  [{i:4d}/{total}] LIFT fail: {reason}", flush=True)
+            if on_failure is not None:
+                on_failure("lift", i, T_local, robot, target_obj)
             continue
 
         # Step 7: shake test with OmniReset-style multi-factor stability check.
@@ -505,6 +516,8 @@ def collect_valid_grasps(
                 "arm_joint_pos": (joint_pos.detach().cpu().numpy() if hasattr(joint_pos, "cpu")
                                   else np.asarray(joint_pos)).astype(np.float32),
             })
+        elif on_failure is not None:
+            on_failure("shake", i, T_local, robot, target_obj)
 
     if verbose:
         print(f"  [collector] done. valid={len(valid)}  "

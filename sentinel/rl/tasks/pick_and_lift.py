@@ -12,7 +12,7 @@ Difference from ``GraspTask``:
 
 Structure mirrors ``GraspTask`` for _load / _reset_scene / _reset_agent so
 collectors and diverse-reset samplers that target grasp poses on this
-object (``sentinel.rl.resets`` pipeline) transfer directly.
+object (``sentinel.rl.grasps`` pipeline) transfer directly.
 """
 
 from __future__ import annotations
@@ -26,17 +26,43 @@ from omnigibson.reward_functions.reward_function_base import BaseRewardFunction
 from omnigibson.tasks.grasp_task import GraspTask
 from omnigibson.termination_conditions.termination_condition_base import SuccessCondition
 from omnigibson.termination_conditions.timeout import Timeout
+from omnigibson.object_states import Touching
 from omnigibson.utils.motion_planning_utils import detect_robot_collision_in_sim
 from omnigibson.utils.python_utils import classproperty
 
 
+# Physical grasping_mode compatibility: OG's ``_ag_obj_in_hand`` attribute is
+# only populated by the AssistiveGrasp / StickyGrasp controllers. Under
+# ``grasping_mode="physical"`` (what the grasp-dataset collector + resetter
+# operate on) it is always empty. We substitute a physics-derived check:
+# "gripper is still in contact with the target AND the target has risen off
+# the initial resting surface". This captures the same semantic intent as AG
+# ("robot is currently holding the object") while remaining valid for
+# physical-friction grasps, and it still blocks the ``launch-and-fly``
+# exploit that the AG check originally guarded against.
+_LIFT_HOLD_THRESHOLD = 0.02  # 2 cm above initial z to count as "lifted"
+
+
+def _is_physically_holding(robot, obj, init_obj_z: float) -> bool:
+    """Return True if the robot is in contact with ``obj`` and ``obj`` has
+    risen at least ``_LIFT_HOLD_THRESHOLD`` above its initial z."""
+    try:
+        if not robot.states[Touching].get_value(obj):
+            return False
+    except Exception:  # noqa: BLE001 — conservative fallback if state unavailable
+        return False
+    obj_z = float(obj.get_position_orientation()[0][2])
+    return obj_z > init_obj_z + _LIFT_HOLD_THRESHOLD
+
+
 class InGoalRegion(SuccessCondition):
     """Success when the target object sits within ``success_radius`` of the
-    task's ``_goal_world_pos`` AND the robot is still grasping it."""
+    task's ``_goal_world_pos`` AND the robot is still physically holding it."""
 
     def __init__(self, obj_name: str, success_radius: float = 0.05):
         self.obj_name = obj_name
         self.success_radius = success_radius
+        self._init_obj_z: float | None = None
 
     def _step(self, task, env, action):
         obj = env.scene.object_registry("name", self.obj_name)
@@ -46,14 +72,15 @@ class InGoalRegion(SuccessCondition):
         dist = th.norm(obj_pos - task._goal_world_pos)
         if dist >= self.success_radius:
             return False
-        # Require the object to still be in hand (guards against "launch it
-        # toward the goal and let it fly" exploits).
-        robot = env.robots[0]
-        in_hand = robot._ag_obj_in_hand.get(robot.default_arm)
-        return in_hand is obj
+        # Guard against launch-and-fly: object must still be held.
+        if self._init_obj_z is None:
+            return False  # reset not yet captured init_z
+        return _is_physically_holding(env.robots[0], obj, self._init_obj_z)
 
     def reset(self, task, env):
-        pass
+        obj = env.scene.object_registry("name", self.obj_name)
+        if obj is not None:
+            self._init_obj_z = float(obj.get_position_orientation()[0][2])
 
 
 class PickAndLiftReward(BaseRewardFunction):
@@ -88,6 +115,7 @@ class PickAndLiftReward(BaseRewardFunction):
         self._prev_obj_to_goal = None
         self._was_grasping = False
         self._obj = None
+        self._init_obj_z: float | None = None
 
     def _step(self, task, env, action):
         if self._obj is None:
@@ -96,8 +124,11 @@ class PickAndLiftReward(BaseRewardFunction):
         obj_pos = self._obj.get_position_orientation()[0]
         eef_pos = robot.get_eef_position(robot.default_arm)
 
-        in_hand = robot._ag_obj_in_hand.get(robot.default_arm)
-        grasping = in_hand is self._obj
+        if self._init_obj_z is None:
+            # Hit only if reset() somehow ran before init_obj_z was set.
+            self._init_obj_z = float(obj_pos[2])
+
+        grasping = _is_physically_holding(robot, self._obj, self._init_obj_z)
 
         reward = 0.0
         info = {"grasping": grasping}
@@ -149,7 +180,11 @@ class PickAndLiftReward(BaseRewardFunction):
         self._prev_eef_to_obj = None
         self._prev_obj_to_goal = None
         self._was_grasping = False
-        self._obj = None
+        self._obj = env.scene.object_registry("name", self.obj_name)
+        if self._obj is not None:
+            self._init_obj_z = float(self._obj.get_position_orientation()[0][2])
+        else:
+            self._init_obj_z = None
 
 
 class PickAndLiftTask(GraspTask):
@@ -185,6 +220,9 @@ class PickAndLiftTask(GraspTask):
         include_obs=True,
         precached_reset_pose_path=None,
         objects_config=None,
+        grasp_dataset_path=None,
+        grasp_reset_pose_range_b=None,
+        grasp_reset_max_retries=5,
     ):
         self.goal_offset = th.tensor(goal_offset, dtype=th.float32)
         self.success_radius = float(success_radius)
@@ -192,6 +230,15 @@ class PickAndLiftTask(GraspTask):
         self.goal_marker_rgba = tuple(goal_marker_rgba)
         self._goal_world_pos = None
         self._goal_marker = None
+
+        # Optional reset-from-grasp wiring (OmniReset-style). If set, each
+        # _reset_agent call tries to IK a saved grasp and teleport the arm+
+        # gripper into it; falls back to the precached ready pose on IK fail.
+        self._grasp_dataset_path = grasp_dataset_path
+        self._grasp_reset_pose_range_b = grasp_reset_pose_range_b
+        self._grasp_reset_max_retries = int(grasp_reset_max_retries)
+        self._grasp_resetter = None  # lazy construction (needs env + robot)
+
         super().__init__(
             obj_name=obj_name,
             termination_config=termination_config,
@@ -261,3 +308,72 @@ class PickAndLiftTask(GraspTask):
             self._goal_world_pos = init_pos + self.goal_offset.to(init_pos.device)
             if self._goal_marker is not None:
                 self._goal_marker.set_position_orientation(position=self._goal_world_pos)
+
+    def _reset_agent(self, env):
+        """Reset agent — precached base/joint pose, then optional grasp reset.
+
+        Overrides ``GraspTask._reset_agent`` to (a) fix the upstream bug that
+        assumes ``trunk_control_idx`` exists on every robot (FrankaMounted has
+        no trunk) and (b) layer OmniReset-style grasp-dataset reset on top.
+
+        Flow:
+          1. Release any active grasps.
+          2. If ``_reset_poses`` (precached ready-pose) is available, apply
+             base pose + joint pose. Arm-only join idx fallback for robots
+             without a trunk.
+          3. If ``grasp_dataset_path`` is set, lazily build a
+             ``GraspDatasetResetter`` and overwrite the arm+gripper joint
+             config with a saved grasp. Silently falls back to the precached
+             ready-pose on IK failure.
+        """
+        import random
+        robot = env.robots[0]
+        for arm in robot.arm_names:
+            robot.release_grasp_immediately(arm=arm)
+
+        # Precached ready-pose (base + arm joints). Supports Franka-style
+        # robots with no trunk joint.
+        if self._reset_poses is not None:
+            if hasattr(robot, "trunk_control_idx"):
+                joint_control_idx = th.cat(
+                    [robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]]
+                )
+            else:
+                joint_control_idx = robot.arm_control_idx[robot.default_arm]
+
+            robot_pose = random.choice(self._reset_poses)
+            joint_pos = robot_pose["joint_pos"]
+            if not isinstance(joint_pos, th.Tensor):
+                joint_pos = th.tensor(joint_pos)
+            robot.set_joint_positions(joint_pos, joint_control_idx)
+
+            robot_pos = robot_pose["base_pos"]
+            if not isinstance(robot_pos, th.Tensor):
+                robot_pos = th.tensor(robot_pos)
+            robot_orn = robot_pose["base_ori"]
+            if not isinstance(robot_orn, th.Tensor):
+                robot_orn = th.tensor(robot_orn)
+            robot.set_position_orientation(
+                position=robot_pos, orientation=robot_orn, frame="scene"
+            )
+
+        # Optional: overwrite arm+gripper with an IK-solved saved grasp.
+        if self._grasp_dataset_path is None:
+            return
+
+        target_obj = env.scene.object_registry("name", self.obj_name)
+        if target_obj is None:
+            return
+
+        if self._grasp_resetter is None:
+            from sentinel.rl.grasps.reset import GraspDatasetResetter
+            self._grasp_resetter = GraspDatasetResetter(
+                env=env,
+                robot=robot,
+                target_obj=target_obj,
+                dataset_path=self._grasp_dataset_path,
+                pose_range_b=self._grasp_reset_pose_range_b,
+                max_retries=self._grasp_reset_max_retries,
+            )
+
+        self._grasp_resetter.reset_eef()

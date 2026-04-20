@@ -3,7 +3,21 @@
 Ports the geometric core of UW Lab OmniReset's ``_sample_antipodal_grasps``
 (``source/uwlab_tasks/.../mdp/events.py:199-323``) to a dependency-light
 ``trimesh``-only function. No physics, no sim, no cuRobo — just surface
-sampling, antipodal ray casting, and per-axis orientation/standoff sweep.
+sampling, antipodal ray casting, and per-axis orientation sweep.
+
+Key differences from OmniReset's port:
+
+- Standoff sweep dropped: without an approach phase and in a single-env +
+  real-arm-IK setting, candidates with standoff > finger_offset put fingertips
+  behind the object and close on air.
+- Antipodal partner selection by raycast-hit parity: even-indexed sorted hits
+  (0, 2, ...) are material-EXIT points where a fingertip placed at +aperture/2
+  along grasp_axis lands in air (teleport-safe, contact on close). Odd indices
+  are material-entry points that put the opposite fingertip inside solid
+  material. OmniReset's ``furthest-valid-within-aperture`` silently falls back
+  to a degenerate inner-surface hit when the true antipodal partner is beyond
+  aperture — we break instead. Each surface point can therefore yield multiple
+  valid candidates (e.g. wall-pinch + across-cavity for a cup).
 
 Output is in **object-local frame** as ``(N, 4, 4)`` transform matrices
 (scene-invariant). Compose with the object's world pose at sampling time to
@@ -39,18 +53,19 @@ class AntipodalConfig:
     num_orientations: int = 16
     """Yaw rotations around the grasp axis per candidate."""
 
-    num_standoff_samples: int = 8
-    """Standoff distances along the approach direction per candidate."""
-
     gripper_max_aperture: float = 0.08
     """Max distance between two gripper fingers when open (Franka Panda ~ 0.08m)."""
 
     finger_offset: float = 0.10
     """Distance from eef origin to fingertip along approach axis (Franka ~ 0.10m).
-    Min standoff — approach starts this far from the grasp center."""
+    Used as the fixed backward translation of eef along approach so fingertips
+    land at the grasp center."""
 
-    finger_clearance: float = 0.02
-    """Extra clearance added to max standoff. OmniReset scales by mesh diagonal."""
+    min_grasp_width: float = 0.002
+    """Minimum grasp_axis length. Set just above the Franka Panda gripper's
+    physical closed inner-face gap (~1.2-1.7 mm, measured via
+    sentinel.rl.grasps.measure_gripper). Raycast exits closer than this are rejected
+    as sub-mesh-precision artifacts rather than real grasp geometry."""
 
     lateral_sigma: float = 0.0
     """If >0, perturb grasp center along grasp axis via truncated normal
@@ -144,14 +159,6 @@ def sample_antipodal_grasps(
     hits = np.asarray(hits)
     ray_ids = np.asarray(ray_ids)
 
-    # Mesh-adaptive standoff (OmniReset: finger_offset .. finger_offset + diag + clearance/2)
-    mesh_diag = float(np.linalg.norm(mesh.extents))
-    standoffs = np.linspace(
-        cfg.finger_offset,
-        cfg.finger_offset + mesh_diag + cfg.finger_clearance / 2,
-        cfg.num_standoff_samples,
-    )
-
     # Orientation sweep
     yaws = np.linspace(-np.pi, np.pi, cfg.num_orientations, endpoint=False)
 
@@ -161,6 +168,10 @@ def sample_antipodal_grasps(
     approach = np.asarray(cfg.gripper_approach_axis, dtype=np.float64)
     approach = approach / np.linalg.norm(approach)
 
+    # Pre-compute the single eef-local standoff translation: pull eef back
+    # along approach by finger_offset so fingertips land at grasp_center.
+    T_standoff = tra.translation_matrix(-approach * cfg.finger_offset)
+
     out = []
     for i in range(len(surface_pts)):
         candidate_hits = hits[ray_ids == i]
@@ -169,50 +180,69 @@ def sample_antipodal_grasps(
 
         p0 = surface_pts[i]
         dists = np.linalg.norm(candidate_hits - p0, axis=1)
-        # Accept only exit points within gripper aperture (drop p0 itself — distance ≈ 0)
-        valid = (dists > 1e-4) & (dists <= cfg.gripper_max_aperture)
-        if not np.any(valid):
+
+        # Sort hits by distance so parity = material entry/exit.
+        order = np.argsort(dists)
+        sorted_hits = candidate_hits[order]
+        sorted_dists = dists[order]
+
+        # Trim tail: hits beyond gripper aperture are unreachable. Chopping the
+        # tail keeps parity of remaining indices intact.
+        within = sorted_dists <= cfg.gripper_max_aperture
+        sorted_hits = sorted_hits[within]
+        sorted_dists = sorted_dists[within]
+        if len(sorted_dists) == 0:
             continue
-        # OmniReset picks the furthest valid hit for more stable (deeper) grasps.
-        p1 = candidate_hits[valid][np.argmax(dists[valid])]
 
-        grasp_axis = p1 - p0
-        axis_len = float(np.linalg.norm(grasp_axis))
-        if axis_len < 1e-6:
-            continue
-        grasp_axis = grasp_axis / axis_len
+        # Strip p0 self-intersection only. Tight epsilon (1e-6 = 1 micron): big
+        # enough to absorb floating-point noise, small enough not to drop
+        # legitimate thin-wall hits (which would shift parity and break the
+        # even-index = exit invariant).
+        if sorted_dists[0] < 1e-6:
+            sorted_hits = sorted_hits[1:]
+            sorted_dists = sorted_dists[1:]
 
-        if cfg.lateral_sigma > 0.0:
-            # Truncated normal centered at 0.5, clipped to [0, 1]
-            center_ratio = float(np.clip(rng.normal(0.5, cfg.lateral_sigma / axis_len), 0.0, 1.0))
-        else:
-            center_ratio = 0.5
-        grasp_center = p0 + grasp_axis * axis_len * center_ratio
+        # Even indices (0, 2, 4, ...) are material-EXIT points: fingertip at
+        # grasp_center + aperture/2 * grasp_axis lands in AIR, so closing
+        # fingers sweep to p1 through air and make contact.
+        # Odd indices are material-ENTRY points: fingertip would teleport
+        # inside solid material — PhysX resolves by displacing the object,
+        # breaking contact. Skip them.
+        for k in range(0, len(sorted_dists), 2):
+            axis_len = float(sorted_dists[k])
+            if axis_len < cfg.min_grasp_width:
+                continue  # degenerate (e.g. p0 near open top, ray clipped mesh)
 
-        # Rotation that aligns gripper's grasp_align_axis with this grasp_axis.
-        R_align = _align_vectors(align_axis, grasp_axis)
+            p1 = sorted_hits[k]
+            grasp_axis = (p1 - p0) / axis_len
 
-        # _align_vectors uses minimum-angle rotation, which can leave the
-        # gripper approach axis (+Z local) pointing upward in world frame —
-        # unreachable for arm-on-pedestal robots. Since the antipodal pair is
-        # symmetric about grasp_axis, a 180° rotation about grasp_axis flips
-        # the gripper (swaps which finger is left vs right) without changing
-        # the two contact points, but flips the approach direction. Apply it
-        # whenever approach would otherwise point upward.
-        approach_world = (R_align[:3, :3] @ approach)
-        if approach_world[2] > 0:
-            R_flip = tra.rotation_matrix(np.pi, grasp_axis)
-            R_align = R_flip @ R_align
+            if cfg.lateral_sigma > 0.0:
+                center_ratio = float(
+                    np.clip(rng.normal(0.5, cfg.lateral_sigma / axis_len), 0.0, 1.0)
+                )
+            else:
+                center_ratio = 0.5
+            grasp_center = p0 + grasp_axis * axis_len * center_ratio
 
-        T_center = tra.translation_matrix(grasp_center)
+            # Rotation that aligns gripper's grasp_align_axis with this grasp_axis.
+            R_align = _align_vectors(align_axis, grasp_axis)
 
-        for yaw in yaws:
-            R_yaw = tra.rotation_matrix(yaw, orient_axis)
-            for standoff in standoffs:
-                # Gripper standoff: translate backward along approach axis in
-                # eef local frame, so after composing the grasp center becomes
-                # finger_offset + standoff from eef origin.
-                T_standoff = tra.translation_matrix(-approach * standoff)
+            # _align_vectors uses minimum-angle rotation, which can leave the
+            # gripper approach axis (+Z local) pointing upward in world frame —
+            # unreachable for arm-on-pedestal robots. Since the antipodal pair is
+            # symmetric about grasp_axis, a 180° rotation about grasp_axis flips
+            # the gripper (swaps which finger is left vs right) without changing
+            # the two contact points, but flips the approach direction. Apply it
+            # whenever approach would otherwise point upward.
+            approach_world = R_align[:3, :3] @ approach
+            if approach_world[2] > 0:
+                R_flip = tra.rotation_matrix(np.pi, grasp_axis)
+                R_align = R_flip @ R_align
+
+            T_center = tra.translation_matrix(grasp_center)
+
+            for yaw in yaws:
+                R_yaw = tra.rotation_matrix(yaw, orient_axis)
                 T_eef_in_obj = T_center @ R_align @ R_yaw @ T_standoff
                 out.append(T_eef_in_obj)
 

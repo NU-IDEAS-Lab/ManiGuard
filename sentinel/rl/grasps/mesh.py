@@ -128,26 +128,75 @@ def gripper_mesh_local_to_eef(robot, use_visual: bool = True) -> "trimesh_t.Trim
     return trimesh.util.concatenate(parts)
 
 
-def franka_gripper_params() -> dict:
-    """Canonical Franka Panda gripper sampling params for ``AntipodalConfig``.
+_FRANKA_AXES = {
+    # eef_link local +Z points toward the fingertips (approach direction).
+    "gripper_approach_axis": (0.0, 0.0, 1.0),
+    # Fingers close along eef_link local +Y.
+    "grasp_align_axis": (0.0, 1.0, 0.0),
+    # Yaw sweep rotates around grasp_align_axis so fingers stay aligned with
+    # the antipodal pair; only approach tilt varies. Matches Isaac Sim 5.0
+    # GraspingManager. Rotating around the approach axis (wrong) misaligns
+    # fingers from the pair.
+    "orientation_sample_axis": (0.0, 1.0, 0.0),
+}
+_FRANKA_APERTURE = 0.08  # max aperture (joint range × 2). Same for both USDs.
 
-    ``finger_offset`` is the distance from OG's ``eef_link`` origin to the
-    fingertip along the approach axis — queried at runtime via
-    ``robot.eef_to_fingertip_lengths``, which for this FrankaMounted USD is
-    **0.024 m** (a short "virtual eef" inside the finger span, NOT at the
-    panda_hand link origin). Setting this correctly is critical: cuRobo IK
-    places ``eef_link`` at the candidate pose, so ``finger_offset`` tells the
-    sampler how far behind the grasp center the eef origin must sit so that
-    fingertips reach the object surface.
+
+def franka_mounted_gripper_params() -> dict:
+    """Gripper sampling params for ``FrankaMounted``.
+
+    ``finger_offset`` is the distance from the robot's ``eef_link`` origin to
+    the fingertip along the approach axis. For FrankaMounted's USD this is
+    ``0.0242`` m (measured via ``sentinel.rl.grasps.measure_gripper``) — a short
+    "virtual eef" inside the finger span, NOT at panda_hand's link origin.
+    cuRobo IK places ``eef_link`` at the candidate pose; ``finger_offset``
+    tells the sampler how far behind grasp_center the eef origin must sit
+    so the fingertips reach the object surface.
     """
     return {
-        "gripper_max_aperture": 0.08,
+        "gripper_max_aperture": _FRANKA_APERTURE,
         "finger_offset": 0.024,
-        "finger_clearance": 0.02,
-        "gripper_approach_axis": (0.0, 0.0, 1.0),  # eef_link local +Z = toward fingertips
-        "grasp_align_axis": (0.0, 1.0, 0.0),        # fingers close along eef_link local +Y
-        "orientation_sample_axis": (0.0, 1.0, 0.0), # match Isaac Sim 5.0 GraspingManager:
-        # yaw rotates around grasp_align_axis so fingers stay aligned with the
-        # antipodal pair; only the approach tilt varies. Rotating around the
-        # approach axis (which I had wrong) misaligns fingers from the pair.
+        **_FRANKA_AXES,
     }
+
+
+def franka_panda_gripper_params() -> dict:
+    """Gripper sampling params for native ``FrankaPanda``.
+
+    Same gripper hardware as ``FrankaMounted``, but the USD anchors
+    ``eef_link`` much closer to the fingertips — measured at ``0.0077`` m.
+    Passing the FrankaMounted value (0.024) into a FrankaPanda sampler
+    would back the eef off by ~1.6 cm too far, sinking fingertips into the
+    object at teleport time.
+    """
+    return {
+        "gripper_max_aperture": _FRANKA_APERTURE,
+        "finger_offset": 0.008,
+        **_FRANKA_AXES,
+    }
+
+
+def gripper_params_for_robot(robot) -> dict:
+    """Dispatch to the correct gripper params by robot type.
+
+    Uses the USD-reported ``eef_to_fingertip_lengths`` when available so a
+    third Franka variant with a different ``eef_link`` placement still gets
+    a numerically correct ``finger_offset`` instead of being silently
+    misconfigured via the class-name mapping.
+    """
+    arm = robot.default_arm
+    try:
+        lengths = robot.eef_to_fingertip_lengths[arm]
+        finger_offset = float(next(iter(lengths.values())))
+    except Exception:  # noqa: BLE001
+        cls_name = type(robot).__name__
+        if cls_name == "FrankaPanda":
+            return franka_panda_gripper_params()
+        return franka_mounted_gripper_params()  # sensible default
+    return {
+        "gripper_max_aperture": _FRANKA_APERTURE,
+        "finger_offset": finger_offset,
+        **_FRANKA_AXES,
+    }
+
+

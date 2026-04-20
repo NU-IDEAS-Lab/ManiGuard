@@ -2,7 +2,7 @@
 """Collect a physically-validated grasp dataset for a target object.
 
 Pipeline:
-  1. Load the benchmark scene via ``sentinel.rl.config.build_config``.
+  1. Load the benchmark scene via ``sentinel.rl.envs.benchmark_scene.build_config``.
   2. Extract the target's visual mesh (object-local frame).
   3. Run antipodal grasp sampling on the mesh.
   4. For each candidate, IK + teleport arm + close gripper + OmniReset-style
@@ -13,7 +13,7 @@ Usage:
     conda activate behavior
     OMNI_KIT_ACCEPT_EULA=yes VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \\
     CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 \\
-        python scripts/collect_grasps.py \\
+        python -m sentinel.rl.grasps.collect_scene \\
             --scene-dir datasets/safety-benchmark/clutter_goblet_00 \\
             --output-dir outputs/grasp_datasets/clutter_goblet_00 \\
             --num-target-grasps 100 --max-attempts 500
@@ -29,10 +29,6 @@ from pathlib import Path
 
 import numpy as np
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
 
 def parse_args():
     p = argparse.ArgumentParser(description="Collect validated grasps for a benchmark scene.")
@@ -42,7 +38,6 @@ def parse_args():
     p.add_argument("--max-attempts", type=int, default=None)
     p.add_argument("--num-surface-samples", type=int, default=64)
     p.add_argument("--num-orientations", type=int, default=16)
-    p.add_argument("--num-standoff-samples", type=int, default=8)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--use-collision-mesh", action="store_true",
                    help="Sample on the object's collision mesh (coarser) instead of visual.")
@@ -63,12 +58,12 @@ def main():
 
     import omnigibson as og
 
-    from sentinel.rl.config import build_config
-    from sentinel.rl.resets.grasp_collector import (
+    from sentinel.rl.envs.benchmark_scene import build_config
+    from sentinel.rl.grasps.collector import (
         GraspCollectorConfig, collect_valid_grasps, save_grasp_dataset,
     )
-    from sentinel.rl.resets.grasp_sampler import AntipodalConfig, sample_antipodal_grasps
-    from sentinel.rl.resets.mesh_loader import franka_gripper_params, mesh_from_og_object
+    from sentinel.rl.grasps.sampler import AntipodalConfig, sample_antipodal_grasps
+    from sentinel.rl.grasps.mesh import franka_mounted_gripper_params, mesh_from_og_object
 
     print(f"[{time.strftime('%H:%M:%S')}] Building config from {args.scene_dir}")
     cfg = build_config(args.scene_dir)
@@ -95,18 +90,17 @@ def main():
     print(f"  vertices={len(mesh.vertices)} faces={len(mesh.faces)} extents={mesh.extents.tolist()}")
 
     print(f"[{time.strftime('%H:%M:%S')}] Sampling antipodal candidates...")
-    gp = franka_gripper_params()
+    gp = franka_mounted_gripper_params()
     acfg = AntipodalConfig(
         num_surface_samples=args.num_surface_samples,
         num_orientations=args.num_orientations,
-        num_standoff_samples=args.num_standoff_samples,
         top_bias=False,
         **gp,
     )
     candidates = sample_antipodal_grasps(mesh, acfg, rng=np.random.default_rng(args.seed))
-    print(f"  {len(candidates)} candidates (cap {acfg.num_surface_samples * acfg.num_orientations * acfg.num_standoff_samples})")
+    print(f"  {len(candidates)} candidates (cap {acfg.num_surface_samples * acfg.num_orientations})")
 
-    # Shuffle so we don't keep trying similar surface points / standoffs in order.
+    # Shuffle so we don't keep trying similar surface points in order.
     rng = np.random.default_rng(args.seed)
     perm = rng.permutation(len(candidates))
     candidates = candidates[perm]
