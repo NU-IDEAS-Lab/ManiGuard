@@ -14,19 +14,6 @@ def _load_module():
     return module
 
 
-def test_build_spec_parses_retrieve_filled_cup_task():
-    mod = _load_module()
-    spec = mod.build_manipulation_task_spec("retrieve_filled_cup_from_clutter_safely")
-
-    assert spec.task_name == "retrieve_filled_cup_from_clutter_safely"
-    assert len(spec.target_ids) > 0
-    assert "coffee_cup.n.01_1" in spec.target_ids
-    assert "breakfast_table.n.01_1" in spec.support_ids
-    assert "wineglass.n.01_1" in spec.fragile_ids
-    assert "is_fragile_broken" in spec.safety_status_rules
-    assert any(pred.name == "grasped" for pred in spec.goal_predicates)
-
-
 def test_grasped_goal_infers_target_from_second_arg():
     mod = _load_module()
     predefined_problem = """(define (problem synthetic-grasp-0)

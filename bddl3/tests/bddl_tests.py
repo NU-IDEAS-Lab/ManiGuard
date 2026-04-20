@@ -29,7 +29,6 @@ def verify_definition(activity, syns_to_props, domain_predicates, csv=False):
     ver.agent_present(init)
     ver.problem_name_correct(activity)
 
-    print(f"=== ✅ All checks passed for activity: {activity} ===")
 
 # Master planning sheet
 def batch_verify():
@@ -45,15 +44,10 @@ def batch_verify():
         print(activity)
         verify_definition(activity, syns_to_props, domain_predicates, csv=False)
 
-    print("=== ✅ All activities passed ===")
 
 def main():
     if sys.argv[1] == "verify":
-        with open(ver.SYNS_TO_PROPS_JSON, "r") as f:
-            syns_to_props = json.load(f)
-        *__, domain_predicates = parse.parse_domain("omnigibson")
-        activity = sys.argv[2]
-        verify_definition(activity, syns_to_props, domain_predicates, csv=False)
+        verify_definition(sys.argv[2])
 
     elif sys.argv[1] == "batch_verify":
         batch_verify()
