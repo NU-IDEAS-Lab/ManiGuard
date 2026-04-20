@@ -17,6 +17,15 @@ still live behind explicit submodule imports — ``sentinel.rlinf.patches`` and
 ``sentinel/_autoimport/sitecustomize.py`` at Python startup.
 """
 
+try:
+    # Written by setuptools-scm at build/install time from the latest ``v*`` tag.
+    from sentinel._version import __version__, version as _scm_version  # type: ignore[import-not-found]
+except ImportError:
+    # Not installed (e.g. running directly from a fresh clone before
+    # ``pip install -e .``). Fall back so ``sentinel.__version__`` is still
+    # defined.
+    __version__ = "0.0.0+unknown"
+
 from sentinel._omnigibson_patches import apply as _apply_omnigibson_patches
 
 _apply_omnigibson_patches()

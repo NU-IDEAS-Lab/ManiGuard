@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentinel-lite"
-version = "0.1.0"
+dynamic = ["version"]
 description = "LTL safety monitoring, task generation, and VLA policy evaluation for BEHAVIOR-1K manipulation tasks"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -78,3 +78,14 @@ sentinel = [
     "task_generation/*.md",
     "task_generation/curation/*.md",
 ]
+
+# Version is derived from the latest ``v*`` git tag, so ``pyproject.toml``
+# never needs a manual version bump. At a tagged commit ⇒ clean version
+# (e.g. ``v0.1.0`` → ``0.1.0``); past the tag ⇒ PEP 440 dev version (e.g.
+# ``0.1.1.dev3+g<sha>``); no matching tag at all ⇒ ``fallback_version``.
+# ``--match v*`` restricts git describe to semver tags and ignores the
+# legacy ``generation-pipeline-v2.0`` label on older commits.
+[tool.setuptools_scm]
+write_to = "sentinel/_version.py"
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v*"]
+fallback_version = "0.1.0.dev0"
