@@ -235,7 +235,7 @@ bash scripts/run_rl.sh sentinel_clutter_ppo_openpi_pi05
 
 Configs under [`configs/rl/`](configs/rl/) and
 [`configs/sft/`](configs/sft/); the SB3 PPO path (no RLinf) is in
-[`sentinel/rl/train_ppo.py`](sentinel/rl/train_ppo.py).
+[`sentinel/rl/training/ppo.py`](sentinel/rl/training/ppo.py).
 
 ## Teleoperation (SO-101 → Franka)
 

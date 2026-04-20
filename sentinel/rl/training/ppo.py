@@ -5,7 +5,7 @@ Usage:
     OMNI_KIT_ACCEPT_EULA=yes \
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 \
-        python -m sentinel.rl.train_ppo \
+        python -m sentinel.rl.training.ppo \
             --scene-dir datasets/safety-benchmark/clutter_goblet_00 \
             --num-envs 4
 """
@@ -43,10 +43,10 @@ except ModuleNotFoundError:
 
 from omnigibson.utils.python_utils import meets_minimum_version
 
-from sentinel.rl.callbacks import GCCallback, SafetyCallback
-from sentinel.rl.config import build_config
-from sentinel.rl.extractors import RGBCombinedExtractor
-from sentinel.rl.sb3_vec_env import SentinelSB3VectorEnvironment
+from sentinel.rl.envs.benchmark_scene import build_config
+from sentinel.rl.envs.sb3_vec import SentinelSB3VectorEnvironment
+from sentinel.rl.training.callbacks import GCCallback, SafetyCallback
+from sentinel.rl.training.extractors import RGBCombinedExtractor
 
 assert meets_minimum_version(gym.__version__, "0.28.1"), "gymnasium >= 0.28.1 required"
 
