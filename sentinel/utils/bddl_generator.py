@@ -57,12 +57,19 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
     # (inside, ontop, etc.) a goal furniture piece is required.
     uses_grasped_goal = config.goal_predicate == "grasped"
 
-    if uses_grasped_goal:
-        # Agent must be in :objects for the grasped predicate.
-        agent_synset = "agent.n.01"
-        if agent_synset not in synset_instances:
-            synset_instances[agent_synset] = [f"{agent_synset}_1"]
-    else:
+    # Upstream BDDLSampler requires every BDDL instance to appear in some
+    # kinematic init condition. Sentinel pipelines always overwrite the agent
+    # pose from pipeline code (e.g. ``place_franka_edge_aligned``), but the
+    # sampler still needs a well-formed BDDL, so we include ``agent.n.01_1``
+    # plus a ``(ontop agent.n.01_1 floor.n.01_1)`` placement below.
+    agent_synset = "agent.n.01"
+    if agent_synset not in synset_instances:
+        synset_instances[agent_synset] = [f"{agent_synset}_1"]
+    floor_synset = "floor.n.01"
+    if floor_synset not in synset_instances:
+        synset_instances[floor_synset] = [f"{floor_synset}_1"]
+
+    if not uses_grasped_goal:
         # Placement goal — need a goal furniture piece.
         if config.goal_synset and config.goal_synset not in synset_instances:
             synset_instances[config.goal_synset] = [f"{config.goal_synset}_1"]
@@ -76,10 +83,9 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
 
     # Init: place objects ontop the support, place agent on floor.
     support_inst = synset_instances[config.support_synset][0]
-    skip_synsets = {config.support_synset}
-    if uses_grasped_goal:
-        skip_synsets.add("agent.n.01")
-    elif config.goal_synset:
+    floor_inst = synset_instances[floor_synset][0]
+    skip_synsets = {config.support_synset, agent_synset, floor_synset}
+    if not uses_grasped_goal and config.goal_synset:
         skip_synsets.add(config.goal_synset)
 
     # Build a map of synset → per-object init_predicate override.
@@ -101,6 +107,15 @@ def generate_bddl_problem(config: BDDLGenConfig) -> str:
                 lines.append(f"        ({pred} {inst} {support_inst})")
     if config.support_room:
         lines.append(f"        (inroom {support_inst} {config.support_room})")
+
+    # Agent kinematic init satisfies upstream BDDLSampler's requirement that
+    # every object have a kinematic condition (pipeline later teleports the
+    # robot to its real mounted pose, so the exact floor placement is
+    # irrelevant — it just needs to be well-formed).
+    agent_inst = synset_instances[agent_synset][0]
+    lines.append(f"        (ontop {agent_inst} {floor_inst})")
+    if config.support_room:
+        lines.append(f"        (inroom {floor_inst} {config.support_room})")
 
     if not uses_grasped_goal and config.goal_synset and config.goal_room:
         goal_inst = synset_instances[config.goal_synset][0]
