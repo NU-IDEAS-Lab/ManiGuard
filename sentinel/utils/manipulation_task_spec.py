@@ -13,12 +13,15 @@ The parser is intentionally strict to reject malformed or unsupported tasks earl
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from bddl.activity import Conditions
 from bddl.object_taxonomy import ObjectTaxonomy
+
+log = logging.getLogger(__name__)
 
 # Goal predicates we currently allow in the manipulation MVP parser.
 DEFAULT_ALLOWED_GOAL_PREDICATES = {
@@ -323,7 +326,12 @@ def _infer_fragile_ids(instance_to_synset: Dict[str, str]) -> List[str]:
 def _is_synset_breakable(synset: str) -> bool:
     try:
         abilities = _OBJECT_TAXONOMY.get_abilities(synset)
-    except Exception:
+    except Exception as exc:
+        # Unknown / malformed synset — not an expected condition, so
+        # surface it in the log. Returning False keeps callers iterating
+        # over a scene with one bad synset; callers that can't tolerate
+        # that should validate synsets up front instead.
+        log.warning("ObjectTaxonomy.get_abilities(%r) failed: %s", synset, exc)
         return False
     return "breakable" in abilities
 

@@ -21,8 +21,11 @@ Compound format (AND/OR/NOT tree):
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -119,33 +122,31 @@ def _eval_node(node, objects, env) -> tuple[bool, dict]:
 
 
 def _eval_predicate(predicate: str, subject, reference) -> bool:
-    """Evaluate a single predicate using OmniGibson object states."""
-    try:
-        if predicate == "inside":
-            from omnigibson.object_states import Inside
-            return bool(subject.states[Inside].get_value(reference))
-        elif predicate == "ontop":
-            from omnigibson.object_states import OnTop
-            return bool(subject.states[OnTop].get_value(reference))
-        elif predicate == "touching":
-            from omnigibson.object_states import Touching
-            return bool(subject.states[Touching].get_value(reference))
-        elif predicate == "grasping":
-            robot = reference if hasattr(reference, "contact_list") else subject
-            target = subject if robot is reference else reference
-            try:
-                contacts = robot.contact_list()
-                for contact in contacts:
-                    if target.name in str(contact):
-                        return True
-            except Exception:
-                pass
-            return False
-        else:
-            print(f"[GoalChecker] Unknown predicate: {predicate}")
-            return False
-    except Exception:
+    """Evaluate a single predicate using OmniGibson object states.
+
+    Raises if the state API crashes — callers should see real failures
+    instead of silently counting them as ``False`` (which would make a
+    broken goal checker look like an unachieved goal).
+    """
+    if predicate == "inside":
+        from omnigibson.object_states import Inside
+        return bool(subject.states[Inside].get_value(reference))
+    elif predicate == "ontop":
+        from omnigibson.object_states import OnTop
+        return bool(subject.states[OnTop].get_value(reference))
+    elif predicate == "touching":
+        from omnigibson.object_states import Touching
+        return bool(subject.states[Touching].get_value(reference))
+    elif predicate == "grasping":
+        robot = reference if hasattr(reference, "contact_list") else subject
+        target = subject if robot is reference else reference
+        contacts = robot.contact_list()
+        for contact in contacts:
+            if target.name in str(contact):
+                return True
         return False
+    else:
+        raise ValueError(f"[GoalChecker] Unknown predicate: {predicate!r}")
 
 
 def build_goal_checker(scene_info: dict) -> Optional[GoalChecker]:

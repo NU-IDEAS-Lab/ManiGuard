@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 import importlib.util
+import logging
 import os
 import site
 import sys
@@ -15,6 +16,8 @@ import numpy as np
 
 from bddl.logic_base import BinaryAtomicFormula, UnaryAtomicFormula
 from omnigibson.utils.bddl_utils import SUPPORTED_PREDICATES
+
+log = logging.getLogger(__name__)
 
 
 _SPOT_REQUIRED_ATTRS = ("formula", "translate", "atomic_prop_collect")
@@ -101,10 +104,10 @@ class AtomicProposition:
     category: str = ""
 
     def evaluate(self, env=None) -> bool:
-        try:
-            return bool(self.eval_fn(env))
-        except Exception:
-            return False
+        # Do not swallow exceptions: a silent False here would conflate
+        # "proposition is not satisfied" with "evaluator crashed", which
+        # misleads LTL monitors into treating broken checks as safe.
+        return bool(self.eval_fn(env))
 
     def __hash__(self):
         return hash(self.name)
@@ -202,10 +205,9 @@ class AtomicPropositionGenerator:
         )
 
         def eval_fn(_env=None, predicate=pred):
-            try:
-                return predicate.evaluate()
-            except Exception:
-                return False
+            # Propagate predicate failures — silent False here would make
+            # LTL safety checks look "safe" when the checker is broken.
+            return predicate.evaluate()
 
         return AtomicProposition(
             name=prop_name,
@@ -228,10 +230,9 @@ class AtomicPropositionGenerator:
         )
 
         def eval_fn(_env=None, predicate=pred):
-            try:
-                return predicate.evaluate()
-            except Exception:
-                return False
+            # Propagate predicate failures — silent False here would make
+            # LTL safety checks look "safe" when the checker is broken.
+            return predicate.evaluate()
 
         return AtomicProposition(
             name=prop_name,
@@ -297,8 +298,10 @@ class LTLLabelingFunction:
         formula = formula.replace("|", "or")
         try:
             return bool(eval(formula))
-        except Exception:
-            return False
+        except Exception as exc:
+            # A malformed formula is a config bug — surface it loudly
+            # instead of silently treating the formula as "False".
+            raise ValueError(f"failed to evaluate LTL formula {formula!r}: {exc}") from exc
 
     def __repr__(self):
         return f"LTLLabeler({self.num_propositions} propositions)"

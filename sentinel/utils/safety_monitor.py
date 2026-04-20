@@ -185,10 +185,11 @@ class SafetyPropositionEvaluator:
 
         def eval_fn(_subj=subjects, _cls=state_cls, _chk=check):
             results = []
-            for obj in _subj.values():
+            for name, obj in _subj.items():
                 try:
                     results.append(bool(obj.states[_cls].get_value()))
-                except Exception:
+                except Exception as exc:
+                    log.warning("unary %s check failed for %s: %s", _cls.__name__, name, exc)
                     results.append(False)
             if not results:
                 return False if _chk == "any" else True
@@ -205,13 +206,17 @@ class SafetyPropositionEvaluator:
 
         def eval_fn(_subj=subjects, _rel=rel_objs, _cls=state_cls, _chk=check):
             results = []
-            for s_obj in _subj.values():
-                for r_obj in _rel.values():
+            for s_name, s_obj in _subj.items():
+                for r_name, r_obj in _rel.items():
                     if s_obj is None or r_obj is None:
                         continue
                     try:
                         results.append(bool(s_obj.states[_cls].get_value(r_obj)))
-                    except Exception:
+                    except Exception as exc:
+                        log.warning(
+                            "binary %s check failed for (%s, %s): %s",
+                            _cls.__name__, s_name, r_name, exc,
+                        )
                         results.append(False)
             if not results:
                 return False if _chk == "any" else True
@@ -241,11 +246,9 @@ class SafetyPropositionEvaluator:
             _subj=subjects, _sys_name=system_name, _env=env,
             _threshold=threshold, _state=state, _cp=ContainedParticles,
         ):
-            # Lazily get the particle system from the scene.
-            try:
-                system = _env.scene.get_system(_sys_name)
-            except Exception:
-                return False
+            # Fail loudly if the particle system is missing — a silent False
+            # here would mask env setup bugs as "no safety violation".
+            system = _env.scene.get_system(_sys_name)
 
             # Read current particle counts per container.
             current = {}
@@ -253,7 +256,8 @@ class SafetyPropositionEvaluator:
                 try:
                     data = obj.states[_cp].get_value(system)
                     current[inst] = data.n_in_volume
-                except Exception:
+                except Exception as exc:
+                    log.warning("particle count read failed for %s: %s", inst, exc)
                     current[inst] = 0
 
             # Record baseline on first call.
@@ -293,13 +297,14 @@ class SafetyPropositionEvaluator:
         margin = float(prop_def.get("params", {}).get("margin_m", 0.02))
 
         def eval_fn(_carried=carried_objs, _zones=zone_objs, _margin=margin):
-            for c_obj in _carried.values():
+            for c_name, c_obj in _carried.items():
                 try:
                     c_pos = c_obj.get_position_orientation()[0]
                     cx, cy, cz = float(c_pos[0]), float(c_pos[1]), float(c_pos[2])
-                except Exception:
+                except Exception as exc:
+                    log.warning("carried object %s pose lookup failed: %s", c_name, exc)
                     continue
-                for z_obj in _zones.values():
+                for z_name, z_obj in _zones.items():
                     try:
                         z_min, z_max = z_obj.aabb
                         zx0 = float(z_min[0]) - _margin
@@ -307,7 +312,8 @@ class SafetyPropositionEvaluator:
                         zx1 = float(z_max[0]) + _margin
                         zy1 = float(z_max[1]) + _margin
                         z_top = float(z_max[2])
-                    except Exception:
+                    except Exception as exc:
+                        log.warning("zone %s aabb lookup failed: %s", z_name, exc)
                         continue
                     if zx0 <= cx <= zx1 and zy0 <= cy <= zy1 and cz > z_top:
                         return True
@@ -329,7 +335,7 @@ class SafetyPropositionEvaluator:
         min_tilt = float(prop_def.get("params", {}).get("min_tilt_deg", 120.0))
 
         def eval_fn(_subj=subjects, _min=min_tilt):
-            for obj in _subj.values():
+            for name, obj in _subj.items():
                 try:
                     quat = obj.get_position_orientation()[1]
                     x, y, z, w = [float(v) for v in quat[:4]]
@@ -338,7 +344,8 @@ class SafetyPropositionEvaluator:
                     tilt_deg = math.degrees(math.acos(zz))
                     if tilt_deg >= _min:
                         return True
-                except Exception:
+                except Exception as exc:
+                    log.warning("inverted check failed for %s: %s", name, exc)
                     continue
             return False
 
@@ -358,19 +365,19 @@ class SafetyPropositionEvaluator:
         env = self._resolver._env
 
         def eval_fn(_surfaces=surface_objs, _sys=system_name, _env=env, _zm=z_margin):
-            try:
-                system = _env.scene.get_system(_sys)
-            except Exception:
-                return False
+            # Fail loudly if the particle system is missing — a silent False
+            # here would mask env setup bugs as "no particles on surface".
+            system = _env.scene.get_system(_sys)
             if system.n_particles == 0:
                 return False
-            for s_obj in _surfaces.values():
+            for name, s_obj in _surfaces.items():
                 try:
                     from omnigibson.object_states.contact_particles import ContactParticles
                     n = len(s_obj.states[ContactParticles].get_value(system))
                     if n > 0:
                         return True
-                except Exception:
+                except Exception as exc:
+                    log.warning("contact-particles check failed for %s: %s", name, exc)
                     continue
             return False
 
@@ -415,9 +422,9 @@ def _load_scene_safety(scene_model: str) -> dict:
     """Load ``ltl_safety.json`` from the scene assets directory."""
     try:
         from omnigibson.utils.asset_utils import get_scene_path
-        path = os.path.join(get_scene_path(scene_model), "safety", "ltl_safety.json")
-    except Exception:
+    except ImportError:
         return {}
+    path = os.path.join(get_scene_path(scene_model), "safety", "ltl_safety.json")
     if not os.path.isfile(path):
         return {}
     with open(path, "r", encoding="utf-8") as fh:
