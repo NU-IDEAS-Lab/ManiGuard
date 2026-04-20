@@ -5,7 +5,7 @@ OpenPI expects a `norm_stats.json` at
   {model_path}/assets/{asset_id}/norm_stats.json
 
 containing per-feature mean/std/q01/q99 for state and actions (see
-RLinf-pi05-SFT-Stack-cube/RLinf/IsaacLab-Stack-Cube-Data/norm_stats.json
+vla_models/RLinf-pi05-SFT-Stack-cube/RLinf/IsaacLab-Stack-Cube-Data/norm_stats.json
 for the reference format). This script reads a LeRobot v2.1 dataset,
 streams every frame's `state` and `actions` columns, and writes the stats.
 

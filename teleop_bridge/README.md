@@ -232,6 +232,6 @@ pip install numpy==1.26.4
 | File | Environment | Purpose |
 |------|-------------|---------|
 | `teleop_bridge/so101_server.py` | lerobot (3.12) | Reads SO-101, computes FK, publishes EE pose via ZMQ |
-| `OmniGibson/omnigibson/teleop/so101_teleop.py` | behavior (3.10) | ZMQ subscriber, delta computation, TeleopAction generation |
-| `OmniGibson/omnigibson/examples/teleoperation/so101_franka_teleop.py` | behavior (3.10) | Teleop entry point: loads arbitrary scene snapshots, records trajectories |
-| `OmniGibson/omnigibson/examples/teleoperation/so101_franka_playback.py` | behavior (3.10) | Replay a recorded trajectory HDF5, optionally dump observations |
+| `sentinel/teleop/so101_teleop.py` | behavior (3.10) | ZMQ subscriber, delta computation, TeleopAction generation |
+| `sentinel/teleop/so101_franka_teleop.py` | behavior (3.10) | Teleop entry point: loads arbitrary scene snapshots, records trajectories |
+| `sentinel/teleop/so101_franka_playback.py` | behavior (3.10) | Replay a recorded trajectory HDF5, optionally dump observations |

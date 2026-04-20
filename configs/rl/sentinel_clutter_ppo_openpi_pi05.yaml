@@ -116,7 +116,7 @@ env:
       # contains one seeded clutter_goblet_00 scene today. Override via
       # SENTINEL_BENCHMARK_ROOT when you've produced a bigger corpus.
       benchmark_root: ${oc.env:SENTINEL_BENCHMARK_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/datasets/safety-benchmark}
-      activity_root: ${oc.env:SENTINEL_ACTIVITY_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/bddl3/bddl/activity_definitions}
+      activity_root: ${oc.env:SENTINEL_ACTIVITY_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/behavior-1k/bddl3/bddl/activity_definitions}
       # null = scan benchmark_root and use every scene.
       scene_names: null
       max_scenes: null
@@ -139,7 +139,7 @@ env:
       video_base_dir: ${runner.logger.log_path}/video/eval
     sentinel_cfg:
       benchmark_root: ${oc.env:SENTINEL_EVAL_BENCHMARK_ROOT,${oc.env:SENTINEL_BENCHMARK_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/datasets/safety-benchmark}}
-      activity_root: ${oc.env:SENTINEL_ACTIVITY_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/bddl3/bddl/activity_definitions}
+      activity_root: ${oc.env:SENTINEL_ACTIVITY_ROOT,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/behavior-1k/bddl3/bddl/activity_definitions}
       scene_names: null
       max_scenes: null
       camera_source: deterministic_eval

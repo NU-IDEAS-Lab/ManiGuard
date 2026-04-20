@@ -66,7 +66,7 @@ def build_config(scene_dir: Path | str) -> Dict[str, Any]:
     _write_precached_reset_pose(reset_pose_path, scene_file)
 
     task_cfg = {
-        "type": "GraspTask",
+        "type": "SentinelGraspTask",
         "obj_name": target_name,
         "objects_config": [],
         "precached_reset_pose_path": reset_pose_path,

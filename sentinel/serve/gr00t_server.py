@@ -4,8 +4,8 @@ Serve the GR00T Stack-Cube policy over websocket.
 Uses the RLinf GR00T model loader with isaaclab_stack_cube obs/action converters.
 
 Usage (from RLinf .venv-gr00t):
-    python3 tools/serve_gr00t_websocket.py --checkpoint-dir RLinf-Gr00t-SFT-Stack-cube
-    python3 tools/serve_gr00t_websocket.py --checkpoint-dir RLinf-Gr00t-SFT-Stack-cube --check-only
+    python3 tools/serve_gr00t_websocket.py --checkpoint-dir vla_models/RLinf-Gr00t-SFT-Stack-cube
+    python3 tools/serve_gr00t_websocket.py --checkpoint-dir vla_models/RLinf-Gr00t-SFT-Stack-cube --check-only
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--checkpoint-dir",
-        default=str(REPO_ROOT / "RLinf-Gr00t-SFT-Stack-cube"),
+        default=str(REPO_ROOT / "vla_models/RLinf-Gr00t-SFT-Stack-cube"),
         help="GR00T checkpoint directory.",
     )
     parser.add_argument(

@@ -38,7 +38,7 @@ from sentinel.openpi.omnigibson_dataconfig import OmniGibsonDataConfig
 # config works across workstations / clusters without editing code.
 _PI05_BASE = os.environ.get(
     "SENTINEL_PI05_BASE",
-    "/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/RLinf-pi05-SFT-Stack-cube",
+    "/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/vla_models/RLinf-pi05-SFT-Stack-cube",
 )
 
 

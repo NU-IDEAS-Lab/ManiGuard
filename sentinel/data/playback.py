@@ -44,7 +44,7 @@ if str(RLINF_ROOT) not in sys.path:
 import omnigibson as og
 from omnigibson.envs import DataPlaybackWrapper
 from omnigibson.macros import gm
-from omnigibson.utils.camera_setup import (
+from sentinel.utils.camera_setup import (
     CAMERA_RESOLUTION,
     build_external_camera_configs,
 )
@@ -174,7 +174,7 @@ def _setup_cameras_from_scene(env) -> None:
     synchronise the viewer camera to match.
     """
     try:
-        from omnigibson.task_generation.utils.video import (
+        from sentinel.task_generation.utils.video import (
             build_video_view_specs,
             setup_cameras,
         )

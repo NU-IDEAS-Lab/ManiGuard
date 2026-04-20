@@ -86,7 +86,7 @@ def parse_args():
 
 
 def _build_eval_external_sensors(args):
-    from omnigibson.utils.camera_setup import (
+    from sentinel.utils.camera_setup import (
         EXTERNAL_CAMERA_NAMES,
         build_external_camera_configs,
         normalize_policy_cameras,
@@ -167,7 +167,7 @@ def _setup_eval_cameras(env, scene_info: dict) -> None:
     no re-computation, no support-surface lookup, no fallback.
     """
     import omnigibson as og
-    from omnigibson.task_generation.utils.video import eye_lookat_to_quat
+    from sentinel.task_generation.utils.video import eye_lookat_to_quat
 
     cameras = scene_info.get("cameras", [])
     if not cameras:
@@ -209,7 +209,7 @@ def quat2axisangle(quat):
 
 def extract_obs(env, robot, prompt, policy_cameras=None, state_mode="eef_8d",
                 table_top_z=0.0):
-    from omnigibson.utils.camera_setup import compose_main_image, normalize_policy_cameras
+    from sentinel.utils.camera_setup import compose_main_image, normalize_policy_cameras
 
     raw_obs, _ = env.get_obs()
     external = raw_obs.get("external", {})

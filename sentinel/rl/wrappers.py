@@ -11,7 +11,7 @@ import gymnasium as gym
 
 import omnigibson as og
 from omnigibson.object_states import Touching, Upright
-from omnigibson.utils.ltl_utils import LTLMonitor
+from sentinel.utils.ltl_utils import LTLMonitor
 
 
 LTL_FORMULA = "G (!any_glass_touching_floor & all_glasses_upright)"

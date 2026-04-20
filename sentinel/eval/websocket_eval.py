@@ -192,7 +192,7 @@ def build_env_cfg(args: argparse.Namespace):
     )
     og_cfg = OmegaConf.load(
         REPO_ROOT
-        / f"OmniGibson/omnigibson/configs/{env_defaults.base_config_name}.yaml"
+        / f"behavior-1k/OmniGibson/omnigibson/configs/{env_defaults.base_config_name}.yaml"
     )
 
     cfg = OmegaConf.create(

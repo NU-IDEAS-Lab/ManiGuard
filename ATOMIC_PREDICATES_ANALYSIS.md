@@ -103,7 +103,7 @@ class TrivialOnTopPredicate(BinaryAtomicFormula):
 
 ---
 
-### Location 2: [OmniGibson/omnigibson/utils/bddl_utils.py](OmniGibson/omnigibson/utils/bddl_utils.py)
+### Location 2: [behavior-1k/OmniGibson/omnigibson/utils/bddl_utils.py](behavior-1k/OmniGibson/omnigibson/utils/bddl_utils.py)
 
 **OmniGibson Backend** - Production implementation with actual physics engine integration
 

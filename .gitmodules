@@ -1,0 +1,6 @@
+[submodule "behavior-1k"]
+	path = behavior-1k
+	url = https://github.com/StanfordVL/BEHAVIOR-1K.git
+[submodule "RLinf"]
+	path = RLinf
+	url = https://github.com/RLinf/RLinf.git

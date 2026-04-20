@@ -105,18 +105,17 @@ def _patch_validate_embodied_cfg() -> None:
             or env_eval_type == _SENTINEL_ENV_VALUE
         )
         if is_sentinel:
-            import omnigibson as og
             import yaml
             from omegaconf import OmegaConf, open_dict
+
+            from sentinel.configs import config_path
 
             base_name = cfg.env.train.get("base_config_name", "franka_mounted_sentinel")
             assert base_name == "franka_mounted_sentinel", (
                 "Only franka_mounted_sentinel is supported for sentinel envs, "
                 f"got {base_name}"
             )
-            config_filename = os.path.join(
-                og.example_config_path, "franka_mounted_sentinel.yaml"
-            )
+            config_filename = config_path("franka_mounted_sentinel.yaml")
             omnigibson_cfg = yaml.load(
                 open(config_filename, "r"), Loader=yaml.FullLoader
             )
