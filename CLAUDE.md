@@ -16,28 +16,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SENTINEL-Lite is a fork of the BEHAVIOR-1K benchmark that adds LTL (Linear Temporal Logic) safety checking and monitoring for robotic manipulation tasks in simulated household environments. It integrates physics simulation (OmniGibson/NVIDIA Omniverse), formal task specification (BDDL), safety verification (LTL/Spot), and distributed RL training (RLinf with Ray).
+SENTINEL-Lite is a Python package built on top of [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) that adds LTL (Linear Temporal Logic) safety checking, task-generation pipelines, and VLA policy eval for robotic manipulation in simulated household environments. It integrates physics simulation (OmniGibson/NVIDIA Omniverse), formal task specification (BDDL), safety verification (LTL/Spot), and distributed RL training (RLinf with Ray).
 
 ## Architecture
 
-The repository is a monorepo with several major subsystems:
+```
+.
+├── sentinel/            # Sentinel Python package (all sentinel-owned code)
+│   ├── object_states/   #   Dropped, Upright
+│   ├── utils/           #   ltl_utils, safety_monitor, bddl_generator, …
+│   ├── task_generation/ #   clutter / stack / transfer / cabinet / … pipelines
+│   ├── tasks/           #   SentinelGraspTask
+│   ├── envs/            #   SentinelEnv
+│   ├── eval/            #   benchmark runner, websocket eval client
+│   ├── serve/           #   pi0.5 / GR00T / websocket policy servers
+│   ├── rl/              #   SB3 PPO grasp training
+│   ├── rlinf/           #   RLinf enum extension + env dispatch patches
+│   ├── openpi/          #   OpenPI dataconfig + policy adapters
+│   ├── teleop/          #   SO-101 → Franka teleop
+│   ├── configs/         #   franka_mounted_sentinel.yaml + helpers
+│   └── _omnigibson_patches.py   # runtime OmniGibson patches
+├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
+│                        #   contains OmniGibson/, bddl3/, joylo/, docs/,
+│                        #   asset_pipeline/, knowledgebase/, eval-jobqueue/
+├── RLinf/               # submodule → RLinf/RLinf @ 5714022
+├── vla_models/          # VLA checkpoints (user-downloaded, gitignored)
+├── tests/               # sentinel-side pytest suites
+├── configs/             # RL / SFT training configs
+├── scripts/             # shell entrypoints
+├── tools/               # one-off utilities
+├── teleop_bridge/       # ZMQ bridge for SO-101 teleop
+└── datasets/            # BEHAVIOR dataset (user-downloaded, gitignored)
+```
 
-- **OmniGibson/** — Physics simulation engine built on NVIDIA Omniverse/Isaac Sim. Provides Gym-compatible environments (`envs/env_base.py`), robot controllers, object states, sensors, and scene management. The core environment class extends `gym.Env`.
-- **bddl3/** — Behavior Domain Definition Language v3. Contains 1000+ activity definitions in `bddl/activity_definitions/`. Each activity has BDDL problem files defining objects, initial conditions, and goal states. Safety tasks also have `ltl_safety.json` files.
-- **RLinf/** — Distributed RL framework using Ray. Supports PPO, GRPO, SAC algorithms with models like OpenPI (Pi0.5), OpenVLA, GR00T. Has its own venv managed by `uv`, separate from the main conda env.
-- **joylo/** — Teleoperation interface (GELLO) for robot control and data collection.
-- **knowledgebase/** — Flask web app for browsing BEHAVIOR-1K task/object/scene data.
-- **scene_generation/** — Scene generation scripts and configs.
-- **asset_pipeline/** — DVC-managed 3D asset processing pipeline.
+**Upstream boundary**: anything under `behavior-1k/` or `RLinf/` is upstream. Do not modify those trees — patch behaviors via `sentinel._omnigibson_patches`, subclass via `sentinel.tasks.*`, or extend via `sentinel.rlinf.patches`.
 
 **Key data flow**: BDDL task definition → OmniGibson scene sampling → Environment reset/step → LTL safety monitoring → Agent observation → Policy action → Physics simulation → Reward signal → RL training (RLinf)
 
 ### LTL Safety System
 
 - Atomic propositions generated from BDDL scope: `sentinel/utils/ltl_utils.py` (`AtomicPropositionGenerator`)
-- Safety constraints loaded at task init: `behavior-1k/OmniGibson/omnigibson/tasks/behavior_task.py`
-- `LTLMonitor` converts LTL to LDBA and tracks automaton state per step
-- Per-step LTL info exposed via `info["ltl"]` in env
+- `LTLMonitor` (same module) converts LTL formulas to LDBA form and tracks automaton state per step
+- Per-step LTL info exposed via `info["ltl"]` from `sentinel/envs/sentinel_env.py`
+- High-level wrapper that loads task + scene `ltl_safety.json` files: `sentinel/utils/safety_monitor.py`
 - Spot library is optional — if unavailable, safety monitoring is skipped with a warning
 - Task-level constraints: `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
 - Scene-level constraints: `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json`
@@ -56,17 +77,33 @@ The repository is a monorepo with several major subsystems:
 ### Installation
 
 ```bash
-# Full install (conda env "behavior")
+# Clone with submodules (or: git submodule update --init --recursive)
+git clone --recursive <repo-url> && cd SENTINEL-Lite
+
+# Install BEHAVIOR-1K (runs upstream's setup.sh from inside the submodule)
+cd behavior-1k
 ./setup.sh --new-env --omnigibson --bddl --joylo --dataset --eval --primitives
 # Flags: --omnigibson, --bddl, --joylo, --dataset, --eval, --asset-pipeline, --primitives, --dev
 # --omnigibson requires --bddl; --primitives requires --omnigibson
+cd ..
+
+# Point OmniGibson at the dataset (required — OmniGibson's default resolver
+# looks for behavior-1k/datasets, which isn't populated by the submodule).
+export OMNIGIBSON_DATA_PATH=$(pwd)/datasets
+# Alternative: ln -sfn ../datasets behavior-1k/datasets
+
+# Importing `sentinel` is enough; editable install is optional.
 ```
 
 ### Testing
 
 ```bash
-pytest behavior-1k/OmniGibson/tests/ -v          # OmniGibson tests (includes LTL tests)
-pytest behavior-1k/bddl3/tests/                  # BDDL tests
+# Sentinel tests (our refactor + LTL + task-gen unit tests)
+pytest tests/ -v
+
+# Upstream tests (inside submodules, rarely needed)
+pytest behavior-1k/OmniGibson/tests/ -v
+pytest behavior-1k/bddl3/tests/
 pytest RLinf/tests/unit_tests/       # RLinf unit tests
 pytest RLinf/tests/e2e_tests/        # RLinf E2E tests (requires GPU)
 ```
@@ -129,7 +166,7 @@ ruff format .
 pre-commit run --all-files
 ```
 
-Root `ruff.toml` excludes `joylo/`. OmniGibson uses 120-char line length. RLinf uses 88-char line length with stricter rules (Google docstrings, type hints).
+Root `ruff.toml` excludes `behavior-1k/`, `RLinf/`, `vla_models/`, `Omnireset/`, and runtime output dirs — lint only touches sentinel-owned code. The `behavior-1k/` submodule has its own ruff config (120-char line length for OmniGibson); RLinf has 88-char with Google docstrings + type hints.
 
 ### RLinf Training
 
@@ -139,9 +176,10 @@ source .venv/bin/activate    # Separate uv-managed venv, not the conda env
 bash examples/embodiment/run_embodiment.sh behavior_ppo_openpi
 ```
 
-### Documentation
+### Documentation (upstream BEHAVIOR-1K docs)
 
 ```bash
+cd behavior-1k
 mkdocs serve    # Preview at localhost:8000
 mkdocs build    # Build static site
 ```
