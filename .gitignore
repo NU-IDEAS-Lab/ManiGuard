@@ -11,14 +11,11 @@ outputs/teleop/*
 !outputs/teleop/*.hdf5
 datasets/
 behavior-1k/bddl3/bddl/activity_definitions/*
-checkpoints/
-RLinf-*/
+vla_models/
 RLinf/.venv*/
-GR00T-*/
-Isaac-GR00T/
 .vscode/
 teleop_bridge/SO-ARM100/
-RLinf_local/*Omnireset/
+Omnireset/
 behavior-1k/OmniGibson/appdata/
 behavior-1k/OmniGibson/docs/_build/
 behavior-1k/OmniGibson/omnigibson.egg-info/

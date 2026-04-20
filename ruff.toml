@@ -5,13 +5,10 @@
 extend-exclude = [
     "behavior-1k/",
     "RLinf/",
-    "Isaac-GR00T/",
-    "GR00T-N1.6-DROID/",
-    "RLinf-*/",
+    "vla_models/",
     "Omnireset/",
     "outputs/",
     "datasets/",
-    "checkpoints/",
     "log_dir/",
 ]
 

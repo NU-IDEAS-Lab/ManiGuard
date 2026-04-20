@@ -16,7 +16,7 @@
 #
 # Usage:
 #   cd /home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite
-#   export SENTINEL_PI05_BASE=$PWD/RLinf-pi05-SFT-Stack-cube
+#   export SENTINEL_PI05_BASE=$PWD/vla_models/RLinf-pi05-SFT-Stack-cube
 #   bash scripts/prepare_sft_data.sh
 
 set -euo pipefail

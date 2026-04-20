@@ -3,9 +3,9 @@
 
 Unlike sentinel/serve/gr00t_server.py (which uses RLinf's N1.5 wrapper),
 this server is written against the upstream Isaac-GR00T repo's API and
-supports N1.6 checkpoints out of the box. Run from Isaac-GR00T/.venv:
+supports N1.6 checkpoints out of the box. Run from vla_models/Isaac-GR00T/.venv:
 
-    cd Isaac-GR00T
+    cd vla_models/Isaac-GR00T
     source .venv/bin/activate
     python /path/to/sentinel/serve/gr00t_n16_server.py \
         --checkpoint-dir /path/to/GR00T-N1.6-DROID \

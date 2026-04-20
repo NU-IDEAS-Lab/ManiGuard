@@ -66,7 +66,7 @@ actor:
     # gripper). SFT will likely fail at the state projection layer unless
     # either (a) we pad our state to 8D, or (b) we re-init from a pure
     # Pi0.5 base (no SFT norm_stats baked in). Flagged for follow-up.
-    model_path: "${oc.env:SENTINEL_PI05_BASE,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/RLinf-pi05-SFT-Stack-cube}"
+    model_path: "${oc.env:SENTINEL_PI05_BASE,/home/nu-ideas-4080/Desktop/projects/SENTINEL-Lite/vla_models/RLinf-pi05-SFT-Stack-cube}"
     num_action_chunks: 4
     # SFT doesn't need the critic head; turning it off saves params + RAM.
     add_value_head: False
