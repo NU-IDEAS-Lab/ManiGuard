@@ -66,7 +66,7 @@ def _robot_cfg(robot_type="FrankaPanda"):
 # Scene builders
 # ---------------------------------------------------------------------------
 
-from omnigibson.utils.camera_setup import build_external_camera_configs
+from sentinel.utils.camera_setup import build_external_camera_configs
 
 _EXTERNAL_CAMERAS = build_external_camera_configs()
 
@@ -217,7 +217,7 @@ def main():
     # for the simple scene / task modes that lack a named support object.
     support_obj = env.scene.object_registry("name", "support_surface")
     if support_obj is not None:
-        from omnigibson.task_generation.utils.video import (
+        from sentinel.task_generation.utils.video import (
             build_video_view_specs, setup_cameras,
         )
         target_obj = next(

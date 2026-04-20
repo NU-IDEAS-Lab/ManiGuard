@@ -1171,7 +1171,7 @@ class SentinelEnv(gym.Env):
         }
 
     def _extract_obs(self, env, raw_obs, spec: SentinelSceneSpec):
-        from omnigibson.utils.camera_setup import compose_main_image, normalize_policy_cameras
+        from sentinel.utils.camera_setup import compose_main_image, normalize_policy_cameras
 
         external = raw_obs.get("external", {})
         policy_cams = normalize_policy_cameras(
@@ -1379,7 +1379,7 @@ class SentinelEnv(gym.Env):
         return summary
 
     def _build_ltl_monitor(self, env, spec: SentinelSceneSpec):
-        from omnigibson.utils.safety_monitor import TaskLTLMonitor
+        from sentinel.utils.safety_monitor import TaskLTLMonitor
 
         active_objects = {}
         object_scope = getattr(env.task, "object_scope", {}) or {}
