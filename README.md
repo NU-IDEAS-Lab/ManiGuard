@@ -1,63 +1,135 @@
 # SENTINEL-Lite
 
-## LTL Safety Checking (Local Add-On)
+SENTINEL-Lite is a Python package built on top of
+[BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) that adds
+LTL (Linear Temporal Logic) safety checking, task-generation pipelines, and
+VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
 
-This fork adds optional LTL safety checking and monitoring for BehaviorTask scenes:
+## Repository layout
 
-- Atomic propositions are generated from the BDDL object scope and predicates in `omnigibson/utils/ltl_utils.py` (`AtomicPropositionGenerator`).
-- Safety constraints are loaded at task init in `omnigibson/tasks/behavior_task.py`, validated with Spot if available, and combined with `&`.
-- An `LTLMonitor` (in `omnigibson/utils/ltl_utils.py`) converts LTL to an LDBA and tracks automaton state.
-- Per-step LTL info is exposed via `info["ltl"]` in `omnigibson/envs/env_base.py` (also on `reset()`).
-- Tests live in `tests/test_ltl_propositions.py`.
+```
+.
+├── sentinel/            # Sentinel Python package (all sentinel-owned code)
+│   ├── object_states/   #   Dropped, Upright
+│   ├── utils/           #   ltl_utils, safety_monitor, bddl_generator, …
+│   ├── task_generation/ #   clutter / stack / transfer / cabinet / … pipelines
+│   ├── tasks/           #   SentinelGraspTask
+│   ├── envs/            #   SentinelEnv
+│   ├── eval/            #   benchmark runner, websocket eval client
+│   ├── serve/           #   pi0.5 / GR00T / websocket policy servers
+│   ├── rl/              #   SB3 PPO grasp training
+│   ├── rlinf/           #   RLinf patches (enum extension, env dispatch)
+│   ├── openpi/          #   OpenPI dataconfig + policy adapters
+│   ├── teleop/          #   SO-101 → Franka teleop
+│   ├── configs/         #   franka_mounted_sentinel.yaml + helpers
+│   └── _omnigibson_patches.py   # runtime patches on vanilla OmniGibson
+├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
+├── RLinf/               # submodule → RLinf/RLinf @ 5714022
+├── vla_models/          # VLA checkpoints (user-downloaded, .gitignore)
+├── tests/               # sentinel-side tests
+├── configs/             # RL / SFT training configs
+├── scripts/             # shell entry points (run_rl.sh, prepare_sft_data.sh, …)
+├── tools/               # one-off utilities
+└── teleop_bridge/       # ZMQ bridge for SO-101 teleop
+```
 
-Where to add / edit constraints:
+## Installation
 
-- Task-level: `bddl3/bddl/activity_definitions/<activity_name>/ltl_safety.json`
-- Scene-level: `datasets/behavior-1k-assets/scenes/<scene_name>/safety/ltl_safety.json` (scene_dir resolved via `get_scene_path(scene_model)`)
+1. **Clone with submodules**:
 
-Note: Spot is optional. If Spot is unavailable, safety validation and monitor init are skipped with a warning.
+   ```bash
+   git clone --recursive git@github.com:NU-IDEAS-Lab/SENTINEL-Lite.git
+   cd SENTINEL-Lite
+   # or, if already cloned:
+   git submodule update --init --recursive
+   ```
 
+2. **Install BEHAVIOR-1K** (creates the `behavior` conda env, installs
+   OmniGibson, bddl3, JoyLo, primitives):
 
-## Task Generation and Benchmark Pipeline
+   ```bash
+   cd behavior-1k
+   ./setup.sh --new-env --omnigibson --bddl --joylo --dataset --eval --primitives
+   cd ..
+   ```
 
-The current tabletop task-generation and benchmark pipeline lives in:
+3. **Point OmniGibson at the dataset**. Place the BEHAVIOR dataset under
+   `./datasets/`, then either:
 
-- [OmniGibson/omnigibson/task_generation/README.md](OmniGibson/omnigibson/task_generation/README.md)
+   ```bash
+   export OMNIGIBSON_DATA_PATH=$(pwd)/datasets          # recommended
+   # or symlink so OmniGibson's relative path resolver finds it:
+   ln -sfn ../datasets behavior-1k/datasets
+   ```
 
-This is the mainline path for benchmark-scale scene generation, subprocess-based scene execution, artifact validation, and reproducible output folders.
+4. **Install sentinel** in the conda env. With a `pyproject.toml` in place you
+   can `pip install -e .`; otherwise run from the repo root so
+   `PYTHONPATH` picks up `sentinel/` automatically.
 
-## Scene Curation Workflow
+Importing `sentinel` applies a small set of runtime patches that extend
+OmniGibson with Sentinel-specific object states, BDDL predicates, grasp-goal
+hold-step counting, a link-fallback-aware grasp reward, and a tensor-safe
+`draw_debug_markers`. Set `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` to skip the
+patches entirely (useful for pure-Python consumers that don't need
+OmniGibson at runtime).
 
-The post-run dataset repair and curation workflow lives in:
+## LTL safety monitoring
 
-- [OmniGibson/omnigibson/task_generation/curation/README.md](OmniGibson/omnigibson/task_generation/curation/README.md)
+- Atomic propositions are generated from the BDDL object scope in
+  [`sentinel/utils/ltl_utils.py`](sentinel/utils/ltl_utils.py)
+  (`AtomicPropositionGenerator`).
+- `LTLMonitor` converts LTL formulas to LDBA form and tracks automaton
+  state per `env.step()`.
+- Per-step monitor output is exposed via `info["ltl"]` inside
+  [`sentinel/envs/sentinel_env.py`](sentinel/envs/sentinel_env.py).
+- [`sentinel/utils/safety_monitor.py`](sentinel/utils/safety_monitor.py)
+  wraps activity-level + scene-level `ltl_safety.json` files into a
+  ready-to-use monitor.
 
-This workflow is used when a benchmark run already exists but some scenes still need scene-level repair, replay, rerendering, or manual review before release.
+Safety-constraint JSON locations:
 
-## Manipulation Safety-Critical BDDL Activity
+- Task-level: `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
+- Scene-level: `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json`
 
-Possible manipulation safety-critical predicates:
+Spot is an optional dependency; if it's unavailable, LTL validation is
+skipped with a warning.
 
-- `on_fire(?obj)` — object is on fire
-- `hot(?obj)` — object is hot
-- `touching(?obj1, ?obj2)` — object is touching another object
-- `grasped(?obj1, ?obj2)` — agent is grasping object
-- `covered(?obj1, ?obj2)` — object is covered by another object
-- `broken(?obj)` — object is broken
-- `ontop(?obj1, ?obj2)`, `nextto(?obj1, ?obj2)`, `inside(?obj1, ?obj2)` — spatial relationship
-- `filled(?obj1, ?obj2)` — container is filled with liquid
-- `toggled_on(?obj)` — device is turned on
+## Task generation + benchmark
 
-Synset properties can be found in `bddl3/bddl/generated_data/syn_prop_annots_canonical.json`, or refer to [BEHAVIOR Synsets KnowledgeBase](https://behavior.stanford.edu/knowledgebase/synsets/index.html)
+Pipelines live in [`sentinel/task_generation/`](sentinel/task_generation/).
+Each pipeline auto-discovers a surface in the target scene, generates a
+BDDL problem and `ltl_safety.json`, spawns objects, places the mounted
+Franka, and runs an LTL-monitored rollout. See
+[`sentinel/task_generation/README.md`](sentinel/task_generation/README.md)
+for flags + the full taxonomy of available pipelines.
 
-## BEHAVIOR Server Configuration
+```bash
+conda activate behavior
 
-Notes have been moved to [docs/behavior_server_config_debug_notes.md](docs/behavior_server_config_debug_notes.md). 
+# Single scene, BDDL + LTL dry-run (no simulator)
+python -m sentinel.task_generation.clutter_scene_pipeline \
+  --scene-model Benevolence_1_int --dry-run
 
-> Path in repo: `SENTINEL-Lite/docs/behavior_server_config_debug_notes.md`
+# Full-sim rollout
+python -m sentinel.task_generation.clutter_scene_pipeline \
+  --scene-model Benevolence_1_int --episodes 1 --steps 300 \
+  --save-video --strict-gate
 
-## RLinf Server Configuration
+# Multi-scene benchmark
+python -m sentinel.task_generation.run_benchmark \
+  --pipeline table --steps 300 --episodes 1 --timeout 300 --save-video
+```
 
-Notes have been moved to [RLinf/docs/rlinf_server_config_notes.md](RLinf/docs/rlinf_server_config_notes.md).
+Run `OMNIGIBSON_HEADLESS=1 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json`
+on headless nodes.
 
-> Path in repo: `SENTINEL-Lite/RLinf/docs/rlinf_server_config_notes.md`
+## Common manipulation-safety predicates
+
+Useful BDDL predicates for expressing safety-critical constraints (see
+[BEHAVIOR Synsets knowledge base](https://behavior.stanford.edu/knowledgebase/synsets/index.html)
+for object-level properties):
+
+`on_fire(?obj)`, `hot(?obj)`, `touching(?a, ?b)`, `grasped(?a, ?b)`,
+`covered(?a, ?b)`, `broken(?obj)`, `ontop` / `inside` / `nextto`,
+`filled(?container, ?liquid)`, `toggled_on(?obj)`, plus Sentinel's own
+`upright(?obj)`, `dropped(?obj)`, `stashed(?obj)`.

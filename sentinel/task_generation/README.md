@@ -65,7 +65,7 @@ Minimal single-scene benchmark run:
 ```bash
 conda activate behavior
 
-python OmniGibson/omnigibson/task_generation/run_benchmark.py \
+python -m sentinel.task_generation.run_benchmark \
   --pipeline table \
   --scenes hall_conference_large \
   --episodes 1 \
@@ -79,7 +79,7 @@ Run the same scene with scene-level runtime overrides (typically used for scene-
 ```bash
 conda activate behavior
 
-python OmniGibson/omnigibson/task_generation/run_benchmark.py \
+python -m sentinel.task_generation.run_benchmark \
   --pipeline table \
   --scenes hall_conference_large \
   --episodes 1 \
@@ -169,7 +169,7 @@ The manifest does not bypass the normal packing and validation logic. Even if a 
 For the full curation workflow and a real reference manifest, see:
 
 - [curation/README.md](./curation/README.md)
-- `OmniGibson/omnigibson/task_generation/curation/tabletop-cluttered_env-curation_manifest.json`
+- `sentinel/task_generation/curation/tabletop-cluttered_env-curation_manifest.json`
 
 ## Extending the Pipeline
 
@@ -188,4 +188,3 @@ If you want to add more scenes, new tabletop task variants, or new benchmark rep
 ## Related Documentation
 
 - Current curation workflow: [curation/README.md](./curation/README.md)
-- Legacy kitchen-bar MVP pipeline: [docs/omnigibson/cluttered_env_scene_generation_pipeline.md](../../../docs/omnigibson/cluttered_env_scene_generation_pipeline.md)

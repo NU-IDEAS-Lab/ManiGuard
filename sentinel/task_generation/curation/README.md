@@ -54,7 +54,7 @@ Single-scene rerun with runtime overrides:
 ```bash
 conda activate behavior
 
-python OmniGibson/omnigibson/task_generation/run_benchmark.py \
+python -m sentinel.task_generation.run_benchmark \
   --pipeline table \
   --scenes grocery_store_half_stocked \
   --episodes 1 \
@@ -69,7 +69,7 @@ Snapshot-only replay for video repair:
 ```bash
 conda activate behavior
 
-python OmniGibson/omnigibson/task_generation/curation/replay_curated_scene.py \
+python -m sentinel.task_generation.curation.replay_curated_scene \
   --scene-model <SCENE_NAME> \
   --curation-manifest <CURATION_MANIFEST_PATH.json> \
   --episode 1 \
@@ -85,7 +85,7 @@ Inspect a frozen snapshot:
 ```bash
 conda activate behavior
 
-python OmniGibson/omnigibson/task_generation/curation/inspect_curated_snapshot.py \
+python -m sentinel.task_generation.curation.inspect_curated_snapshot \
   --scene-model <SCENE_NAME> \
   --curation-manifest <CURATION_MANIFEST_PATH.json> \
   --episode 1
@@ -138,4 +138,3 @@ These files together provide:
 ## Related Documentation
 
 - Main task-generation manual: [../README.md](../README.md)
-- Legacy kitchen-bar MVP reference: [docs/omnigibson/cluttered_env_scene_generation_pipeline.md](../../../../docs/omnigibson/cluttered_env_scene_generation_pipeline.md)
