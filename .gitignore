@@ -18,4 +18,9 @@ GR00T-*/
 Isaac-GR00T/
 .vscode/
 teleop_bridge/SO-ARM100/
-RLinf_local/*
+RLinf_local/*Omnireset/
+OmniGibson/appdata/
+OmniGibson/docs/_build/
+OmniGibson/omnigibson.egg-info/
+OmniGibson/.pytest_cache/
+OmniGibson/**/__pycache__/

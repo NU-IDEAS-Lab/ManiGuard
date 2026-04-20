@@ -1,23 +1,17 @@
 import os
 
 import yaml
-import numpy as np
 
 import omnigibson as og
 from omnigibson.macros import gm
 from omnigibson.utils.ui_utils import choose_from_options
-from omnigibson.learning.utils.obs_utils import create_video_writer, write_video  # only used when save_video=True
 
 # Make sure object states are enabled
 gm.ENABLE_OBJECT_STATES = True
-gm.USE_GPU_DYNAMICS = True
-# gm.ENABLE_FLATCACHE = True
-
-# Override for demo observation: script takes precedence over r1pro_behavior.yaml termination_config.max_steps
-DEMO_MAX_STEPS = 100000  # change here to control env window length (default in yaml is 500)
+gm.USE_GPU_DYNAMICS = False
 
 
-def main(random_selection=False, headless=False, short_exec=False, save_video=True):
+def main(random_selection=False, headless=False, short_exec=False):
     """
     Generates a BEHAVIOR Task environment in an online fashion.
 
@@ -40,26 +34,9 @@ def main(random_selection=False, headless=False, short_exec=False, save_video=Tr
     cfg = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
     cfg["task"]["online_object_sampling"] = should_sample
     cfg["task"]["use_presampled_robot_pose"] = not should_sample
-    cfg["task"]["termination_config"]["max_steps"] = DEMO_MAX_STEPS
 
     # Load the environment
     env = og.Environment(configs=cfg)
-
-    # Setup video recording (optional)
-    video_writer = None
-    video_fpath = None
-    if save_video:
-        import datetime
-        video_dir = os.path.dirname(__file__) + "/log_videos"
-        os.makedirs(video_dir, exist_ok=True)
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        video_fpath = f"{video_dir}/behavior_demo_god_view_{timestamp}.mp4"
-        video_writer = create_video_writer(
-            fpath=video_fpath,
-            resolution=(720, 1280),
-            rate=30,
-        )
-        print(f"[DEBUG] Video recording started: {video_fpath}")
 
     # Move camera to a good position
     og.sim.viewer_camera.set_position_orientation(
@@ -69,62 +46,21 @@ def main(random_selection=False, headless=False, short_exec=False, save_video=Tr
     # Allow user to move camera more easily
     og.sim.enable_viewer_camera_teleoperation()
 
-    print("="*60)
-    print("="*60)
-    print("="*60)
-    print("="*60)
-    print(f"[DEBUG] [behavior_env_demo.py] So far so good. Ready to step the environment.")
-    print("="*60)
-    print("="*60)
-    print("="*60)
-    print("="*60)
-    print("="*60)
-    
     # Run a simple loop and reset periodically
-    try:
-        # max_iterations = 3 if not short_exec else 1
-        max_iterations = 1
-        for j in range(max_iterations):
-            print("="*60)
-            print("="*60)
-            print(f"[DEBUG] [behavior_env_demo.py] Iteration {j}: Resetting environment")
-            print("="*60)
-            print("="*60)
-            
-            og.log.info("Resetting environment")
-            env.reset()
-            for i in range(DEMO_MAX_STEPS):
-                print("="*60)
-                print("="*60)
-                print(f"[DEBUG] [behavior_env_demo.py] Iteration {j}: Step {i}: Taking action")
-                print("="*60)
-                print("="*60)
-                action = env.robots[0].action_space.sample()
-                # breakpoint()
-                state, reward, terminated, truncated, info = env.step(action * 0.2)
+    max_iterations = 10 if not short_exec else 1
+    for j in range(max_iterations):
+        og.log.info("Resetting environment")
+        env.reset()
+        for i in range(100):
+            action = env.robots[0].action_space.sample()
+            state, reward, terminated, truncated, info = env.step(action * 0.1)
+            if terminated or truncated:
+                og.log.info("Episode finished after {} timesteps".format(i + 1))
+                break
 
-                # Record Viewer Camera (God View) when save_video is True
-                if save_video:
-                    viewer_obs, _ = og.sim.viewer_camera.get_obs()
-                    if "rgb" in viewer_obs:
-                        print(f"[DEBUG] [behavior_env_demo.py] Writing video for viewer camera")
-                        rgb_img = viewer_obs["rgb"][..., :3]
-                        write_video(rgb_img[None, ...].cpu().numpy(), video_writer, mode="rgb")
-                        print(f"[DEBUG] [behavior_env_demo.py] Video written for viewer camera")
-                        print("="*60)
-                        print("="*60)
-
-                if terminated or truncated:
-                    og.log.info("Episode finished after {} timesteps".format(i + 1))
-                    break
-
-    finally:
-        if save_video and video_writer is not None:
-            video_writer[0].close()
-            print(f"[DEBUG] Video saved successfully to {video_fpath}")
-        og.shutdown()
+    # Always close the environment at the end
+    og.shutdown()
 
 
 if __name__ == "__main__":
-    # main()
-    main(random_selection=True, save_video=False)  # set save_video=True to record video
+    main()

@@ -15,7 +15,7 @@ class RobotStateMixin:
         return self.obj
 
 
-class Grasped(RelativeObjectState, BooleanStateMixin, RobotStateMixin):
+class IsGrasping(RelativeObjectState, BooleanStateMixin, RobotStateMixin):
     def _get_value(self, obj):
         # TODO: Make this work with non-assisted grasping
         return any(self.robot._ag_obj_in_hand[arm] == obj for arm in self.robot.arm_names)

@@ -42,7 +42,7 @@ class GraspReward(BaseRewardFunction):
         # Store internal vars
         self.prev_grasping = False
         self.prev_eef_pos = None
-        self.prev_eef_quat = None
+        self.prev_eef_rot = None
         self.obj_name = obj_name
         self.obj = None
         self.dist_coeff = dist_coeff
@@ -131,15 +131,7 @@ class GraspReward(BaseRewardFunction):
             info["grasp_reward"] = self.grasp_reward
 
             # Then apply a distance reward to take us to a tucked position
-            if "torso_lift_link" in robot.links:
-                robot_center = robot.links["torso_lift_link"].get_position_orientation()[0]
-            else:
-                root_link = getattr(robot, "root_link", None)
-                if root_link is not None:
-                    robot_center = root_link.get_position_orientation()[0]
-                else:
-                    # Fallback to any link if root isn't exposed (e.g., some mounted arms)
-                    robot_center = next(iter(robot.links.values())).get_position_orientation()[0]
+            robot_center = robot.links["torso_lift_link"].get_position_orientation()[0]
             obj_center = self.obj.get_position_orientation()[0]
             dist = T.l2_distance(robot_center, obj_center)
             dist_reward = math.exp(-dist) * self.dist_coeff
@@ -163,4 +155,4 @@ class GraspReward(BaseRewardFunction):
         super().reset(task, env)
         self.prev_grasping = False
         self.prev_eef_pos = None
-        self.prev_eef_quat = None
+        self.prev_eef_rot = None

@@ -73,37 +73,37 @@ pytest RLinf/tests/e2e_tests/        # RLinf E2E tests (requires GPU)
 
 ### Task Generation Pipelines
 
-All pipelines live in `OmniGibson/omnigibson/task_generation/` and share a `BasePipeline` class from `pipeline_common.py`. Each auto-discovers a surface in the given scene, generates BDDL + `ltl_safety.json`, spawns objects, places the robot, and runs LTL-monitored rollouts.
+All pipelines live in `sentinel/task_generation/` and share a `BasePipeline` class from `pipeline_common.py`. Each auto-discovers a surface in the given scene, generates BDDL + `ltl_safety.json`, spawns objects, places the robot, and runs LTL-monitored rollouts.
 
 ```bash
 conda activate behavior
 
 # Tabletop clutter (retrieve target from fragile clutter)
-python -m omnigibson.task_generation.clutter_scene_pipeline \
+python -m sentinel.task_generation.clutter_scene_pipeline \
   --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video --strict-gate
 
 # Stack retrieval (retrieve target from under a stack)
-python -m omnigibson.task_generation.stack_scene_pipeline \
+python -m sentinel.task_generation.stack_scene_pipeline \
   --scene-model Benevolence_1_int --stack-height medium --episodes 1 --steps 300 --save-video
 
 # Food transfer (move food between containers without touching)
-python -m omnigibson.task_generation.transfer_scene_pipeline \
+python -m sentinel.task_generation.transfer_scene_pipeline \
   --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
 
 # Pinch-point (fragile near target handle)
-python -m omnigibson.task_generation.pinch_point_pipeline \
+python -m sentinel.task_generation.pinch_point_pipeline \
   --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
 
 # Cabinet clutter (retrieve from inside a cabinet)
-python -m omnigibson.task_generation.cabinet_clutter_pipeline \
+python -m sentinel.task_generation.cabinet_clutter_pipeline \
   --scene-model Rs_int --episodes 1 --steps 300 --save-video
 
 # Empty scene (no pre-existing furniture; setup: clutter/stack/transfer)
-python -m omnigibson.task_generation.empty_scene_pipeline \
+python -m sentinel.task_generation.empty_scene_pipeline \
   --setup stack --episodes 1 --steps 300 --save-video
 
 # Dry-run any pipeline (generates BDDL + LTL only, no simulator)
-python -m omnigibson.task_generation.clutter_scene_pipeline \
+python -m sentinel.task_generation.clutter_scene_pipeline \
   --scene-model Benevolence_1_int --dry-run
 ```
 
@@ -111,12 +111,12 @@ python -m omnigibson.task_generation.clutter_scene_pipeline \
 
 ```bash
 # Run a pipeline across all eligible scenes with per-scene timeout
-python -m omnigibson.task_generation.run_benchmark \
+python -m sentinel.task_generation.run_benchmark \
   --pipeline table --steps 300 --episodes 1 --timeout 300 --save-video
 
 # Pipeline choices: table, cabinet, transfer, stack
 # Restrict to specific scenes:
-python -m omnigibson.task_generation.run_benchmark \
+python -m sentinel.task_generation.run_benchmark \
   --pipeline transfer --scenes Benevolence_1_int Rs_int --steps 300
 ```
 

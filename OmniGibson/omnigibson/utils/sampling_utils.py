@@ -118,24 +118,12 @@ def draw_debug_markers(hit_positions, radius=0.01):
         hit_positions ((n, 3)-array): Desired positions to place markers at
         radius (float): Radius of the generated virtual marker
     """
-    hit_positions = th.as_tensor(hit_positions, dtype=th.float32)
-    color = th.cat(
-        [
-            th.rand(3, dtype=hit_positions.dtype, device=hit_positions.device),
-            th.ones(1, dtype=hit_positions.dtype, device=hit_positions.device),
-        ]
-    )
-    unit_axes = th.eye(3, dtype=hit_positions.dtype, device=hit_positions.device)
-    color_rgba = tuple(float(x) for x in color.detach().cpu().tolist())
+    color = th.cat([th.rand(3), [1]])
     for vec in hit_positions:
         for dim in range(3):
-            start_point = vec + unit_axes[dim] * radius
-            end_point = vec - unit_axes[dim] * radius
-            draw_line(
-                tuple(float(x) for x in start_point.detach().cpu().tolist()),
-                tuple(float(x) for x in end_point.detach().cpu().tolist()),
-                color_rgba,
-            )
+            start_point = vec + th.eye(3)[dim] * radius
+            end_point = vec - th.eye(3)[dim] * radius
+            draw_line(start_point, end_point, color)
 
 
 def get_parallel_rays(source, destination, offset, new_ray_per_horizontal_distance):

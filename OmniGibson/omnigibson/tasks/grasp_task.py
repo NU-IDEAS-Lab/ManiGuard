@@ -10,7 +10,6 @@ from omnigibson.objects.object_base import REGISTERED_OBJECTS
 from omnigibson.reward_functions.grasp_reward import GraspReward
 from omnigibson.scenes.scene_base import Scene
 from omnigibson.tasks.task_base import BaseTask
-from omnigibson.termination_conditions.grasp_goal import GraspGoal
 from omnigibson.termination_conditions.timeout import Timeout
 from omnigibson.utils.grasping_planning_utils import get_grasp_poses_for_object_sticky
 from omnigibson.utils.python_utils import classproperty, create_class_from_registry_and_config
@@ -61,10 +60,9 @@ class GraspTask(BaseTask):
 
     def _create_termination_conditions(self):
         terminations = dict()
-        hold_steps = 1
-        if self._termination_config is not None:
-            hold_steps = self._termination_config.get("grasp_hold_steps", 1)
-        terminations["graspgoal"] = GraspGoal(self.obj_name, hold_steps=hold_steps)
+        # terminations["graspgoal"] = GraspGoal(
+        #     self.obj_name
+        # )
         # This helpes to prevent resets happening at different times
         terminations["timeout"] = Timeout(max_steps=self._termination_config["max_steps"])
         # terminations["falling"] = Falling()
@@ -84,21 +82,11 @@ class GraspTask(BaseTask):
         # If available, reset the robot with cached reset poses.
         # This is significantly faster than randomizing using the primitives.
         if self._reset_poses is not None:
-            if hasattr(robot, "trunk_control_idx"):
-                joint_control_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]])
-            else:
-                joint_control_idx = robot.arm_control_idx[robot.default_arm]
+            joint_control_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]])
             robot_pose = random.choice(self._reset_poses)
-            joint_pos = robot_pose["joint_pos"]
-            if not isinstance(joint_pos, th.Tensor):
-                joint_pos = th.tensor(joint_pos)
-            robot.set_joint_positions(joint_pos, joint_control_idx)
-            robot_pos = robot_pose["base_pos"]
-            if not isinstance(robot_pos, th.Tensor):
-                robot_pos = th.tensor(robot_pos)
-            robot_orn = robot_pose["base_ori"]
-            if not isinstance(robot_orn, th.Tensor):
-                robot_orn = th.tensor(robot_orn)
+            robot.set_joint_positions(robot_pose["joint_pos"], joint_control_idx)
+            robot_pos = th.tensor(robot_pose["base_pos"])
+            robot_orn = th.tensor(robot_pose["base_ori"])
             robot.set_position_orientation(position=robot_pos, orientation=robot_orn, frame="scene")
 
         # Otherwise, reset using the primitive controller.
@@ -107,10 +95,7 @@ class GraspTask(BaseTask):
                 self._primitive_controller = StarterSemanticActionPrimitives(env, robot, enable_head_tracking=False)
 
             # Randomize the robots joint positions
-            if hasattr(robot, "trunk_control_idx"):
-                joint_control_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]])
-            else:
-                joint_control_idx = robot.arm_control_idx[robot.default_arm]
+            joint_control_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]])
             dim = len(joint_control_idx)
             # For Tiago
             if "combined" in robot.robot_arm_descriptor_yamls:
@@ -234,7 +219,7 @@ class GraspTask(BaseTask):
 
     @classproperty
     def default_termination_config(cls):
-        return {"max_steps": 100000, "grasp_hold_steps": 1}
+        return {"max_steps": 100000}
 
     @classproperty
     def default_reward_config(cls):

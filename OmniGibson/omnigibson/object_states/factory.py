@@ -16,7 +16,7 @@ from omnigibson.object_states import (
     Heated,
     HeatSourceOrSink,
     Inside,
-    Grasped,
+    IsGrasping,
     MaxTemperature,
     NextTo,
     ObjectsInFOVOfRobot,
@@ -36,8 +36,6 @@ from omnigibson.object_states import (
     Touching,
     Under,
     Unfolded,
-    Upright,
-    Dropped,
 )
 from omnigibson.object_states.kinematics_mixin import KinematicsMixin
 from omnigibson.object_states.link_based_state_mixin import LinkBasedStateMixin
@@ -49,7 +47,7 @@ AbilityDependencies = namedtuple("AbilityDependencies", ("states", "requirements
 # Maps ability name to list of Object States and / or Ability Requirements that determine
 # whether the given ability can be instantiated for a requested object
 _ABILITY_DEPENDENCIES = {
-    "robot": AbilityDependencies(states=[Grasped, ObjectsInFOVOfRobot], requirements=[]),
+    "robot": AbilityDependencies(states=[IsGrasping, ObjectsInFOVOfRobot], requirements=[]),
     "attachable": AbilityDependencies(states=[AttachedTo], requirements=[]),
     "particleApplier": AbilityDependencies(states=[ParticleApplier], requirements=[]),
     "particleRemover": AbilityDependencies(states=[ParticleRemover], requirements=[]),
@@ -81,8 +79,6 @@ _DEFAULT_STATE_SET = frozenset(
         Touching,
         Under,
         Covered,
-        Upright,
-        Dropped,
     ]
 )
 
