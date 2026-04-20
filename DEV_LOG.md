@@ -1,5 +1,25 @@
 # SENTINEL-Lite — Dev Log
 
+## 2026-04-20 — `feat/grasp-batch`: multi-env PPO blocked by OG's cuRobo single-scene assertion
+
+Wired SB3 multi-env (`SentinelSB3VectorEnvironment`, `--num-envs N`) into `sentinel.rl.training.ppo_grasp_reset`. The runtime-spawn path trips OG's scene-tiling bug on empty scenes (`decompose_mat` perspective check at `idx != 0`), which is avoided by passing a pre-baked `scene_file`. Collected `grasps_mug_kewbyf.pt` matching the existing `mug_into_bowl_empty_20260417_154117/scene_ep1.json` and wired `--scene-file` through `build_config`.
+
+**Hard blocker hit**: `behavior-1k/OmniGibson/omnigibson/action_primitives/curobo.py:102` has `assert len(og.sim.scenes) == 1` in `CuRoboMotionGenerator.__init__`. Our `GraspDatasetResetter` calls cuRobo on every episode reset; in multi-env (`len(scenes) == 2`) the assertion raises, GraspTask's 20-retry loop exhausts, and reset fails with `Could not reset task`. Same would block any use of cuRobo primitives under vec-env — `training/ppo.py` works with multi-env only because it uses sticky grasping + random joint sampling (no cuRobo at reset).
+
+**Paths to unblock** (deferred — documented here so future me doesn't repeat the audit):
+1. **Port OmniReset's iterative Jacobian DLS IK into the resetter.** `DifferentialIKControllerCfg(ik_method="dls")` doesn't touch `og.sim.scenes`. ~25 iter per reset (still fast). 1-2 day change.
+2. **Patch the upstream assert.** Read the rest of `CuRoboMotionGenerator.__init__` to see if it genuinely requires `scenes[0]` or if the assert is defensive; if defensive, submit a PR.
+3. **Accept single-env (current state).** `num_envs=1` with `--scene-file` trained cleanly on `target_mug` for a 256-step smoke (ep_rew_mean=-1.12 after 2 iters, pipeline end-to-end). Proprio-only MLP doesn't need massive rollout parallelism; main cost is OG physics (~25-30 steps/s in 1 env).
+
+Single-env command for the mug grasp-reset training:
+```
+python -m sentinel.rl.training.ppo_grasp_reset \
+    --category mug --model kewbyf \
+    --target-name target_mug \
+    --scene-file outputs/pipeline_runs/mug_into_bowl_empty_20260417_154117/scene_ep1.json \
+    --num-envs 1 --total-timesteps 200000 --n-steps 256 --batch-size 64
+```
+
 ## 2026-04-19 — `refactor/omnigibson` branch: BEHAVIOR-1K + RLinf → submodules, sentinel/ is now the only owned tree
 
 Large restructure landed on `refactor/omnigibson` over 12 commits. End state: the repo is ~99K tracked LOC (177 files) + two submodules (behavior-1k @ v3.7.2, RLinf @ 5714022) — down from ~3.58M LOC / 19K files of mixed-origin sources sitting at the root.
