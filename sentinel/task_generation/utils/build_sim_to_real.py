@@ -145,7 +145,7 @@ def main():
 
     output = {
         "source": {
-            "avg_specs": "OmniGibson/omnigibson/configs/avg_category_specs.json",
+            "avg_specs": "behavior-1k/OmniGibson/omnigibson/configs/avg_category_specs.json",
             "metadata": "datasets/behavior-1k-assets/objects/<category>/<model>/misc/metadata.json",
         },
         "units": {

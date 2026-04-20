@@ -10,7 +10,7 @@ outputs/*
 outputs/teleop/*
 !outputs/teleop/*.hdf5
 datasets/
-bddl3/bddl/activity_definitions/*
+behavior-1k/bddl3/bddl/activity_definitions/*
 checkpoints/
 RLinf-*/
 RLinf/.venv*/
@@ -19,8 +19,8 @@ Isaac-GR00T/
 .vscode/
 teleop_bridge/SO-ARM100/
 RLinf_local/*Omnireset/
-OmniGibson/appdata/
-OmniGibson/docs/_build/
-OmniGibson/omnigibson.egg-info/
-OmniGibson/.pytest_cache/
-OmniGibson/**/__pycache__/
+behavior-1k/OmniGibson/appdata/
+behavior-1k/OmniGibson/docs/_build/
+behavior-1k/OmniGibson/omnigibson.egg-info/
+behavior-1k/OmniGibson/.pytest_cache/
+behavior-1k/OmniGibson/**/__pycache__/

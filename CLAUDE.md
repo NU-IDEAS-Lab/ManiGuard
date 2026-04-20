@@ -34,12 +34,12 @@ The repository is a monorepo with several major subsystems:
 
 ### LTL Safety System
 
-- Atomic propositions generated from BDDL scope: `OmniGibson/omnigibson/utils/ltl_utils.py` (`AtomicPropositionGenerator`)
-- Safety constraints loaded at task init: `OmniGibson/omnigibson/tasks/behavior_task.py`
+- Atomic propositions generated from BDDL scope: `sentinel/utils/ltl_utils.py` (`AtomicPropositionGenerator`)
+- Safety constraints loaded at task init: `behavior-1k/OmniGibson/omnigibson/tasks/behavior_task.py`
 - `LTLMonitor` converts LTL to LDBA and tracks automaton state per step
 - Per-step LTL info exposed via `info["ltl"]` in env
 - Spot library is optional — if unavailable, safety monitoring is skipped with a warning
-- Task-level constraints: `bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
+- Task-level constraints: `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
 - Scene-level constraints: `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json`
 
 ## Git & Collaboration Workflow
@@ -65,8 +65,8 @@ The repository is a monorepo with several major subsystems:
 ### Testing
 
 ```bash
-pytest OmniGibson/tests/ -v          # OmniGibson tests (includes LTL tests)
-pytest bddl3/tests/                  # BDDL tests
+pytest behavior-1k/OmniGibson/tests/ -v          # OmniGibson tests (includes LTL tests)
+pytest behavior-1k/bddl3/tests/                  # BDDL tests
 pytest RLinf/tests/unit_tests/       # RLinf unit tests
 pytest RLinf/tests/e2e_tests/        # RLinf E2E tests (requires GPU)
 ```

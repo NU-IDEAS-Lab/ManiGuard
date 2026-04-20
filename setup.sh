@@ -236,7 +236,7 @@ fi
 if [ "$BDDL" = true ]; then
     echo "Installing BDDL..."
     [ ! -d "bddl3" ] && { echo "ERROR: bddl directory not found"; exit 1; }
-    pip install -e "$WORKDIR/bddl3"
+    pip install -e "$WORKDIR/behavior-1k/bddl3"
 fi
 
 # Install OmniGibson with Isaac Sim
@@ -307,13 +307,13 @@ if [ "$OMNIGIBSON" = true ]; then
         EXTRAS="[${EXTRAS%,}]"
     fi
 
-    pip install -e "$WORKDIR/OmniGibson$EXTRAS"
+    pip install -e "$WORKDIR/behavior-1k/OmniGibson$EXTRAS"
 
     # Install pre-commit for dev setup
     if [ "$DEV" = true ]; then
         echo "Setting up pre-commit..."
         conda install -c conda-forge pre-commit -y
-        cd "$WORKDIR/OmniGibson"
+        cd "$WORKDIR/behavior-1k/OmniGibson"
         pre-commit install
         cd "$WORKDIR"
     fi
@@ -432,7 +432,7 @@ fi
 if [ "$JOYLO" = true ]; then
     echo "Installing JoyLo..."
     [ ! -d "joylo" ] && { echo "ERROR: joylo directory not found"; exit 1; }
-    pip install -e "$WORKDIR/joylo"
+    pip install -e "$WORKDIR/behavior-1k/joylo"
 fi
 
 # Install Eval
@@ -448,7 +448,7 @@ fi
 if [ "$ASSET_PIPELINE" = true ]; then
     echo "Installing asset pipeline..."
     [ ! -d "asset_pipeline" ] && { echo "ERROR: asset_pipeline directory not found"; exit 1; }
-    pip install -r "$WORKDIR/asset_pipeline/requirements.txt"
+    pip install -r "$WORKDIR/behavior-1k/asset_pipeline/requirements.txt"
 fi
 
 # Install datasets

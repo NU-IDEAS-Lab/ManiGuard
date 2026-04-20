@@ -1,3 +1,19 @@
-exclude = [
-    "joylo"
+# Root ruff config for sentinel-lite.
+# The behavior-1k submodule has its own ruff.toml; exclude it here so we
+# only lint sentinel-owned code from the repo root.
+
+extend-exclude = [
+    "behavior-1k/",
+    "RLinf/",
+    "Isaac-GR00T/",
+    "GR00T-N1.6-DROID/",
+    "RLinf-*/",
+    "Omnireset/",
+    "outputs/",
+    "datasets/",
+    "checkpoints/",
+    "log_dir/",
 ]
+
+line-length = 120
+indent-width = 4
