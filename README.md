@@ -44,8 +44,12 @@ VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
    git submodule update --init --recursive
    ```
 
-2. **Install BEHAVIOR-1K** (creates the `behavior` conda env, installs
-   OmniGibson, bddl3, JoyLo, primitives):
+2. **Install BEHAVIOR-1K + download its dataset.** `setup.sh` both
+   creates the `behavior` conda env (with OmniGibson, bddl3, JoyLo,
+   primitives) and — with `--dataset` — downloads the encrypted
+   BEHAVIOR-1K asset bundle into `behavior-1k/datasets/` (matching
+   upstream's expected layout, which is also OmniGibson's default
+   resolver path — no env var needed afterwards):
 
    ```bash
    cd behavior-1k
@@ -53,13 +57,18 @@ VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
    cd ..
    ```
 
-3. **Point OmniGibson at the dataset**. Place the BEHAVIOR dataset under
-   `./datasets/`, then either:
+   If you keep the dataset somewhere else (shared HPC storage, etc.)
+   set `OMNIGIBSON_DATA_PATH=/abs/path/to/datasets` to override.
+
+3. **Install RLinf** (required for RL training + SFT adapters in
+   `sentinel.rlinf` / `sentinel.openpi`). The RLinf submodule manages
+   its own uv-based virtualenv:
 
    ```bash
-   export OMNIGIBSON_DATA_PATH=$(pwd)/datasets          # recommended
-   # or symlink so OmniGibson's relative path resolver finds it:
-   ln -sfn ../datasets behavior-1k/datasets
+   cd RLinf
+   # Follow RLinf's own install guide — typically something like:
+   uv sync
+   cd ..
    ```
 
 4. **Install sentinel** in the conda env (editable, from repo root):
@@ -67,8 +76,18 @@ VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
    ```bash
    conda activate behavior
    pip install -e .                 # base install
-   pip install -e ".[rl,serve]"    # with RL training + websocket policy server extras
+   pip install -e ".[rl,serve]"    # with RL + websocket policy server extras
    ```
+
+5. **Sentinel-generated benchmark scenes** (our own `scene_ep*.json`
+   + `diagnostics.jsonl` bundles) are distributed separately from the
+   BEHAVIOR asset bundle — see
+   [`sentinel/task_generation/README.md`](sentinel/task_generation/README.md)
+   for how pipelines write them, and the HuggingFace-hosted benchmark
+   release for the frozen versions. (They live under a different root
+   than `behavior-1k/datasets/` on purpose: BEHAVIOR assets are
+   Stanford-licensed and not redistributable, whereas SENTINEL
+   benchmark scenes are ours.)
 
 Importing `sentinel` applies a small set of runtime patches that extend
 OmniGibson with Sentinel-specific object states, BDDL predicates, grasp-goal

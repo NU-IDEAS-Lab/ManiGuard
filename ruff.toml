@@ -8,7 +8,6 @@ extend-exclude = [
     "vla_models/",
     "Omnireset/",
     "outputs/",
-    "datasets/",
     "log_dir/",
 ]
 

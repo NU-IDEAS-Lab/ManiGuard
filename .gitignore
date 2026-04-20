@@ -11,7 +11,7 @@ outputs/teleop/*
 !outputs/teleop/*.hdf5
 sentinel/_version.py
 sentinel-lite.egg-info/
-datasets/
+sentinel_lite.egg-info/
 behavior-1k/bddl3/bddl/activity_definitions/*
 vla_models/
 RLinf/.venv*/

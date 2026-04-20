@@ -80,22 +80,26 @@ SENTINEL-Lite is a Python package built on top of [BEHAVIOR-1K](https://github.c
 # Clone with submodules (or: git submodule update --init --recursive)
 git clone --recursive <repo-url> && cd SENTINEL-Lite
 
-# Install BEHAVIOR-1K (runs upstream's setup.sh from inside the submodule)
+# Install BEHAVIOR-1K + dataset (runs upstream's setup.sh from inside the submodule;
+# --dataset downloads encrypted assets into behavior-1k/datasets/, which matches
+# OmniGibson's default resolver — no env var needed afterwards).
 cd behavior-1k
 ./setup.sh --new-env --omnigibson --bddl --joylo --dataset --eval --primitives
 # Flags: --omnigibson, --bddl, --joylo, --dataset, --eval, --asset-pipeline, --primitives, --dev
 # --omnigibson requires --bddl; --primitives requires --omnigibson
 cd ..
 
-# Point OmniGibson at the dataset (required — OmniGibson's default resolver
-# looks for behavior-1k/datasets, which isn't populated by the submodule).
-export OMNIGIBSON_DATA_PATH=$(pwd)/datasets
-# Alternative: ln -sfn ../datasets behavior-1k/datasets
+# Install RLinf (its own uv venv, separate from the conda env)
+cd RLinf && uv sync && cd ..
 
 # Install sentinel (editable)
 conda activate behavior
 pip install -e .                     # base
 pip install -e ".[rl,serve]"        # with RL + policy-server extras
+
+# (Override the dataset path only if you keep BEHAVIOR assets elsewhere,
+# e.g. HPC shared storage. Default resolves to behavior-1k/datasets/.)
+# export OMNIGIBSON_DATA_PATH=/abs/path/to/datasets
 ```
 
 ### Testing
