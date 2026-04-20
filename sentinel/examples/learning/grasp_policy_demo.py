@@ -277,7 +277,7 @@ def make_env():
     _write_precached_reset_pose(precached_reset_pose_path, robot_start_pos, robot_start_orn)
 
     task_cfg = dict(
-        type="GraspTask",
+        type="SentinelGraspTask",
         obj_name="wineglass_0",
         objects_config=objects_cfg,
         precached_reset_pose_path=precached_reset_pose_path,

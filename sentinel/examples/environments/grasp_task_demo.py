@@ -128,7 +128,7 @@ _precached_reset_pose_path = os.path.join(tempfile.gettempdir(), "og_fetch_reset
 _write_precached_reset_pose(_precached_reset_pose_path)
 
 task_cfg = dict(
-    type="GraspTask",
+    type="SentinelGraspTask",
     obj_name="wineglass_0",
     objects_config=objects_cfg,
     precached_reset_pose_path=_precached_reset_pose_path,
