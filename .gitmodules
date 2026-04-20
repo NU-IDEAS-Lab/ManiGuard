@@ -3,4 +3,4 @@
 	url = https://github.com/StanfordVL/BEHAVIOR-1K.git
 [submodule "RLinf"]
 	path = RLinf
-	url = git@github.com:RLinf/RLinf.git
+	url = https://github.com/RLinf/RLinf.git
