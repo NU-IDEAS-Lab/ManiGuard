@@ -9,6 +9,7 @@ outputs/*
 !outputs/teleop/
 outputs/teleop/*
 !outputs/teleop/*.hdf5
+wandb/
 sentinel/_version.py
 sentinel-lite.egg-info/
 sentinel_lite.egg-info/
