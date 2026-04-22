@@ -35,24 +35,28 @@ from omnigibson.utils.python_utils import classproperty
 # only populated by the AssistiveGrasp / StickyGrasp controllers. Under
 # ``grasping_mode="physical"`` (what the grasp-dataset collector + resetter
 # operate on) it is always empty. We substitute a physics-derived check:
-# "gripper is still in contact with the target AND the target has risen off
-# the initial resting surface". This captures the same semantic intent as AG
-# ("robot is currently holding the object") while remaining valid for
-# physical-friction grasps, and it still blocks the ``launch-and-fly``
-# exploit that the AG check originally guarded against.
-_LIFT_HOLD_THRESHOLD = 0.02  # 2 cm above initial z to count as "lifted"
+# "gripper is still in contact with the target".
+#
+# Previously we also required obj to be ≥2 cm above init_obj_z — a guard
+# against a launch-and-fly exploit on from-scratch grasping. Dropped
+# 2026-04-21: with cached grasp reset, fingers start wrapped around the
+# object, so launch-and-fly isn't available. The 2 cm threshold was instead
+# making ``grasp_reward`` fire on ~0 steps per episode (cached hold doesn't
+# actively lift), killing the dense signal PPO needs. Touching alone is now
+# sufficient for grasping=True.
+_LIFT_HOLD_THRESHOLD = 0.0  # kept for signature compatibility; no longer gates
 
 
 def _is_physically_holding(robot, obj, init_obj_z: float) -> bool:
-    """Return True if the robot is in contact with ``obj`` and ``obj`` has
-    risen at least ``_LIFT_HOLD_THRESHOLD`` above its initial z."""
+    """Return True if the robot is in contact with ``obj``.
+
+    ``init_obj_z`` is retained in the signature for back-compat with existing
+    call sites but is no longer used (see module docstring above for why).
+    """
     try:
-        if not robot.states[Touching].get_value(obj):
-            return False
+        return robot.states[Touching].get_value(obj)
     except Exception:  # noqa: BLE001 — conservative fallback if state unavailable
         return False
-    obj_z = float(obj.get_position_orientation()[0][2])
-    return obj_z > init_obj_z + _LIFT_HOLD_THRESHOLD
 
 
 class InGoalRegion(SuccessCondition):
@@ -223,6 +227,7 @@ class PickAndLiftTask(GraspTask):
         grasp_dataset_path=None,
         grasp_reset_pose_range_b=None,
         grasp_reset_max_retries=5,
+        grasp_reset_mode="cached",
     ):
         self.goal_offset = th.tensor(goal_offset, dtype=th.float32)
         self.success_radius = float(success_radius)
@@ -237,6 +242,7 @@ class PickAndLiftTask(GraspTask):
         self._grasp_dataset_path = grasp_dataset_path
         self._grasp_reset_pose_range_b = grasp_reset_pose_range_b
         self._grasp_reset_max_retries = int(grasp_reset_max_retries)
+        self._grasp_reset_mode = str(grasp_reset_mode)
         self._grasp_resetter = None  # lazy construction (needs env + robot)
 
         super().__init__(
@@ -254,12 +260,17 @@ class PickAndLiftTask(GraspTask):
 
     @classproperty
     def default_reward_config(cls):
+        # collision_penalty zeroed 2026-04-21: scene_ep1's distractors
+        # (distractor_mug_1..4, dest_bowl, support_surface) overlap with some
+        # cached grasp poses, making per-step collision unavoidable. Until we
+        # re-collect with collision-aware sampling, zero the penalty so
+        # grasp_reward + carry_shaping aren't drowned by -1/step collisions.
         return {
             "pregrasp_dist_coeff": 1.0,
             "carry_dist_coeff": 2.0,
             "grasp_reward": 1.0,
             "goal_bonus": 50.0,
-            "collision_penalty": 1.0,
+            "collision_penalty": 0.0,
             "regularization_coef": 0.0,
         }
 
@@ -372,6 +383,7 @@ class PickAndLiftTask(GraspTask):
                 robot=robot,
                 target_obj=target_obj,
                 dataset_path=self._grasp_dataset_path,
+                reset_mode=self._grasp_reset_mode,
                 pose_range_b=self._grasp_reset_pose_range_b,
                 max_retries=self._grasp_reset_max_retries,
             )
