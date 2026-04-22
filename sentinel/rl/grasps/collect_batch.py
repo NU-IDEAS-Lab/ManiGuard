@@ -48,6 +48,18 @@ def parse_args():
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--use-collision-mesh", action="store_true",
                    help="Sample on the collision mesh (coarser) instead of visual.")
+    p.add_argument("--scene-file", type=Path, default=None,
+                   help="Pre-baked OG scene JSON (e.g. a teleop-captured scene). "
+                        "When set, skips the empty-scene + drop-object bootstrap "
+                        "and collects grasps against the target object already "
+                        "present in the saved scene — so the resulting "
+                        "arm_joint_pos values are valid for RL runs that load "
+                        "this same scene_file.")
+    p.add_argument("--target-name-in-scene", type=str, default=None,
+                   help="Name of the target object inside --scene-file (e.g. "
+                        "'target_mug'). Required when --scene-file is set and "
+                        "the scene uses a different naming convention than "
+                        "'target_<category>_<model>'.")
     return p.parse_args()
 
 
@@ -61,6 +73,23 @@ def _parse_targets(raw: list[str]) -> list[tuple[str, str]]:
             raise SystemExit(f"--targets entry has empty field: {s!r}")
         out.append((cat.strip(), mdl.strip()))
     return out
+
+
+def _build_env_config_from_scene(scene_file: Path) -> dict:
+    """Load a pre-baked scene (robot + target + supports already present).
+
+    The scene file must bake in the OSC arm controller — the collector's lift
+    phase drives +Z eef via OSC pose-delta, not joint teleport. (RL training
+    later flips to JointController via sibling .joint.json; collection stays
+    on OSC.)
+    """
+    return dict(
+        env={"action_frequency": 30, "physics_frequency": 300},
+        scene=dict(type="Scene", scene_file=str(scene_file)),
+        robots=[],
+        objects=[],
+        task=dict(type="DummyTask"),
+    )
 
 
 def _build_env_config() -> dict:
@@ -131,7 +160,15 @@ def _remove_target(env, obj) -> None:
 
 
 def _run_one(env, category: str, model: str, out_dir: Path, args) -> tuple[int, float]:
-    """Sample + validate grasps for one target; return (num_valid, elapsed_s)."""
+    """Sample + validate grasps for one target; return (num_valid, elapsed_s).
+
+    Two modes:
+      - ``--scene-file`` unset (default): spawn target on the support table and
+        settle under gravity. Cleans up after collection.
+      - ``--scene-file`` set: target is already in the loaded scene. Look it up
+        by name (``--target-name-in-scene`` or ``target_<cat>_<model>`` fallback)
+        and reuse as-is — no spawn, no settle, no removal.
+    """
     import omnigibson as og
     import torch as th
     from sentinel.rl.grasps.collector import (
@@ -143,16 +180,32 @@ def _run_one(env, category: str, model: str, out_dir: Path, args) -> tuple[int, 
     robot = env.robots[0]
     initial_robot_joints = robot.get_joint_positions().clone()
 
-    drop_z = args.table_top_z + 0.12
-    obj = _spawn_target(env, category, model, tuple(args.object_xy), drop_z)
-    spawn_pos = obj.get_position_orientation()[0]
-    print(f"  spawned at {spawn_pos.tolist()}", flush=True)
+    scene_mode = args.scene_file is not None
+    if scene_mode:
+        tgt_name = args.target_name_in_scene or f"target_{category}_{model}"
+        obj = env.scene.object_registry("name", tgt_name)
+        if obj is None:
+            names = sorted(
+                n for n in env.scene.object_registry.get_ids()
+                if not n.startswith("robot_")
+            )
+            raise RuntimeError(
+                f"Target {tgt_name!r} not found in {args.scene_file}. "
+                f"Scene objects: {names}"
+            )
+        scene_pos = obj.get_position_orientation()[0]
+        print(f"  using scene-file target {tgt_name!r} at {scene_pos.tolist()}", flush=True)
+    else:
+        drop_z = args.table_top_z + 0.12
+        obj = _spawn_target(env, category, model, tuple(args.object_xy), drop_z)
+        spawn_pos = obj.get_position_orientation()[0]
+        print(f"  spawned at {spawn_pos.tolist()}", flush=True)
 
-    # Let gravity seat the object on the table.
-    for _ in range(args.settle_steps):
-        og.sim.step()
-    settled_pos = obj.get_position_orientation()[0]
-    print(f"  settled at {settled_pos.tolist()}", flush=True)
+        # Let gravity seat the object on the table.
+        for _ in range(args.settle_steps):
+            og.sim.step()
+        settled_pos = obj.get_position_orientation()[0]
+        print(f"  settled at {settled_pos.tolist()}", flush=True)
 
     try:
         mesh = mesh_from_og_object(obj, use_visual=not args.use_collision_mesh)
@@ -190,8 +243,11 @@ def _run_one(env, category: str, model: str, out_dir: Path, args) -> tuple[int, 
 
         return len(valid), dt
     finally:
-        # Always clean up, so next target starts from the known robot+table state.
-        _remove_target(env, obj)
+        # Scene-file mode: the target is part of the persistent scene, don't
+        # remove it. Still reset the robot so the next target (if any) starts
+        # from a known arm pose.
+        if not scene_mode:
+            _remove_target(env, obj)
         robot.set_joint_positions(initial_robot_joints)
         og.sim.step()
 
@@ -202,6 +258,16 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     targets = _parse_targets(args.targets)
 
+    if args.scene_file is not None:
+        if not args.scene_file.exists():
+            raise SystemExit(f"--scene-file does not exist: {args.scene_file}")
+        if len(targets) != 1 and args.target_name_in_scene is not None:
+            raise SystemExit(
+                "--target-name-in-scene only makes sense with a single --targets "
+                "entry (the collector loops by category:model but the scene "
+                "name is a single string)."
+            )
+
     # OG boot.
     from omnigibson.macros import gm
     gm.ENABLE_OBJECT_STATES = True
@@ -211,8 +277,14 @@ def main():
 
     import omnigibson as og
 
-    print(f"[{time.strftime('%H:%M:%S')}] Booting OG (empty scene + Franka + table)...", flush=True)
-    env = og.Environment(configs=_build_env_config())
+    if args.scene_file is not None:
+        print(f"[{time.strftime('%H:%M:%S')}] Booting OG from scene-file "
+              f"{args.scene_file}...", flush=True)
+        env = og.Environment(configs=_build_env_config_from_scene(args.scene_file))
+    else:
+        print(f"[{time.strftime('%H:%M:%S')}] Booting OG (empty scene + Franka + table)...",
+              flush=True)
+        env = og.Environment(configs=_build_env_config())
     env.reset()
     robot = env.robots[0]
     print(f"  robot: {robot.name}  grasping_mode={robot.grasping_mode}", flush=True)

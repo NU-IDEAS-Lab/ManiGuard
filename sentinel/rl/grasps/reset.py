@@ -52,11 +52,38 @@ class GraspDatasetResetter:
         robot,
         target_obj,
         dataset_path: Path | str,
+        reset_mode: str = "cached",
         pose_range_b: Dict[str, Tuple[float, float]] | None = None,
         max_retries: int = 5,
         zero_gravity_settle_steps: int = 5,
         post_gravity_settle_steps: int = 3,
     ):
+        """
+        Args:
+            reset_mode: either ``"cached"`` or ``"ik"``.
+
+                - ``"cached"`` (default): use the arm joint angles stored at
+                  collection time (``grasps.pt::arm_joint_pos``) directly.
+                  Skips cuRobo entirely, which (a) removes the ~100-500 ms
+                  online IK cost per reset and (b) sidesteps OG's
+                  ``assert len(og.sim.scenes) == 1`` in
+                  ``CuRoboMotionGenerator.__init__`` — so this mode is the
+                  one that unblocks ``num_envs > 1``. Requires the target
+                  object to be at (approximately) the same world pose at
+                  reset time as it was at collection time; our current
+                  ``_restore_target`` always resets to the scene-init pose,
+                  so cached joints stay valid across episodes.
+                - ``"ik"``: compose ``T_gripper_world = T_obj_world @ T_rel``
+                  freshly each reset and run cuRobo IK. Supports
+                  ``pose_range_b`` per-reset randomization (the saved
+                  ``arm_joint_pos`` is only valid for the original object
+                  pose; any perturbation requires a re-IK). Slower per
+                  reset + single-env only, but necessary for
+                  OmniReset-style generalization training.
+            pose_range_b: body-frame ±(x, y, z, roll, pitch, yaw) perturbation
+                applied per reset. Only meaningful under ``reset_mode="ik"``;
+                ``"cached"`` mode rejects any non-zero range.
+        """
         self._env = env
         self._robot = robot
         self._target_obj = target_obj
@@ -67,6 +94,10 @@ class GraspDatasetResetter:
         # PhysX pushing the object away. Gravity is re-enabled before return.
         self._zero_gravity_settle_steps = int(zero_gravity_settle_steps)
         self._post_gravity_settle_steps = int(post_gravity_settle_steps)
+
+        if reset_mode not in {"cached", "ik"}:
+            raise ValueError(f"reset_mode must be 'cached' or 'ik', got {reset_mode!r}")
+        self._reset_mode = reset_mode
 
         self._arm = robot.default_arm
         self._arm_control_idx = robot.arm_control_idx[self._arm]
@@ -79,9 +110,15 @@ class GraspDatasetResetter:
         self._ranges = np.asarray(
             [pose_range_b.get(k, (0.0, 0.0)) for k in keys], dtype=np.float64
         )
+        if reset_mode == "cached" and np.any(self._ranges != 0.0):
+            raise ValueError(
+                "reset_mode='cached' is incompatible with pose_range_b "
+                "(per-reset perturbation requires fresh IK). "
+                "Switch to reset_mode='ik' to use pose_range_b."
+            )
 
         self._load_grasps()
-        self._primitives = None  # lazy cuRobo
+        self._primitives = None  # lazy cuRobo (only constructed in ``ik`` mode)
 
     # ------------------------------------------------------------------ load
 
@@ -92,6 +129,17 @@ class GraspDatasetResetter:
         self._rel_positions = data["rel_position"].float()  # (N, 3)
         self._rel_orientations_xyzw = data["rel_orientation_xyzw"].float()  # (N, 4)
         self._gripper_qpos = data["gripper_qpos"].float()  # (N, F)
+        # Arm joints at collection time — required for cached-mode reset.
+        # Older datasets without this key fall back to ik mode only.
+        if "arm_joint_pos" in data:
+            self._arm_joint_pos = data["arm_joint_pos"].float()  # (N, J)
+        else:
+            self._arm_joint_pos = None
+            if self._reset_mode == "cached":
+                raise ValueError(
+                    f"Dataset {self._dataset_path} has no 'arm_joint_pos' — "
+                    f"re-run collector or switch to reset_mode='ik'."
+                )
         self._num_grasps = int(self._rel_positions.shape[0])
         if self._num_grasps == 0:
             raise ValueError(f"Grasp dataset is empty: {self._dataset_path}")
@@ -126,7 +174,11 @@ class GraspDatasetResetter:
         n_try = min(self._max_retries, self._num_grasps)
         indices = rng.permutation(self._num_grasps)[:n_try]
 
-        self._ensure_curobo()
+        # Only "ik" mode needs cuRobo; "cached" mode uses saved joints directly
+        # and therefore works under multi-env (``num_envs > 1``) where cuRobo's
+        # ``assert len(og.sim.scenes) == 1`` would otherwise fail.
+        if self._reset_mode == "ik":
+            self._ensure_curobo()
         import omnigibson as og
         from omnigibson.object_states import Touching
 
@@ -162,22 +214,30 @@ class GraspDatasetResetter:
             # grasp target stays consistent across retries.
             _restore_target()
 
-            # Compose world eef target: T_eef_world = T_obj_world @ T_rel
-            eef_pos, eef_quat = _compose_pose(tgt_pos, tgt_quat, rel_pos, rel_quat)
+            if self._reset_mode == "cached":
+                # Fast path: use the arm joint angles the collector saved for
+                # this exact grasp — valid because ``_restore_target`` puts
+                # the object back at its scene-init pose (same pose as at
+                # collection time). Zero IK cost per reset, no cuRobo ref,
+                # and therefore works under multi-env.
+                joint_pos = self._arm_joint_pos[idx]
+            else:
+                # Compose world eef target: T_eef_world = T_obj_world @ T_rel
+                eef_pos, eef_quat = _compose_pose(tgt_pos, tgt_quat, rel_pos, rel_quat)
 
-            # Optional body-frame perturbation.
-            if np.any(self._ranges != 0.0):
-                samples = rng.uniform(self._ranges[:, 0], self._ranges[:, 1])
-                perturb_quat = _euler_to_quat_xyzw(
-                    float(samples[3]), float(samples[4]), float(samples[5])
-                )
-                eef_pos, eef_quat = _compose_pose(
-                    eef_pos, eef_quat, samples[:3].astype(np.float64), perturb_quat
-                )
+                # Optional body-frame perturbation (``reset_mode='ik'`` only).
+                if np.any(self._ranges != 0.0):
+                    samples = rng.uniform(self._ranges[:, 0], self._ranges[:, 1])
+                    perturb_quat = _euler_to_quat_xyzw(
+                        float(samples[3]), float(samples[4]), float(samples[5])
+                    )
+                    eef_pos, eef_quat = _compose_pose(
+                        eef_pos, eef_quat, samples[:3].astype(np.float64), perturb_quat
+                    )
 
-            joint_pos = self._curobo_ik(eef_pos, eef_quat)
-            if joint_pos is None:
-                continue
+                joint_pos = self._curobo_ik(eef_pos, eef_quat)
+                if joint_pos is None:
+                    continue
 
             # Zero-gravity teleport + settle so tiny finger/target overlap
             # is resolved without the object flying off.
