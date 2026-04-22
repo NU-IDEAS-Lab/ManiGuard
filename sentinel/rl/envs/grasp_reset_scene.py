@@ -12,8 +12,77 @@ PPO training entry (``training.ppo_grasp_reset``).
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Optional
+
+
+# Arm controller specs. Only ``name`` is supplied — OG's
+# ``_generate_controller_config`` merges with the robot's defaults
+# (``_default_arm_joint_controller_configs`` gives
+# motor_type="position", use_delta_commands=True, use_impedances=False).
+#
+# JointController bypasses the operational-space Jacobian inversion entirely,
+# sidestepping the ``numpy.linalg.LinAlgError: Matrix is singular`` crash OSC
+# hits when PPO exploration drives the arm into near-singular configurations
+# (fully extended elbow, wrist lock). Default arm controller flipped to joint
+# on 2026-04-21 after the 49k-step crash.
+#
+# ``command_output_limits`` override: JointController's default output range
+# in delta mode is the FULL joint-position limit (±~2.9 rad for Franka) — so
+# a PPO sample at std≈1 with ``action_normalize=True`` saturates to ±2.9 rad
+# per 1/30 s step, whipping the arm and dropping the mug instantly. We clamp
+# to ±0.05 rad/step per joint so each step's motion is on the order of the
+# OSC default (±0.2 m, ±0.5 rad pose delta) in joint-space terms.
+_JOINT_ARM_CTRL = {
+    "name": "JointController",
+    "command_output_limits": (-0.05, 0.05),
+}
+_OSC_ARM_CTRL = {"name": "OperationalSpaceController"}
+
+
+def _patch_scene_for_joint_controller(scene_file: Path) -> Path:
+    """Produce a sibling scene JSON with arm_0 swapped to JointController.
+
+    Scene files bake ``controller_config`` into ``objects_info.init_info`` at
+    save time, so loading the unmodified file yields an OSC-controlled arm
+    regardless of what we pass via env config. We rewrite out-of-band (leaves
+    the original snapshot untouched) and cache the result as a sibling file,
+    refreshed whenever the source is newer.
+
+    Also clears the per-controller goal state: OSC's ``target_ori_mat`` goal
+    shape won't deserialize into JointController, so we reset the saved
+    ``controllers.arm_0`` entry to ``goal_is_valid=False, goal=None``.
+    """
+    patched = scene_file.with_suffix(".joint.json")
+    if patched.exists() and patched.stat().st_mtime >= scene_file.stat().st_mtime:
+        return patched
+    data = json.loads(scene_file.read_text())
+
+    init_info = data.get("objects_info", {}).get("init_info", {})
+    swapped = 0
+    for obj_key, info in init_info.items():
+        if not obj_key.startswith("robot_"):
+            continue
+        ctrl_cfg = info.get("args", {}).get("controller_config", {})
+        if "arm_0" in ctrl_cfg:
+            ctrl_cfg["arm_0"] = dict(_JOINT_ARM_CTRL)
+            swapped += 1
+    if swapped == 0:
+        raise RuntimeError(
+            f"{scene_file}: no robot_* entry with controller_config.arm_0 found"
+        )
+
+    reg = data.get("state", {}).get("registry", {}).get("object_registry", {})
+    for obj_key, obj_state in reg.items():
+        if not obj_key.startswith("robot_"):
+            continue
+        controllers = obj_state.get("controllers")
+        if isinstance(controllers, dict) and "arm_0" in controllers:
+            controllers["arm_0"] = {"goal_is_valid": False, "goal": None}
+
+    patched.write_text(json.dumps(data))
+    return patched
 
 
 def build_config(
@@ -37,6 +106,8 @@ def build_config(
     table_position: tuple[float, float, float] = (0.8, 0.0, 0.41),
     target_position: tuple[float, float, float] = (0.7, 0.0, 0.87),
     grasp_reset_pose_range_b: Optional[dict] = None,
+    grasp_reset_mode: str = "cached",
+    arm_controller: str = "joint",
 ) -> dict:
     """Assemble the OG Environment config dict for the grasp-reset setup.
 
@@ -66,8 +137,21 @@ def build_config(
         table_*, target_position: scene geometry — match the defaults used at
             grasp-collection time so IK of saved grasps stays reachable.
         grasp_reset_pose_range_b: optional per-reset body-frame perturbation
-            forwarded to the ``GraspDatasetResetter``.
+            forwarded to the ``GraspDatasetResetter``. Only meaningful with
+            ``grasp_reset_mode="ik"``.
+        grasp_reset_mode: ``"cached"`` (default, skips online cuRobo IK and
+            therefore supports ``num_envs > 1``) or ``"ik"`` (full online
+            cuRobo IK, required for per-reset pose randomization).
+        arm_controller: ``"joint"`` (default) uses JointController
+            (position / delta / no impedances) — no Jacobian inversion, so
+            PPO can't crash the sim on singular arm configs. ``"osc"`` uses
+            OperationalSpaceController for comparison / legacy runs; note
+            this is fragile under RL exploration (see 2026-04-21 crash).
     """
+    if arm_controller not in ("joint", "osc"):
+        raise ValueError(f"arm_controller must be 'joint' or 'osc', got {arm_controller!r}")
+    arm_ctrl_cfg = _JOINT_ARM_CTRL if arm_controller == "joint" else _OSC_ARM_CTRL
+
     if obs_modalities is None:
         obs_modalities = ["proprio"]
 
@@ -87,7 +171,12 @@ def build_config(
     #    this keeps ``num_envs=1`` working cleanly but still breaks tiling at
     #    ``num_envs >= 2``.
     if scene_file is not None:
-        scene_cfg = {"type": "Scene", "scene_file": str(scene_file)}
+        # When using JointController, rewrite the scene's baked-in
+        # controller_config to a sibling file (no-op if already cached).
+        scene_path = Path(scene_file)
+        if arm_controller == "joint":
+            scene_path = _patch_scene_for_joint_controller(scene_path)
+        scene_cfg = {"type": "Scene", "scene_file": str(scene_path)}
         robots_cfg: list = []
         objects_config: list = []
     else:
@@ -103,7 +192,7 @@ def build_config(
             position=[0.0, 0.0, 0.0],
             orientation=[0.0, 0.0, 0.0, 1.0],
             controller_config={
-                "arm_0": {"name": "OperationalSpaceController"},
+                "arm_0": dict(arm_ctrl_cfg),
                 "gripper_0": {"name": "MultiFingerGripperController"},
             },
         )]
@@ -147,6 +236,7 @@ def build_config(
             termination_config={"max_steps": max_steps},
             grasp_dataset_path=str(grasp_dataset_path),
             grasp_reset_pose_range_b=grasp_reset_pose_range_b,
+            grasp_reset_mode=grasp_reset_mode,
         ),
     )
 
