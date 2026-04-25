@@ -24,7 +24,7 @@ REP_TASKS = {
     "table": REP_ROOT / "table" / "task_0046",
     "liquid_transport": REP_ROOT / "liquid_transport" / "task_0020",
     "stack_same": REP_ROOT / "stack_same" / "task_0002",
-    "lid_transport_liquid": REPO_ROOT / "outputs" / "benchmark_base_task_sets_reviewed" / "final_unique_accepted_completion_v1" / "lid_transport_liquid" / "task_0000",
+    "lid_transport_liquid": REPO_ROOT / "outputs" / "benchmark_base_task_sets_reviewed" / "final_unique_accepted" / "lid_transport_liquid" / "task_0000",
 }
 ENV_ROOT = REPO_ROOT / "outputs" / "benchmark_base_task_sets_reviewed" / "final_accepted"
 
@@ -51,7 +51,7 @@ def test_load_task_bundle_on_representatives(family: str) -> None:
     assert bundle.family == family
     assert isinstance(bundle.prompt, str) and bundle.prompt
     assert isinstance(bundle.task_roles, dict) and bundle.task_roles
-    assert isinstance(bundle.diagnostics.get("completion_spec"), dict)
+    assert isinstance(bundle.diagnostics.get("goal_conditions"), (list, dict))
 
 
 def test_list_generation_specs_object_emits_model_and_appearance() -> None:

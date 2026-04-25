@@ -11,8 +11,8 @@ from pathlib import Path
 import re
 from typing import Any, Iterable, Sequence
 
-from sentinel.data.completion_semantics import build_prompt as build_effective_prompt
 from sentinel.data.trim_scene_to_room import trim_scene_info_to_room
+from sentinel.envs.registry import build_prompt as build_effective_prompt
 from sentinel.envs.perturbation_runtime import apply_runtime_perturbations
 
 
@@ -327,7 +327,17 @@ def _runtime_target_name(diagnostics: dict[str, Any]) -> str | None:
 
 
 def _expected_prompt(bundle: ValidationBundle) -> str:
-    return build_effective_prompt(bundle.diagnostics, bundle.scene_info)
+    prompt = bundle.diagnostics.get("prompt")
+    if isinstance(prompt, str) and prompt.strip():
+        return prompt
+    selection = bundle.diagnostics.get("selection") or {}
+    target_synset = (
+        selection.get("target_synset")
+        or selection.get("food_synset")
+        or selection.get("container_synset")
+        or ""
+    )
+    return build_effective_prompt(str(target_synset), _support_name(bundle.diagnostics))
 
 
 def _saved_gate_summary(bundle: ValidationBundle) -> dict[str, Any]:

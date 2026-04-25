@@ -19,7 +19,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Iterable
 
-from sentinel.data.completion_semantics import derive_completion_spec, enrich_task_semantics, should_preserve_existing_prompt
 from sentinel.envs.registry import build_runtime_task_metadata
 from sentinel.envs.frozen_task_runtime import (
     DEFAULT_REVIEW_CAMERA_NAMES,
@@ -38,7 +37,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ACTIVITY_ROOT = REPO_ROOT / "bddl3" / "bddl" / "activity_definitions"
 
 try:
-    from omnigibson.utils.bddl_generator import _pick_model_for_synset, _synset_to_category, get_lid_container_pairs
+    from sentinel.utils.bddl_generator import _pick_model_for_synset, _synset_to_category, get_lid_container_pairs
 except Exception:  # pragma: no cover - import path depends on repo state
     _pick_model_for_synset = None
     _synset_to_category = None
@@ -146,18 +145,95 @@ def _support_label(diagnostics: dict[str, Any], scene_info: dict[str, Any]) -> s
     )
 
 
+def _anchor_side_from_diagnostics(diagnostics: dict[str, Any]) -> str:
+    spec = diagnostics.get("completion_spec")
+    if isinstance(spec, dict):
+        side = str(spec.get("anchor_side") or "").strip()
+        if side:
+            return side
+    return "left"
+
+
+def _should_preserve_existing_prompt(diagnostics: dict[str, Any]) -> bool:
+    variant_type = str(diagnostics.get("variant_type") or "")
+    if variant_type == "semantic_instruction_variant":
+        return True
+    perturbation = diagnostics.get("perturbation")
+    if isinstance(perturbation, dict) and str(perturbation.get("variant_type") or "") == "semantic_instruction_variant":
+        return True
+    return False
+
+
+def _build_canonical_prompt(
+    family: str,
+    scene_info: dict[str, Any],
+    diagnostics: dict[str, Any],
+    task_roles: dict[str, Any],
+) -> str:
+    resolved_family = canonicalize_family(family)
+    selection = diagnostics.get("selection", {})
+    if resolved_family == "table":
+        target_label = _label_from_synset(str(selection.get("target_synset", "")), "object")
+        support_name = _support_label(diagnostics, scene_info)
+        side = _anchor_side_from_diagnostics(diagnostics)
+        return (
+            f"Pick up the {target_label} on the {support_name} and place it on the clear area "
+            f"on the {side} side of the object pack relative to the robot."
+        )
+    if resolved_family == "liquid_transport":
+        target_label = _label_from_synset(str(selection.get("target_synset", "")), "container")
+        support_name = _support_label(diagnostics, scene_info)
+        side = _anchor_side_from_diagnostics(diagnostics)
+        return (
+            f"Pick up the filled {target_label} on the {support_name} and place it on the clear area "
+            f"on the {side} side of the object pack relative to the robot."
+        )
+    if resolved_family == "stack_same":
+        target_label = _label_from_synset(str(selection.get("target_synset", "")), "object")
+        return f"Pick up the bottom {target_label} from the stack and lift it upward."
+    if resolved_family == "stack_flat":
+        return "Pick up the flat object from under the stack and lift it upward."
+    if resolved_family == "transfer":
+        food_label = _label_from_synset(str(selection.get("food_synset", "")), "food")
+        source_label = _label_from_synset(str(selection.get("source_synset", "")), "source")
+        dest_label = _label_from_synset(str(selection.get("dest_synset", "")), "destination")
+        return f"Transfer the {food_label} from the {source_label} to the {dest_label}."
+    if resolved_family == "lid_transport_food":
+        container_label = _label_from_synset(str(selection.get("container_synset", "")), "container")
+        return f"Place the lid on the {container_label}, then lift the {container_label} upward."
+    if resolved_family == "lid_transport_liquid":
+        container_label = _label_from_synset(str(selection.get("container_synset", "")), "container")
+        return f"Place the lid on the filled {container_label}, then lift the filled {container_label} upward."
+    raise ValueError(f"Unsupported family for prompt build: {resolved_family}")
+
+
+def _refresh_prompt_and_roles(
+    scene_info: dict[str, Any],
+    diagnostics: dict[str, Any],
+    *,
+    family: str,
+    task_roles: dict[str, Any],
+    preserve_existing_prompt: bool,
+) -> tuple[str, dict[str, Any]]:
+    roles = infer_task_roles(family, scene_info, diagnostics)
+    if task_roles:
+        merged = copy.deepcopy(task_roles)
+        merged.update({key: value for key, value in roles.items() if value})
+        roles = merged
+    prompt = str(diagnostics.get("prompt") or "").strip() if preserve_existing_prompt else ""
+    if not prompt:
+        prompt = _build_canonical_prompt(family, scene_info, diagnostics, roles)
+    diagnostics["prompt"] = prompt
+    diagnostics["task_roles"] = copy.deepcopy(roles)
+    return prompt, roles
+
+
 def _generic_pickup_prompt_variants(canonical: str, diagnostics: dict[str, Any], scene_info: dict[str, Any]) -> list[str]:
     selection = diagnostics.get("selection", {})
     target = _label_from_synset(str(selection.get("target_synset", "")), "object")
     support = _support_label(diagnostics, scene_info)
     pipeline = str(diagnostics.get("family") or diagnostics.get("pipeline", ""))
-    side = "left"
-    if pipeline in {"table", "liquid_transport"}:
-        try:
-            spec = derive_completion_spec(scene_info, diagnostics, family=pipeline)
-            side = str(spec.get("anchor_side") or "left")
-        except Exception:
-            side = "left"
+    side = _anchor_side_from_diagnostics(diagnostics)
     if pipeline == "table":
         return [
             canonical,
@@ -715,12 +791,12 @@ def load_task_bundle(task_dir: str | Path, *, family: str | None = None, activit
     resolved_family = canonicalize_family(family or diagnostics.get("pipeline") or task_path.parent.name)
     diagnostics["family"] = resolved_family
     task_roles = infer_task_roles(resolved_family, scene_info, diagnostics)
-    prompt, completion_spec, task_roles = enrich_task_semantics(
+    prompt, task_roles = _refresh_prompt_and_roles(
         scene_info,
         diagnostics,
         family=resolved_family,
         task_roles=task_roles,
-        preserve_existing_prompt=should_preserve_existing_prompt(diagnostics),
+        preserve_existing_prompt=_should_preserve_existing_prompt(diagnostics),
     )
     inst_to_name = _derive_inst_to_name(
         scene_info,
@@ -730,7 +806,6 @@ def load_task_bundle(task_dir: str | Path, *, family: str | None = None, activit
     _task_metadata(scene_info)["inst_to_name"] = dict(inst_to_name)
     _task_metadata(scene_info)["roles"] = copy.deepcopy(task_roles)
     _task_metadata(scene_info)["prompt"] = prompt
-    _task_metadata(scene_info)["completion_spec"] = copy.deepcopy(completion_spec)
     return TaskBundle(
         task_dir=task_path,
         family=resolved_family,
@@ -838,12 +913,12 @@ def _update_bundle_metadata(
             entry["category"] = args["category"]
         if "model" in args:
             entry["model"] = args["model"]
-    prompt, completion_spec, roles = enrich_task_semantics(
+    prompt, roles = _refresh_prompt_and_roles(
         bundle.scene_info,
         bundle.diagnostics,
         family=bundle.family,
         task_roles=bundle.task_roles,
-        preserve_existing_prompt=should_preserve_existing_prompt(bundle.diagnostics),
+        preserve_existing_prompt=_should_preserve_existing_prompt(bundle.diagnostics),
     )
     bundle.task_roles = copy.deepcopy(roles)
     bundle.prompt = prompt
@@ -861,7 +936,6 @@ def _update_bundle_metadata(
     task_metadata["prompt"] = bundle.prompt
     task_metadata["roles"] = copy.deepcopy(bundle.task_roles)
     task_metadata["inst_to_name"] = copy.deepcopy(bundle.inst_to_name)
-    task_metadata["completion_spec"] = copy.deepcopy(completion_spec)
     task_metadata["perturbation"] = {
         "variant_type": variant_type,
         "variant_id": variant_id,
@@ -908,7 +982,7 @@ def _object_extent_xy(catalog: dict[str, Any], category: str, model: str | None)
 
 
 def _load_footprint_catalog() -> dict[str, Any]:
-    path = REPO_ROOT / "OmniGibson" / "omnigibson" / "task_generation" / "utils" / "object_footprints.json"
+    path = REPO_ROOT / "sentinel" / "task_generation" / "utils" / "object_footprints.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -918,7 +992,7 @@ def _load_lid_container_pairs_local() -> dict[str, dict[str, str]]:
             return dict(get_lid_container_pairs())
         except Exception:
             pass
-    path = REPO_ROOT / "OmniGibson" / "omnigibson" / "task_generation" / "utils" / "lid_container_pairs.json"
+    path = REPO_ROOT / "sentinel" / "task_generation" / "utils" / "lid_container_pairs.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -2614,12 +2688,12 @@ def _refresh_bundle_artifacts(bundle: TaskBundle, output_dir: Path, *, materiali
         task_roles=copy.deepcopy(saved_diag.get("task_roles") or bundle.task_roles),
         inst_to_name=copy.deepcopy(bundle.inst_to_name),
     )
-    prompt, completion_spec, task_roles = enrich_task_semantics(
+    prompt, task_roles = _refresh_prompt_and_roles(
         refreshed.scene_info,
         refreshed.diagnostics,
         family=refreshed.family,
         task_roles=refreshed.task_roles,
-        preserve_existing_prompt=should_preserve_existing_prompt(refreshed.diagnostics),
+        preserve_existing_prompt=_should_preserve_existing_prompt(refreshed.diagnostics),
     )
     refreshed.prompt = prompt
     refreshed.task_roles = copy.deepcopy(task_roles)
@@ -2628,7 +2702,6 @@ def _refresh_bundle_artifacts(bundle: TaskBundle, output_dir: Path, *, materiali
     task_metadata["prompt"] = refreshed.prompt
     task_metadata["roles"] = copy.deepcopy(refreshed.task_roles)
     task_metadata["inst_to_name"] = copy.deepcopy(refreshed.inst_to_name)
-    task_metadata["completion_spec"] = copy.deepcopy(completion_spec)
     if materialized_online:
         perturbation = dict(task_metadata.get("perturbation") or refreshed.diagnostics.get("perturbation") or {})
         if perturbation:
