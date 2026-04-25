@@ -18,11 +18,59 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
 
 STRUCTURAL_CATEGORIES = {"walls", "floors", "ceilings", "door", "window"}
+
+
+def trim_scene_info_to_room(scene_info: dict, room: str, *, keep_robot: bool = True) -> tuple[dict, dict]:
+    """Return a trimmed copy of ``scene_info`` that keeps only one room.
+
+    This is the in-memory variant of ``trim_scene`` and is intended for
+    lightweight validation / runtime prep where we do not want to write an
+    intermediate scene file to disk.
+    """
+    trimmed = copy.deepcopy(scene_info)
+    init = trimmed.get("objects_info", {}).get("init_info", {})
+    state_reg = trimmed.get("state", {}).get("registry", {}).setdefault("object_registry", {})
+
+    keep, drop = [], []
+    for name, info in list(init.items()):
+        cat = info.get("args", {}).get("category", "")
+        rooms = info.get("args", {}).get("in_rooms", [])
+        cls_mod = info.get("class_module", "")
+        is_robot = "robot" in cls_mod.lower()
+
+        if is_robot:
+            if keep_robot:
+                info["args"].setdefault("in_rooms", [])
+                if room not in info["args"]["in_rooms"]:
+                    info["args"]["in_rooms"].append(room)
+                keep.append(name)
+            else:
+                drop.append(name)
+        elif rooms and room in rooms:
+            keep.append(name)
+        elif rooms and room not in rooms:
+            drop.append(name)
+        elif cat and cat not in STRUCTURAL_CATEGORIES:
+            info["args"]["in_rooms"] = [room]
+            keep.append(name)
+        else:
+            drop.append(name)
+
+    for name in drop:
+        init.pop(name, None)
+        state_reg.pop(name, None)
+
+    return trimmed, {
+        "room": room,
+        "kept": len(keep),
+        "dropped": len(drop),
+    }
 
 
 def trim_scene(scene_dir: Path, dry_run: bool = False) -> dict:
@@ -41,45 +89,7 @@ def trim_scene(scene_dir: Path, dry_run: bool = False) -> dict:
     scene_class = scene.get("init_info", {}).get("class_name", "")
     if scene_class != "InteractiveTraversableScene":
         return {"status": "skip", "reason": f"class={scene_class}, not InteractiveTraversableScene"}
-
-    # After trim, eval loads as plain Scene (no room filter), so we
-    # don't need to assign in_rooms. Just keep target-room objects,
-    # task objects (empty in_rooms = pipeline-spawned), and robot;
-    # drop everything from other rooms.
-    init = scene.get("objects_info", {}).get("init_info", {})
-    state_reg = scene.get("state", {}).get("registry", {}).get("object_registry", {})
-
-    keep, drop = [], []
-    for name, info in list(init.items()):
-        cat = info.get("args", {}).get("category", "")
-        rooms = info.get("args", {}).get("in_rooms", [])
-        cls_mod = info.get("class_module", "")
-        is_robot = "robot" in cls_mod.lower()
-
-        if is_robot:
-            # Robot needs in_rooms for InteractiveTraversableScene's
-            # room filter when include_robots=True.
-            info["args"].setdefault("in_rooms", [])
-            if room not in info["args"]["in_rooms"]:
-                info["args"]["in_rooms"].append(room)
-            keep.append(name)
-        elif rooms and room in rooms:
-            keep.append(name)
-        elif rooms and room not in rooms:
-            drop.append(name)
-        elif cat and cat not in STRUCTURAL_CATEGORIES:
-            # Task object (pipeline-spawned, empty in_rooms). Assign
-            # the target room so InteractiveTraversableScene's room
-            # filter keeps them.
-            info["args"]["in_rooms"] = [room]
-            keep.append(name)
-        else:
-            # Structural object from unknown room — drop.
-            drop.append(name)
-
-    for name in drop:
-        init.pop(name, None)
-        state_reg.pop(name, None)
+    scene, trim_stats = trim_scene_info_to_room(scene, room, keep_robot=True)
 
     if not dry_run:
         scene_file.write_text(json.dumps(scene, indent=2), encoding="utf-8")
@@ -87,8 +97,8 @@ def trim_scene(scene_dir: Path, dry_run: bool = False) -> dict:
     return {
         "status": "trimmed",
         "room": room,
-        "kept": len(keep),
-        "dropped": len(drop),
+        "kept": trim_stats["kept"],
+        "dropped": trim_stats["dropped"],
     }
 
 
