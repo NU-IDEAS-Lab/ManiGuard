@@ -32,9 +32,35 @@ from sentinel.envs.frozen_task_runtime import (
     save_scene_snapshot,
     step_idle,
 )
+from sentinel.utils.goal_region import (
+    GoalRegionSpec,
+    GOAL_REGION_DISTANCE_SCALE,
+    GOAL_REGION_RADIUS_SCALE,
+    build_task_prompt as build_goal_region_task_prompt,
+    family_uses_goal_region as family_uses_goal_region_contract,
+    remove_goal_region_from_scene_info,
+    resolve_goal_region_entities as resolve_goal_region_entities_contract,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ACTIVITY_ROOT = REPO_ROOT / "bddl3" / "bddl" / "activity_definitions"
+
+
+def _default_activity_root() -> Path:
+    override = os.environ.get("SENTINEL_ACTIVITY_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
+    candidates = [
+        REPO_ROOT.parent / "SENTINEL-Lite-data" / "activity_definitions",
+        REPO_ROOT / "behavior-1k" / "bddl3" / "bddl" / "activity_definitions",
+        REPO_ROOT / "bddl3" / "bddl" / "activity_definitions",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
+DEFAULT_ACTIVITY_ROOT = _default_activity_root()
 
 try:
     from sentinel.utils.bddl_generator import _pick_model_for_synset, _synset_to_category, get_lid_container_pairs
@@ -171,6 +197,9 @@ def _build_canonical_prompt(
     task_roles: dict[str, Any],
 ) -> str:
     resolved_family = canonicalize_family(family)
+    goal_region = diagnostics.get("goal_region")
+    if family_uses_goal_region_contract(resolved_family) and isinstance(goal_region, dict) and goal_region:
+        return build_goal_region_task_prompt(scene_info, diagnostics, goal_region=goal_region)
     selection = diagnostics.get("selection", {})
     if resolved_family == "table":
         target_label = _label_from_synset(str(selection.get("target_synset", "")), "object")
@@ -234,7 +263,15 @@ def _generic_pickup_prompt_variants(canonical: str, diagnostics: dict[str, Any],
     support = _support_label(diagnostics, scene_info)
     pipeline = str(diagnostics.get("family") or diagnostics.get("pipeline", ""))
     side = _anchor_side_from_diagnostics(diagnostics)
+    has_goal_region = isinstance(diagnostics.get("goal_region"), dict) and bool(diagnostics.get("goal_region"))
     if pipeline == "table":
+        if has_goal_region:
+            return [
+                canonical,
+                f"Pick up the {target} on the {support}, then move it into the green goal sphere on the {side} side of the object pack.",
+                f"Move the {target} from the {support} into the green goal sphere on the {side} side of the object pack.",
+                f"Lift the {target} from the {support} and place it in the green goal sphere on the {side} side of the object pack.",
+            ]
         return [
             canonical,
             f"Pick up the {target} on the {support}, then place it on the clear area on the {side} side of the object pack relative to the robot.",
@@ -242,6 +279,13 @@ def _generic_pickup_prompt_variants(canonical: str, diagnostics: dict[str, Any],
             f"Lift the {target} from the {support} and set it down on the clear area on the {side} side of the object pack relative to the robot.",
         ]
     if pipeline == "liquid_transport":
+        if has_goal_region:
+            return [
+                canonical,
+                f"Pick up the filled {target} on the {support}, then move it into the green goal sphere on the {side} side of the object pack.",
+                f"Move the filled {target} from the {support} into the green goal sphere on the {side} side of the object pack.",
+                f"Lift the filled {target} from the {support} and place it in the green goal sphere on the {side} side of the object pack.",
+            ]
         return [
             canonical,
             f"Pick up the filled {target} on the {support}, then place it on the clear area on the {side} side of the object pack relative to the robot.",
@@ -249,6 +293,13 @@ def _generic_pickup_prompt_variants(canonical: str, diagnostics: dict[str, Any],
             f"Lift the filled {target} from the {support} and set it down on the clear area on the {side} side of the object pack relative to the robot.",
         ]
     if pipeline == "stack_same":
+        if has_goal_region:
+            return [
+                canonical,
+                f"Pick up the bottom {target} from the stack, then move it into the green goal sphere on the {side} side of the stack.",
+                f"Lift the bottom {target} from the stack and place it in the green goal sphere on the {side} side of the stack.",
+                f"Move the bottom {target} out of the stack and into the green goal sphere on the {side} side of the stack.",
+            ]
         return [
             canonical,
             f"Pick up the bottom {target} from the stack and lift it upward.",
@@ -256,6 +307,13 @@ def _generic_pickup_prompt_variants(canonical: str, diagnostics: dict[str, Any],
             f"Raise the bottom {target} upward from the stack.",
         ]
     if pipeline == "stack_flat":
+        if has_goal_region:
+            return [
+                canonical,
+                f"Pick up the flat object from under the stack, then move it into the green goal sphere on the {side} side of the stack.",
+                f"Lift the flat object from under the stack and place it in the green goal sphere on the {side} side of the stack.",
+                f"Move the flat object out from beneath the stack and into the green goal sphere on the {side} side of the stack.",
+            ]
         return [
             canonical,
             "Pick up the flat object from under the stack and lift it upward.",
@@ -287,12 +345,28 @@ def _lid_prompt_variants(canonical: str, diagnostics: dict[str, Any]) -> list[st
     selection = diagnostics.get("selection", {})
     container = _label_from_synset(str(selection.get("container_synset", "")), "container")
     pipeline = str(diagnostics.get("family") or diagnostics.get("pipeline", ""))
+    side = _anchor_side_from_diagnostics(diagnostics)
+    has_goal_region = isinstance(diagnostics.get("goal_region"), dict) and bool(diagnostics.get("goal_region"))
     if pipeline == "lid_transport_liquid":
+        if has_goal_region:
+            return [
+                canonical,
+                f"Place the lid on the filled {container}, then move the filled {container} into the green goal sphere on the {side} side of the container.",
+                f"Put the lid on the filled {container}, then move the filled {container} into the green goal sphere on the {side} side of the container.",
+                f"Cover the filled {container} with the lid, then place the filled {container} in the green goal sphere on the {side} side of the container.",
+            ]
         return [
             canonical,
             f"Put the lid on the filled {container}, then lift the filled {container}.",
             f"Place the lid on the filled {container}, then raise the filled {container} upward.",
             f"Cover the filled {container} with the lid, then lift the filled {container}.",
+        ]
+    if has_goal_region:
+        return [
+            canonical,
+            f"Place the lid on the {container}, then move the {container} into the green goal sphere on the {side} side of the container.",
+            f"Put the lid on the {container}, then move the {container} into the green goal sphere on the {side} side of the container.",
+            f"Cover the {container} with the lid, then place the {container} in the green goal sphere on the {side} side of the container.",
         ]
     return [
         canonical,
@@ -891,6 +965,10 @@ def _copy_base_task_dir(src_dir: Path, dst_dir: Path) -> None:
     for item in src_dir.iterdir():
         if item.is_dir():
             continue
+        if item.name.startswith("rollout_") and item.suffix == ".mp4":
+            continue
+        if item.name.startswith("render_worker_") and item.suffix == ".log":
+            continue
         shutil.copy2(item, dst_dir / item.name)
 
 
@@ -913,6 +991,7 @@ def _update_bundle_metadata(
             entry["category"] = args["category"]
         if "model" in args:
             entry["model"] = args["model"]
+    goal_region_spec = _refresh_goal_region_bundle(bundle)
     prompt, roles = _refresh_prompt_and_roles(
         bundle.scene_info,
         bundle.diagnostics,
@@ -936,6 +1015,8 @@ def _update_bundle_metadata(
     task_metadata["prompt"] = bundle.prompt
     task_metadata["roles"] = copy.deepcopy(bundle.task_roles)
     task_metadata["inst_to_name"] = copy.deepcopy(bundle.inst_to_name)
+    if goal_region_spec is not None:
+        task_metadata["goal_region"] = goal_region_spec.to_json()
     task_metadata["perturbation"] = {
         "variant_type": variant_type,
         "variant_id": variant_id,
@@ -1001,6 +1082,215 @@ def _support_bounds_xy(bundle: TaskBundle) -> tuple[tuple[float, float], tuple[f
     if not isinstance(bounds, list) or len(bounds) != 2:
         raise ValueError(f"Missing surface_bounds_xy for {bundle.task_dir}")
     return (tuple(float(v) for v in bounds[0][:2]), tuple(float(v) for v in bounds[1][:2]))
+
+
+def _goal_region_enabled(bundle: TaskBundle) -> bool:
+    if not family_uses_goal_region_contract(bundle.family):
+        return False
+    goal_region = bundle.diagnostics.get("goal_region")
+    if isinstance(goal_region, dict) and goal_region:
+        return True
+    task_meta = _task_metadata(bundle.scene_info)
+    goal_region = task_meta.get("goal_region")
+    return isinstance(goal_region, dict) and goal_region
+
+
+def _scene_object_orientation(scene_info: dict[str, Any], scene_name: str) -> list[float] | None:
+    root_link = _scene_registry(scene_info).get(scene_name, {}).get("root_link", {})
+    ori = root_link.get("ori")
+    return list(ori) if isinstance(ori, list) and len(ori) >= 4 else None
+
+
+def _object_extent_xyz(catalog: dict[str, Any], category: str, model: str | None) -> tuple[float, float, float]:
+    model_map = catalog.get(category) or {}
+    if model and model in model_map:
+        extent = model_map[model].get("extent_xyz") or [0.12, 0.12, 0.12]
+        return float(extent[0]), float(extent[1]), float(extent[2])
+    if model_map:
+        extents = [entry.get("extent_xyz") or [0.12, 0.12, 0.12] for entry in model_map.values()]
+        xs = sorted(float(item[0]) for item in extents)
+        ys = sorted(float(item[1]) for item in extents)
+        zs = sorted(float(item[2]) for item in extents)
+        return xs[len(xs) // 2], ys[len(ys) // 2], zs[len(zs) // 2]
+    return 0.12, 0.12, 0.12
+
+
+def _world_to_local(robot_pos: list[float], robot_quat: list[float], point_world: list[float]) -> list[float]:
+    delta = [
+        float(point_world[0]) - float(robot_pos[0]),
+        float(point_world[1]) - float(robot_pos[1]),
+        float(point_world[2]) - float(robot_pos[2]),
+    ]
+    return _quat_rotate(_quat_inverse(robot_quat), delta)
+
+
+def _local_xy_to_world(robot_pos: list[float], robot_quat: list[float], x_local: float, y_local: float) -> list[float]:
+    rotated = _quat_rotate(robot_quat, [float(x_local), float(y_local), 0.0])
+    return [
+        float(robot_pos[0]) + float(rotated[0]),
+        float(robot_pos[1]) + float(rotated[1]),
+    ]
+
+
+def _goal_region_robot_pose(scene_info: dict[str, Any], diagnostics: dict[str, Any]) -> tuple[list[float], list[float]]:
+    base_pose = (diagnostics.get("robot_mount") or {}).get("base_pose") or {}
+    pos = base_pose.get("position")
+    ori = base_pose.get("orientation")
+    if isinstance(pos, list) and len(pos) >= 3 and isinstance(ori, list) and len(ori) >= 4:
+        return [float(v) for v in pos[:3]], [float(v) for v in ori[:4]]
+    robot = _extract_scene_robot_setup_local(scene_info)
+    return [float(v) for v in robot["pos"][:3]], [float(v) for v in robot["ori"][:4]]
+
+
+def _surface_bounds_local_from_diagnostics(diagnostics: dict[str, Any], robot_pos: list[float], robot_quat: list[float]) -> tuple[tuple[float, float], tuple[float, float]]:
+    bounds = _surface_bounds_xy_from_diagnostics(diagnostics)
+    if bounds is None:
+        raise ValueError("Missing surface_bounds_xy for goal region refresh")
+    support_selection = diagnostics.get("support_selection") or {}
+    table_top_z = float(support_selection.get("table_top_z")) if support_selection.get("table_top_z") is not None else 0.0
+    xs: list[float] = []
+    ys: list[float] = []
+    for x in (float(bounds[0][0]), float(bounds[1][0])):
+        for y in (float(bounds[0][1]), float(bounds[1][1])):
+            local = _world_to_local(robot_pos, robot_quat, [x, y, table_top_z])
+            xs.append(float(local[0]))
+            ys.append(float(local[1]))
+    return ((min(xs), min(ys)), (max(xs), max(ys)))
+
+
+def _pack_local_bounds_from_scene(
+    scene_info: dict[str, Any],
+    scene_object_names: Sequence[str],
+    *,
+    robot_pos: list[float],
+    robot_quat: list[float],
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    catalog = _load_footprint_catalog()
+    xs: list[float] = []
+    ys: list[float] = []
+    for scene_name in scene_object_names:
+        pos = _scene_object_position(scene_info, scene_name)
+        if pos is None:
+            continue
+        ori = _scene_object_orientation(scene_info, scene_name) or [0.0, 0.0, 0.0, 1.0]
+        category = str(_scene_object_category(scene_info, scene_name) or "")
+        model = _scene_object_model(scene_info, scene_name)
+        dx, dy, _ = _object_extent_xyz(catalog, category, model)
+        half_x = 0.5 * float(dx)
+        half_y = 0.5 * float(dy)
+        for sx in (-half_x, half_x):
+            for sy in (-half_y, half_y):
+                offset_world = _quat_rotate(ori, [sx, sy, 0.0])
+                world = [float(pos[0]) + float(offset_world[0]), float(pos[1]) + float(offset_world[1]), float(pos[2]) + float(offset_world[2])]
+                local = _world_to_local(robot_pos, robot_quat, world)
+                xs.append(float(local[0]))
+                ys.append(float(local[1]))
+    if not xs or not ys:
+        raise ValueError("No pack local bounds available for goal region refresh")
+    return ((min(xs), min(ys)), (max(xs), max(ys)))
+
+
+def _inject_goal_region_marker_scene(scene_info: dict[str, Any], spec: GoalRegionSpec) -> None:
+    init_info = _scene_init_info(scene_info)
+    registry = _scene_registry(scene_info)
+    init_info[spec.marker_name] = {
+        "class_module": "omnigibson.objects.primitive_object",
+        "class_name": "PrimitiveObject",
+        "args": {
+            "name": spec.marker_name,
+            "primitive_type": "Sphere",
+            "relative_prim_path": f"/{spec.marker_name}",
+            "category": "goal_region_marker",
+            "fixed_base": True,
+            "visual_only": True,
+            "rgba": [float(v) for v in spec.color_rgba],
+            "radius": float(spec.radius_m),
+        },
+    }
+    registry[spec.marker_name] = {
+        "is_asleep": False,
+        "root_link": {
+            "pos": [float(v) for v in spec.center_world],
+            "ori": [0.0, 0.0, 0.0, 1.0],
+        },
+        "non_kin": {},
+        "radius": float(spec.radius_m),
+        "height": -1,
+        "size": -1,
+    }
+
+
+def _refresh_goal_region_bundle(bundle: TaskBundle) -> GoalRegionSpec | None:
+    if not _goal_region_enabled(bundle):
+        return None
+    entities = resolve_goal_region_entities_contract(bundle.scene_info, bundle.diagnostics)
+    if entities is None:
+        raise ValueError(f"Could not resolve goal-region entities for {bundle.task_dir}")
+
+    original_goal_region = bundle.diagnostics.get("goal_region")
+    if not isinstance(original_goal_region, dict):
+        task_meta = _task_metadata(bundle.scene_info)
+        original_goal_region = task_meta.get("goal_region")
+    original_goal_region = original_goal_region if isinstance(original_goal_region, dict) else {}
+
+    catalog = _load_footprint_catalog()
+    robot_pos, robot_quat = _goal_region_robot_pose(bundle.scene_info, bundle.diagnostics)
+    target_pos = _scene_object_position(bundle.scene_info, entities.target_name)
+    if target_pos is None:
+        raise ValueError(f"Missing target position for goal-region refresh: {entities.target_name}")
+    target_local = _world_to_local(robot_pos, robot_quat, target_pos)
+    target_category = str(_scene_object_category(bundle.scene_info, entities.target_name) or "")
+    target_model = _scene_object_model(bundle.scene_info, entities.target_name)
+    target_dx, target_dy, target_dz = _object_extent_xyz(catalog, target_category, target_model)
+    target_width = max(float(target_dx), float(target_dy), float(original_goal_region.get("target_width_m") or 1e-4), 1e-4)
+    target_half_h = max(0.5 * float(target_dz), 1e-4)
+    pack_local_bounds = _pack_local_bounds_from_scene(
+        bundle.scene_info,
+        entities.pack_object_names,
+        robot_pos=robot_pos,
+        robot_quat=robot_quat,
+    )
+    support_local_bounds = _surface_bounds_local_from_diagnostics(bundle.diagnostics, robot_pos, robot_quat)
+    support_selection = bundle.diagnostics.get("support_selection") or {}
+    support_top_z = (
+        float(support_selection.get("table_top_z"))
+        if support_selection.get("table_top_z") is not None
+        else float(original_goal_region.get("center_world", [0.0, 0.0, target_pos[2]])[2]) - target_half_h
+    )
+    radius_m = max(GOAL_REGION_RADIUS_SCALE * target_width, 1e-4)
+    anchor_x = float(target_local[0])
+    anchor_y = float(pack_local_bounds[1][1]) + GOAL_REGION_DISTANCE_SCALE * target_width
+    center_x, center_y = _local_xy_to_world(robot_pos, robot_quat, anchor_x, anchor_y)
+    center_z = float(support_top_z) + target_half_h
+    spec = GoalRegionSpec(
+        mode="held_intersection",
+        shape="sphere",
+        family=bundle.family,
+        target_name=entities.target_name,
+        support_name=entities.support_name,
+        marker_name=str(original_goal_region.get("marker_name") or f"goal_region__{entities.target_name}"),
+        center_world=(float(center_x), float(center_y), float(center_z)),
+        radius_m=float(radius_m),
+        color_rgba=tuple(float(v) for v in (original_goal_region.get("color_rgba") or [0.10, 0.80, 0.20, 0.18])[:4]),
+        target_width_m=float(target_width),
+        anchor_local_xy=(float(anchor_x), float(anchor_y)),
+        pack_bbox_robot_local_xy=(
+            (float(pack_local_bounds[0][0]), float(pack_local_bounds[0][1])),
+            (float(pack_local_bounds[1][0]), float(pack_local_bounds[1][1])),
+        ),
+        support_bounds_robot_local_xy=(
+            (float(support_local_bounds[0][0]), float(support_local_bounds[0][1])),
+            (float(support_local_bounds[1][0]), float(support_local_bounds[1][1])),
+        ),
+        clamped_to_support_bounds=False,
+    )
+    stripped_scene, stripped_diag = remove_goal_region_from_scene_info(bundle.scene_info, bundle.diagnostics)
+    bundle.scene_info = stripped_scene
+    bundle.diagnostics = stripped_diag
+    _inject_goal_region_marker_scene(bundle.scene_info, spec)
+    bundle.diagnostics["goal_region"] = spec.to_json()
+    _task_metadata(bundle.scene_info)["goal_region"] = spec.to_json()
+    return spec
 
 
 def _validate_positions(
@@ -2122,39 +2412,39 @@ def list_generation_specs(
                 )
             )
         elif family == "transfer":
-            for role, selection_key in (("food", "food_synset"), ("source", "source_synset"), ("dest", "dest_synset")):
-                scene_name = str(bundle.task_roles.get(role) or "")
-                synset = str(selection.get(selection_key) or "")
-                current_model = _scene_object_model(bundle.scene_info, scene_name)
-                for idx, model in enumerate(
-                    _ranked_model_candidates(
-                        synset,
-                        current_model=current_model,
-                        seed=derive_seed(global_seed, bundle.family, bundle.task_name, "object", role, "model"),
-                        count=variant_count,
-                    )
-                ):
-                    specs.append(
-                        {
-                            "kind": "object",
-                            "subtype": "model_swap",
-                            "role": role,
-                            "synset": synset,
-                            "model": model,
-                            "variant_id": _variant_id(bundle, "object", f"{role}_model", idx if variant_count > 1 else None),
-                            "seed": derive_seed(global_seed, bundle.family, bundle.task_name, "object", role, model),
-                            "requires_online": True,
-                        }
-                    )
-                specs.extend(
-                    _appearance_specs_for_role(
-                        bundle,
-                        role=role,
-                        suffix=f"{role}_appearance",
-                        global_seed=global_seed,
-                        variant_count=variant_count,
-                    )
+            role = "food"
+            scene_name = str(bundle.task_roles.get(role) or "")
+            synset = str(selection.get("food_synset") or "")
+            current_model = _scene_object_model(bundle.scene_info, scene_name)
+            for idx, model in enumerate(
+                _ranked_model_candidates(
+                    synset,
+                    current_model=current_model,
+                    seed=derive_seed(global_seed, bundle.family, bundle.task_name, "object", role, "model"),
+                    count=variant_count,
                 )
+            ):
+                specs.append(
+                    {
+                        "kind": "object",
+                        "subtype": "model_swap",
+                        "role": role,
+                        "synset": synset,
+                        "model": model,
+                        "variant_id": _variant_id(bundle, "object", f"{role}_model", idx if variant_count > 1 else None),
+                        "seed": derive_seed(global_seed, bundle.family, bundle.task_name, "object", role, model),
+                        "requires_online": True,
+                    }
+                )
+            specs.extend(
+                _appearance_specs_for_role(
+                    bundle,
+                    role=role,
+                    suffix=f"{role}_appearance",
+                    global_seed=global_seed,
+                    variant_count=variant_count,
+                )
+            )
         elif family in {"lid_transport_food", "lid_transport_liquid"}:
             current_lid_model = str(selection.get("lid_model") or "")
             pair_candidates = _ranked_lid_pair_candidates(
@@ -2688,6 +2978,7 @@ def _refresh_bundle_artifacts(bundle: TaskBundle, output_dir: Path, *, materiali
         task_roles=copy.deepcopy(saved_diag.get("task_roles") or bundle.task_roles),
         inst_to_name=copy.deepcopy(bundle.inst_to_name),
     )
+    goal_region_spec = _refresh_goal_region_bundle(refreshed)
     prompt, task_roles = _refresh_prompt_and_roles(
         refreshed.scene_info,
         refreshed.diagnostics,
@@ -2702,6 +2993,8 @@ def _refresh_bundle_artifacts(bundle: TaskBundle, output_dir: Path, *, materiali
     task_metadata["prompt"] = refreshed.prompt
     task_metadata["roles"] = copy.deepcopy(refreshed.task_roles)
     task_metadata["inst_to_name"] = copy.deepcopy(refreshed.inst_to_name)
+    if goal_region_spec is not None:
+        task_metadata["goal_region"] = goal_region_spec.to_json()
     if materialized_online:
         perturbation = dict(task_metadata.get("perturbation") or refreshed.diagnostics.get("perturbation") or {})
         if perturbation:
@@ -2834,8 +3127,6 @@ def _selected_task_dirs(base_root: Path, *, families: Sequence[str] | None, task
 
 def _write_base_bundle(bundle: TaskBundle, base_output_dir: Path) -> None:
     _copy_base_task_dir(bundle.task_dir, base_output_dir)
-    _write_json(base_output_dir / "scene_ep1.json", bundle.scene_info)
-    _write_jsonl_record(base_output_dir / "diagnostics.jsonl", bundle.diagnostics)
 
 
 def _attempt_artifacts_dir(

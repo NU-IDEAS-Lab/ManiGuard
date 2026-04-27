@@ -10,6 +10,9 @@ import pytest
 
 from sentinel.data.perturbation_scaling import (
     TaskBundle,
+    apply_object_model_swap,
+    apply_env_remap,
+    apply_position_jitter,
     build_prompt_variants,
     list_generation_specs,
     load_task_bundle,
@@ -27,6 +30,16 @@ REP_TASKS = {
     "lid_transport_liquid": REPO_ROOT / "outputs" / "benchmark_base_task_sets_reviewed" / "final_unique_accepted" / "lid_transport_liquid" / "task_0000",
 }
 ENV_ROOT = REPO_ROOT / "outputs" / "benchmark_base_task_sets_reviewed" / "final_accepted"
+GOAL_REGION_ROOT = REPO_ROOT / "outputs" / "benchmark_base_task_sets_reviewed" / "final_unique_accepted-goal_region_sphere-full"
+GOAL_REGION_REP_TASKS = {
+    "table": GOAL_REGION_ROOT / "table" / "task_0000",
+    "liquid_transport": GOAL_REGION_ROOT / "liquid_transport" / "task_0006",
+    "stack_same": GOAL_REGION_ROOT / "stack_same" / "task_0000",
+    "stack_flat": GOAL_REGION_ROOT / "stack_flat" / "task_0000",
+    "lid_transport_food": GOAL_REGION_ROOT / "lid_transport_food" / "task_0000",
+    "lid_transport_liquid": GOAL_REGION_ROOT / "lid_transport_liquid" / "task_0000",
+    "transfer": GOAL_REGION_ROOT / "transfer" / "task_0000",
+}
 
 
 def _require_task(path: Path) -> None:
@@ -411,3 +424,100 @@ def test_scale_base_task_set_writes_env_variants(tmp_path: Path) -> None:
     assert len(variant_dirs) == 1
     assert (variant_dirs[0] / "scene_ep1.json").is_file()
     assert (variant_dirs[0] / "diagnostics.jsonl").is_file()
+
+
+def test_load_task_bundle_preserves_goal_region_prompt() -> None:
+    task_dir = GOAL_REGION_REP_TASKS["table"]
+    _require_task(task_dir)
+    bundle = load_task_bundle(task_dir)
+    assert isinstance(bundle.diagnostics.get("goal_region"), dict)
+    assert "green goal sphere" in bundle.prompt
+
+
+def test_scale_base_task_set_preserves_green_sphere_base_without_videos(tmp_path: Path) -> None:
+    task_dir = GOAL_REGION_REP_TASKS["table"]
+    _require_task(task_dir)
+
+    base_root = tmp_path / "base_root" / "table" / "task_0000"
+    base_root.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(task_dir, base_root)
+    (base_root / "rollout_right_overview_ep1.mp4").write_bytes(b"fake-video")
+
+    output_root = tmp_path / "published"
+    summary = scale_base_task_set(
+        base_root=tmp_path / "base_root",
+        env_source_root=None,
+        output_root=output_root,
+        perturbation_kind="semantic",
+        seed=29,
+        variant_count=1,
+        dry_run=False,
+    )
+
+    assert summary["total_base_tasks"] == 1
+    base_dir = output_root / "table" / "task_0000" / "base"
+    diag = json.loads((base_dir / "diagnostics.jsonl").read_text().splitlines()[0])
+    assert isinstance(diag.get("goal_region"), dict)
+    assert "green goal sphere" in str(diag.get("prompt") or "")
+    assert not (base_dir / "rollout_right_overview_ep1.mp4").exists()
+
+
+def test_position_variant_recomputes_goal_region_for_green_sphere_base() -> None:
+    task_dir = GOAL_REGION_REP_TASKS["table"]
+    _require_task(task_dir)
+    bundle = load_task_bundle(task_dir)
+    original_center = list((bundle.diagnostics.get("goal_region") or {}).get("center_world") or [])
+    derived = apply_position_jitter(bundle, variant_id="table__task_0000__position__jitter", seed=31)
+    goal_region = derived.diagnostics.get("goal_region")
+    assert isinstance(goal_region, dict)
+    assert "green goal sphere" in str(derived.diagnostics.get("prompt") or "")
+    assert list(goal_region.get("center_world") or []) != original_center
+
+
+def test_object_variant_preserves_goal_region_for_green_sphere_base() -> None:
+    task_dir = GOAL_REGION_REP_TASKS["table"]
+    _require_task(task_dir)
+    bundle = load_task_bundle(task_dir)
+    selection = bundle.diagnostics.get("selection") or {}
+    derived = apply_object_model_swap(
+        bundle,
+        role="target",
+        synset=str(selection.get("target_synset") or ""),
+        variant_id="table__task_0000__object__target_model",
+        seed=37,
+    )
+    goal_region = derived.diagnostics.get("goal_region")
+    assert isinstance(goal_region, dict)
+    assert "green goal sphere" in str(derived.diagnostics.get("prompt") or "")
+
+
+def test_env_variant_recomputes_goal_region_for_green_sphere_base() -> None:
+    task_dir = GOAL_REGION_REP_TASKS["table"]
+    donor_task_dir = ENV_ROOT / "table" / "task_0000"
+    _require_task(task_dir)
+    _require_task(donor_task_dir)
+    bundle = load_task_bundle(task_dir)
+    donor_bundle = load_task_bundle(donor_task_dir)
+    original_center = list((bundle.diagnostics.get("goal_region") or {}).get("center_world") or [])
+    derived = apply_env_remap(bundle, donor_bundle=donor_bundle, variant_id="table__task_0000__env__swap")
+    goal_region = derived.diagnostics.get("goal_region")
+    assert isinstance(goal_region, dict)
+    assert "green goal sphere" in str(derived.diagnostics.get("prompt") or "")
+    assert list(goal_region.get("center_world") or []) != original_center
+
+
+def test_transfer_green_sphere_root_still_has_no_goal_region() -> None:
+    task_dir = GOAL_REGION_REP_TASKS["transfer"]
+    _require_task(task_dir)
+    bundle = load_task_bundle(task_dir)
+    assert bundle.diagnostics.get("goal_region") is None
+    assert "green goal sphere" not in bundle.prompt
+
+
+def test_transfer_object_specs_only_modify_food() -> None:
+    task_dir = GOAL_REGION_REP_TASKS["transfer"]
+    _require_task(task_dir)
+    bundle = load_task_bundle(task_dir)
+    specs = list_generation_specs(bundle, perturbation_kind="object", global_seed=0, variant_count=1)
+    roles = {str(spec.get("role")) for spec in specs if spec.get("kind") == "object"}
+    assert roles == {"food"}
