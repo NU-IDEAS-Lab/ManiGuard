@@ -17,6 +17,14 @@ import torch as th
 
 import numpy as np
 
+from sentinel.utils.goal_region import (
+    GoalRegionSpec,
+    build_goal_region_spec,
+    build_task_prompt,
+    family_uses_goal_region,
+    spawn_goal_region_marker,
+)
+
 log = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -1032,6 +1040,8 @@ class EpisodeContext:
 
     # Gate
     gate_pass: bool = False
+    goal_region: Optional[Dict] = None
+    prompt: str = ""
 
     # Episode index
     episode: int = 0
@@ -1095,6 +1105,60 @@ class BasePipeline(ABC):
     @abstractmethod
     def make_edge_objects(self, ctx):
         """Return a tuple of EdgeAlignObject for robot placement."""
+
+    def scene_family(self, ctx):
+        """Return canonical family string for prompt / goal-region logic."""
+        return None
+
+    def goal_region_pack_object_names(self, ctx):
+        return tuple(
+            getattr(obj, "name", "")
+            for obj in ctx.active_objects.values()
+            if getattr(obj, "name", "")
+        )
+
+    def goal_region(self, ctx):
+        family = self.scene_family(ctx)
+        if not family or not family_uses_goal_region(family) or ctx.target_obj is None:
+            return None
+        pack_names = tuple(name for name in self.goal_region_pack_object_names(ctx) if name)
+        support_name = str(getattr(ctx.support_obj, "name", "") or ctx.surface_name)
+        if not pack_names or not support_name:
+            return None
+        spec = build_goal_region_spec(
+            env=ctx.env,
+            diagnostics={
+                "pipeline": family,
+                "surface": support_name,
+                "selection": ctx.selection,
+                "support_selection": {"result_world_bounds_xy": ctx.surface_bounds_xy},
+            },
+            family=family,
+            target_name=str(getattr(ctx.target_obj, "name", "")),
+            support_name=support_name,
+            pack_object_names=pack_names,
+        )
+        return spec.to_json()
+
+    def task_prompt(self, ctx):
+        family = self.scene_family(ctx)
+        if not family:
+            return ""
+        diagnostics = {
+            "pipeline": family,
+            "surface": str(getattr(ctx.support_obj, "name", "") or ctx.surface_name),
+            "selection": copy.deepcopy(ctx.selection),
+        }
+        scene_info = {
+            "objects_info": {
+                "init_info": {
+                    str(getattr(ctx.support_obj, "name", "") or ctx.surface_name): {
+                        "args": {"category": str(getattr(ctx.support_obj, "category", "") or "")}
+                    }
+                }
+            }
+        }
+        return build_task_prompt(scene_info, diagnostics, goal_region=ctx.goal_region)
 
     @abstractmethod
     def select_objects(self, args, rng):
@@ -1283,6 +1347,7 @@ class BasePipeline(ABC):
                     "scene_model": scene_label,
                     "activity_name": activity_name,
                     "surface": ctx.surface_name,
+                    "prompt": ctx.prompt or None,
                     "gate_pass": ctx.gate_pass,
                     "ltl_violated": ctx.ltl_summary.get("violated") if hasattr(ctx, "ltl_summary") else None,
                     "steps_executed": ctx.steps_executed if hasattr(ctx, "steps_executed") else 0,
@@ -1291,6 +1356,8 @@ class BasePipeline(ABC):
                     "goal_conditions": self.goal_conditions(ctx),
                     **self.diagnostics_extra(ctx),
                 }
+                if ctx.goal_region is not None:
+                    payload["goal_region"] = copy.deepcopy(ctx.goal_region)
                 if curation:
                     payload.update({
                         "curation_status": curation.status,
@@ -1551,6 +1618,12 @@ class BasePipeline(ABC):
         print(f"[Pipeline] Gate: pass={ctx.gate_pass}, dist={target_dist:.3f}")
         if args.strict_gate and not ctx.gate_pass:
             raise RuntimeError("Strict gate failed.")
+
+        ctx.goal_region = self.goal_region(ctx)
+        if ctx.goal_region is not None:
+            spawn_goal_region_marker(ctx.env, GoalRegionSpec.from_json(ctx.goal_region))
+            og.sim.step()
+        ctx.prompt = self.task_prompt(ctx)
 
         # -- Save scene snapshot --------------------------------------------
         save_scene = ctx.gate_pass or bool(

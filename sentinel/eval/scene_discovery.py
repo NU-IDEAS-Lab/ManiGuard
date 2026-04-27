@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 import logging
 
+from sentinel.utils.goal_region import build_task_prompt
+
 log = logging.getLogger(__name__)
 
 
@@ -80,7 +82,7 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         )
 
         target_name = None
-        prompt = None
+        prompt = str(diag.get("prompt") or "").strip() or None
 
         if pipeline in ("lid_transport_food", "lid_transport_liquid"):
             container_synset = sel.get("container_synset", "")
@@ -90,7 +92,8 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
                 if obj_info.get("args", {}).get("category") == container_cat:
                     target_name = obj_name
                     break
-            prompt = f"Place the lid on the {container_label}, then pick up the {container_label}."
+            if prompt is None:
+                prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))
 
         elif pipeline == "transfer":
             food_synset = sel.get("food_synset", "")
@@ -104,7 +107,8 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
                 if obj_info.get("args", {}).get("category") == food_cat:
                     target_name = obj_name
                     break
-            prompt = f"Transfer the {food_label} from the {source_label} to the {dest_label}."
+            if prompt is None:
+                prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))
 
         else:
             for entry in diag.get("active_object_summary", []):
@@ -120,7 +124,8 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
                         break
             target_synset = sel.get("target_synset", "")
             target_label = target_synset.split(".n.")[0].replace("_", " ") if ".n." in target_synset else "object"
-            prompt = f"Pick up the {target_label} on the {surface_label}."
+            if prompt is None:
+                prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))
 
         if not target_name:
             print(f"  Skipping {scene_key}: could not resolve target object (pipeline={pipeline})")
@@ -150,6 +155,7 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             "activity_name": diag.get("activity_name", ""),
             "cameras": diag.get("cameras", []),
             "goal_conditions": diag.get("goal_conditions", []),
+            "goal_region": diag.get("goal_region"),
         })
 
     if max_scenes:

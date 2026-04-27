@@ -71,6 +71,15 @@ from sentinel.utils.camera_setup import build_external_camera_configs
 _EXTERNAL_CAMERAS = build_external_camera_configs()
 
 
+def _read_first_jsonl(path):
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                return json.loads(line)
+    raise ValueError(f"No JSON object found in {path}")
+
+
 def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
     """Load an og.sim.save()-style scene snapshot via scene_file.
 
@@ -261,6 +270,23 @@ def main():
     )
 
     success_flag = {"ok": False}
+    manual_success_override = {"ok": False}
+    success_checker = None
+    success_detail = {}
+    diagnostics_path = os.path.join(os.path.dirname(args.snapshot), "diagnostics.jsonl")
+    if os.path.isfile(diagnostics_path):
+        diagnostics = _read_first_jsonl(diagnostics_path)
+        from sentinel.eval.goal_checker import build_goal_checker
+
+        success_checker = build_goal_checker(
+            {
+                "goal_region": diagnostics.get("goal_region"),
+                "goal_conditions": diagnostics.get("goal_conditions", []),
+            }
+        )
+        if success_checker is not None:
+            success_checker.resolve(env)
+            print("[Teleop] Loaded success checker from diagnostics.")
 
     if recorder is not None:
         def _on_checkpoint():
@@ -277,9 +303,9 @@ def main():
                   f"({len(recorder.checkpoint_states)} remain)")
 
         def _on_success():
-            success_flag["ok"] = not success_flag["ok"]
-            state = "SUCCESS" if success_flag["ok"] else "not-success"
-            print(f"[Teleop] Episode marked {state}")
+            manual_success_override["ok"] = not manual_success_override["ok"]
+            state = "FORCE-SUCCESS" if manual_success_override["ok"] else "auto-checker"
+            print(f"[Teleop] Success mode -> {state}")
 
         KeyboardEventHandler.add_keyboard_callback(
             key=lazy.carb.input.KeyboardInput.C, callback_fn=_on_checkpoint,
@@ -297,7 +323,7 @@ def main():
     print("Move the SO-101 leader arm to control Franka")
     if recorder is not None:
         print("C = save checkpoint   R = rollback to last checkpoint")
-        print("S = toggle success flag for the current episode")
+        print("S = toggle manual success override for the current episode")
     print("Q = clean exit (saves HDF5)")
     print("=" * 50 + "\n")
 
@@ -322,9 +348,19 @@ def main():
                 print(f"[Action] gripper -> {gv}")
             env.step(action)
 
+            if success_checker is not None:
+                auto_success, success_detail = success_checker.check(env)
+                if auto_success:
+                    success_flag["ok"] = True
+                    print(f"[Teleop] Success satisfied: {success_detail}")
+                    break
+            if manual_success_override["ok"]:
+                success_flag["ok"] = True
+                break
+
             if step % 300 == 0 and step > 0:
                 status = "connected" if agent.is_connected else "waiting for SO-101 data..."
-                print(f"Step {step}/{args.steps} — {status}")
+                print(f"Step {step}/{args.steps} — {status} — success={success_flag['ok']}")
 
     except KeyboardInterrupt:
         # Usually bypassed by carb's SIGINT handler; kept as a fallback.

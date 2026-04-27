@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from sentinel.utils.goal_region import build_task_prompt
+
 
 def _normalize_synset_name(synset: str) -> str:
     base = synset.split(".n.")[0]
@@ -279,7 +281,7 @@ def build_scene_registry(
                 target_object_name=target_object_name,
                 support_object_name=support_object_name,
                 support_object_label=support_object_label,
-                prompt=build_prompt(target_synset, support_object_label),
+                prompt=str(diagnostics.get("prompt") or build_task_prompt(scene_info, diagnostics, goal_region=diagnostics.get("goal_region"))),
             )
         )
 
