@@ -239,7 +239,7 @@ def build_env_config(scene_info: dict[str, Any], diagnostics: dict[str, Any], *,
         },
     }
     if camera_names:
-        from omnigibson.utils.camera_setup import build_external_camera_configs
+        from sentinel.utils.camera_setup import build_external_camera_configs
 
         cfg["env"]["external_sensors"] = build_external_camera_configs(names=list(camera_names))
     return cfg
@@ -253,7 +253,7 @@ def position_diagnostics_cameras(
     preferred_camera: str | None = None,
     set_viewer: bool = True,
 ) -> int:
-    from omnigibson.task_generation.utils.video import eye_lookat_to_quat
+    from sentinel.task_generation.utils.video import eye_lookat_to_quat
 
     cameras = list(diagnostics.get("cameras", []) or [])
     viewer_entry = None
@@ -340,9 +340,11 @@ class ReviewVideoRecorder:
 
 
 def configure_review_sensors(env) -> None:
-    from omnigibson.task_generation.utils.video import configure_taskgen_review_sensors
-
-    configure_taskgen_review_sensors(env, TASKGEN_REVIEW_FRAME_HW)
+    height, width = int(TASKGEN_REVIEW_FRAME_HW[0]), int(TASKGEN_REVIEW_FRAME_HW[1])
+    for sensor in (env.external_sensors or {}).values():
+        sensor.image_height = height
+        sensor.image_width = width
+    env.load_observation_space()
 
 
 def compute_floor_z(env) -> float:

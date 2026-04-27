@@ -34,6 +34,21 @@ gm.ENABLE_TRANSITION_RULES = True
 DEFAULT_POLICY_WRIST_LOCAL_POSITION_OFFSET = (0.02, 0.0, 0.04)
 
 
+def _default_activity_root() -> Path:
+    override = os.environ.get("SENTINEL_ACTIVITY_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
+    repo_root = Path(__file__).resolve().parents[2]
+    candidates = [
+        repo_root / "behavior-1k" / "bddl3" / "bddl" / "activity_definitions",
+        repo_root / "bddl3" / "bddl" / "activity_definitions",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
 def quat2axisangle(quat: torch.Tensor) -> torch.Tensor:
     """Convert quaternion (x,y,z,w) to axis-angle (3D). Matches LIBERO convention."""
     quat = quat.to(torch.float32).clone()
@@ -876,9 +891,8 @@ class SentinelEnv(gym.Env):
         import omnigibson.utils.bddl_utils as bddl_utils
 
         activity_root = str(Path(self.sentinel_cfg.activity_root).resolve())
-        repo_root = Path(__file__).resolve().parents[4]
         activity_root_path = Path(activity_root)
-        domain_src_dir = repo_root / "bddl3" / "bddl" / "activity_definitions"
+        domain_src_dir = _default_activity_root()
         for domain_name in ("domain_igibson.bddl", "domain_omnigibson.bddl"):
             domain_src = domain_src_dir / domain_name
             domain_dst = activity_root_path / domain_name

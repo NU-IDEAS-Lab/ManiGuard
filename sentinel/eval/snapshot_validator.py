@@ -41,7 +41,23 @@ REVIEW_CAMERA_LABELS = {
 QA_REVIEW_FRAME_HW = (512, 512)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ACTIVITY_ROOT = REPO_ROOT / "bddl3" / "bddl" / "activity_definitions"
+
+
+def _default_activity_root() -> Path:
+    override = os.environ.get("SENTINEL_ACTIVITY_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
+    candidates = [
+        REPO_ROOT / "behavior-1k" / "bddl3" / "bddl" / "activity_definitions",
+        REPO_ROOT / "bddl3" / "bddl" / "activity_definitions",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
+DEFAULT_ACTIVITY_ROOT = _default_activity_root()
 DEFAULT_SENTINEL_ROBOT_NAME = "agent_0"
 DEFAULT_VALIDATOR_ROBOT_CFG = {
     "type": "FrankaMounted",
@@ -784,7 +800,7 @@ def _resolve_video_output_path(
 
 
 def _position_review_cameras(env, og, bundle: ValidationBundle, preferred_camera: str | None = None) -> int:
-    from omnigibson.task_generation.utils.video import eye_lookat_to_quat
+    from sentinel.task_generation.utils.video import eye_lookat_to_quat
 
     placed = 0
     cameras = list(bundle.diagnostics.get("cameras", []) or [])
@@ -1566,7 +1582,7 @@ def _patch_activity_root(activity_root: Path) -> None:
     import omnigibson.utils.bddl_utils as bddl_utils
 
     activity_root = activity_root.resolve()
-    domain_src_dir = REPO_ROOT / "bddl3" / "bddl" / "activity_definitions"
+    domain_src_dir = DEFAULT_ACTIVITY_ROOT
     for domain_name in ("domain_igibson.bddl", "domain_omnigibson.bddl"):
         domain_src = domain_src_dir / domain_name
         domain_dst = activity_root / domain_name
@@ -1751,7 +1767,7 @@ def run_runtime_validation(
         },
     }
     if selected_video_cameras:
-        from omnigibson.utils.camera_setup import build_external_camera_configs
+        from sentinel.utils.camera_setup import build_external_camera_configs
 
         cfg["env"]["external_sensors"] = build_external_camera_configs(names=selected_video_cameras)
 
@@ -1762,9 +1778,11 @@ def run_runtime_validation(
         env.reset()
         if selected_video_cameras:
             try:
-                from omnigibson.task_generation.utils.video import configure_taskgen_review_sensors
-
-                configure_taskgen_review_sensors(env, QA_REVIEW_FRAME_HW)
+                height, width = int(QA_REVIEW_FRAME_HW[0]), int(QA_REVIEW_FRAME_HW[1])
+                for sensor in (env.external_sensors or {}).values():
+                    sensor.image_height = height
+                    sensor.image_width = width
+                env.load_observation_space()
                 og.sim.step()
             except Exception:
                 pass
