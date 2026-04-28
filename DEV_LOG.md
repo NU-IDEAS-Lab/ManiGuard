@@ -36,6 +36,10 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+## 2026-04-28 — `feat/grasp-batch`: so101 startup banner shows task prompt + target name
+
+`sentinel/teleop/so101_franka_teleop.py` extracts `prompt` and `goal_region.target_name` from the snapshot's sibling `diagnostics.jsonl` and surfaces them as `TASK` / `TARGET` lines in the Ready banner. Operators no longer need to alt-tab to a separate file viewer to find out which object the current scene wants them to manipulate.
+
 ## 2026-04-28 — `feat/grasp-batch` ← merge `feat/task-generation-scene-benchmark-staging`
 
 Resolved the only true conflict (`sentinel/teleop/so101_franka_teleop.py`) by adopting the remote's auto-success path: snapshot's sibling `diagnostics.jsonl` builds a `goal_checker` (`sentinel/eval/goal_checker.py`) that fires `success_flag=True` and breaks the loop the moment the goal region is satisfied. S key now means "manual override" rather than the only success switch.

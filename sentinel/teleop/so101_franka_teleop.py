@@ -298,9 +298,13 @@ def main():
     manual_success_override = {"ok": False}
     success_checker = None
     success_detail = {}
+    task_prompt = None
+    task_target = None
     diagnostics_path = os.path.join(os.path.dirname(args.snapshot), "diagnostics.jsonl")
     if os.path.isfile(diagnostics_path):
         diagnostics = _read_first_jsonl(diagnostics_path)
+        task_prompt = diagnostics.get("prompt")
+        task_target = diagnostics.get("goal_region", {}).get("target_name")
         from sentinel.eval.goal_checker import build_goal_checker
 
         success_checker = build_goal_checker(
@@ -345,6 +349,10 @@ def main():
     label = args.snapshot
     print("\n" + "=" * 50)
     print(f"SO-101 → Franka Teleop Ready  [{label}]")
+    if task_prompt:
+        print(f"  TASK   : {task_prompt}")
+    if task_target:
+        print(f"  TARGET : {task_target}")
     print("Move the SO-101 leader arm to control Franka")
     if recorder is not None:
         print("C = save checkpoint   R = rollback to last checkpoint")
