@@ -21,10 +21,6 @@
 #                       --task transfer          → outputs/teleop_scenes/transfer
 #                       --task lid_transport_food → outputs/teleop_scenes/lid_transport_food
 #                   Errors if both --task and a positional SCENE_DIR are given.
-#   --stock-franka  Forwarded to so101_franka_teleop. Falls back to the stock
-#                   BEHAVIOR FrankaPanda asset; default is the long-finger
-#                   variant under omnigibson-robot-assets/models/franka/
-#                   franka_panda_longfinger/.
 #   --scene <FILE>  Run only this single scene snapshot (full filename, must
 #                   match the on-disk name exactly — e.g. "scene_ep0005.json"
 #                   or "scene_ground_truth.json"). Skips the rest of the
@@ -65,8 +61,6 @@ while (( $# > 0 )); do
             SCENE_NAME="$2"; shift 2 ;;
         --scene=*)
             SCENE_NAME="${1#*=}"; shift ;;
-        --stock-franka)
-            TELEOP_EXTRA_ARGS+=(--stock-franka); shift ;;
         --grasping-mode)
             [[ $# -lt 2 ]] && { echo "[Batch] --grasping-mode requires an argument" >&2; exit 2; }
             TELEOP_EXTRA_ARGS+=(--grasping-mode "$2"); shift 2 ;;

@@ -110,6 +110,9 @@ class ClutterPipeline(BasePipeline):
     def activity_prefix(self):
         return "auto_clutter_on"
 
+    def scene_family(self, ctx):
+        return "table"
+
     def select_objects(self, args, rng):
         from sentinel.utils.bddl_generator import (
             TARGET_POOL, FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
@@ -343,7 +346,7 @@ class ClutterPipeline(BasePipeline):
         return True
 
     def diagnostics_extra(self, ctx):
-        extra = {"density": getattr(ctx.args, "clutter_density", None)}
+        extra = {"density": getattr(ctx.args, "clutter_density", None), "pipeline": "table"}
         if hasattr(ctx, "_pack_result"):
             extra["pack_attempt_used"] = ctx._pack_result.attempt_used
             extra["pack_clearance_used"] = ctx._pack_result.clearance_used

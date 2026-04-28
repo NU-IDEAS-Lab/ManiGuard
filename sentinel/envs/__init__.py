@@ -18,3 +18,16 @@ __all__ = [
     "SentinelEnv",
     "get_sentinel_embodiment_profile",
 ]
+
+
+def __getattr__(name):
+    if name == "SentinelEnv":
+        if SentinelEnv is not None:
+            return SentinelEnv
+        try:
+            from sentinel.envs.sentinel_env import SentinelEnv as _SentinelEnv
+        except ModuleNotFoundError as exc:  # pragma: no cover - depends on env
+            raise AttributeError(name) from exc
+        globals()["SentinelEnv"] = _SentinelEnv
+        return _SentinelEnv
+    raise AttributeError(name)

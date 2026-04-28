@@ -61,6 +61,9 @@ class LiquidTransportPipeline(ClutterPipeline):
     def activity_prefix(self):
         return "auto_liquid_transport_on"
 
+    def scene_family(self, ctx):
+        return "liquid_transport"
+
     def select_objects(self, args, rng):
         # Override clutter's select_objects to use LIQUID_CONTAINER_POOL as target.
         from sentinel.utils.bddl_generator import (

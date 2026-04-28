@@ -108,6 +108,13 @@ class _StackBase(BasePipeline):
     # Subclasses must set this.
     _stack_mode = None
 
+    def scene_family(self, ctx):
+        if self._stack_mode == "same":
+            return "stack_same"
+        if self._stack_mode == "flat":
+            return "stack_flat"
+        return None
+
     @classmethod
     def add_args(cls, parser):
         parser.add_argument("--stack-mode", default="same",
@@ -278,6 +285,7 @@ class _StackBase(BasePipeline):
 
     def diagnostics_extra(self, ctx):
         return {
+            "pipeline": self.scene_family(ctx),
             "stack_mode": self._stack_mode,
             "stack_height": getattr(ctx.args, "stack_height", None),
             "ontop_valid": getattr(ctx, "_ontop_ok", None),

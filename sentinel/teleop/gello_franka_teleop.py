@@ -65,9 +65,9 @@ if str(_JOYLO) not in sys.path:
 
 from gello.robots.dynamixel import DynamixelRobot  # noqa: E402
 
-# Reuse so101's long-finger patch — identical asset repointing logic, no
-# need to maintain two copies.
-from sentinel.teleop.so101_franka_teleop import _install_longfinger_franka_patch  # noqa: E402
+# Long-finger Franka assets are now eagerly patched in via
+# sentinel/_omnigibson_patches.py:_patch_franka_longfinger() at OmniGibson
+# init time, so this entry no longer needs to install anything.
 
 
 # ---------------------------------------------------------------------------
@@ -275,10 +275,6 @@ def main():
     parser.add_argument("--start-gripper-open", action="store_true",
                         help="Begin with the gripper OPEN (default starts CLOSED)")
     # ---- Gripper / asset knobs (same shape as so101_franka_teleop) ----
-    parser.add_argument("--stock-franka", action="store_true",
-                        help="Fall back to BEHAVIOR-1K's stock FrankaPanda asset. "
-                             "Default loads the long-finger variant from "
-                             "omnigibson-robot-assets/models/franka/franka_panda_longfinger/.")
     parser.add_argument("--grasping-mode", choices=["physical", "assisted", "sticky"],
                         default="physical",
                         help="OmniGibson grasping semantics. 'physical' = pure Coulomb "
@@ -299,12 +295,6 @@ def main():
         from omnigibson.macros import gm
         gm.USE_GPU_DYNAMICS = True
         print("[Gello] gm.USE_GPU_DYNAMICS = True (fluids/particles/cloth enabled)")
-
-    # ----- Optional long-finger Franka swap -----
-    if not args.stock_franka:
-        _install_longfinger_franka_patch()
-    else:
-        print("[Gello] --stock-franka set; using stock BEHAVIOR FrankaPanda assets.")
 
     # ----- Build env from snapshot -----
     cfg = _build_from_snapshot(

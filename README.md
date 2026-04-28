@@ -333,10 +333,16 @@ python -m sentinel.teleop.gello_franka_teleop \
 
 **Useful flags** (shared with `so101_franka_teleop` where applicable):
 
-- `--stock-franka` — fall back to stock FrankaPanda asset (default uses long-finger variant)
 - `--grasping-mode {physical,assisted,sticky}` — `assisted` welds objects via FixedJoint when both fingers contact, useful for thin/flat-object slip
 - `--gpu-dynamics` — required for fluid / particle / cloth scenes (e.g. `liquid_transport` family); off by default to save VRAM
 - `--invert-gripper` — swap which SPACE state means open vs close
+
+(Long-finger Franka assets are now patched in eagerly via
+`sentinel/_omnigibson_patches.py:_patch_franka_longfinger` whenever the
+long-finger bundle exists under
+`omnigibson-robot-assets/models/franka/franka_panda_longfinger/`. Use
+`scripts/build_franka_panda_longfinger_assets.py` to construct the
+bundle from stock Panda assets if it isn't already present.)
 
 ### Batch teleop (sweep a family)
 

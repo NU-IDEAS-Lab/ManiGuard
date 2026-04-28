@@ -454,14 +454,17 @@ def main():
             except Exception as e:
                 print(f"  Warning: could not read AABB of '{surface_name}': {e}")
 
-        # Build goal checker from diagnostics goal_conditions field
+        # Build success checker from diagnostics goal_region / goal_conditions fields
         from sentinel.eval.goal_checker import build_goal_checker
         goal_checker = build_goal_checker(scene_info)
         if goal_checker is not None:
             goal_checker.resolve(env)
-            print(f"  Goals: {goal_checker.raw_conditions}")
+            if hasattr(goal_checker, "raw_region"):
+                print(f"  Goal region: {goal_checker.raw_region.to_json()}")
+            else:
+                print(f"  Goals: {goal_checker.raw_conditions}")
         else:
-            print(f"  Warning: no goal_conditions in diagnostics — success will always be False")
+            print(f"  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
 
         # Settle
         for _ in range(10):

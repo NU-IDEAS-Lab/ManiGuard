@@ -259,6 +259,63 @@ def _patch_sampling_utils() -> None:
     sampling_utils._sentinel_patched = True
 
 
+def _patch_franka_longfinger() -> None:
+    import omnigibson.robots.franka as franka_mod
+    from omnigibson.utils.asset_utils import get_dataset_path
+
+    franka_cls = franka_mod.FrankaPanda
+    if getattr(franka_cls, "_sentinel_longfinger_patched", False):
+        return
+
+    panda_bundle = getattr(franka_mod, "FRANKA_PANDA_BUNDLE", "franka_panda")
+    longfinger_bundle = "franka_panda_longfinger"
+    setattr(franka_mod, "FRANKA_PANDA_LONGFINGER_BUNDLE", longfinger_bundle)
+
+    orig_usd_path = franka_cls.usd_path
+    orig_urdf_path = franka_cls.urdf_path
+    orig_curobo_path = franka_cls.curobo_path
+
+    def _franka_panda_asset_bundle(self):
+        dataset_root = get_dataset_path("omnigibson-robot-assets")
+        longfinger_dir = os.path.join(dataset_root, f"models/franka/{longfinger_bundle}")
+        if getattr(self, "end_effector", None) == "gripper" and os.path.isdir(longfinger_dir):
+            return longfinger_bundle
+        return panda_bundle
+
+    def _usd_path(self):
+        dataset_root = get_dataset_path("omnigibson-robot-assets")
+        if getattr(self, "model_name", None) == panda_bundle:
+            bundle_name = self._franka_panda_asset_bundle
+            return os.path.join(dataset_root, f"models/franka/{bundle_name}/usd/{bundle_name}.usda")
+        return orig_usd_path.fget(self)
+
+    def _urdf_path(self):
+        assert getattr(self, "_model_name", None) == panda_bundle, (
+            f"Only {panda_bundle} has urdf currently. Got: {getattr(self, '_model_name', None)}"
+        )
+        bundle_name = self._franka_panda_asset_bundle
+        return os.path.join(
+            get_dataset_path("omnigibson-robot-assets"),
+            f"models/franka/{bundle_name}/urdf/{bundle_name}.urdf",
+        )
+
+    def _curobo_path(self):
+        assert getattr(self, "_model_name", None) == panda_bundle, (
+            f"Only {panda_bundle} is currently supported for curobo. Got: {getattr(self, '_model_name', None)}"
+        )
+        bundle_name = self._franka_panda_asset_bundle
+        return os.path.join(
+            get_dataset_path("omnigibson-robot-assets"),
+            f"models/franka/{bundle_name}/curobo/{bundle_name}_description_curobo_default.yaml",
+        )
+
+    franka_cls._franka_panda_asset_bundle = property(_franka_panda_asset_bundle)
+    franka_cls.usd_path = property(_usd_path)
+    franka_cls.urdf_path = property(_urdf_path)
+    franka_cls.curobo_path = property(_curobo_path)
+    franka_cls._sentinel_longfinger_patched = True
+
+
 def _register_bddl_predicates() -> None:
     from sentinel.utils.bddl_predicates import register_sentinel_predicates
 
@@ -273,6 +330,7 @@ def _apply_eager_patches() -> None:
     _patch_grasp_goal()
     _patch_grasp_reward()
     _patch_sampling_utils()
+    _patch_franka_longfinger()
     _register_bddl_predicates()
     _EAGER_APPLIED = True
 
