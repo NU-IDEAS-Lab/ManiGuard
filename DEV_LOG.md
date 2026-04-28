@@ -36,6 +36,10 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+## 2026-04-28 — `feat/grasp-batch`: README documents GELLO teleop workflow
+
+Renames the Teleoperation section to cover both SO-101 and GELLO with a per-leader comparison table at the top. New `### GELLO leader → Franka` subsection: one-time Dynamixel calibration command, the single-task launch, hotkeys (SPACE = gripper), and shared `--grasping-mode` / `--gpu-dynamics` flags. New `### Batch teleop` subsection documents `run_teleop_batch.sh` (SO-101 native) + the shell-loop workaround for GELLO until the script grows a `--leader` flag.
+
 ## 2026-04-28 — `feat/grasp-batch`: lighting/camera robustness, longfinger, grasping mode, GELLO joint teleop
 
 `so101_franka_teleop.py`: long-finger FrankaPanda asset patch (`--stock-franka` opts out); `--grasping-mode {physical,assisted,sticky}` for thin/flat-object slip; skybox dome (intensity 12000) + viewport `LightingMode.CAMERA` so HF furnished scenes are visible in viewer + recorded sensors; robot-frame camera fallback when scene lacks a `support_surface` object (fixes cameras-in-walls in liquid_transport's 220-object rooms); conditional +0.5m base lift only when swapping FrankaMounted → FrankaPanda. `gello_franka_teleop.py` (new): 7-DOF kinematic-twin teleop, `JointController(position)` follower, `DynamixelRobot` direct read (skips GelloAgent's force-feedback layer), keyboard SPACE for gripper (no physical gripper yet), `--gpu-dynamics` for fluid scenes, shares `_install_longfinger_franka_patch` + grasping_mode with so101. Calibration constants in-file from the 2026-04-27 GELLO build.

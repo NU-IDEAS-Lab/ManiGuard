@@ -237,7 +237,20 @@ Configs under [`configs/rl/`](configs/rl/) and
 [`configs/sft/`](configs/sft/); the SB3 PPO path (no RLinf) is in
 [`sentinel/rl/training/ppo.py`](sentinel/rl/training/ppo.py).
 
-## Teleoperation (SO-101 → Franka)
+## Teleoperation (SO-101 / GELLO → Franka)
+
+Two leader options:
+
+| Leader | Mapping | Follower controller | Hardware coupling |
+|---|---|---|---|
+| **SO-101** | EE deltas → Franka IK targets | `InverseKinematicsController` | 6-DOF heterogeneous, ZMQ bridge |
+| **GELLO** | Joint angles 1:1 (kinematic twin) | `JointController(position)` | 7-DOF Dynamixel daisy-chain, in-process |
+
+Recordings from either go to HDF5 trajectories compatible with the SFT
+data prep script above. Action layouts differ (IK delta vs absolute
+joint), so don't mix them in the same dataset.
+
+### SO-101 leader → Franka
 
 Two-process setup (LeRobot's 3.12 venv for the hardware side, Sentinel's
 `behavior` conda env for OmniGibson), bridged by ZMQ at ~60 Hz. Detailed
@@ -260,11 +273,8 @@ python teleop_bridge/so101_server.py --mock
 conda activate behavior
 python -m sentinel.teleop.so101_franka_teleop \
     --snapshot outputs/pipeline_runs/<run>/scene_ep1.json \
-    --record --output outputs/teleop/demo.hdf5
+    --output-hdf5 outputs/teleop/demo.hdf5 --only-successes
 ```
-
-Recordings are HDF5 trajectories compatible with the SFT data prep
-script above.
 
 **Playback** a recorded trajectory (with optional observation dump for
 dataset curation):
@@ -274,6 +284,83 @@ python -m sentinel.teleop.so101_franka_playback \
     --input outputs/teleop/demo.hdf5 \
     --output outputs/teleop/demo_obs.hdf5 --record
 ```
+
+### GELLO leader → Franka
+
+Single-process — `gello` is bundled inside `behavior-1k/joylo/` so we add
+it to `PYTHONPATH` instead of pip-installing (avoids pulling telemoma /
+joycon / pyglm). Built-in `os.environ.setdefault("VK_ICD_FILENAMES", ...)`
+so you don't need to export it each run.
+
+**One-time hardware calibration** — flash unique IDs (1–7) and 2 Mbps
+baudrate to all 7 Dynamixels via Dynamixel Wizard 2.0, then with the
+GELLO physically posed at a repeatable reference (e.g. `joint 2` at its
+back-tilt limit, `joint 4` at its forward-bend limit, others in middle):
+
+```bash
+PYTHONPATH=behavior-1k/joylo \
+python behavior-1k/joylo/scripts/gello_get_offset.py \
+    --port /dev/serial/by-id/usb-FTDI_USB__-... \
+    --start-joints 0 -1.7628 0 -3.0718 0 -0.0175 0 \
+    --joint-signs 1 -1 1 1 1 1 1 \
+    --no-gripper
+```
+
+The printed `best offsets` array goes into `GELLO_JOINT_OFFSETS` near the
+top of `sentinel/teleop/gello_franka_teleop.py`. Update `JOINT_SIGNS`
+similarly if joints move backwards in sim. Calibration only needs to run
+once (or after re-flashing servos / changing geometry).
+
+**Run teleop:**
+
+```bash
+conda activate behavior
+python -m sentinel.teleop.gello_franka_teleop \
+    --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
+    --output-hdf5 outputs/gello_teleop_hdf5/table/scene_ep0000.hdf5 \
+    --only-successes
+```
+
+**Hotkeys** (focus the OmniGibson viewport):
+
+| Key | Action |
+|---|---|
+| `SPACE` | Toggle gripper open/close (no physical gripper yet — keyboard substitutes) |
+| `S` | Toggle success flag (with `--only-successes`, episodes only persist if S was pressed) |
+| `C` | Save checkpoint |
+| `R` | Rollback to last checkpoint |
+| `Q` | Clean exit (writes HDF5) |
+
+**Useful flags** (shared with `so101_franka_teleop` where applicable):
+
+- `--stock-franka` — fall back to stock FrankaPanda asset (default uses long-finger variant)
+- `--grasping-mode {physical,assisted,sticky}` — `assisted` welds objects via FixedJoint when both fingers contact, useful for thin/flat-object slip
+- `--gpu-dynamics` — required for fluid / particle / cloth scenes (e.g. `liquid_transport` family); off by default to save VRAM
+- `--invert-gripper` — swap which SPACE state means open vs close
+
+### Batch teleop (sweep a family)
+
+`scripts/run_teleop_batch.sh` iterates every `scene_ep*.json` under a
+task family. Currently hardcoded to the SO-101 entry point — for GELLO,
+either edit the `python -m sentinel.teleop.so101_franka_teleop` line in
+the script, or use a shell loop:
+
+```bash
+# SO-101 — built-in:
+bash scripts/run_teleop_batch.sh --task table
+
+# GELLO — shell loop:
+for snap in outputs/teleop_scenes/table/scene_ep*.json; do
+    out="outputs/gello_teleop_hdf5/table/$(basename "$snap" .json).hdf5"
+    [[ -f "$out" && $(stat -c%s "$out") -gt 8192 ]] && continue   # skip already-collected
+    python -m sentinel.teleop.gello_franka_teleop \
+        --snapshot "$snap" --output-hdf5 "$out" --only-successes
+done
+```
+
+Output dir defaults to `outputs/jixing_teleop2_hdf5/<family>/` (SO-101)
+or whatever you point GELLO's `--output-hdf5` at; cross-family
+`scene_ep<NNNN>` collisions are avoided by per-family subdirectories.
 
 ## Common manipulation-safety predicates
 
