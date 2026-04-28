@@ -53,11 +53,13 @@ def main():
     if not parquet_dir.exists():
         raise SystemExit(f"No data/ subdir in {dataset_root}; is this a LeRobot dataset?")
 
-    # Concatenate all episode parquet files.
-    parquet_paths = sorted(parquet_dir.rglob("episode_*.parquet"))
+    # Concatenate all parquet files. LeRobot 0.3.x used one file per
+    # episode (`episode_*.parquet`); 0.4.x switched to one file per chunk
+    # (`file-*.parquet`). Catch both.
+    parquet_paths = sorted(parquet_dir.rglob("*.parquet"))
     if not parquet_paths:
-        raise SystemExit(f"No episode_*.parquet files under {parquet_dir}")
-    print(f"[NormStats] Scanning {len(parquet_paths)} episode parquet files...")
+        raise SystemExit(f"No *.parquet files under {parquet_dir}")
+    print(f"[NormStats] Scanning {len(parquet_paths)} parquet file(s)...")
 
     states = []
     actions = []

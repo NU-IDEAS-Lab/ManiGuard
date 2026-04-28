@@ -28,6 +28,7 @@ cd "$REPO_ROOT"
 
 PY="/home/nu-ideas-4080/miniconda3/envs/behavior/bin/python"
 INPUT_DIR="${INPUT_DIR:-outputs/teleop}"
+INPUT_GLOB="${INPUT_GLOB:-traj_*.hdf5}"
 RENDERED_DIR="${RENDERED_DIR:-outputs/teleop_rendered}"
 LEROBOT_ROOT="${LEROBOT_ROOT:-outputs/lerobot_datasets}"
 REPO_ID="${REPO_ID:-sentinel/goblet_pick_place}"
@@ -35,6 +36,7 @@ ASSET_ID="${ASSET_ID:-sentinel_goblet_pick_place}"
 PROMPT="${PROMPT:-pick up the goblet and place it on the plate}"
 
 echo "[Prep] input_dir     = $INPUT_DIR"
+echo "[Prep] input_glob    = $INPUT_GLOB"
 echo "[Prep] rendered_dir  = $RENDERED_DIR"
 echo "[Prep] lerobot_root  = $LEROBOT_ROOT"
 echo "[Prep] repo_id       = $REPO_ID"
@@ -43,7 +45,14 @@ echo "[Prep] pi05_base     = $SENTINEL_PI05_BASE"
 
 # -- Stage 1: render obs for each teleop HDF5 -------------------------------
 mkdir -p "$RENDERED_DIR"
-for in_path in "$INPUT_DIR"/traj_*.hdf5; do
+shopt -s nullglob
+inputs=( "$INPUT_DIR"/$INPUT_GLOB )
+shopt -u nullglob
+if (( ${#inputs[@]} == 0 )); then
+    echo "[Prep] No HDF5 files matched $INPUT_DIR/$INPUT_GLOB" >&2
+    exit 1
+fi
+for in_path in "${inputs[@]}"; do
     name=$(basename "$in_path")
     out_path="$RENDERED_DIR/$name"
     if [[ -f "$out_path" && -s "$out_path" ]]; then
@@ -53,7 +62,7 @@ for in_path in "$INPUT_DIR"/traj_*.hdf5; do
     echo "[Prep] Stage 1: $in_path"
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 \
-    "$PY" python -m sentinel.data.playback \
+    "$PY" -m sentinel.data.playback \
         --input "$in_path" --output "$out_path" --save-mp4
 done
 
@@ -63,7 +72,7 @@ if [[ -d "$DATASET_ROOT/data" ]]; then
     echo "[Prep] Dataset already exists at $DATASET_ROOT (delete to regenerate)"
 else
     echo "[Prep] Stage 2: building LeRobot dataset at $DATASET_ROOT"
-    "$PY" python -m sentinel.data.lerobot_export \
+    "$PY" -m sentinel.data.lerobot_export \
         --input-dir "$RENDERED_DIR" \
         --repo-id "$REPO_ID" \
         --prompt "$PROMPT" \
@@ -73,7 +82,7 @@ fi
 # -- Stage 3: norm_stats.json next to the Pi0.5 ckpt ------------------------
 NORM_DIR="$SENTINEL_PI05_BASE/assets/$ASSET_ID"
 echo "[Prep] Stage 3: writing norm_stats to $NORM_DIR"
-"$PY" python -m sentinel.data.norm_stats \
+"$PY" -m sentinel.data.norm_stats \
     --dataset-root "$DATASET_ROOT" \
     --output-dir "$NORM_DIR"
 
