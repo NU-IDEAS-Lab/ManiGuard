@@ -36,6 +36,10 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+## 2026-04-28 — `feat/grasp-batch`: batch teleop script with --task flag and per-task OUT_DIR
+
+`scripts/run_teleop_batch.sh` (new) replaces the ad-hoc loop pattern. `--task <family>` sweeps every `scene_ep*.json` under `outputs/teleop_scenes/<family>/`; output defaults to `outputs/jixing_teleop2_hdf5/<family>/` so cross-task `scene_ep<NNNN>` filename collisions don't overwrite each other. Already-collected HDF5s (≥ 8 KB) are auto-skipped on resume; partial 96 B writes are recognized as stale and re-run.
+
 ## 2026-04-28 — `feat/grasp-batch`: SFT prep pipeline fixes (INPUT_GLOB / hub push / parquet layout)
 
 `scripts/prepare_sft_data.sh` gains an `INPUT_GLOB` env var so non-`traj_*` HDF5s flow through, and the `"$PY" python -m ...` double-python typo (running `python` as a script name) is fixed. `lerobot_export.py` adds `--push-to-hub` / `--hub-private` that auto-create the `codebase_version` git tag openpi requires (plain `huggingface_hub.upload_folder` doesn't). `norm_stats.py` scans all `*.parquet` so LeRobot 0.4.x chunk-level layout is picked up, not just 0.3.x episode-per-file.
