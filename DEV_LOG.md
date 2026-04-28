@@ -36,6 +36,10 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+## 2026-04-28 — `feat/grasp-batch`: real-teleop NPZ converters + openpi SFT doc
+
+`sentinel/data/real_teleop_to_droid.py` (new) emits LeRobot in openpi's DROID schema (180×320 3-cam, joint_velocity action, push_to_hub with codebase_version tag). `sentinel/data/real_teleop_to_hdf5.py` (new) bridges into our existing Stage-2 lerobot_export for non-DROID flows. `docs/openpi_real_teleop_sft.md` (new) is the end-to-end pi0.5 SFT recipe (NPZ → dataset → LoRA finetune → serve_policy) extracted from the mug_into_bowl run.
+
 ## 2026-04-28 — `feat/grasp-batch`: batch teleop script with --task flag and per-task OUT_DIR
 
 `scripts/run_teleop_batch.sh` (new) replaces the ad-hoc loop pattern. `--task <family>` sweeps every `scene_ep*.json` under `outputs/teleop_scenes/<family>/`; output defaults to `outputs/jixing_teleop2_hdf5/<family>/` so cross-task `scene_ep<NNNN>` filename collisions don't overwrite each other. Already-collected HDF5s (≥ 8 KB) are auto-skipped on resume; partial 96 B writes are recognized as stale and re-run.
