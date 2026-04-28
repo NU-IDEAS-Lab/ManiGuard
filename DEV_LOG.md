@@ -1,5 +1,68 @@
 # SENTINEL-Lite — Dev Log
 
+## Action items (deferred)
+
+- **Port OmniReset's iterative Jacobian DLS IK into `GraspDatasetResetter`.**
+  Phase 2 of the grasp-reset story (Phase 1 is the 2026-04-21 ``reset_mode='cached'``
+  path — fast path, no IK). Current ``ik`` mode uses cuRobo, which is blocked
+  under multi-env by OG's ``assert len(og.sim.scenes) == 1`` in
+  ``CuRoboMotionGenerator.__init__``. OmniReset uses
+  ``DifferentialIKControllerCfg(ik_method='dls')`` (~25-iter Jacobian-based
+  DLS, CPU-friendly, scene-agnostic). Porting it would:
+  1. Let ``reset_mode='ik'`` run under ``num_envs > 1`` (cuRobo-free).
+  2. Enable per-reset pose randomization (``pose_range_b`` applied in eef
+     body frame), which is the prerequisite for OmniReset-style generalization
+     training — policy sees diverse init configurations instead of the single
+     fixed object pose the cached path produces.
+  ~40-80 line change in ``sentinel/rl/grasps/reset.py``: replace
+  ``_curobo_ik`` with a ``_dls_ik`` that solves ``J^T (J J^T + λ I)^{-1} Δx``
+  iteratively via PyTorch, initialized from the saved ``arm_joint_pos``.
+- **Port the rest of OmniReset's reset zoo into `GraspDatasetResetter`.** Current
+  port covers only `ObjectRestingEEGrasped` (object on surface, ee at saved
+  grasp). OmniReset defines 5 distributions in
+  ``Omnireset/source/.../reset_states_cfg.py``:
+  1. `ObjectAnywhereEEAnywhere` — free-space reach (no grasp, non-trivial
+     randomized object + ee poses)
+  2. `ObjectRestingEEGrasped` — **ours**
+  3. `ObjectAnywhereEEGrasped` — object airborne, ee holding (mid-carry start)
+  4. `ObjectPartiallyAssembledEEAnywhere` — insertion-task specific
+  5. `ObjectPartiallyAssembledEEGrasped` — insertion precision
+  OmniReset uses `MultiResetManager` to mix them with tunable probabilities +
+  curriculum. For our `PickAndLiftTask` the most relevant additions are #1
+  (policy learns reach+grasp from scratch) and #3 (policy learns carry from
+  any airborne start). Implementation: extend `GraspDatasetResetter` with
+  airborne-target + random-ee-pose modes, then expose ``--reset-mix`` CLI
+  kwarg wiring a distribution over modes.
+- **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
+  (alternative to DLS port — upstream PR, riskier timeline).
+
+## 2026-04-21 — `feat/grasp-batch`: reset_mode='cached' unblocks multi-env + wandb logging
+
+`GraspDatasetResetter` picks up a ``reset_mode: {'cached', 'ik'}`` parameter.
+Cached is the new default and skips online cuRobo IK entirely — the
+``arm_joint_pos`` column already stored in ``grasps_<cat>_<model>.pt`` goes
+straight into ``set_joint_positions`` at reset time. Two consequences:
+
+1. **Multi-env unblocked (with ``scene_file``).** Cached mode never touches
+   ``StarterSemanticActionPrimitives``, so the cuRobo single-scene assertion
+   noted in the 2026-04-20 entry is bypassed. ``--num-envs 4 --scene-file ...
+   --reset-mode cached`` now works end-to-end.
+2. **~100-500 ms saved per reset.** The 30 s first-call cuRobo JIT is gone too.
+   At 200-step episodes this is ~5-10 % throughput improvement single-env,
+   compounding 3-4× with multi-env.
+
+Tradeoff: cached mode requires the target object to be at the same world pose
+at reset as at collection time. Our ``_restore_target`` always restores to the
+scene-init pose, so this holds for both ``scene_file`` and runtime-spawn
+paths. Per-reset pose randomization (``pose_range_b``) remains a future
+feature and needs the DLS IK port listed in Action items.
+
+``ppo_grasp_reset`` also gains wandb logging (``--wandb / --wandb-project /
+--wandb-run-name / --wandb-mode / --wandb-upload-ckpts``), with
+``sync_tensorboard=True`` mirroring SB3's local TB events into W&B panels.
+
+## 2026-04-20 — `feat/grasp-batch`: multi-env PPO blocked by OG's cuRobo single-scene assertion (superseded 2026-04-21)
+
 ## 2026-04-20 — `feat/grasp-batch`: multi-env PPO blocked by OG's cuRobo single-scene assertion
 
 Wired SB3 multi-env (`SentinelSB3VectorEnvironment`, `--num-envs N`) into `sentinel.rl.training.ppo_grasp_reset`. The runtime-spawn path trips OG's scene-tiling bug on empty scenes (`decompose_mat` perspective check at `idx != 0`), which is avoided by passing a pre-baked `scene_file`. Collected `grasps_mug_kewbyf.pt` matching the existing `mug_into_bowl_empty_20260417_154117/scene_ep1.json` and wired `--scene-file` through `build_config`.
