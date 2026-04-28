@@ -36,6 +36,16 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+## 2026-04-28 — `feat/grasp-batch`: gello UX overhaul (goal_checker + recalibration + deterministic startup ramp)
+
+`sentinel/teleop/gello_franka_teleop.py` picks up three related improvements in one pass:
+
+1. **goal_checker auto-success ported from so101.** Imports `_read_first_jsonl`, builds the success_checker from sibling `diagnostics.jsonl`, runs it every loop step, and breaks with `state["success"]=True` the moment the green-sphere goal region fires. S key downgrades to `state["manual_override"]`. Banner also shows `TASK` / `TARGET` from the same diagnostics. Reaches feature parity with so101.
+
+2. **Re-calibrated `GELLO_JOINT_OFFSETS`** after stabilizing the leader arm: J2 base 2π/2→1π/2, J3 0→4π/2 (≡0 mod 2π — calibration script picked the wrapped form), J6 2π/2→1π/2. All post-calibration trims (J2/J4 relaxed-rest, J7 mounting) preserved.
+
+3. **Deterministic startup pose + smooth ramp.** Added `GELLO_CALIBRATION_FRANKA_POSE` constant (Franka equivalent of GELLO held at the gello_get_offset.py reference pose, post-trim) and `GELLO_RAMP_STEPS=60`. `_build_from_snapshot` gains an `initial_joint_pos` kwarg that overwrites the snapshot's saved `joint_pos[0:7]`. main() seeds Franka at the calibration pose every launch (deterministic, snapshot-independent), then the loop ramps from that pose to GELLO's live reading over 60 steps (~2 s at 30 Hz). Eliminates the 100°+ jolt seen on task_0004 where the snapshot's saved Franka pose is far from where the operator holds GELLO. Leader connect moved before env build so DynamixelRobot failures surface in 1 s instead of after the 30-90 s OmniGibson init.
+
 ## 2026-04-28 — `feat/grasp-batch`: so101 startup banner shows task prompt + target name
 
 `sentinel/teleop/so101_franka_teleop.py` extracts `prompt` and `goal_region.target_name` from the snapshot's sibling `diagnostics.jsonl` and surfaces them as `TASK` / `TARGET` lines in the Ready banner. Operators no longer need to alt-tab to a separate file viewer to find out which object the current scene wants them to manipulate.

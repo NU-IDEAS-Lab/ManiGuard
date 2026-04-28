@@ -69,6 +69,9 @@ from gello.robots.dynamixel import DynamixelRobot  # noqa: E402
 # sentinel/_omnigibson_patches.py:_patch_franka_longfinger() at OmniGibson
 # init time, so this entry no longer needs to install anything.
 
+# Reuse so101's diagnostics-jsonl reader for goal_checker auto-success.
+from sentinel.teleop.so101_franka_teleop import _read_first_jsonl  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # GELLO calibration constants (from `gello_get_offset.py`, 2026-04-27)
@@ -79,15 +82,33 @@ GELLO_PORT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTB8HNJP-if00-
 GELLO_JOINT_IDS = (1, 2, 3, 4, 5, 6, 7)
 GELLO_JOINT_OFFSETS = [
     3 * np.pi / 2,   # J1
-    2 * np.pi / 2 + (1.7628 - np.pi / 4),   # J2  (trim: GELLO physical max-back -> Franka -π/4 instead of joint limit -1.7628, for a relaxed rest pose)
-    0 * np.pi / 2,   # J3
+    1 * np.pi / 2 + (1.7628 - np.pi / 4),   # J2  (trim: GELLO physical max-back -> Franka -π/4 instead of joint limit -1.7628, for a relaxed rest pose)
+    4 * np.pi / 2,   # J3  (≡ 0 mod 2π; calibration picked the wrapped form)
     3 * np.pi / 2 - (3.0718 - np.pi / 4 - np.pi / 9),   # J4  (trim: GELLO physical max-forward -> Franka ~-65° (-π/4 - 20°), slightly more bent than -π/4)
     0 * np.pi / 2,   # J5
-    2 * np.pi / 2,   # J6
+    1 * np.pi / 2,   # J6
     4 * np.pi / 2 - np.pi / 4,   # J7  (-π/4 trim: GELLO J7 mounting offset, calibration script rounds to π/2)
 ]
 GELLO_JOINT_SIGNS = (1, -1, 1, 1, 1, 1, 1)
 GELLO_GRIPPER_CONFIG = None  # no physical gripper attached yet — keyboard takes over
+
+# Franka joint pose that corresponds to GELLO held at the calibration
+# reference pose (the physical pose used during gello_get_offset.py),
+# AFTER applying the trims baked into GELLO_JOINT_OFFSETS. This is what
+# we seed Franka at on env.reset() — deterministic across launches and
+# independent of where GELLO physically is at startup. The teleop loop
+# then ramps Franka from this pose to GELLO's actual current reading
+# over GELLO_RAMP_STEPS steps so there's no jolt.
+GELLO_CALIBRATION_FRANKA_POSE = (
+    0.0,                                # J1 (calibrated to 0)
+    -np.pi / 4,                         # J2 (raw -1.7628 + trim 0.978 = -π/4)
+    0.0,                                # J3 (calibrated to 0)
+    -np.pi / 4 - np.pi / 9,             # J4 (raw -3.0718 + trim 2.286 = -π/4 - π/9 ≈ -65°)
+    0.0,                                # J5 (calibrated to 0)
+    -0.0175,                            # J6 (raw J6 lower limit)
+    0.0,                                # J7 (raw 0 + trim -π/4 + actual -45° spin = 0)
+)
+GELLO_RAMP_STEPS = 60                   # ~2 s at 30 Hz to drive Franka from calibration pose to GELLO current
 
 
 # ---------------------------------------------------------------------------
@@ -105,11 +126,18 @@ def _build_from_snapshot(
     snapshot_path,
     robot_type="FrankaPanda",
     grasping_mode="physical",
+    initial_joint_pos=None,
 ):
     """Rewrite snapshot's robot entry for joint-position teleop.
 
     grasping_mode selects OmniGibson's grasping semantics — same options as
     so101_franka_teleop: 'physical' / 'assisted' / 'sticky'.
+
+    initial_joint_pos (None or 7-element sequence): if given, overwrite the
+    snapshot's saved arm joint_pos[0:7] with these values. Used to seed the
+    follower at the operator's current GELLO pose so env.reset() doesn't
+    snap the arm to the snapshot's saved pose (which can be 100° off from
+    where GELLO currently is). Gripper joints (7:9) are left untouched.
     """
     with open(snapshot_path, "r", encoding="utf-8") as f:
         snap = json.load(f)
@@ -162,6 +190,19 @@ def _build_from_snapshot(
             "arm_0": {"goal_is_valid": False, "goal": None},
             "gripper_0": {"goal_is_valid": False, "goal": None},
         }
+        if initial_joint_pos is not None:
+            saved_jp = robot_state.get("joint_pos")
+            if saved_jp is not None and len(saved_jp) >= 7:
+                for i in range(7):
+                    saved_jp[i] = float(initial_joint_pos[i])
+                # Also zero arm joint velocities so env.reset() doesn't
+                # restore a non-zero v that would jolt the arm at startup.
+                jv = robot_state.get("joint_vel")
+                if jv is not None and len(jv) >= 7:
+                    for i in range(7):
+                        jv[i] = 0.0
+                print(f"[Gello] Snapshot arm joint_pos overridden with GELLO leader pose:")
+                print(f"        {[round(float(v), 3) for v in initial_joint_pos[:7]]} rad")
 
     # Lift the base only when swapping a floor-mounted FrankaMounted snapshot
     # to FrankaPanda. Snapshots already saved as FrankaPanda (HF furnished
@@ -296,10 +337,37 @@ def main():
         gm.USE_GPU_DYNAMICS = True
         print("[Gello] gm.USE_GPU_DYNAMICS = True (fluids/particles/cloth enabled)")
 
-    # ----- Build env from snapshot -----
+    # ----- Connect GELLO before building the env so DynamixelRobot
+    #       failures (port busy, no power, …) surface fast — before the
+    #       30-90 s OmniGibson startup. We don't seed the snapshot from
+    #       the leader's current reading anymore: GELLO is passive when
+    #       not actively held, so a "startup snapshot of the leader" is
+    #       non-deterministic. Instead we seed Franka at a fixed pose
+    #       (GELLO_CALIBRATION_FRANKA_POSE) below, then ramp toward
+    #       leader.get_joint_state() over GELLO_RAMP_STEPS steps in the
+    #       main loop.
+    print(f"[Gello] Connecting to leader at {args.gello_port}")
+    leader = DynamixelRobot(
+        joint_ids=GELLO_JOINT_IDS,
+        joint_offsets=list(GELLO_JOINT_OFFSETS),
+        joint_signs=list(GELLO_JOINT_SIGNS),
+        port=args.gello_port,
+        real=True,
+        gripper_config=GELLO_GRIPPER_CONFIG,
+        start_joints=None,
+    )
+    n_dofs = leader.num_dofs()
+    print(f"[Gello] Connected. DOFs={n_dofs} (expected 7 for arm-only)")
+    if n_dofs != 7:
+        print(f"[Gello] WARNING: expected 7 DOFs but got {n_dofs}. "
+              f"If gripper is now wired, update GELLO_GRIPPER_CONFIG and re-run.")
+
+    # ----- Build env from snapshot, seeded at the deterministic
+    #       calibration-reference pose (NOT the leader's current reading) -----
     cfg = _build_from_snapshot(
         args.snapshot,
         grasping_mode=args.grasping_mode,
+        initial_joint_pos=np.asarray(GELLO_CALIBRATION_FRANKA_POSE, dtype=np.float32),
     )
     print(f"[Gello] grasping_mode = {args.grasping_mode}")
     env = og.Environment(configs=cfg)
@@ -332,30 +400,38 @@ def main():
     # ----- Cameras -----
     _setup_cameras_for_scene(env, robot, args)
 
-    # ----- Connect GELLO -----
-    print(f"[Gello] Connecting to leader at {args.gello_port}")
-    leader = DynamixelRobot(
-        joint_ids=GELLO_JOINT_IDS,
-        joint_offsets=list(GELLO_JOINT_OFFSETS),
-        joint_signs=list(GELLO_JOINT_SIGNS),
-        port=args.gello_port,
-        real=True,
-        gripper_config=GELLO_GRIPPER_CONFIG,
-        start_joints=None,
-    )
-    n_dofs = leader.num_dofs()
-    print(f"[Gello] Connected. DOFs={n_dofs} (expected 7 for arm-only)")
-    if n_dofs != 7:
-        print(f"[Gello] WARNING: expected 7 DOFs but got {n_dofs}. "
-              f"If gripper is now wired, update GELLO_GRIPPER_CONFIG and re-run.")
-
     # ----- Hotkeys -----
     KeyboardEventHandler.initialize()
     state = {
         "quit": False,
         "gripper_open": bool(args.start_gripper_open),
-        "success": False,
+        "success": False,            # authoritative success flag (auto OR manual)
+        "manual_override": False,    # operator-forced success via S key
     }
+
+    # Auto-success: if a sibling diagnostics.jsonl exists (HF furnished
+    # scenes ship one with goal_region + goal_conditions), build a goal
+    # checker that fires success the moment the green-sphere goal region
+    # is satisfied — no need for the operator to press S.
+    success_checker = None
+    success_detail = {}
+    task_prompt = None
+    task_target = None
+    diagnostics_path = os.path.join(os.path.dirname(args.snapshot), "diagnostics.jsonl")
+    if os.path.isfile(diagnostics_path):
+        diagnostics = _read_first_jsonl(diagnostics_path)
+        task_prompt = diagnostics.get("prompt")
+        task_target = diagnostics.get("goal_region", {}).get("target_name")
+        from sentinel.eval.goal_checker import build_goal_checker
+        success_checker = build_goal_checker(
+            {
+                "goal_region": diagnostics.get("goal_region"),
+                "goal_conditions": diagnostics.get("goal_conditions", []),
+            }
+        )
+        if success_checker is not None:
+            success_checker.resolve(env)
+            print("[Gello] Loaded success checker from diagnostics.")
 
     def _on_quit():
         state["quit"] = True
@@ -384,9 +460,9 @@ def main():
             print(f"[Gello] Rolled back ({len(recorder.checkpoint_states)} remain)")
 
         def _on_success():
-            state["success"] = not state["success"]
-            tag = "SUCCESS" if state["success"] else "not-success"
-            print(f"[Gello] Episode marked {tag}")
+            state["manual_override"] = not state["manual_override"]
+            tag = "FORCE-SUCCESS" if state["manual_override"] else "auto-checker"
+            print(f"[Gello] Success mode -> {tag}")
 
         KeyboardEventHandler.add_keyboard_callback(
             key=lazy.carb.input.KeyboardInput.C, callback_fn=_on_checkpoint,
@@ -407,29 +483,67 @@ def main():
 
     print("\n" + "=" * 50)
     print(f"GELLO → Franka Teleop Ready  [{args.snapshot}]")
+    if task_prompt:
+        print(f"  TASK   : {task_prompt}")
+    if task_target:
+        print(f"  TARGET : {task_target}")
     print("Move the GELLO arm to drive Franka joints 1:1")
     print("SPACE = toggle gripper   Q = clean exit")
     if recorder is not None:
         print("S = mark success   C = checkpoint   R = rollback")
     print("=" * 50 + "\n")
 
+    # Capture Franka's actual starting joint pose for the ramp source.
+    # env.reset() already loaded the calibration pose into the snapshot,
+    # so this should match GELLO_CALIBRATION_FRANKA_POSE within numerical
+    # noise — but reading the live value is robust to URDF joint-limit
+    # clamping etc.
+    ramp_source = np.asarray(GELLO_CALIBRATION_FRANKA_POSE, dtype=np.float32)
+    try:
+        live = robot.get_joint_positions().cpu().numpy()
+        ramp_source = live[:7].astype(np.float32)
+    except Exception as _exc:
+        print(f"[Gello] Could not read live arm pose for ramp source ({_exc}); "
+              f"falling back to GELLO_CALIBRATION_FRANKA_POSE.")
+    print(f"[Gello] Ramp: {ramp_source.round(3).tolist()} -> live GELLO over "
+          f"{GELLO_RAMP_STEPS} steps")
+
     try:
         for step in range(args.steps):
             if state["quit"]:
                 break
-            joints = leader.get_joint_state()  # 7-dim numpy (radians, calibrated)
+            target = np.asarray(leader.get_joint_state(), dtype=np.float32)[:7]
+            if step < GELLO_RAMP_STEPS:
+                alpha = (step + 1) / GELLO_RAMP_STEPS
+                arm_action = (1.0 - alpha) * ramp_source + alpha * target
+            else:
+                arm_action = target
             action = th.zeros(action_dim, dtype=th.float32)
-            action[arm_idx] = th.tensor(np.asarray(joints, dtype=np.float32))
+            action[arm_idx] = th.tensor(arm_action, dtype=th.float32)
             action[gripper_idx] = th.tensor(
                 [open_value if state["gripper_open"] else close_value],
                 dtype=th.float32,
             )
             env.step(action)
 
+            # Auto-success — break the loop the moment the goal region fires.
+            if success_checker is not None:
+                auto_success, success_detail = success_checker.check(env)
+                if auto_success:
+                    state["success"] = True
+                    print(f"[Gello] Success satisfied: {success_detail}")
+                    break
+            # Manual override still wins (S-key force).
+            if state["manual_override"]:
+                state["success"] = True
+                break
+
             if step % 300 == 0 and step > 0:
                 grip_str = "OPEN" if state["gripper_open"] else "CLOSE"
+                ramp_str = "ramp" if step < GELLO_RAMP_STEPS else "live"
                 print(f"step {step}/{args.steps} gripper={grip_str} "
-                      f"first_joint={float(joints[0]):+.3f} rad")
+                      f"first_joint={float(target[0]):+.3f} rad ({ramp_str}) "
+                      f"success={state['success']}")
 
     except KeyboardInterrupt:
         print("\nStopping teleop (SIGINT)...")
