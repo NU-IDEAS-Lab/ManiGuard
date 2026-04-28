@@ -2,6 +2,13 @@
 
 ## Action items (deferred)
 
+- **Refactor task-family explosion in `perturbation_scaling.py` (3591 lines) and `snapshot_validator.py` (2148 lines).**
+  Both files came in via the merge of `feat/task-generation-scene-benchmark-staging` (commit b841084a) and grew via per-family copy-paste rather than per-family hooks over a generic core.
+  - `perturbation_scaling.py`: 80+ top-level functions, 5 perturbation categories × 7 families = 35 combinations each with a custom `_materialize_*` path; 3 separate prompt-variant generators (`_generic_pickup_prompt_variants`, `_transfer_prompt_variants`, `_lid_prompt_variants` ~150 lines combined). Refactor sketch: lift the orchestrator (`scale_base_task_set`, 210 lines) and let each family register a `(materialize, prompt_variants, role_inference)` triple via a registry; per-family code drops from ~300 lines to ~50.
+  - `snapshot_validator.py`: 5 family-specific runtime check functions (`_runtime_check_clutter`, `_runtime_check_stack`, `_runtime_check_lid_transport_food/liquid`, ~445 lines combined) all do the same 80%: load task → step env → check goal_region + LTL → save review video. Refactor: one `_runtime_check_generic(family, family_specific_hooks)` with per-family hooks of ~30-50 lines each.
+  - **Why deferred**: the file is in active development on `feat/task-generation-scene-benchmark-staging`. Refactoring without coordination guarantees merge conflicts. Coordinate with @666harrypeng before touching.
+  - **Until refactor**: when adding new families or perturbation types, resist adding more `_<family>_*` siblings. Push toward generic-path-with-hooks even if it requires touching the orchestrator.
+
 - **Port OmniReset's iterative Jacobian DLS IK into `GraspDatasetResetter`.**
   Phase 2 of the grasp-reset story (Phase 1 is the 2026-04-21 ``reset_mode='cached'``
   path — fast path, no IK). Current ``ik`` mode uses cuRobo, which is blocked
