@@ -33,6 +33,84 @@ from omnigibson.utils.ui_utils import KeyboardEventHandler
 
 
 # ---------------------------------------------------------------------------
+# Long-finger asset patch
+# ---------------------------------------------------------------------------
+
+def _install_longfinger_franka_patch():
+    """Repoint FrankaPanda's asset paths to the long-finger bundle.
+
+    The long-finger bundle lives next to stock panda under
+    ``omnigibson-robot-assets/models/franka/franka_panda_longfinger/`` and
+    keeps panda's link / joint / eef_link contract — only finger
+    geometry differs. We override the path properties on the FrankaPanda
+    class without touching ``model_name`` so the curobo / urdf asserts
+    in upstream ``omnigibson.robots.franka`` keep passing.
+
+    Scope: this patch is installed only by ``so101_franka_teleop.main()``
+    (i.e. ``scripts/run_teleop_batch.sh``). Other entry points (task
+    generation, RL, eval) don't import this module and aren't affected.
+    """
+    from omnigibson.robots.franka import FrankaPanda
+    from omnigibson.utils.asset_utils import get_dataset_path
+
+    if getattr(FrankaPanda, "_sentinel_longfinger_patched", False):
+        return
+
+    root = os.path.join(
+        get_dataset_path("omnigibson-robot-assets"),
+        "models/franka/franka_panda_longfinger",
+    )
+    paths = {
+        "usd":    os.path.join(root, "usd",    "franka_panda_longfinger.usda"),
+        "urdf":   os.path.join(root, "urdf",   "franka_panda_longfinger.urdf"),
+        "curobo": os.path.join(root, "curobo", "franka_panda_longfinger_description_curobo_default.yaml"),
+    }
+    for kind, p in paths.items():
+        if not os.path.isfile(p):
+            raise FileNotFoundError(
+                f"[Teleop] long-finger {kind} asset missing: {p}\n"
+                f"Expected the long-finger bundle under {root}, or pass "
+                f"--stock-franka to fall back to stock BEHAVIOR FrankaPanda."
+            )
+
+    # Only swap for the default 'gripper' end_effector. allegro/leap/inspire
+    # variants keep upstream behavior (model_name differs there).
+    def _make_swap(orig_prop, swap_path):
+        def _getter(self):
+            if self._model_name == "franka_panda":
+                return swap_path
+            return orig_prop.fget(self)
+        return property(_getter)
+
+    FrankaPanda.usd_path    = _make_swap(FrankaPanda.usd_path,    paths["usd"])
+    FrankaPanda.urdf_path   = _make_swap(FrankaPanda.urdf_path,   paths["urdf"])
+    FrankaPanda.curobo_path = _make_swap(FrankaPanda.curobo_path, paths["curobo"])
+
+    # Delegate AG grasping points to ManipulationRobot's auto-inference so
+    # raycast endpoints land at the actual long-finger fingertip instead of
+    # the stock 0.045 m offset (which would be ~28% along the long finger,
+    # well below the pinch zone). Mirrors FrankaMounted's strategy
+    # (franka_mounted.py:43-48) which uses the same long fingers.
+    def _make_ag_swap(orig_prop):
+        def _getter(self):
+            if self._model_name == "franka_panda":
+                return None  # -> base class auto-inference via _infer_finger_properties
+            return orig_prop.fget(self)
+        return property(_getter)
+
+    FrankaPanda._assisted_grasp_start_points = _make_ag_swap(FrankaPanda._assisted_grasp_start_points)
+    FrankaPanda._assisted_grasp_end_points   = _make_ag_swap(FrankaPanda._assisted_grasp_end_points)
+
+    FrankaPanda._sentinel_longfinger_patched = True
+
+    print("[Teleop] FrankaPanda assets repointed to long-finger bundle:")
+    print(f"           USD:    {paths['usd']}")
+    print(f"           URDF:   {paths['urdf']}")
+    print(f"           cuRobo: {paths['curobo']}")
+    print("[Teleop] AG grasping points -> auto-inferred from long-finger geometry.")
+
+
+# ---------------------------------------------------------------------------
 # Robot config helper
 # ---------------------------------------------------------------------------
 
@@ -71,7 +149,11 @@ from sentinel.utils.camera_setup import build_external_camera_configs
 _EXTERNAL_CAMERAS = build_external_camera_configs()
 
 
-def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
+def _build_from_snapshot(
+    snapshot_path,
+    robot_type="FrankaPanda",
+    grasping_mode="physical",
+):
     """Load an og.sim.save()-style scene snapshot via scene_file.
 
     Rewrites the robot entry in a copy of the snapshot so the loaded
@@ -112,6 +194,7 @@ def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
             "mode": "binary",
         },
     }
+    entry["args"]["grasping_mode"] = grasping_mode
 
     # Replace the saved controller state with a minimal null-goal entry
     # per controller. The snapshot was taken with an
@@ -128,14 +211,19 @@ def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
             "arm_0": {"goal_is_valid": False, "goal": None},
             "gripper_0": {"goal_is_valid": False, "goal": None},
         }
-        # Raise the robot base by 0.5m so FrankaPanda reaches the tabletop
-        # comfortably (the snapshot was taken with FrankaMounted on the floor).
-        root_link = robot_state.get("root_link")
-        if root_link is not None and "pos" in root_link:
-            root_link["pos"][2] = float(root_link["pos"][2]) + 0.5
-    args_pos = entry.get("args", {}).get("position")
-    if args_pos is not None:
-        args_pos[2] = float(args_pos[2]) + 0.5
+    # Lift the base by 0.5m only when swapping a floor-mounted FrankaMounted
+    # snapshot to FrankaPanda — without this the arm would sit on the floor.
+    # Snapshots already saved as FrankaPanda (e.g. HF furnished scenes where
+    # the robot is desk-mounted) are at the correct height.
+    needs_lift = old_class == "FrankaMounted" and robot_type == "FrankaPanda"
+    if needs_lift:
+        if robot_state is not None:
+            root_link = robot_state.get("root_link")
+            if root_link is not None and "pos" in root_link:
+                root_link["pos"][2] = float(root_link["pos"][2]) + 0.5
+        args_pos = entry.get("args", {}).get("position")
+        if args_pos is not None:
+            args_pos[2] = float(args_pos[2]) + 0.5
 
     # Write the rewritten snapshot next to the original.
     stem, ext = os.path.splitext(snapshot_path)
@@ -186,13 +274,59 @@ def main():
                              "reports CLOSED near the top of its calibrated range)")
     parser.add_argument("--debug-gripper", action="store_true",
                         help="Print the raw gripper value each step")
+    parser.add_argument("--stock-franka", action="store_true",
+                        help="Fall back to BEHAVIOR-1K's stock FrankaPanda asset. "
+                             "Default loads the long-finger variant from "
+                             "omnigibson-robot-assets/models/franka/franka_panda_longfinger/.")
+    parser.add_argument("--grasping-mode", choices=["physical", "assisted", "sticky"],
+                        default="physical",
+                        help="OmniGibson grasping semantics. 'physical' (default) "
+                             "= pure Coulomb contact physics. 'assisted' = once "
+                             "both fingers contact an object between the AG "
+                             "raycast endpoints, OG welds the object to the "
+                             "gripper via a force-limited FixedJoint. 'sticky' = "
+                             "any finger contact + close command welds. Use "
+                             "assisted for teleop demos when slip on thin/flat "
+                             "objects is the bottleneck; physical preserves "
+                             "real grasp dynamics for downstream training.")
     args = parser.parse_args()
 
-    cfg = _build_from_snapshot(args.snapshot)
+    if not args.stock_franka:
+        _install_longfinger_franka_patch()
+    else:
+        print("[Teleop] --stock-franka set; using stock BEHAVIOR FrankaPanda assets.")
+
+    cfg = _build_from_snapshot(
+        args.snapshot,
+        grasping_mode=args.grasping_mode,
+    )
+    print(f"[Teleop] grasping_mode = {args.grasping_mode}")
 
     # Create environment
     env = og.Environment(configs=cfg)
     env.reset()
+
+    # Lighting:
+    #   - Skybox dome (intensity bumped to ~12000) lights every camera in
+    #     the stage including the external_sensors → recorded HDF5 frames
+    #     are bright enough.
+    #   - Viewport switched to LightingMode.CAMERA so the operator's view
+    #     always feels lit-from-where-they're-looking (the same effect as
+    #     toggling "Camera Light" in the Kit viewport top bar).
+    #   add_skybox() is idempotent for the LightObject creation; we then
+    #   try to bump its intensity in case OmniGibson's default 2500 isn't
+    #   strong enough for furnished BEHAVIOR rooms (silently no-op if the
+    #   intensity setter isn't exposed).
+    from omnigibson.utils.constants import LightingMode
+    og.sim.add_skybox()
+    try:
+        og.sim._skybox.intensity = 12000
+    except Exception as _light_exc:
+        print(f"[Teleop] Could not bump skybox intensity ({_light_exc}); "
+              f"using default 2500.")
+    og.sim.set_lighting_mode(LightingMode.CAMERA)
+    print("[Teleop] Skybox dome added; viewport lighting = CAMERA "
+          "(camera-attached light, like the Kit viewport toggle).")
 
     # Optionally wrap in DataCollectionWrapper to record the teleop trajectory.
     # Observations are NOT recorded here (too heavy); use DataPlaybackWrapper
@@ -211,27 +345,74 @@ def main():
 
     robot = env.robots[0]
 
-    # Position the 3 external cameras (and viewer = opposite side) the same
-    # way BasePipeline's run_ltl_rollout does, when a snapshot with a
-    # support surface was loaded. Falls back to the hardcoded viewer pose
-    # for the simple scene / task modes that lack a named support object.
+    # Position the 3 external cameras (and viewer = opposite side). Two
+    # scene conventions are handled:
+    #   1. Pipeline-synthesized scenes (clutter / stack / mug_into_bowl …)
+    #      contain an object literally named "support_surface" → use the
+    #      original AABB-derived placement which is tuned to the table edge.
+    #   2. HF-shipped BEHAVIOR scenes (7_fam_*, full furnished rooms) have
+    #      no support_surface AND object-derived placement risks putting a
+    #      camera inside a wall (e.g. liquid_transport rooms with 220
+    #      objects). Instead, derive cameras in the robot's own local frame:
+    #      Franka's body +X axis is its "forward" (workspace direction), so
+    #      placing cameras behind / left / right of the robot lands them in
+    #      the room's open area — the robot was placed by the pipeline
+    #      specifically to face an unobstructed workspace.
+    import numpy as _np
     support_obj = env.scene.object_registry("name", "support_surface")
+
     if support_obj is not None:
-        from sentinel.task_generation.utils.video import (
-            build_video_view_specs, setup_cameras,
-        )
         target_obj = next(
             (obj for obj in env.scene.objects
              if obj is not robot and obj is not support_obj),
             support_obj,
         )
+        from sentinel.task_generation.utils.video import (
+            build_video_view_specs, setup_cameras,
+        )
         views = build_video_view_specs(args, robot, target_obj, support_obj=support_obj)
         setup_cameras(env, views)
+        print(f"[Teleop] Camera mode = support_surface; target={target_obj.name}")
     else:
-        og.sim.viewer_camera.set_position_orientation(
-            position=[-0.22, 0.99, 1.09],
-            orientation=[-0.14, 0.47, 0.84, -0.23],
-        )
+        # Robot-frame fallback.
+        import omnigibson.utils.transform_utils as _T
+        from sentinel.task_generation.utils.video import setup_cameras
+
+        rp_t, rq_t = robot.get_position_orientation()
+        rp = _np.asarray(rp_t.cpu().numpy() if hasattr(rp_t, "cpu") else rp_t,
+                         dtype=_np.float32)
+        rmat_t = _T.quat2mat(rq_t)
+        rmat = _np.asarray(rmat_t.cpu().numpy() if hasattr(rmat_t, "cpu") else rmat_t,
+                           dtype=_np.float32)
+        forward = rmat[:, 0].copy()
+        forward[2] = 0.0
+        n = float(_np.linalg.norm(forward))
+        forward = forward / n if n > 1e-6 else _np.array([1.0, 0.0, 0.0], dtype=_np.float32)
+        # Robot's left in world = +Z × forward (right-hand rule with +Z up).
+        left = _np.cross(_np.array([0.0, 0.0, 1.0], dtype=_np.float32), forward)
+
+        cam_height_off = 0.9        # meters above robot base
+        back_off = 1.2              # how far behind the robot the opp cam sits
+        side_off = 1.0              # left/right distance
+        side_forward_off = 0.2      # nudge side cams slightly toward workspace
+
+        workspace = rp + forward * 0.45 + _np.array([0, 0, 0.05], dtype=_np.float32)
+
+        opp_eye = rp - forward * back_off + _np.array([0, 0, cam_height_off], dtype=_np.float32)
+        left_eye = rp + left * side_off + forward * side_forward_off \
+                      + _np.array([0, 0, cam_height_off], dtype=_np.float32)
+        right_eye = rp - left * side_off + forward * side_forward_off \
+                       + _np.array([0, 0, cam_height_off], dtype=_np.float32)
+
+        views = [
+            {"label": "opposite_side_front", "eye": opp_eye.tolist(),  "lookat": workspace.tolist()},
+            {"label": "left_overview",       "eye": left_eye.tolist(), "lookat": workspace.tolist()},
+            {"label": "right_overview",      "eye": right_eye.tolist(),"lookat": workspace.tolist()},
+        ]
+        setup_cameras(env, views)
+        print(f"[Teleop] Camera mode = robot-frame (no support_surface); "
+              f"robot_pos=({rp[0]:.2f},{rp[1]:.2f},{rp[2]:.2f}), "
+              f"forward=({forward[0]:.2f},{forward[1]:.2f})")
 
     # Initialize SO-101 teleop agent
     teleop_cfg = SO101TeleopConfig(
