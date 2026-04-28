@@ -87,7 +87,7 @@ GELLO_JOINT_OFFSETS = [
     3 * np.pi / 2 - (3.0718 - np.pi / 4 - np.pi / 9),   # J4  (trim: GELLO physical max-forward -> Franka ~-65° (-π/4 - 20°), slightly more bent than -π/4)
     0 * np.pi / 2,   # J5
     1 * np.pi / 2,   # J6
-    4 * np.pi / 2 - np.pi / 4,   # J7  (-π/4 trim: GELLO J7 mounting offset, calibration script rounds to π/2)
+    0 * np.pi / 2 - np.pi / 4,   # J7  (-π/4 trim: GELLO J7 mounting offset, calibration script rounds to π/2)
 ]
 GELLO_JOINT_SIGNS = (1, -1, 1, 1, 1, 1, 1)
 GELLO_GRIPPER_CONFIG = None  # no physical gripper attached yet — keyboard takes over
