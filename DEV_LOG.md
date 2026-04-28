@@ -1,5 +1,149 @@
 # SENTINEL-Lite — Dev Log
 
+## Action items (deferred)
+
+- **Refactor task-family explosion in `perturbation_scaling.py` (3591 lines) and `snapshot_validator.py` (2148 lines).**
+  Both files came in via the merge of `feat/task-generation-scene-benchmark-staging` (commit b841084a) and grew via per-family copy-paste rather than per-family hooks over a generic core.
+  - `perturbation_scaling.py`: 80+ top-level functions, 5 perturbation categories × 7 families = 35 combinations each with a custom `_materialize_*` path; 3 separate prompt-variant generators (`_generic_pickup_prompt_variants`, `_transfer_prompt_variants`, `_lid_prompt_variants` ~150 lines combined). Refactor sketch: lift the orchestrator (`scale_base_task_set`, 210 lines) and let each family register a `(materialize, prompt_variants, role_inference)` triple via a registry; per-family code drops from ~300 lines to ~50.
+  - `snapshot_validator.py`: 5 family-specific runtime check functions (`_runtime_check_clutter`, `_runtime_check_stack`, `_runtime_check_lid_transport_food/liquid`, ~445 lines combined) all do the same 80%: load task → step env → check goal_region + LTL → save review video. Refactor: one `_runtime_check_generic(family, family_specific_hooks)` with per-family hooks of ~30-50 lines each.
+  - **Why deferred**: the file is in active development on `feat/task-generation-scene-benchmark-staging`. Refactoring without coordination guarantees merge conflicts. Coordinate with @666harrypeng before touching.
+  - **Until refactor**: when adding new families or perturbation types, resist adding more `_<family>_*` siblings. Push toward generic-path-with-hooks even if it requires touching the orchestrator.
+
+- **Port OmniReset's iterative Jacobian DLS IK into `GraspDatasetResetter`.**
+  Phase 2 of the grasp-reset story (Phase 1 is the 2026-04-21 ``reset_mode='cached'``
+  path — fast path, no IK). Current ``ik`` mode uses cuRobo, which is blocked
+  under multi-env by OG's ``assert len(og.sim.scenes) == 1`` in
+  ``CuRoboMotionGenerator.__init__``. OmniReset uses
+  ``DifferentialIKControllerCfg(ik_method='dls')`` (~25-iter Jacobian-based
+  DLS, CPU-friendly, scene-agnostic). Porting it would:
+  1. Let ``reset_mode='ik'`` run under ``num_envs > 1`` (cuRobo-free).
+  2. Enable per-reset pose randomization (``pose_range_b`` applied in eef
+     body frame), which is the prerequisite for OmniReset-style generalization
+     training — policy sees diverse init configurations instead of the single
+     fixed object pose the cached path produces.
+  ~40-80 line change in ``sentinel/rl/grasps/reset.py``: replace
+  ``_curobo_ik`` with a ``_dls_ik`` that solves ``J^T (J J^T + λ I)^{-1} Δx``
+  iteratively via PyTorch, initialized from the saved ``arm_joint_pos``.
+- **Port the rest of OmniReset's reset zoo into `GraspDatasetResetter`.** Current
+  port covers only `ObjectRestingEEGrasped` (object on surface, ee at saved
+  grasp). OmniReset defines 5 distributions in
+  ``Omnireset/source/.../reset_states_cfg.py``:
+  1. `ObjectAnywhereEEAnywhere` — free-space reach (no grasp, non-trivial
+     randomized object + ee poses)
+  2. `ObjectRestingEEGrasped` — **ours**
+  3. `ObjectAnywhereEEGrasped` — object airborne, ee holding (mid-carry start)
+  4. `ObjectPartiallyAssembledEEAnywhere` — insertion-task specific
+  5. `ObjectPartiallyAssembledEEGrasped` — insertion precision
+  OmniReset uses `MultiResetManager` to mix them with tunable probabilities +
+  curriculum. For our `PickAndLiftTask` the most relevant additions are #1
+  (policy learns reach+grasp from scratch) and #3 (policy learns carry from
+  any airborne start). Implementation: extend `GraspDatasetResetter` with
+  airborne-target + random-ee-pose modes, then expose ``--reset-mix`` CLI
+  kwarg wiring a distribution over modes.
+- **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
+  (alternative to DLS port — upstream PR, riskier timeline).
+
+## 2026-04-28 — `feat/grasp-batch`: untrack + delete outputs/teleop/traj_*.hdf5
+
+`git rm -r outputs/teleop/` removed 21 stale goblet-task HDF5 demos (31 MB) from both index and disk. They predated the gitignore exemption-for-teleop-hdf5 rule (which the previous chore commit already dropped from .gitignore), so they were lingering as already-tracked files. Current teleop pipeline writes to `outputs/gello_teleop_hdf5/<task>/` per family, not back into `outputs/teleop/`.
+
+## 2026-04-28 — `feat/grasp-batch`: untrack outputs/pipeline_runs/mug_into_bowl_empty_*
+
+`git rm -r --cached` on 51 `scene_ep*.json` files under `outputs/pipeline_runs/mug_into_bowl_empty_20260418_132924/` — they predate the `outputs/*` gitignore rule (added after the refactor branch landed) so they were still tracked despite ignore. Local copies preserved on disk; only removed from index. Cleans the merge into `dev` so it doesn't drag the 24 MB of stale snapshots along.
+
+## 2026-04-28 — `feat/grasp-batch`: fix wrist-camera flip from J7 encoder unwind
+
+`GELLO_JOINT_OFFSETS[J7]` base 4π/2 → 0π/2 (trim `-π/4` preserved). The J7 servo unwound by one full turn between calibration sessions, so the calibration script reported a different mod-2π-equivalent base. The OLD value made our formula compute franka_J7 = raw_J7 - 2π ≈ -2π = -6.28 rad — outside Franka's J7 limit (±2.897), so JointController clamped to -166° and the wrist camera (mounted on the end-effector link) appeared rotated 166° from upright (operator reported "wrist view backward, up/down + left/right both inverted"). Re-running `gello_get_offset.py` on the new machine produced the now-correct base offset.
+
+## 2026-04-28 — `feat/grasp-batch`: gello UX overhaul (goal_checker + recalibration + deterministic startup ramp)
+
+`sentinel/teleop/gello_franka_teleop.py` picks up three related improvements in one pass:
+
+1. **goal_checker auto-success ported from so101.** Imports `_read_first_jsonl`, builds the success_checker from sibling `diagnostics.jsonl`, runs it every loop step, and breaks with `state["success"]=True` the moment the green-sphere goal region fires. S key downgrades to `state["manual_override"]`. Banner also shows `TASK` / `TARGET` from the same diagnostics. Reaches feature parity with so101.
+
+2. **Re-calibrated `GELLO_JOINT_OFFSETS`** after stabilizing the leader arm: J2 base 2π/2→1π/2, J3 0→4π/2 (≡0 mod 2π — calibration script picked the wrapped form), J6 2π/2→1π/2. All post-calibration trims (J2/J4 relaxed-rest, J7 mounting) preserved.
+
+3. **Deterministic startup pose + smooth ramp.** Added `GELLO_CALIBRATION_FRANKA_POSE` constant (Franka equivalent of GELLO held at the gello_get_offset.py reference pose, post-trim) and `GELLO_RAMP_STEPS=60`. `_build_from_snapshot` gains an `initial_joint_pos` kwarg that overwrites the snapshot's saved `joint_pos[0:7]`. main() seeds Franka at the calibration pose every launch (deterministic, snapshot-independent), then the loop ramps from that pose to GELLO's live reading over 60 steps (~2 s at 30 Hz). Eliminates the 100°+ jolt seen on task_0004 where the snapshot's saved Franka pose is far from where the operator holds GELLO. Leader connect moved before env build so DynamixelRobot failures surface in 1 s instead of after the 30-90 s OmniGibson init.
+
+## 2026-04-28 — `feat/grasp-batch`: so101 startup banner shows task prompt + target name
+
+`sentinel/teleop/so101_franka_teleop.py` extracts `prompt` and `goal_region.target_name` from the snapshot's sibling `diagnostics.jsonl` and surfaces them as `TASK` / `TARGET` lines in the Ready banner. Operators no longer need to alt-tab to a separate file viewer to find out which object the current scene wants them to manipulate.
+
+## 2026-04-28 — `feat/grasp-batch` ← merge `feat/task-generation-scene-benchmark-staging`
+
+Resolved the only true conflict (`sentinel/teleop/so101_franka_teleop.py`) by adopting the remote's auto-success path: snapshot's sibling `diagnostics.jsonl` builds a `goal_checker` (`sentinel/eval/goal_checker.py`) that fires `success_flag=True` and breaks the loop the moment the goal region is satisfied. S key now means "manual override" rather than the only success switch.
+
+Local-only additions removed during merge cleanup: `_install_longfinger_franka_patch` (superseded by remote's eager `_patch_franka_longfinger` in `sentinel/_omnigibson_patches.py`), `--stock-franka` flag (no patch left to opt out of), the skybox + `LightingMode.CAMERA` lighting block, the robot-frame camera fallback. `--grasping-mode` flag and the conditional FrankaMounted → FrankaPanda +0.5m lift were kept (independent of the dropped features). `gello_franka_teleop.py` lost its `--stock-franka` flag and the import of the deleted longfinger function but otherwise keeps its lighting + camera customizations (gello is purpose-built for HF furnished scenes that need them).
+
+Pulled in clean from remote: `sentinel/utils/goal_region.py`, `sentinel/eval/goal_checker.py` rewrites, `sentinel/envs/{frozen_task_runtime,perturbation_runtime,registry}.py`, the four-level perturbation pipeline + dedup scripts, and the `_patch_franka_longfinger` eager hook.
+
+## 2026-04-28 — `feat/grasp-batch`: README documents GELLO teleop workflow
+
+Renames the Teleoperation section to cover both SO-101 and GELLO with a per-leader comparison table at the top. New `### GELLO leader → Franka` subsection: one-time Dynamixel calibration command, the single-task launch, hotkeys (SPACE = gripper), and shared `--grasping-mode` / `--gpu-dynamics` flags. New `### Batch teleop` subsection documents `run_teleop_batch.sh` (SO-101 native) + the shell-loop workaround for GELLO until the script grows a `--leader` flag.
+
+## 2026-04-28 — `feat/grasp-batch`: lighting/camera robustness, longfinger, grasping mode, GELLO joint teleop
+
+`so101_franka_teleop.py`: long-finger FrankaPanda asset patch (`--stock-franka` opts out); `--grasping-mode {physical,assisted,sticky}` for thin/flat-object slip; skybox dome (intensity 12000) + viewport `LightingMode.CAMERA` so HF furnished scenes are visible in viewer + recorded sensors; robot-frame camera fallback when scene lacks a `support_surface` object (fixes cameras-in-walls in liquid_transport's 220-object rooms); conditional +0.5m base lift only when swapping FrankaMounted → FrankaPanda. `gello_franka_teleop.py` (new): 7-DOF kinematic-twin teleop, `JointController(position)` follower, `DynamixelRobot` direct read (skips GelloAgent's force-feedback layer), keyboard SPACE for gripper (no physical gripper yet), `--gpu-dynamics` for fluid scenes, shares `_install_longfinger_franka_patch` + grasping_mode with so101. Calibration constants in-file from the 2026-04-27 GELLO build.
+
+## 2026-04-28 — `feat/grasp-batch`: real-teleop NPZ converters + openpi SFT doc
+
+`sentinel/data/real_teleop_to_droid.py` (new) emits LeRobot in openpi's DROID schema (180×320 3-cam, joint_velocity action, push_to_hub with codebase_version tag). `sentinel/data/real_teleop_to_hdf5.py` (new) bridges into our existing Stage-2 lerobot_export for non-DROID flows. `docs/openpi_real_teleop_sft.md` (new) is the end-to-end pi0.5 SFT recipe (NPZ → dataset → LoRA finetune → serve_policy) extracted from the mug_into_bowl run.
+
+## 2026-04-28 — `feat/grasp-batch`: batch teleop script with --task flag and per-task OUT_DIR
+
+`scripts/run_teleop_batch.sh` (new) replaces the ad-hoc loop pattern. `--task <family>` sweeps every `scene_ep*.json` under `outputs/teleop_scenes/<family>/`; output defaults to `outputs/jixing_teleop2_hdf5/<family>/` so cross-task `scene_ep<NNNN>` filename collisions don't overwrite each other. Already-collected HDF5s (≥ 8 KB) are auto-skipped on resume; partial 96 B writes are recognized as stale and re-run.
+
+## 2026-04-28 — `feat/grasp-batch`: SFT prep pipeline fixes (INPUT_GLOB / hub push / parquet layout)
+
+`scripts/prepare_sft_data.sh` gains an `INPUT_GLOB` env var so non-`traj_*` HDF5s flow through, and the `"$PY" python -m ...` double-python typo (running `python` as a script name) is fixed. `lerobot_export.py` adds `--push-to-hub` / `--hub-private` that auto-create the `codebase_version` git tag openpi requires (plain `huggingface_hub.upload_folder` doesn't). `norm_stats.py` scans all `*.parquet` so LeRobot 0.4.x chunk-level layout is picked up, not just 0.3.x episode-per-file.
+
+## 2026-04-21 — `feat/grasp-batch`: reset_mode='cached' unblocks multi-env + wandb logging
+
+`GraspDatasetResetter` picks up a ``reset_mode: {'cached', 'ik'}`` parameter.
+Cached is the new default and skips online cuRobo IK entirely — the
+``arm_joint_pos`` column already stored in ``grasps_<cat>_<model>.pt`` goes
+straight into ``set_joint_positions`` at reset time. Two consequences:
+
+1. **Multi-env unblocked (with ``scene_file``).** Cached mode never touches
+   ``StarterSemanticActionPrimitives``, so the cuRobo single-scene assertion
+   noted in the 2026-04-20 entry is bypassed. ``--num-envs 4 --scene-file ...
+   --reset-mode cached`` now works end-to-end.
+2. **~100-500 ms saved per reset.** The 30 s first-call cuRobo JIT is gone too.
+   At 200-step episodes this is ~5-10 % throughput improvement single-env,
+   compounding 3-4× with multi-env.
+
+Tradeoff: cached mode requires the target object to be at the same world pose
+at reset as at collection time. Our ``_restore_target`` always restores to the
+scene-init pose, so this holds for both ``scene_file`` and runtime-spawn
+paths. Per-reset pose randomization (``pose_range_b``) remains a future
+feature and needs the DLS IK port listed in Action items.
+
+``ppo_grasp_reset`` also gains wandb logging (``--wandb / --wandb-project /
+--wandb-run-name / --wandb-mode / --wandb-upload-ckpts``), with
+``sync_tensorboard=True`` mirroring SB3's local TB events into W&B panels.
+
+## 2026-04-20 — `feat/grasp-batch`: multi-env PPO blocked by OG's cuRobo single-scene assertion (superseded 2026-04-21)
+
+## 2026-04-20 — `feat/grasp-batch`: multi-env PPO blocked by OG's cuRobo single-scene assertion
+
+Wired SB3 multi-env (`SentinelSB3VectorEnvironment`, `--num-envs N`) into `sentinel.rl.training.ppo_grasp_reset`. The runtime-spawn path trips OG's scene-tiling bug on empty scenes (`decompose_mat` perspective check at `idx != 0`), which is avoided by passing a pre-baked `scene_file`. Collected `grasps_mug_kewbyf.pt` matching the existing `mug_into_bowl_empty_20260417_154117/scene_ep1.json` and wired `--scene-file` through `build_config`.
+
+**Hard blocker hit**: `behavior-1k/OmniGibson/omnigibson/action_primitives/curobo.py:102` has `assert len(og.sim.scenes) == 1` in `CuRoboMotionGenerator.__init__`. Our `GraspDatasetResetter` calls cuRobo on every episode reset; in multi-env (`len(scenes) == 2`) the assertion raises, GraspTask's 20-retry loop exhausts, and reset fails with `Could not reset task`. Same would block any use of cuRobo primitives under vec-env — `training/ppo.py` works with multi-env only because it uses sticky grasping + random joint sampling (no cuRobo at reset).
+
+**Paths to unblock** (deferred — documented here so future me doesn't repeat the audit):
+1. **Port OmniReset's iterative Jacobian DLS IK into the resetter.** `DifferentialIKControllerCfg(ik_method="dls")` doesn't touch `og.sim.scenes`. ~25 iter per reset (still fast). 1-2 day change.
+2. **Patch the upstream assert.** Read the rest of `CuRoboMotionGenerator.__init__` to see if it genuinely requires `scenes[0]` or if the assert is defensive; if defensive, submit a PR.
+3. **Accept single-env (current state).** `num_envs=1` with `--scene-file` trained cleanly on `target_mug` for a 256-step smoke (ep_rew_mean=-1.12 after 2 iters, pipeline end-to-end). Proprio-only MLP doesn't need massive rollout parallelism; main cost is OG physics (~25-30 steps/s in 1 env).
+
+Single-env command for the mug grasp-reset training:
+```
+python -m sentinel.rl.training.ppo_grasp_reset \
+    --category mug --model kewbyf \
+    --target-name target_mug \
+    --scene-file outputs/pipeline_runs/mug_into_bowl_empty_20260417_154117/scene_ep1.json \
+    --num-envs 1 --total-timesteps 200000 --n-steps 256 --batch-size 64
+```
+
 ## 2026-04-19 — `refactor/omnigibson` branch: BEHAVIOR-1K + RLinf → submodules, sentinel/ is now the only owned tree
 
 Large restructure landed on `refactor/omnigibson` over 12 commits. End state: the repo is ~99K tracked LOC (177 files) + two submodules (behavior-1k @ v3.7.2, RLinf @ 5714022) — down from ~3.58M LOC / 19K files of mixed-origin sources sitting at the root.

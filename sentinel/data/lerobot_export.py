@@ -109,6 +109,13 @@ def main():
                    help="Image side length (H = W). Must match playback stage.")
     p.add_argument("--single", type=str, default=None,
                    help="If set, only ingest this one HDF5 file (smoke test).")
+    p.add_argument("--push-to-hub", default=None,
+                   help="If set (e.g. IDEAS-Lab-Northwestern/sim-mug-into-bowl-libero), "
+                        "push the dataset via LeRobot's push_to_hub() after building. "
+                        "This auto-creates the codebase_version git tag that openpi "
+                        "requires (plain huggingface_hub.upload_folder does not).")
+    p.add_argument("--hub-private", action="store_true",
+                   help="Push the HF dataset as a private repo.")
     args = p.parse_args()
 
     try:
@@ -174,6 +181,19 @@ def main():
     print(f"\n[Stage2] Done. Dataset root: {dataset.root}")
     print(f"[Stage2] repo_id: {args.repo_id}")
     print(f"[Stage2] Episodes: {len(input_files)}")
+
+    if args.push_to_hub:
+        print(f"\n[Stage2] Pushing to HF: {args.push_to_hub}")
+        # LeRobot's push_to_hub uses dataset.repo_id. Override to the HF path.
+        dataset.repo_id = args.push_to_hub
+        dataset.push_to_hub(
+            tags=["panda", "omnigibson", "sim", "sentinel"],
+            license="apache-2.0",
+            private=args.hub_private,
+            push_videos=True,
+            tag_version=True,
+        )
+        print(f"[Stage2] Pushed + codebase_version tag auto-created.")
 
 
 if __name__ == "__main__":

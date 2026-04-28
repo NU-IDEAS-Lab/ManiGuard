@@ -67,6 +67,9 @@ class TransferPipeline(BasePipeline):
     def activity_prefix(self):
         return "auto_transfer_on"
 
+    def scene_family(self, ctx):
+        return "transfer"
+
     def select_objects(self, args, rng):
         from sentinel.utils.bddl_generator import (
             TRANSFER_FOOD_POOL, TRANSFER_SOURCE_POOL, TRANSFER_DEST_POOL,
@@ -210,6 +213,9 @@ class TransferPipeline(BasePipeline):
                 log.warning("transfer make_edge_objects: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
                 continue
         return tuple(result)
+
+    def diagnostics_extra(self, ctx):
+        return {"pipeline": "transfer"}
 
 
 def main():

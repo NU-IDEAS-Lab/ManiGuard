@@ -25,6 +25,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
+from sentinel.utils.goal_region import GoalRegionSpec, object_intersects_goal_region, robot_holds_target
+
 log = logging.getLogger(__name__)
 
 
@@ -53,6 +55,48 @@ class GoalChecker:
             self.resolve(env)
         success, detail = _eval_node(self.raw_conditions, self._objects, env)
         return success, detail
+
+
+@dataclass
+class GoalRegionChecker:
+    raw_region: GoalRegionSpec
+    _objects: Dict[str, Any] = field(default_factory=dict)
+
+    def resolve(self, env) -> None:
+        scene = env.scene
+        robot = env.robots[0] if env.robots else None
+        if robot is not None:
+            self._objects["robot"] = robot
+        target = scene.object_registry("name", self.raw_region.target_name)
+        if target is not None:
+            self._objects[self.raw_region.target_name] = target
+        marker = scene.object_registry("name", self.raw_region.marker_name)
+        if marker is not None:
+            self._objects[self.raw_region.marker_name] = marker
+
+    def check(self, env) -> tuple[bool, dict]:
+        if not self._objects:
+            self.resolve(env)
+        target = self._objects.get(self.raw_region.target_name)
+        if target is None:
+            return False, {
+                "mode": self.raw_region.mode,
+                "target_resolved": False,
+                "held": False,
+                "intersects": False,
+            }
+        held = robot_holds_target(env, target)
+        intersects = object_intersects_goal_region(target, self.raw_region)
+        detail = {
+            "mode": self.raw_region.mode,
+            "target_name": self.raw_region.target_name,
+            "marker_name": self.raw_region.marker_name,
+            "held": bool(held),
+            "intersects": bool(intersects),
+            "radius_m": float(self.raw_region.radius_m),
+            "center_world": list(self.raw_region.center_world),
+        }
+        return bool(held and intersects), detail
 
 
 def _collect_names(node) -> set:
@@ -149,12 +193,16 @@ def _eval_predicate(predicate: str, subject, reference) -> bool:
         raise ValueError(f"[GoalChecker] Unknown predicate: {predicate!r}")
 
 
-def build_goal_checker(scene_info: dict) -> Optional[GoalChecker]:
-    """Build a GoalChecker from scene_info's goal_conditions field.
-
-    Returns None if no goal_conditions are present.
-    """
+def build_goal_checker(scene_info: dict) -> Optional[GoalChecker | GoalRegionChecker]:
+    """Build a success checker from scene_info/dataset-level goal fields."""
+    goal_region = scene_info.get("goal_region")
+    if isinstance(goal_region, dict) and goal_region:
+        return GoalRegionChecker(raw_region=GoalRegionSpec.from_json(goal_region))
     conditions = scene_info.get("goal_conditions")
     if not conditions:
         return None
     return GoalChecker(raw_conditions=conditions)
+
+
+def build_success_checker(scene_info: dict) -> Optional[GoalChecker | GoalRegionChecker]:
+    return build_goal_checker(scene_info)

@@ -9,10 +9,12 @@ from unittest.mock import MagicMock, patch
 
 from sentinel.eval.goal_checker import (
     GoalChecker,
+    GoalRegionChecker,
     build_goal_checker,
     _collect_names,
     _eval_node,
 )
+from sentinel.utils.goal_region import GoalRegionSpec
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +215,29 @@ class TestBuildGoalChecker:
         gc = build_goal_checker(scene_info)
         assert gc is not None
 
+    def test_goal_region_takes_precedence(self):
+        scene_info = {
+            "goal_region": {
+                "mode": "held_intersection",
+                "shape": "sphere",
+                "family": "table",
+                "target_name": "cup_1",
+                "support_name": "desk_1",
+                "marker_name": "goal_region__cup_1",
+                "center_world": [0.0, 0.0, 0.0],
+                "radius_m": 0.1,
+                "color_rgba": [0.1, 0.8, 0.2, 0.35],
+                "target_width_m": 0.1,
+                "anchor_local_xy": [0.0, 0.2],
+                "pack_bbox_robot_local_xy": [[0.0, 0.0], [0.1, 0.1]],
+                "support_bounds_robot_local_xy": [[-1.0, -1.0], [1.0, 1.0]],
+                "clamped_to_support_bounds": False,
+            },
+            "goal_conditions": [{"predicate": "inside", "subject": "a", "reference": "b"}],
+        }
+        gc = build_goal_checker(scene_info)
+        assert isinstance(gc, GoalRegionChecker)
+
 
 # ---------------------------------------------------------------------------
 # Tests: GoalChecker.check (integration with mock env)
@@ -255,3 +280,34 @@ class TestGoalCheckerIntegration:
         gc.resolve(env)
         ok, detail = gc.check(env)
         assert ok is False
+
+
+class TestGoalRegionChecker:
+    @patch("sentinel.eval.goal_checker.object_intersects_goal_region")
+    @patch("sentinel.eval.goal_checker.robot_holds_target")
+    def test_held_intersection_success(self, mock_holds, mock_intersects):
+        mock_holds.return_value = True
+        mock_intersects.return_value = True
+        spec = GoalRegionSpec(
+            mode="held_intersection",
+            shape="sphere",
+            family="table",
+            target_name="cup_1",
+            support_name="desk_1",
+            marker_name="goal_region__cup_1",
+            center_world=(0.0, 0.0, 0.0),
+            radius_m=0.1,
+            color_rgba=(0.1, 0.8, 0.2, 0.35),
+            target_width_m=0.1,
+            anchor_local_xy=(0.0, 0.2),
+            pack_bbox_robot_local_xy=((0.0, 0.0), (0.1, 0.1)),
+            support_bounds_robot_local_xy=((-1.0, -1.0), (1.0, 1.0)),
+            clamped_to_support_bounds=False,
+        )
+        checker = GoalRegionChecker(raw_region=spec)
+        env, objects = TestGoalCheckerIntegration()._mock_env(["cup_1", "goal_region__cup_1"])
+        checker.resolve(env)
+        ok, detail = checker.check(env)
+        assert ok is True
+        assert detail["held"] is True
+        assert detail["intersects"] is True

@@ -71,7 +71,20 @@ from sentinel.utils.camera_setup import build_external_camera_configs
 _EXTERNAL_CAMERAS = build_external_camera_configs()
 
 
-def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
+def _read_first_jsonl(path):
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                return json.loads(line)
+    raise ValueError(f"No JSON object found in {path}")
+
+
+def _build_from_snapshot(
+    snapshot_path,
+    robot_type="FrankaPanda",
+    grasping_mode="physical",
+):
     """Load an og.sim.save()-style scene snapshot via scene_file.
 
     Rewrites the robot entry in a copy of the snapshot so the loaded
@@ -112,6 +125,7 @@ def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
             "mode": "binary",
         },
     }
+    entry["args"]["grasping_mode"] = grasping_mode
 
     # Replace the saved controller state with a minimal null-goal entry
     # per controller. The snapshot was taken with an
@@ -128,14 +142,19 @@ def _build_from_snapshot(snapshot_path, robot_type="FrankaPanda"):
             "arm_0": {"goal_is_valid": False, "goal": None},
             "gripper_0": {"goal_is_valid": False, "goal": None},
         }
-        # Raise the robot base by 0.5m so FrankaPanda reaches the tabletop
-        # comfortably (the snapshot was taken with FrankaMounted on the floor).
-        root_link = robot_state.get("root_link")
-        if root_link is not None and "pos" in root_link:
-            root_link["pos"][2] = float(root_link["pos"][2]) + 0.5
-    args_pos = entry.get("args", {}).get("position")
-    if args_pos is not None:
-        args_pos[2] = float(args_pos[2]) + 0.5
+    # Lift the base by 0.5m only when swapping a floor-mounted FrankaMounted
+    # snapshot to FrankaPanda — without this the arm would sit on the floor.
+    # Snapshots already saved as FrankaPanda (e.g. HF furnished scenes where
+    # the robot is desk-mounted) are at the correct height.
+    needs_lift = old_class == "FrankaMounted" and robot_type == "FrankaPanda"
+    if needs_lift:
+        if robot_state is not None:
+            root_link = robot_state.get("root_link")
+            if root_link is not None and "pos" in root_link:
+                root_link["pos"][2] = float(root_link["pos"][2]) + 0.5
+        args_pos = entry.get("args", {}).get("position")
+        if args_pos is not None:
+            args_pos[2] = float(args_pos[2]) + 0.5
 
     # Write the rewritten snapshot next to the original.
     stem, ext = os.path.splitext(snapshot_path)
@@ -186,9 +205,24 @@ def main():
                              "reports CLOSED near the top of its calibrated range)")
     parser.add_argument("--debug-gripper", action="store_true",
                         help="Print the raw gripper value each step")
+    parser.add_argument("--grasping-mode", choices=["physical", "assisted", "sticky"],
+                        default="physical",
+                        help="OmniGibson grasping semantics. 'physical' (default) "
+                             "= pure Coulomb contact physics. 'assisted' = once "
+                             "both fingers contact an object between the AG "
+                             "raycast endpoints, OG welds the object to the "
+                             "gripper via a force-limited FixedJoint. 'sticky' = "
+                             "any finger contact + close command welds. Use "
+                             "assisted for teleop demos when slip on thin/flat "
+                             "objects is the bottleneck; physical preserves "
+                             "real grasp dynamics for downstream training.")
     args = parser.parse_args()
 
-    cfg = _build_from_snapshot(args.snapshot)
+    cfg = _build_from_snapshot(
+        args.snapshot,
+        grasping_mode=args.grasping_mode,
+    )
+    print(f"[Teleop] grasping_mode = {args.grasping_mode}")
 
     # Create environment
     env = og.Environment(configs=cfg)
@@ -261,6 +295,27 @@ def main():
     )
 
     success_flag = {"ok": False}
+    manual_success_override = {"ok": False}
+    success_checker = None
+    success_detail = {}
+    task_prompt = None
+    task_target = None
+    diagnostics_path = os.path.join(os.path.dirname(args.snapshot), "diagnostics.jsonl")
+    if os.path.isfile(diagnostics_path):
+        diagnostics = _read_first_jsonl(diagnostics_path)
+        task_prompt = diagnostics.get("prompt")
+        task_target = diagnostics.get("goal_region", {}).get("target_name")
+        from sentinel.eval.goal_checker import build_goal_checker
+
+        success_checker = build_goal_checker(
+            {
+                "goal_region": diagnostics.get("goal_region"),
+                "goal_conditions": diagnostics.get("goal_conditions", []),
+            }
+        )
+        if success_checker is not None:
+            success_checker.resolve(env)
+            print("[Teleop] Loaded success checker from diagnostics.")
 
     if recorder is not None:
         def _on_checkpoint():
@@ -277,9 +332,9 @@ def main():
                   f"({len(recorder.checkpoint_states)} remain)")
 
         def _on_success():
-            success_flag["ok"] = not success_flag["ok"]
-            state = "SUCCESS" if success_flag["ok"] else "not-success"
-            print(f"[Teleop] Episode marked {state}")
+            manual_success_override["ok"] = not manual_success_override["ok"]
+            state = "FORCE-SUCCESS" if manual_success_override["ok"] else "auto-checker"
+            print(f"[Teleop] Success mode -> {state}")
 
         KeyboardEventHandler.add_keyboard_callback(
             key=lazy.carb.input.KeyboardInput.C, callback_fn=_on_checkpoint,
@@ -294,10 +349,14 @@ def main():
     label = args.snapshot
     print("\n" + "=" * 50)
     print(f"SO-101 → Franka Teleop Ready  [{label}]")
+    if task_prompt:
+        print(f"  TASK   : {task_prompt}")
+    if task_target:
+        print(f"  TARGET : {task_target}")
     print("Move the SO-101 leader arm to control Franka")
     if recorder is not None:
         print("C = save checkpoint   R = rollback to last checkpoint")
-        print("S = toggle success flag for the current episode")
+        print("S = toggle manual success override for the current episode")
     print("Q = clean exit (saves HDF5)")
     print("=" * 50 + "\n")
 
@@ -322,9 +381,19 @@ def main():
                 print(f"[Action] gripper -> {gv}")
             env.step(action)
 
+            if success_checker is not None:
+                auto_success, success_detail = success_checker.check(env)
+                if auto_success:
+                    success_flag["ok"] = True
+                    print(f"[Teleop] Success satisfied: {success_detail}")
+                    break
+            if manual_success_override["ok"]:
+                success_flag["ok"] = True
+                break
+
             if step % 300 == 0 and step > 0:
                 status = "connected" if agent.is_connected else "waiting for SO-101 data..."
-                print(f"Step {step}/{args.steps} — {status}")
+                print(f"Step {step}/{args.steps} — {status} — success={success_flag['ok']}")
 
     except KeyboardInterrupt:
         # Usually bypassed by carb's SIGINT handler; kept as a fallback.

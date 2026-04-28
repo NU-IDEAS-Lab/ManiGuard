@@ -46,6 +46,12 @@ class LidTransportPipeline(BasePipeline):
     def activity_prefix(self):
         return "auto_lid_transport_on"
 
+    def scene_family(self, ctx):
+        return "lid_transport_food"
+
+    def goal_region_pack_object_names(self, ctx):
+        return (str(getattr(ctx.target_obj, "name", "")),) if ctx.target_obj is not None else ()
+
     def select_objects(self, args, rng):
         pairs = get_lid_container_pairs()
         lid_ids = list(pairs.keys())
@@ -222,10 +228,10 @@ class LidTransportPipeline(BasePipeline):
 
     def diagnostics_extra(self, ctx):
         return {
+            "pipeline": "lid_transport_food",
             "container_synset": ctx.selection.get("container_synset") if ctx.selection else None,
             "food_synset": ctx.selection.get("food_synset") if ctx.selection else None,
             "lid_model": ctx.selection.get("lid_model") if ctx.selection else None,
-            "pipeline": "lid_transport",
         }
 
 
@@ -235,6 +241,9 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
     Inherits temporal Until constraint.  Adds liquid filling and
     particle-count gate check.  Requires GPU dynamics.
     """
+
+    def scene_family(self, ctx):
+        return "lid_transport_liquid"
 
     @classmethod
     def add_args(cls, parser):
@@ -380,10 +389,10 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
 
     def diagnostics_extra(self, ctx):
         return {
+            "pipeline": "lid_transport_liquid",
             "container_synset": ctx.selection.get("container_synset") if ctx.selection else None,
             "system_name": ctx.selection.get("system_name", "water") if ctx.selection else "water",
             "lid_model": ctx.selection.get("lid_model") if ctx.selection else None,
-            "pipeline": "lid_liquid_transport",
         }
 
 
