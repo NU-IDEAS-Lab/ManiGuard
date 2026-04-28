@@ -36,6 +36,10 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+## 2026-04-28 — `feat/grasp-batch`: untrack outputs/pipeline_runs/mug_into_bowl_empty_*
+
+`git rm -r --cached` on 51 `scene_ep*.json` files under `outputs/pipeline_runs/mug_into_bowl_empty_20260418_132924/` — they predate the `outputs/*` gitignore rule (added after the refactor branch landed) so they were still tracked despite ignore. Local copies preserved on disk; only removed from index. Cleans the merge into `dev` so it doesn't drag the 24 MB of stale snapshots along.
+
 ## 2026-04-28 — `feat/grasp-batch`: fix wrist-camera flip from J7 encoder unwind
 
 `GELLO_JOINT_OFFSETS[J7]` base 4π/2 → 0π/2 (trim `-π/4` preserved). The J7 servo unwound by one full turn between calibration sessions, so the calibration script reported a different mod-2π-equivalent base. The OLD value made our formula compute franka_J7 = raw_J7 - 2π ≈ -2π = -6.28 rad — outside Franka's J7 limit (±2.897), so JointController clamped to -166° and the wrist camera (mounted on the end-effector link) appeared rotated 166° from upright (operator reported "wrist view backward, up/down + left/right both inverted"). Re-running `gello_get_offset.py` on the new machine produced the now-correct base offset.
