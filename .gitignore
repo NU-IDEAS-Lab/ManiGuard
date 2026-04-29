@@ -21,3 +21,4 @@ behavior-1k/OmniGibson/docs/_build/
 behavior-1k/OmniGibson/omnigibson.egg-info/
 behavior-1k/OmniGibson/.pytest_cache/
 behavior-1k/OmniGibson/**/__pycache__/
+datasets/*

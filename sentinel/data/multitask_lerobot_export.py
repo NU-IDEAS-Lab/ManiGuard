@@ -56,11 +56,62 @@ def _load_prompt(diag_path: Path) -> str:
     return rec["prompt"]
 
 
-def _load_episode_from_hdf5(path: Path) -> tuple[list[dict], int]:
+def _axisangle_to_rotmat(aa: np.ndarray) -> np.ndarray:
+    """Axis-angle (3,) -> rotation matrix (3, 3) via Rodrigues' formula."""
+    theta = np.linalg.norm(aa)
+    if theta < 1e-8:
+        return np.eye(3, dtype=aa.dtype)
+    k = aa / theta
+    K = np.array([[0, -k[2], k[1]],
+                  [k[2], 0, -k[0]],
+                  [-k[1], k[0], 0]], dtype=aa.dtype)
+    return np.eye(3, dtype=aa.dtype) + np.sin(theta) * K + (1 - np.cos(theta)) * (K @ K)
+
+
+def _rotmat_to_axisangle(R: np.ndarray) -> np.ndarray:
+    """Rotation matrix (3, 3) -> axis-angle (3,)."""
+    cos_theta = np.clip((np.trace(R) - 1.0) / 2.0, -1.0, 1.0)
+    theta = np.arccos(cos_theta)
+    if theta < 1e-8:
+        return np.zeros(3, dtype=R.dtype)
+    axis = np.array([R[2, 1] - R[1, 2],
+                     R[0, 2] - R[2, 0],
+                     R[1, 0] - R[0, 1]], dtype=R.dtype) / (2.0 * np.sin(theta))
+    return axis * theta
+
+
+def _compute_eef_delta_actions(
+    states: np.ndarray, gripper_cmds: np.ndarray
+) -> np.ndarray:
+    """Compute 7D EEF-delta actions from N+1 states and N gripper commands.
+
+    states:       (N+1, 8) — eef_pos(3) + eef_axisangle(3) + gripper_qpos(2)
+    gripper_cmds: (N,) — binary gripper commands from original action dim 7
+
+    Returns: (N, 7) — delta_pos(3) + delta_rot_axisangle(3) + gripper(1)
+    """
+    n = len(gripper_cmds)
+    actions = np.zeros((n, 7), dtype=np.float32)
+    for t in range(n):
+        actions[t, :3] = states[t + 1, :3] - states[t, :3]
+        R_t = _axisangle_to_rotmat(states[t, 3:6])
+        R_next = _axisangle_to_rotmat(states[t + 1, 3:6])
+        R_delta = R_next @ R_t.T
+        actions[t, 3:6] = _rotmat_to_axisangle(R_delta)
+        actions[t, 6] = gripper_cmds[t]
+    return actions
+
+
+def _load_episode_from_hdf5(
+    path: Path, eef_delta: bool = False
+) -> tuple[list[dict], int]:
     """Read one rendered HDF5 -> list of per-frame dicts (frame['task'] is set later).
 
     Returns (frames, n_action) where N+1 frames of state are paired with
     N actions (last state dropped -- no action follows it).
+
+    If eef_delta=True, replaces the raw joint-target actions with 7D
+    EEF-delta actions computed from consecutive states.
     """
     with h5py.File(path, "r") as f:
         demo_keys = sorted(f["data"].keys())
@@ -73,6 +124,12 @@ def _load_episode_from_hdf5(path: Path) -> tuple[list[dict], int]:
         action = np.asarray(demo["action"], dtype=np.float32)
 
     n_action = len(action)
+
+    if eef_delta:
+        action = _compute_eef_delta_actions(
+            state[: n_action + 1], action[:, -1]
+        )
+
     image = image[:n_action]
     wrist_image = wrist_image[:n_action]
     state = state[:n_action]
@@ -105,6 +162,9 @@ def main():
     p.add_argument("--state-dim", type=int, default=8)
     p.add_argument("--action-dim", type=int, default=7,
                    help="7 for EEF-delta (matches LIBERO out-of-the-box); 8 for joint-target style.")
+    p.add_argument("--eef-delta-actions", action="store_true",
+                   help="Convert joint-target actions to 7D EEF-delta (dpos+drot+gripper) "
+                        "computed from consecutive EEF states. Forces action-dim=7.")
     p.add_argument("--push-to-hub", default=None,
                    help="HF repo id to push to (auto-creates v2.1 codebase tag).")
     p.add_argument("--hub-private", action="store_true")
@@ -113,9 +173,15 @@ def main():
     args = p.parse_args()
 
     try:
-        from lerobot.datasets.lerobot_dataset import LeRobotDataset
-    except ModuleNotFoundError as e:
-        raise SystemExit(f"lerobot not importable: {e}\nInstall lerobot<0.4 in .venv-lerobot.")
+        from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
+    except ModuleNotFoundError:
+        try:
+            from lerobot.datasets.lerobot_dataset import LeRobotDataset
+        except ModuleNotFoundError as e:
+            raise SystemExit(f"lerobot not importable: {e}")
+
+    if args.eef_delta_actions:
+        args.action_dim = 7
 
     # ----- discover tasks -----
     task_dirs = sorted([p for p in args.input_root.iterdir() if p.is_dir() and p.name.startswith("task_")])
@@ -129,7 +195,11 @@ def main():
         state_names = ["eef_x", "eef_y", "eef_z",
                        "axisangle_x", "axisangle_y", "axisangle_z",
                        "gripper_l", "gripper_r"]
-    action_names = [f"action_{i}" for i in range(args.action_dim)]
+    if args.eef_delta_actions:
+        action_names = ["dpos_x", "dpos_y", "dpos_z",
+                        "drot_x", "drot_y", "drot_z", "gripper"]
+    else:
+        action_names = [f"action_{i}" for i in range(args.action_dim)]
 
     features = {
         "image": {
@@ -196,9 +266,10 @@ def main():
         print(f"[{task_dir.name}] {len(ep_files)} eps  prompt='{prompt[:60]}...'")
 
         for ep_path in ep_files:
-            frames, n = _load_episode_from_hdf5(ep_path)
+            frames, n = _load_episode_from_hdf5(ep_path, eef_delta=args.eef_delta_actions)
             for frame in frames:
-                dataset.add_frame(frame, task=prompt)
+                frame["task"] = prompt
+                dataset.add_frame(frame)
             dataset.save_episode()
             total_eps += 1
             total_frames += n

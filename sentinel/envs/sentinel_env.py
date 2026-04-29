@@ -1228,6 +1228,14 @@ class SentinelEnv(gym.Env):
             gripper_qpos = robot.get_joint_positions()[gripper_indices].to(torch.float32)
             gripper_scalar = torch.mean(gripper_qpos).reshape(1)
             state = torch.cat([eef_pos, eef_axisangle, gripper_scalar], dim=0)
+        elif self.embodiment_profile.state_mode == "eef_8d_axisangle":
+            # Sentinel teleop: eef_pos(3) + axis_angle(3) + gripper_qpos(2) = 8D
+            eef_pos = robot.get_relative_eef_position().to(torch.float32)
+            eef_quat = robot.get_relative_eef_orientation().to(torch.float32)
+            eef_axisangle = quat2axisangle(eef_quat)
+            gripper_indices = robot.gripper_control_idx[robot.default_arm]
+            gripper_qpos = robot.get_joint_positions()[gripper_indices].to(torch.float32)
+            state = torch.cat([eef_pos, eef_axisangle, gripper_qpos], dim=0)
         else:
             # Original: joint_positions(7) + gripper_scalar(1) = 8D
             arm_positions = robot.get_joint_positions()[robot.arm_control_idx[robot.default_arm]]

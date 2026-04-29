@@ -119,12 +119,15 @@ def main():
     args = p.parse_args()
 
     try:
-        from lerobot.datasets.lerobot_dataset import LeRobotDataset
-    except ModuleNotFoundError as e:
-        raise SystemExit(
-            f"lerobot not importable: {e}\n"
-            f"Install in an isolated venv (see this script's docstring)."
-        )
+        from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
+    except ModuleNotFoundError:
+        try:
+            from lerobot.datasets.lerobot_dataset import LeRobotDataset
+        except ModuleNotFoundError as e:
+            raise SystemExit(
+                f"lerobot not importable: {e}\n"
+                f"Install in an isolated venv (see this script's docstring)."
+            )
 
     # Build feature spec. Flat names match OmniGibsonDataConfig's RepackTransform.
     features = {
@@ -175,7 +178,8 @@ def main():
         print(f"  [{i+1}/{len(input_files)}] {path}")
         frames = _load_episode_from_hdf5(path)
         for frame in frames:
-            dataset.add_frame(frame, task=args.prompt)
+            frame["task"] = args.prompt
+            dataset.add_frame(frame)
         dataset.save_episode()
 
     print(f"\n[Stage2] Done. Dataset root: {dataset.root}")

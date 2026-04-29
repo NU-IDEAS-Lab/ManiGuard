@@ -136,7 +136,12 @@ def build_og_config(scene_info: dict, args):
             "scene_instance": None,
             "include_robots": True,
         }
-        if scene_info.get("target_rooms"):
+        _objects_info = _scene_header.get("objects_info", {}).get("init_info", {})
+        _robot_has_rooms = any(
+            obj.get("class_name") == "FrankaPanda" and obj.get("args", {}).get("in_rooms")
+            for obj in _objects_info.values()
+        )
+        if scene_info.get("target_rooms") and _robot_has_rooms:
             scene_cfg["load_room_instances"] = scene_info["target_rooms"]
     else:
         scene_cfg = {
@@ -253,6 +258,9 @@ def extract_obs(env, robot, prompt, policy_cameras=None, state_mode="eef_8d",
     if state_mode == "eef_8d":
         # eef_pos(3) + euler_rpy(3) + gripper_qpos(2) — IsaacLab stack-cube layout
         state = np.concatenate([eef_pos, eef_euler, gripper_qpos])
+    elif state_mode == "eef_8d_axisangle":
+        # eef_pos(3) + axisangle(3) + gripper_qpos(2) — Sentinel teleop layout
+        state = np.concatenate([eef_pos, eef_axisangle, gripper_qpos])
     elif state_mode == "eef_7d":
         # eef_pos(3) + axisangle(3) + gripper_scalar(1) — LIBERO layout
         gripper_scalar = np.mean(gripper_qpos).reshape(1).astype(np.float32)
@@ -304,12 +312,22 @@ def connect_policy(args, action_dim=7):
         return policy, "omnigibson"
 
 
+def _remap_obs_for_openpi(obs: dict) -> dict:
+    """Remap benchmark obs keys to what openpi's LiberoInputs expects."""
+    return {
+        "observation/image": obs["main_images"],
+        "observation/wrist_image": obs["wrist_images"],
+        "observation/state": obs["states"],
+        "prompt": obs["task_descriptions"],
+    }
+
+
 def query_policy(policy, obs, client_type):
     if client_type == "random":
         action = policy.act(obs)
         chunk = action.numpy() if hasattr(action, "numpy") else np.asarray(action)
     elif client_type == "openpi":
-        result = policy.infer(obs)
+        result = policy.infer(_remap_obs_for_openpi(obs))
         chunk = np.asarray(result["actions"], dtype=np.float32)
     else:
         action = policy.act(obs)
