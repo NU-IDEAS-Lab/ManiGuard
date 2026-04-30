@@ -61,21 +61,34 @@ def _is_physically_holding(robot, obj, init_obj_z: float) -> bool:
 
 class InGoalRegion(SuccessCondition):
     """Success when the target object sits within ``success_radius`` of the
-    task's ``_goal_world_pos`` AND the robot is still physically holding it."""
+    task's ``_goal_world_pos`` AND the robot is still physically holding it.
 
-    def __init__(self, obj_name: str, success_radius: float = 0.05):
+    When ``goal_region_spec`` is provided (benchmark mode), success uses
+    AABB-sphere intersection (matching the eval ``GoalRegionChecker``)
+    instead of center-distance.
+    """
+
+    def __init__(self, obj_name: str, success_radius: float = 0.05, goal_region_spec=None):
         self.obj_name = obj_name
         self.success_radius = success_radius
         self._init_obj_z: float | None = None
+        self._goal_region_spec = goal_region_spec
 
     def _step(self, task, env, action):
         obj = env.scene.object_registry("name", self.obj_name)
         if obj is None or task._goal_world_pos is None:
             return False
-        obj_pos = obj.get_position_orientation()[0]
-        dist = th.norm(obj_pos - task._goal_world_pos)
-        if dist >= self.success_radius:
-            return False
+
+        if self._goal_region_spec is not None:
+            from sentinel.utils.goal_region import object_intersects_goal_region
+            if not object_intersects_goal_region(obj, self._goal_region_spec):
+                return False
+        else:
+            obj_pos = obj.get_position_orientation()[0]
+            dist = th.norm(obj_pos - task._goal_world_pos)
+            if dist >= self.success_radius:
+                return False
+
         # Guard against launch-and-fly: object must still be held.
         if self._init_obj_z is None:
             return False  # reset not yet captured init_z
@@ -203,11 +216,17 @@ class PickAndLiftTask(GraspTask):
         obj_name: name of the target object in the scene (as in GraspTask).
         goal_offset: (3,) offset from the target's initial world position at
             task load time. Default (0, 0, 0.15) = 15 cm straight up.
+            Ignored when ``goal_region_spec`` is provided.
         success_radius: target must reach within this radius of the goal
             to trigger InGoalRegion termination. Default 5 cm.
+            Overridden by ``goal_region_spec.radius_m`` when provided.
         visualize_goal: if True, spawn a translucent ``PrimitiveObject``
             sphere at the goal position (rendered in env cameras).
         goal_marker_rgba: color + alpha of the goal marker.
+        goal_region_spec: optional dict (or ``GoalRegionSpec``) from a
+            benchmark task's ``diagnostics.jsonl["goal_region"]``. When
+            provided, the goal position, radius, and success geometry come
+            from the benchmark instead of ``goal_offset``/``success_radius``.
         termination_config, reward_config, include_obs, precached_reset_pose_path,
         objects_config: forwarded to GraspTask.
     """
@@ -228,6 +247,7 @@ class PickAndLiftTask(GraspTask):
         grasp_reset_pose_range_b=None,
         grasp_reset_max_retries=5,
         grasp_reset_mode="cached",
+        goal_region_spec=None,
     ):
         self.goal_offset = th.tensor(goal_offset, dtype=th.float32)
         self.success_radius = float(success_radius)
@@ -235,6 +255,15 @@ class PickAndLiftTask(GraspTask):
         self.goal_marker_rgba = tuple(goal_marker_rgba)
         self._goal_world_pos = None
         self._goal_marker = None
+
+        self._goal_region_spec = None
+        if goal_region_spec is not None:
+            from sentinel.utils.goal_region import GoalRegionSpec
+            if isinstance(goal_region_spec, GoalRegionSpec):
+                self._goal_region_spec = goal_region_spec
+            else:
+                self._goal_region_spec = GoalRegionSpec.from_json(goal_region_spec)
+            self.success_radius = float(self._goal_region_spec.radius_m)
 
         # Optional reset-from-grasp wiring (OmniReset-style). If set, each
         # _reset_agent call tries to IK a saved grasp and teleport the arm+
@@ -276,7 +305,11 @@ class PickAndLiftTask(GraspTask):
 
     def _create_termination_conditions(self):
         return {
-            "goal": InGoalRegion(self.obj_name, success_radius=self.success_radius),
+            "goal": InGoalRegion(
+                self.obj_name,
+                success_radius=self.success_radius,
+                goal_region_spec=self._goal_region_spec,
+            ),
             "timeout": Timeout(max_steps=self._termination_config["max_steps"]),
         }
 
@@ -290,35 +323,53 @@ class PickAndLiftTask(GraspTask):
         target_obj = env.scene.object_registry("name", self.obj_name)
         if target_obj is None:
             raise ValueError(f"PickAndLiftTask: target object {self.obj_name!r} not in scene.")
-        target_init_pos = target_obj.get_position_orientation()[0]
-        self._goal_world_pos = target_init_pos + self.goal_offset.to(target_init_pos.device)
 
-        if self.visualize_goal:
-            marker_name = f"{self.obj_name}_goal_marker"
-            marker = PrimitiveObject(
-                relative_prim_path=f"/{marker_name}",
-                name=marker_name,
-                primitive_type="Sphere",
-                radius=self.success_radius,
-                visual_only=True,
-                rgba=self.goal_marker_rgba,
-            )
-            env.scene.add_object(marker)
-            marker.set_position_orientation(position=self._goal_world_pos)
-            self._goal_marker = marker
+        if self._goal_region_spec is not None:
+            spec = self._goal_region_spec
+            target_init_pos = target_obj.get_position_orientation()[0]
+            self._goal_world_pos = th.tensor(
+                spec.center_world, dtype=th.float32
+            ).to(target_init_pos.device)
+            existing_marker = env.scene.object_registry("name", spec.marker_name)
+            if existing_marker is not None:
+                self._goal_marker = existing_marker
+            elif self.visualize_goal:
+                from sentinel.utils.goal_region import spawn_goal_region_marker
+                self._goal_marker = spawn_goal_region_marker(env, spec)
+        else:
+            target_init_pos = target_obj.get_position_orientation()[0]
+            self._goal_world_pos = target_init_pos + self.goal_offset.to(target_init_pos.device)
+            if self.visualize_goal:
+                marker_name = f"{self.obj_name}_goal_marker"
+                marker = PrimitiveObject(
+                    relative_prim_path=f"/{marker_name}",
+                    name=marker_name,
+                    primitive_type="Sphere",
+                    radius=self.success_radius,
+                    visual_only=True,
+                    rgba=self.goal_marker_rgba,
+                )
+                env.scene.add_object(marker)
+                marker.set_position_orientation(position=self._goal_world_pos)
+                self._goal_marker = marker
 
     def _reset_scene(self, env):
         super()._reset_scene(env)
-        # Recompute goal in case the target's init pose drifted (e.g. new scene
-        # state on reset). Marker stays static at load-time goal position by
-        # design: randomizing the goal each reset would require respawning
-        # the marker prim which is expensive.
-        target_obj = env.scene.object_registry("name", self.obj_name)
-        if target_obj is not None:
-            init_pos = target_obj.get_position_orientation()[0]
-            self._goal_world_pos = init_pos + self.goal_offset.to(init_pos.device)
-            if self._goal_marker is not None:
-                self._goal_marker.set_position_orientation(position=self._goal_world_pos)
+        if self._goal_region_spec is not None:
+            # Benchmark goal is fixed in world coordinates — do not recompute.
+            self._goal_world_pos = th.tensor(
+                self._goal_region_spec.center_world, dtype=th.float32
+            ).to(self._goal_world_pos.device)
+        else:
+            # Recompute goal in case the target's init pose drifted (e.g. new
+            # scene state on reset). Marker stays static at load-time goal
+            # position by design.
+            target_obj = env.scene.object_registry("name", self.obj_name)
+            if target_obj is not None:
+                init_pos = target_obj.get_position_orientation()[0]
+                self._goal_world_pos = init_pos + self.goal_offset.to(init_pos.device)
+                if self._goal_marker is not None:
+                    self._goal_marker.set_position_orientation(position=self._goal_world_pos)
 
     def _reset_agent(self, env):
         """Reset agent — precached base/joint pose, then optional grasp reset.

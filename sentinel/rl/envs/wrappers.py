@@ -95,6 +95,18 @@ class SentinelSB3VectorEnvironment(SB3VectorEnvironment):
 
 
 # --------------------------------------------------------------- high-level
+def _load_diagnostics(diagnostics_file: Path) -> dict:
+    """Read the first JSON line from a diagnostics.jsonl file."""
+    import json as _json
+
+    with diagnostics_file.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                return _json.loads(line)
+    raise SystemExit(f"Empty diagnostics file: {diagnostics_file}")
+
+
 def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
     """Build an SB3-ready VecEnv from parsed CLI args.
 
@@ -123,10 +135,28 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    goal_region_spec = None
+    diagnostics_file = getattr(args, "diagnostics_file", None)
+    if diagnostics_file is not None:
+        diag = _load_diagnostics(Path(diagnostics_file))
+        goal_region_spec = diag.get("goal_region")
+        if goal_region_spec is None:
+            raise SystemExit(
+                "diagnostics.jsonl has no 'goal_region' key. "
+                "Only benchmark tasks with sphere goal regions are supported."
+            )
+        if args.target_name is None:
+            args.target_name = goal_region_spec.get("target_name")
+
     target_name = args.target_name or f"target_{args.category}_{args.model}"
     grasp_path = args.grasp_dataset_dir / f"grasps_{args.category}_{args.model}.pt"
     if not grasp_path.exists():
-        raise SystemExit(f"Missing grasp dataset: {grasp_path}")
+        if diagnostics_file is None:
+            raise SystemExit(f"Missing grasp dataset: {grasp_path}")
+        grasp_path = None
+        if verbose:
+            print(f"  grasp dataset not found, running without grasp reset",
+                  flush=True)
 
     cfg = build_config(
         target_name=target_name,
@@ -136,6 +166,7 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
         scene_file=args.scene_file,
         grasp_reset_mode=args.reset_mode,
         arm_controller=args.arm_controller,
+        goal_region_spec=goal_region_spec,
     )
     if verbose:
         print(f"[{time.strftime('%H:%M:%S')}] Booting OG "
