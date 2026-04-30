@@ -35,6 +35,7 @@ if str(REPO_ROOT) not in sys.path:
 
 def _init_omnigibson():
     """Lazy-init Isaac Sim + OmniGibson. Called once before env creation."""
+    global gm
     try:
         import isaacsim  # noqa: F401
     except ImportError as exc:
@@ -416,7 +417,8 @@ def main():
                     _cam.image_height = args.camera_resolution
                     _cam.image_width = args.camera_resolution
                 env.load_observation_space()
-            env.reset()
+                env.reset(get_obs=False)
+                og.sim.update_handles()
 
             # Position cam_opposite / cam_left / cam_right at the canonical
             # opposite-overview pose relative to robot + support + target.
@@ -425,7 +427,11 @@ def main():
             # every frame is a uniform gray -- same bug that bit Stage 1 of
             # the teleop playback pipeline.
             _setup_eval_cameras(env, scene_info=scene_info)
+            og.sim.update_handles()
         except Exception as e:
+            import traceback
+
+            traceback.print_exc()
             print(f"  FAILED to load scene: {e}")
             all_results.append({
                 "scene_name": scene_info["name"],

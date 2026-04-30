@@ -89,7 +89,7 @@ def build_config(
     target_name: str,
     category: str,
     model: str,
-    grasp_dataset_path: Path | str,
+    grasp_dataset_path: Optional[Path | str] = None,
     *,
     scene_file: Optional[Path | str] = None,
     obs_modalities: Optional[list[str]] = None,
@@ -108,6 +108,7 @@ def build_config(
     grasp_reset_pose_range_b: Optional[dict] = None,
     grasp_reset_mode: str = "cached",
     arm_controller: str = "joint",
+    goal_region_spec: Optional[dict] = None,
 ) -> dict:
     """Assemble the OG Environment config dict for the grasp-reset setup.
 
@@ -147,6 +148,9 @@ def build_config(
             PPO can't crash the sim on singular arm configs. ``"osc"`` uses
             OperationalSpaceController for comparison / legacy runs; note
             this is fragile under RL exploration (see 2026-04-21 crash).
+        goal_region_spec: optional dict from ``diagnostics.jsonl["goal_region"]``.
+            When provided, ``PickAndLiftTask`` uses the benchmark's goal
+            position and radius instead of ``goal_offset``/``success_radius``.
     """
     if arm_controller not in ("joint", "osc"):
         raise ValueError(f"arm_controller must be 'joint' or 'osc', got {arm_controller!r}")
@@ -231,12 +235,13 @@ def build_config(
             obj_name=target_name,
             goal_offset=list(goal_offset),
             success_radius=success_radius,
-            visualize_goal=visualize_goal,
+            visualize_goal=visualize_goal if goal_region_spec is None else False,
             objects_config=objects_config,
             termination_config={"max_steps": max_steps},
-            grasp_dataset_path=str(grasp_dataset_path),
+            grasp_dataset_path=str(grasp_dataset_path) if grasp_dataset_path is not None else None,
             grasp_reset_pose_range_b=grasp_reset_pose_range_b,
             grasp_reset_mode=grasp_reset_mode,
+            goal_region_spec=goal_region_spec,
         ),
     )
 

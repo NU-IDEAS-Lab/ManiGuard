@@ -43,6 +43,8 @@ import importlib.abc
 import importlib.util
 import os
 import sys
+import types
+import zipfile
 
 _HOOK_INSTALLED = False
 _EAGER_APPLIED = False
@@ -259,61 +261,163 @@ def _patch_sampling_utils() -> None:
     sampling_utils._sentinel_patched = True
 
 
-def _patch_franka_longfinger() -> None:
-    import omnigibson.robots.franka as franka_mod
-    from omnigibson.utils.asset_utils import get_dataset_path
+def _patch_robot_state_compat() -> None:
+    from omnigibson.robots import Robot
 
-    franka_cls = franka_mod.FrankaPanda
-    if getattr(franka_cls, "_sentinel_longfinger_patched", False):
+    if getattr(Robot, "_sentinel_state_compat_patched", False):
         return
 
-    panda_bundle = getattr(franka_mod, "FRANKA_PANDA_BUNDLE", "franka_panda")
+    original_load_state = Robot._load_state
+
+    def _to_torch_if_sequence(value):
+        if isinstance(value, dict):
+            return {key: _to_torch_if_sequence(val) for key, val in value.items()}
+        if isinstance(value, (list, tuple)):
+            import torch as th
+
+            return th.as_tensor(value, dtype=th.float32)
+        return value
+
+    def _normalize_controller_state(controller_state):
+        if not isinstance(controller_state, dict) or "goal_set" in controller_state:
+            return controller_state
+        if "goal_is_valid" not in controller_state:
+            return controller_state
+
+        normalized = dict(controller_state)
+        normalized["goal_set"] = bool(controller_state.get("goal_is_valid"))
+        normalized["goals"] = _to_torch_if_sequence(controller_state.get("goal") or {})
+        return normalized
+
+    def _load_state(self, state):
+        if isinstance(state, dict) and "controller_groups" not in state:
+            state = dict(state)
+            state["controller_groups"] = state.get("controllers", {})
+        if isinstance(state, dict) and isinstance(state.get("controller_groups"), dict):
+            state = dict(state)
+            state["controller_groups"] = {
+                key: _normalize_controller_state(val)
+                for key, val in state["controller_groups"].items()
+            }
+        return original_load_state(self, state)
+
+    Robot._load_state = _load_state
+    Robot._sentinel_state_compat_patched = True
+
+
+def _patch_scene_file_reset_compat() -> None:
+    from omnigibson.scenes.scene_base import Scene
+
+    if getattr(Scene, "_sentinel_scene_file_reset_patched", False):
+        return
+
+    original_reset = Scene.reset
+
+    def reset(self, hard=True):
+        # Snapshot-imported benchmark scenes already contain the correct object
+        # set. Avoid the hard restore path, which can dump articulation state
+        # before Isaac has rebuilt the physics views on OG 3.8 / Isaac 5.
+        if hard and getattr(self, "scene_file", None) is not None:
+            hard = False
+        return original_reset(self, hard=hard)
+
+    Scene.reset = reset
+    Scene._sentinel_scene_file_reset_patched = True
+
+
+def _patch_franka_longfinger() -> None:
+    from omnigibson.robots import Robot
+    from omnigibson.utils.asset_utils import get_dataset_path
+
     longfinger_bundle = "franka_panda_longfinger"
-    setattr(franka_mod, "FRANKA_PANDA_LONGFINGER_BUNDLE", longfinger_bundle)
 
-    orig_usd_path = franka_cls.usd_path
-    orig_urdf_path = franka_cls.urdf_path
-    orig_curobo_path = franka_cls.curobo_path
-
-    def _franka_panda_asset_bundle(self):
-        dataset_root = get_dataset_path("omnigibson-robot-assets")
-        longfinger_dir = os.path.join(dataset_root, f"models/franka/{longfinger_bundle}")
-        if getattr(self, "end_effector", None) == "gripper" and os.path.isdir(longfinger_dir):
-            return longfinger_bundle
-        return panda_bundle
-
-    def _usd_path(self):
-        dataset_root = get_dataset_path("omnigibson-robot-assets")
-        if getattr(self, "model_name", None) == panda_bundle:
-            bundle_name = self._franka_panda_asset_bundle
-            return os.path.join(dataset_root, f"models/franka/{bundle_name}/usd/{bundle_name}.usda")
-        return orig_usd_path.fget(self)
-
-    def _urdf_path(self):
-        assert getattr(self, "_model_name", None) == panda_bundle, (
-            f"Only {panda_bundle} has urdf currently. Got: {getattr(self, '_model_name', None)}"
-        )
-        bundle_name = self._franka_panda_asset_bundle
+    def _longfinger_dir():
         return os.path.join(
             get_dataset_path("omnigibson-robot-assets"),
-            f"models/franka/{bundle_name}/urdf/{bundle_name}.urdf",
+            "models",
+            "franka",
+            longfinger_bundle,
         )
 
-    def _curobo_path(self):
-        assert getattr(self, "_model_name", None) == panda_bundle, (
-            f"Only {panda_bundle} is currently supported for curobo. Got: {getattr(self, '_model_name', None)}"
-        )
-        bundle_name = self._franka_panda_asset_bundle
-        return os.path.join(
-            get_dataset_path("omnigibson-robot-assets"),
-            f"models/franka/{bundle_name}/curobo/{bundle_name}_description_curobo_default.yaml",
+    def _ensure_longfinger_assets():
+        longfinger_dir = _longfinger_dir()
+        usd_file = os.path.join(longfinger_dir, "usd", f"{longfinger_bundle}.usda")
+        if os.path.isfile(usd_file):
+            return True
+
+        zip_path = os.path.join(os.path.dirname(longfinger_dir), f"{longfinger_bundle}.zip")
+        if not os.path.isfile(zip_path):
+            return False
+
+        extract_root = os.path.dirname(longfinger_dir)
+        with zipfile.ZipFile(zip_path) as archive:
+            for member in archive.infolist():
+                target = os.path.abspath(os.path.join(extract_root, member.filename))
+                if os.path.commonpath([extract_root, target]) != os.path.abspath(extract_root):
+                    raise RuntimeError(f"Unsafe path in {zip_path}: {member.filename}")
+            archive.extractall(extract_root)
+
+        return os.path.isfile(usd_file)
+
+    def _uses_longfinger(self):
+        return (
+            getattr(self, "model", None) == "franka"
+            and getattr(self, "end_effector", None) == "gripper"
+            and _ensure_longfinger_assets()
         )
 
-    franka_cls._franka_panda_asset_bundle = property(_franka_panda_asset_bundle)
-    franka_cls.usd_path = property(_usd_path)
-    franka_cls.urdf_path = property(_urdf_path)
-    franka_cls.curobo_path = property(_curobo_path)
-    franka_cls._sentinel_longfinger_patched = True
+    if not getattr(Robot, "_sentinel_longfinger_patched", False):
+        orig_usd_path = Robot.usd_path
+        orig_urdf_path = Robot.urdf_path
+        orig_curobo_path = Robot.curobo_path
+
+        def _usd_path(self):
+            if _uses_longfinger(self):
+                return os.path.join(_longfinger_dir(), "usd", f"{longfinger_bundle}.usda")
+            return orig_usd_path.fget(self)
+
+        def _urdf_path(self):
+            if _uses_longfinger(self):
+                return os.path.join(_longfinger_dir(), "urdf", f"{longfinger_bundle}.urdf")
+            return orig_urdf_path.fget(self)
+
+        def _curobo_path(self):
+            if _uses_longfinger(self):
+                return os.path.join(
+                    _longfinger_dir(),
+                    "curobo",
+                    f"{longfinger_bundle}_description_curobo_default.yaml",
+                )
+            return orig_curobo_path.fget(self)
+
+        Robot.usd_path = property(_usd_path)
+        Robot.urdf_path = property(_urdf_path)
+        Robot.curobo_path = property(_curobo_path)
+        Robot._sentinel_longfinger_patched = True
+
+    if "omnigibson.robots.franka" in sys.modules:
+        return
+
+    franka_mod = types.ModuleType("omnigibson.robots.franka")
+
+    class FrankaPanda(Robot):
+        def __init__(self, *args, **kwargs):
+            kwargs.pop("model", None)
+            kwargs.pop("type", None)
+            super().__init__(*args, model="franka", end_effector="gripper", **kwargs)
+
+    class FrankaMounted(Robot):
+        def __init__(self, *args, **kwargs):
+            kwargs.pop("model", None)
+            kwargs.pop("type", None)
+            super().__init__(*args, model="franka", end_effector="mounted", **kwargs)
+
+    franka_mod.FrankaPanda = FrankaPanda
+    franka_mod.FrankaMounted = FrankaMounted
+    franka_mod.FRANKA_PANDA_LONGFINGER_BUNDLE = longfinger_bundle
+    franka_mod.__all__ = ["FrankaPanda", "FrankaMounted"]
+
+    sys.modules["omnigibson.robots.franka"] = franka_mod
 
 
 def _register_bddl_predicates() -> None:
@@ -330,6 +434,8 @@ def _apply_eager_patches() -> None:
     _patch_grasp_goal()
     _patch_grasp_reward()
     _patch_sampling_utils()
+    _patch_robot_state_compat()
+    _patch_scene_file_reset_compat()
     _patch_franka_longfinger()
     _register_bddl_predicates()
     _EAGER_APPLIED = True

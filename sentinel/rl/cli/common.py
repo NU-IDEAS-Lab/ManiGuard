@@ -50,6 +50,12 @@ def add_env_args(parser: argparse.ArgumentParser) -> None:
                    help="'joint' (default): JointController (position delta, "
                         "no Jacobian inversion). 'osc': OperationalSpace; "
                         "crashes with LinAlgError on kinematic singularity.")
+    g.add_argument("--diagnostics-file", type=Path, default=None,
+                   help="Path to a benchmark task's diagnostics.jsonl. "
+                        "When provided, the goal region from the benchmark "
+                        "is used instead of the hardcoded goal_offset. "
+                        "Also infers --scene-file from the sibling "
+                        "scene_ep1.json if not explicitly set.")
 
 
 def add_training_args(parser: argparse.ArgumentParser) -> None:
@@ -111,6 +117,19 @@ def validate_env_args(args) -> None:
     Raises SystemExit with a clear message (not an exception — we want the
     user to see the error cleanly, not a traceback).
     """
+    if getattr(args, "diagnostics_file", None) is not None:
+        if not args.diagnostics_file.exists():
+            raise SystemExit(
+                f"--diagnostics-file does not exist: {args.diagnostics_file}"
+            )
+        if args.scene_file is None:
+            inferred = args.diagnostics_file.parent / "scene_ep1.json"
+            if not inferred.exists():
+                raise SystemExit(
+                    f"--diagnostics-file was provided but sibling scene_ep1.json "
+                    f"not found at {inferred}. Set --scene-file explicitly."
+                )
+            args.scene_file = inferred
     if args.num_envs > 1 and args.scene_file is None:
         raise SystemExit(
             "--num-envs > 1 requires --scene-file pointing at a pre-baked OG "

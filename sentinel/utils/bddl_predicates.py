@@ -47,12 +47,18 @@ def register_sentinel_predicates() -> None:
     import hook has already injected ``Dropped`` / ``Upright`` / ``Grasped``
     onto ``omnigibson.object_states`` (see :func:`sentinel._omnigibson_patches.apply`).
     """
-    from omnigibson import object_states
-    from omnigibson.utils.bddl_utils import (
-        SUPPORTED_PREDICATES,
-        get_binary_predicate_for_state,
-        get_unary_predicate_for_state,
-    )
+    try:
+        from omnigibson import object_states
+        from omnigibson.utils.bddl_utils import (
+            SUPPORTED_PREDICATES,
+            get_binary_predicate_for_state,
+            get_unary_predicate_for_state,
+        )
+    except ImportError:
+        # OmniGibson 3.8 moved to BDDL predicate classes and no longer exposes
+        # the legacy SUPPORTED_PREDICATES registry. Snapshot-based evals do not
+        # need these Sentinel BDDL extensions, so leave the newer registry alone.
+        return
 
     stashed_cls = _build_stashed_predicate_class()
 
