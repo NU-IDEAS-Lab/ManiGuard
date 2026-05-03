@@ -571,18 +571,9 @@ def robot_holds_target(env, target_obj) -> bool:
     robot = env.robots[0] if env.robots else None
     if robot is None:
         return False
-    try:
-        from omnigibson.object_states import Touching
-
-        if bool(robot.states[Touching].get_value(target_obj)):
-            return True
-    except Exception:
-        pass
-    try:
-        contacts = robot.contact_list()
-        return any(target_obj.name in str(contact) for contact in contacts)
-    except Exception:
-        return False
+    from omnigibson.utils.constants import IsGraspingState
+    result = robot.is_grasping(candidate_obj=target_obj)
+    return result == IsGraspingState.TRUE
 
 
 def remove_goal_region_from_scene_info(scene_info: dict[str, Any], diagnostics: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
