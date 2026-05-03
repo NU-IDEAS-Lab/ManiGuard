@@ -21,18 +21,17 @@ from sentinel.task_generation.pipeline_common import (
     check_interpenetration,
     clear_support_area,
     discover_from_scene_json,
-    generate_activity,
     get_scene_json_path,
-    get_scope_obj,
+    get_spawned_obj,
     make_base_arg_parser,
     make_park_fn,
     make_settle_fn,
-    needs_gpu_dynamics,
+    needs_gpu_dynamics_from_specs,
     pipeline_exit,
-    refresh_activity_cache,
     resolve_synset,
     run_ltl_rollout,
     setup_run_dir,
+    spawn_objects,
     validate_poses,
 )
 from sentinel.utils.cabinet_discovery import (
@@ -58,7 +57,9 @@ def parse_args():
 
 
 def run_dry_run(args):
-    """Generate BDDL + ltl_safety.json for cabinet task without starting the simulator."""
+    """Generate LTL safety spec for cabinet task without starting the simulator."""
+    from sentinel.utils.task_spec import generate_clutter_activity
+
     activity_name = args.activity_name or f"auto_cabinet_on_{args.scene_model}"
 
     support_synset, support_room = "bottom_cabinet.n.01", "kitchen"
@@ -75,15 +76,13 @@ def run_dry_run(args):
         log.warning("cabinet_clutter_pipeline dry-run: scene path lookup for %s failed: %s", args.scene_model, exc)
         pass
 
-    bddl_text, ltl_safety, bddl_path, json_path = generate_activity(
+    ltl_safety, selection = generate_clutter_activity(
         activity_name, support_synset, support_room, args.clutter_density,
         init_predicate="inside",
     )
     print(f"[Pipeline] Dry-run complete:")
-    print(f"  BDDL:       {bddl_path}")
-    print(f"  ltl_safety: {json_path}")
-    print(f"  activity:   {activity_name}")
-    print(f"\nGenerated BDDL:\n{bddl_text}")
+    print(f"  activity:    {activity_name}")
+    print(f"  spawn_specs: {selection.get('spawn_specs', [])}")
     print(f"\nLTL formula: {ltl_safety['combined_ltl']}")
 
     append_jsonl(args.debug_jsonl, {
@@ -91,7 +90,7 @@ def run_dry_run(args):
         "scene_model": args.scene_model, "density": args.clutter_density,
         "pipeline": "cabinet",
     })
-    return activity_name, bddl_path, json_path
+    return activity_name
 
 
 def run_sim(args, activity_name=None):
@@ -100,8 +99,8 @@ def run_sim(args, activity_name=None):
     import omnigibson as og
     from omnigibson.macros import gm
     from sentinel.utils.clutter_pack_layout import validate_pack_integrity
-    from sentinel.utils.manipulation_task_spec import build_manipulation_task_spec
     from sentinel.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
+    from sentinel.utils.task_spec import generate_clutter_activity
 
     gm.ENABLE_OBJECT_STATES = True
 
@@ -123,25 +122,22 @@ def run_sim(args, activity_name=None):
     support_room = discovery[1]
     print(f"[Pipeline] Discovered cabinet: category={discovery[0]} synset={support_synset} room={support_room}")
 
-    # -- Generate BDDL with 'inside' predicate ------------------------------
-    _, _, bddl_path, _ = generate_activity(
+    # -- Generate activity (LTL + spawn specs) ------------------------------
+    ltl_safety, selection = generate_clutter_activity(
         activity_name, support_synset, support_room, args.clutter_density,
         init_predicate="inside",
     )
-    print(f"[Pipeline] Generated BDDL: {bddl_path}")
-    refresh_activity_cache()
+    spawn_specs = selection.get("spawn_specs", [])
 
     # -- GPU dynamics --------------------------------------------------------
-    gpu = needs_gpu_dynamics(activity_name)
+    gpu = needs_gpu_dynamics_from_specs(spawn_specs)
     gm.USE_GPU_DYNAMICS = gpu
     gm.ENABLE_FLATCACHE = not gpu
 
     # -- Load environment ----------------------------------------------------
-    cfg = build_task_config(args.scene_model, activity_name)
+    cfg = build_task_config(args.scene_model)
     cfg["scene"]["scene_file"] = scene_json
     cfg["scene"]["scene_instance"] = None
-    cfg["task"]["online_object_sampling"] = True
-    cfg["task"]["use_presampled_robot_pose"] = False
 
     print(f"[Pipeline] scene={args.scene_model}, activity={activity_name}, strict_gate={args.strict_gate}")
     env = og.Environment(configs=cfg)
@@ -152,6 +148,12 @@ def run_sim(args, activity_name=None):
             print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
             env.reset()
             og.sim.step()
+
+            # -- Spawn task objects -----------------------------------------
+            spawned_objects = spawn_objects(env, spawn_specs, rng)
+            og.sim.step()
+            print(f"[Pipeline] Spawned {len(spawned_objects)} objects: "
+                  f"{sorted(spawned_objects.keys())}")
 
             # -- Cabinet discovery (sim) ------------------------------------
             cabinet_info, cabinet_obj = discover_best_cabinet(env)
@@ -185,17 +187,17 @@ def run_sim(args, activity_name=None):
 
             # -- Clear perimeter objects ------------------------------------
             floor_z = float(cabinet_obj.aabb[0][2])
-            clear_support_area(env, cabinet_obj, cab.aabb_xy)
+            clear_support_area(env, cabinet_obj, cab.aabb_xy,
+                               spawned_objects=spawned_objects)
 
             # -- Build object sets ------------------------------------------
-            task_spec = build_manipulation_task_spec(activity_name)
-            obj_sets = build_task_object_sets(env, task_spec)
+            obj_sets = build_task_object_sets(spawned_objects)
 
             if not obj_sets["target_ids"]:
                 raise RuntimeError("No target objects found.")
-            target_obj = get_scope_obj(env, obj_sets["target_ids"][0])
+            target_obj = get_spawned_obj(spawned_objects, obj_sets["target_ids"][0])
 
-            descriptors, objects_by_inst = build_descriptors(env, obj_sets)
+            descriptors, objects_by_inst = build_descriptors(spawned_objects, obj_sets)
             if not descriptors:
                 raise RuntimeError("No clutter-pack descriptors created.")
 
@@ -290,6 +292,7 @@ def run_sim(args, activity_name=None):
                 "pack_attempt_used": pack_result.attempt_used,
                 "gate_pass": gate_pass, "ltl_violated": summary["violated"],
                 "steps_executed": executed, "pipeline": "cabinet",
+                "ltl_safety": ltl_safety,
             })
 
     finally:

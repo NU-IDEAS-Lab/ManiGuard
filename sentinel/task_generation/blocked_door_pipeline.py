@@ -22,27 +22,21 @@ import numpy as np
 from sentinel.task_generation.pipeline_common import (
     append_jsonl,
     build_task_config,
-    build_task_object_sets,
     discover_from_scene_json,
     get_scene_json_path,
-    get_scope_obj,
     make_base_arg_parser,
     make_settle_fn,
-    needs_gpu_dynamics,
+    needs_gpu_dynamics_from_specs,
     pipeline_exit,
-    refresh_activity_cache,
     resolve_synset,
     run_ltl_rollout,
     setup_run_dir,
+    spawn_objects,
     stabilize_and_validate,
 )
-from sentinel.utils.bddl_generator import (
-    DOOR_OBSTACLE_POOL,
-    generate_blocked_door_activity,
-)
+from sentinel.utils.task_spec import generate_blocked_door_activity
 from sentinel.utils.cabinet_discovery import (
     _CABINET_CATEGORY_PRIORITY,
-    compute_door_sweep_zone,
     discover_best_cabinet,
     find_revolute_doors,
     is_cabinet_like,
@@ -50,7 +44,6 @@ from sentinel.utils.cabinet_discovery import (
     place_object_in_sweep_zone,
     place_robot_facing_cabinet,
 )
-from sentinel.utils.manipulation_task_spec import build_manipulation_task_spec
 import logging
 
 log = logging.getLogger(__name__)
@@ -87,16 +80,14 @@ def run_dry_run(args):
         log.warning("blocked_door_pipeline dry-run: scene path lookup for %s failed: %s", args.scene_model, exc)
         pass
 
-    bddl_text, ltl_safety, bddl_path, json_path, selection = generate_blocked_door_activity(
+    ltl_safety, selection = generate_blocked_door_activity(
         activity_name, support_synset, support_room,
         obstacle_synset=args.obstacle_synset,
         target_synset=args.target_synset,
     )
-    print(f"[Pipeline] Dry-run complete:")
-    print(f"  BDDL:       {bddl_path}")
-    print(f"  ltl_safety: {json_path}")
-    print(f"  activity:   {activity_name}")
-    print(f"\nGenerated BDDL:\n{bddl_text}")
+    print("[Pipeline] Dry-run complete:")
+    print(f"  activity:    {activity_name}")
+    print(f"  spawn_specs: {selection.get('spawn_specs', [])}")
     print(f"\nLTL formula: {ltl_safety['combined_ltl']}")
 
     append_jsonl(args.debug_jsonl, {
@@ -132,26 +123,23 @@ def run_sim(args, activity_name=None):
     print(f"[Pipeline] Discovered cabinet: category={discovery[0]} "
           f"synset={support_synset} room={support_room}")
 
-    # -- Generate BDDL -----------------------------------------------------
-    _, _, bddl_path, _, selection = generate_blocked_door_activity(
+    # -- Generate activity (LTL + spawn specs) -----------------------------
+    ltl_safety, selection = generate_blocked_door_activity(
         activity_name, support_synset, support_room,
         obstacle_synset=args.obstacle_synset,
         target_synset=args.target_synset,
     )
-    print(f"[Pipeline] Generated BDDL: {bddl_path}")
-    refresh_activity_cache()
+    spawn_specs = selection.get("spawn_specs", [])
 
     # -- GPU dynamics -------------------------------------------------------
-    gpu = needs_gpu_dynamics(activity_name)
+    gpu = needs_gpu_dynamics_from_specs(spawn_specs)
     gm.USE_GPU_DYNAMICS = gpu
     gm.ENABLE_FLATCACHE = not gpu
 
     # -- Load environment ---------------------------------------------------
-    cfg = build_task_config(args.scene_model, activity_name)
+    cfg = build_task_config(args.scene_model)
     cfg["scene"]["scene_file"] = scene_json
     cfg["scene"]["scene_instance"] = None
-    cfg["task"]["online_object_sampling"] = True
-    cfg["task"]["use_presampled_robot_pose"] = False
 
     print(f"[Pipeline] scene={args.scene_model}, activity={activity_name}, "
           f"strict_gate={args.strict_gate}")
@@ -162,6 +150,10 @@ def run_sim(args, activity_name=None):
         for ep in range(args.episodes):
             print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
             env.reset()
+            og.sim.step()
+
+            # -- Spawn task objects -----------------------------------------
+            spawned_objects = spawn_objects(env, spawn_specs, rng)
             og.sim.step()
 
             # -- Cabinet discovery (sim) ------------------------------------
@@ -192,19 +184,15 @@ def run_sim(args, activity_name=None):
             floor_z = float(cabinet_obj.aabb[0][2])
 
             # -- Find task objects ------------------------------------------
-            task_spec = build_manipulation_task_spec(activity_name)
-            obj_sets = build_task_object_sets(env, task_spec)
-
-            target_obj = None
-            if obj_sets["target_ids"]:
-                target_obj = get_scope_obj(env, obj_sets["target_ids"][0])
-
-            obstacle_obj = None
-            if obj_sets["fragile_ids"]:
-                obstacle_obj = get_scope_obj(env, obj_sets["fragile_ids"][0])
+            target_obj, obstacle_obj = None, None
+            for inst, obj in spawned_objects.items():
+                if obj.name.startswith("target_") and target_obj is None:
+                    target_obj = obj
+                elif obj.name.startswith("fragile_") and obstacle_obj is None:
+                    obstacle_obj = obj
 
             if target_obj is None:
-                raise RuntimeError("No target object found in scope.")
+                raise RuntimeError("No target object found in spawned objects.")
 
             # -- Place obstacle in the door sweep zone ----------------------
             if sweep_zone is not None and obstacle_obj is not None:
@@ -215,11 +203,7 @@ def run_sim(args, activity_name=None):
 
             # Settle physics.
             settle_fn = make_settle_fn(og, th)
-            all_objs = {}
-            for inst in list(obj_sets["target_ids"]) + list(obj_sets["fragile_ids"]):
-                obj = get_scope_obj(env, inst)
-                if obj is not None:
-                    all_objs[inst] = obj
+            all_objs = dict(spawned_objects)
             settle_fn(all_objs)
 
             # -- Robot placement --------------------------------------------
@@ -283,6 +267,7 @@ def run_sim(args, activity_name=None):
                 "ltl_violated": summary["violated"],
                 "steps_executed": executed,
                 "pipeline": "blocked_door",
+                "ltl_safety": ltl_safety,
             })
 
     finally:

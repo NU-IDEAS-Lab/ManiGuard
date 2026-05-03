@@ -20,15 +20,12 @@ Usage:
         --scene-model Rs_int --dry-run
 """
 
-import os
-
 from sentinel.task_generation.clutter_scene_pipeline import ClutterPipeline
-from sentinel.utils.bddl_generator import (
+from sentinel.utils.task_spec import (
     LIQUID_CONTAINER_POOL,
     LIQUID_PRESETS,
     generate_clutter_activity,
     generate_liquid_transport_ltl_safety_json,
-    write_activity_files,
 )
 
 
@@ -66,7 +63,7 @@ class LiquidTransportPipeline(ClutterPipeline):
 
     def select_objects(self, args, rng):
         # Override clutter's select_objects to use LIQUID_CONTAINER_POOL as target.
-        from sentinel.utils.bddl_generator import (
+        from sentinel.utils.task_spec import (
             FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
             estimate_object_set_footprint,
         )
@@ -96,16 +93,12 @@ class LiquidTransportPipeline(ClutterPipeline):
 
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
-        import bddl
+        _clutter_ltl, selection = generate_clutter_activity(
+            activity_name, support_synset, support_room,
+            args.clutter_density, rng=rng,
+            pre_selection=args._pre_selection,
+        )
 
-        bddl_text, _clutter_ltl, bddl_path, json_path, selection = \
-            generate_clutter_activity(
-                activity_name, support_synset, support_room,
-                args.clutter_density, rng=rng,
-                pre_selection=args._pre_selection,
-            )
-
-        # Replace clutter LTL with liquid-specific LTL.
         preset = LIQUID_PRESETS[args.difficulty]
         target_synset = selection["target_synset"]
         fragile_synsets = sorted(set(selection.get("fragile_picks", [])))
@@ -119,20 +112,14 @@ class LiquidTransportPipeline(ClutterPipeline):
             max_tilt_deg=preset["max_tilt_deg"],
         )
 
-        # Overwrite the LTL file.
-        activity_dir = os.path.join(
-            os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
-        )
-        _, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
-
         selection["system_name"] = args.system_name
         selection["difficulty"] = args.difficulty
         selection["spill_threshold"] = preset["spill_threshold"]
         selection["max_tilt_deg"] = preset["max_tilt_deg"]
 
-        return bddl_text, ltl_safety, bddl_path, json_path, selection
+        return ltl_safety, selection
 
-    def configure_task(self, cfg, selection):
+    def configure_env(self, selection):
         from omnigibson.macros import gm
         gm.USE_GPU_DYNAMICS = True
         gm.ENABLE_FLATCACHE = False

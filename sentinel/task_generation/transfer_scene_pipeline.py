@@ -13,10 +13,10 @@ Usage:
 
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    get_scope_obj,
-    iter_scope_objects,
+    get_spawned_obj,
+    iter_spawned_objects,
 )
-from sentinel.utils.bddl_generator import generate_transfer_activity
+from sentinel.utils.task_spec import generate_transfer_activity
 import logging
 
 log = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class TransferPipeline(BasePipeline):
         return "transfer"
 
     def select_objects(self, args, rng):
-        from sentinel.utils.bddl_generator import (
+        from sentinel.utils.task_spec import (
             TRANSFER_FOOD_POOL, TRANSFER_SOURCE_POOL, TRANSFER_DEST_POOL,
             estimate_object_set_footprint,
         )
@@ -107,7 +107,7 @@ class TransferPipeline(BasePipeline):
         dest_synset = selection["dest_synset"]
 
         food_ids, source_ids, dest_ids = [], [], []
-        for inst, obj in iter_scope_objects(ctx.env):
+        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
             if inst.startswith(("agent.", "floor.")):
                 continue
             if inst.startswith(food_synset + "_"):
@@ -124,14 +124,14 @@ class TransferPipeline(BasePipeline):
         print(f"[Pipeline] Objects: food={food_ids}, source={source_ids}, "
               f"dest={dest_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, food_ids[0])
-        ctx._source_obj = get_scope_obj(ctx.env, source_ids[0]) if source_ids else None
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, food_ids[0])
+        ctx._source_obj = get_spawned_obj(ctx.spawned_objects, source_ids[0]) if source_ids else None
         ctx._food_ids = food_ids
         ctx._source_ids = source_ids
         ctx._dest_ids = dest_ids
         ctx.active_objects = {}
         for inst in food_ids + source_ids + dest_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 
@@ -155,7 +155,7 @@ class TransferPipeline(BasePipeline):
             if hasattr(ctx._source_obj, "keep_still"):
                 ctx._source_obj.keep_still()
 
-        dest_obj = get_scope_obj(ctx.env, ctx._dest_ids[0]) if ctx._dest_ids else None
+        dest_obj = get_spawned_obj(ctx.spawned_objects, ctx._dest_ids[0]) if ctx._dest_ids else None
         if dest_obj is not None:
             try:
                 _, dest_aabb_max = dest_obj.aabb
@@ -176,7 +176,7 @@ class TransferPipeline(BasePipeline):
 
     def goal_conditions(self, ctx):
         goal_pred = ctx.selection.get("goal_predicate", "inside")
-        dest_obj = get_scope_obj(ctx.env, ctx._dest_ids[0]) if ctx._dest_ids else None
+        dest_obj = get_spawned_obj(ctx.spawned_objects, ctx._dest_ids[0]) if ctx._dest_ids else None
         if ctx.target_obj and dest_obj:
             return [{"predicate": goal_pred, "subject": ctx.target_obj.name, "reference": dest_obj.name}]
         return []

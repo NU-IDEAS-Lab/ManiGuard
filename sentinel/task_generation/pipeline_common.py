@@ -6,6 +6,7 @@ pack callbacks, and other utilities reused across different pipeline types
 """
 
 import argparse
+import copy
 import json
 import logging
 import math
@@ -31,10 +32,9 @@ _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 
 
-# Pool constants and activity generators live in omnigibson.utils.bddl_generator.
-# Re-exported here for backward compatibility with pinch_point / cabinet pipelines.
-from sentinel.utils.bddl_generator import DENSITY_PRESETS  # noqa: F401, E402
-from sentinel.utils.bddl_generator import generate_clutter_activity as generate_activity  # noqa: F401, E402
+from sentinel.utils.task_spec import DENSITY_PRESETS  # noqa: F401, E402
+from sentinel.utils.task_spec import generate_clutter_activity as generate_activity  # noqa: F401, F811, E402
+from sentinel.utils.task_spec import _pick_model_for_synset, _synset_to_category  # noqa: E402
 
 STRUCTURAL_CATEGORY_KEYWORDS = (
     "wall", "walls", "floor", "ceiling", "roof", "window", "door",
@@ -69,8 +69,6 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p.add_argument("--run-dir", default=None)
     p.add_argument("--save-video", action="store_true")
     p.add_argument("--video-fps", type=int, default=30)
-    p.add_argument("--curation-manifest", default=None)
-    p.add_argument("--allow-deferred", action="store_true")
     p.add_argument("--zone-edge-margin-m", type=float, default=None)
     p.add_argument("--obstacle-keepout-margin-m", type=float, default=None)
     p.add_argument("--obstacle-side-clearance-m", type=float, default=None)
@@ -119,32 +117,20 @@ def resolve_synset(category):
         return f"{category}.n.01"
 
 
-def refresh_activity_cache():
-    import bddl
-    from omnigibson.utils.bddl_utils import BEHAVIOR_ACTIVITIES
-    refreshed = sorted(os.listdir(
-        os.path.join(os.path.dirname(bddl.__file__), "activity_definitions")
-    ))
-    BEHAVIOR_ACTIVITIES.clear()
-    BEHAVIOR_ACTIVITIES.extend(refreshed)
-
-
-def needs_gpu_dynamics(activity_name):
+def needs_gpu_dynamics_from_specs(spawn_specs):
+    """Check if any spawn spec requires GPU dynamics (substance/liquid tasks)."""
     try:
-        from bddl.activity import Conditions
         taxonomy = get_taxonomy()
-        cond = Conditions(behavior_activity=activity_name, activity_definition=0,
-                          simulator_name="omnigibson", predefined_problem=None)
-        for synset in cond.parsed_objects:
+        for spec in spawn_specs:
+            synset = spec.get("synset", "")
             try:
                 if "substance" in taxonomy.get_abilities(synset):
                     print(f"[Pipeline] GPU dynamics enabled (substance: {synset})")
                     return True
-            except Exception as exc:
-                log.warning("taxonomy lookup for synset %s failed: %s", synset, exc)
+            except Exception:
                 continue
-    except Exception as exc:
-        log.warning("needs_gpu_dynamics probe failed for %s: %s", activity_name, exc)
+    except Exception:
+        pass
     return False
 
 
@@ -195,41 +181,68 @@ from sentinel.task_generation.utils.placeable import pick_scene_from_placeable
 def _robot_config():
     return {
         "type": "FrankaMounted", "obs_modalities": ["rgb"],
-        "action_type": "continuous", "action_normalize": True,
+        "action_type": "continuous", "action_normalize": False,
         "controller_config": {
-            "arm_0": {"name": "OperationalSpaceController"},
+            "arm_0": {
+                "name": "InverseKinematicsController",
+                "mode": "pose_absolute_ori",
+                "command_input_limits": None,
+                "command_output_limits": None,
+            },
             "gripper_0": {"name": "MultiFingerGripperController"},
         },
     }
 
 
-def build_task_config(scene_model, activity_name):
+def build_task_config(scene_model):
     return {
         "scene": {"type": "InteractiveTraversableScene", "scene_model": scene_model},
-        "task": {
-            "type": "BehaviorTask", "activity_name": activity_name,
-            "activity_definition_id": 0, "activity_conditions_met": False,
-            "online_object_sampling": True,
-        },
+        "task": {"type": "DummyTask"},
         "robots": [_robot_config()],
     }
 
 
 
-def iter_scope_objects(env):
-    for inst, ent in (getattr(env.task, "object_scope", {}) or {}).items():
-        if ent is None or not getattr(ent, "exists", False) or getattr(ent, "is_system", False):
-            continue
-        obj = getattr(ent, "wrapped_obj", None)
-        if obj is not None:
-            yield inst, obj
+def iter_spawned_objects(spawned_objects):
+    for inst, obj in spawned_objects.items():
+        yield inst, obj
 
 
-def get_scope_obj(env, inst):
-    ent = (getattr(env.task, "object_scope", {}) or {}).get(inst)
-    if ent is None or not getattr(ent, "exists", False) or getattr(ent, "is_system", False):
-        return None
-    return getattr(ent, "wrapped_obj", None)
+def get_spawned_obj(spawned_objects, inst):
+    return spawned_objects.get(inst)
+
+
+def spawn_objects(env, spawn_specs, rng):
+    """Import DatasetObjects into the running scene from spawn specs.
+
+    Each spec: {"synset", "count", "role"} plus optional {"category", "model"}.
+    Returns {inst_id: obj} where inst_id follows the "{synset}_{N}" convention
+    to match LTL proposition glob patterns.
+    """
+    from omnigibson.objects import DatasetObject
+
+    registry = {}
+    synset_counters = {}
+    for spec in spawn_specs:
+        synset = spec["synset"]
+        count = spec["count"]
+        role = spec["role"]
+        category = spec.get("category") or _synset_to_category(synset)
+        model = spec.get("model")
+        if model is None:
+            category, model = _pick_model_for_synset(synset, rng)
+
+        for _ in range(count):
+            idx = synset_counters.get(synset, 0) + 1
+            synset_counters[synset] = idx
+            inst_id = f"{synset}_{idx}"
+            name = f"{role}_{category}_{idx}"
+            obj = DatasetObject(name=name, category=category, model=model)
+            env.scene.add_object(obj)
+            obj.set_position_orientation(position=[0, 0, 10])
+            registry[inst_id] = obj
+
+    return registry
 
 
 def is_structural_object(obj):
@@ -308,19 +321,19 @@ def _oriented_keepout_bounds_xy(base_xy, yaw, x_min, x_max, y_min, y_max):
     return ((min(xs), min(ys)), (max(xs), max(ys)))
 
 
-def clear_support_area(env, support_obj, surface_bounds_xy, margin_m=0.60):
+def clear_support_area(env, support_obj, surface_bounds_xy, margin_m=0.60,
+                       spawned_objects=None):
     """Remove all non-structural preset objects on and around the support surface.
 
     Removes every object whose xy bounding box overlaps the support surface
-    bounds expanded by ``margin_m``, except the support itself, BDDL scope
-    objects, and structural objects (walls, floors, etc.).  No z-filtering
-    or category filtering — everything in the area goes.
+    bounds expanded by ``margin_m``, except the support itself, spawned
+    objects, and structural objects (walls, floors, etc.).
     """
     import omnigibson as og
 
     expanded_bounds = _expanded_bounds(surface_bounds_xy, margin_m)
     support_name = getattr(support_obj, "name", "")
-    scope_names = {getattr(obj, "name", "") for _, obj in iter_scope_objects(env)}
+    scope_names = {getattr(obj, "name", "") for obj in (spawned_objects or {}).values()}
 
     to_remove = []
     for obj in env.scene.objects:
@@ -348,12 +361,12 @@ def clear_support_area(env, support_obj, surface_bounds_xy, margin_m=0.60):
 def clear_robot_base_region(env, support_obj, base_xy, robot_half_extent_xy,
                             margin_m=0.05, base_yaw=0.0,
                             workspace_front_m=0.0, workspace_side_m=0.0,
-                            workspace_rear_m=0.0):
+                            workspace_rear_m=0.0, spawned_objects=None):
     """Remove preset objects overlapping the chosen Franka/base keepout region."""
     import omnigibson as og
 
     support_name = getattr(support_obj, "name", "")
-    scope_names = {getattr(obj, "name", "") for _, obj in iter_scope_objects(env)}
+    scope_names = {getattr(obj, "name", "") for obj in (spawned_objects or {}).values()}
     hx = float(robot_half_extent_xy[0]) + margin_m
     hy = float(robot_half_extent_xy[1]) + margin_m
     keepout_bounds = _oriented_keepout_bounds_xy(
@@ -394,29 +407,29 @@ def clear_robot_base_region(env, support_obj, base_xy, robot_half_extent_xy,
     return [getattr(o, "name", "") for o in to_remove]
 
 
-def build_task_object_sets(env, task_spec):
-    available = {inst for inst, _ in iter_scope_objects(env)}
-    target_ids = [i for i in task_spec.target_ids if i in available]
-    support_ids = [i for i in task_spec.support_ids if i in available]
-    fragile_ids = [
-        i for i in task_spec.fragile_ids
-        if i in available and i not in target_ids and i not in support_ids
-    ]
-    assigned = set(target_ids) | set(fragile_ids) | set(support_ids)
-    clutter_ids = sorted(
-        i for i in available
-        if i not in assigned and not i.startswith(("agent.", "floor."))
-    )
-    if not target_ids:
-        for inst, _ in iter_scope_objects(env):
-            if inst.startswith(("coffee_cup.", "cup.", "mug.")):
-                target_ids = [inst]
-                break
+def build_task_object_sets(spawned_objects, task_spec=None):
+    """Classify spawned objects by role.
+
+    Roles are inferred from the object name prefix (target_, fragile_,
+    clutter_, source_, dest_, food_, stack_).  The legacy task_spec argument
+    is accepted but ignored.
+    """
+    target_ids, fragile_ids, support_ids, clutter_ids = [], [], [], []
+    for inst_id, obj in spawned_objects.items():
+        name = getattr(obj, "name", "")
+        if name.startswith("target_"):
+            target_ids.append(inst_id)
+        elif name.startswith("fragile_"):
+            fragile_ids.append(inst_id)
+        elif name.startswith(("source_", "dest_")):
+            support_ids.append(inst_id)
+        else:
+            clutter_ids.append(inst_id)
     return {
         "target_ids": tuple(target_ids),
         "fragile_ids": tuple(sorted(fragile_ids)),
         "support_ids": tuple(sorted(support_ids)),
-        "clutter_ids": tuple(clutter_ids),
+        "clutter_ids": tuple(sorted(clutter_ids)),
     }
 
 
@@ -439,13 +452,13 @@ def object_aabb_dims(obj):
     )
 
 
-def build_descriptors(env, obj_sets):
+def build_descriptors(spawned_objects, obj_sets):
     from sentinel.utils.clutter_pack_layout import ClutterObjectDescriptor
 
     descriptors, objects_by_inst = [], {}
     for role, id_key in [("target", "target_ids"), ("fragile", "fragile_ids"), ("clutter", "clutter_ids")]:
         for inst in obj_sets[id_key]:
-            obj = get_scope_obj(env, inst)
+            obj = spawned_objects.get(inst)
             if obj is None:
                 continue
             dims = object_aabb_dims(obj)
@@ -599,7 +612,7 @@ def pin_support_object_to_world(support_obj):
     if bool(getattr(support_obj, "fixed_base", False)):
         return False
     try:
-        joint_path = f"{support_obj.prim_path}/curationFixedJoint"
+        joint_path = f"{support_obj.prim_path}/pipelineFixedJoint"
         root_link_path = getattr(getattr(support_obj, "root_link", None), "prim_path", None)
         if not root_link_path:
             root_name = getattr(support_obj, "_root_link_name", None)
@@ -940,55 +953,6 @@ def setup_run_dir(args):
     init_run_dir(args, args.scene_model or "auto")
 
 
-def load_scene_curation(args):
-    if not getattr(args, "curation_manifest", None):
-        return None
-    from sentinel.task_generation.curation.curation_manifest import (
-        apply_scene_entry_to_args,
-        load_curation_manifest,
-    )
-
-    manifest = load_curation_manifest(args.curation_manifest)
-    entry = manifest.get_scene_entry(args.scene_model)
-    if entry.status == "defer" and not args.allow_deferred:
-        reason = entry.defer_reason or "scene marked as deferred in curation manifest"
-        raise RuntimeError(f"Scene '{args.scene_model}' is deferred: {reason}")
-    apply_scene_entry_to_args(args, entry)
-    args._scene_curation = entry
-    args._scene_curation_manifest = manifest
-    print(
-        f"[Curation] scene={entry.scene_model}, status={entry.status}, "
-        f"repair_mode={entry.repair_mode}, issue_tags={entry.issue_tags}"
-    )
-    if entry.surface_name or entry.support_category:
-        print(
-            f"[Curation] forced_surface name={entry.surface_name} "
-            f"category={entry.support_category}"
-        )
-    if (
-        entry.clutter_density is not None
-        or entry.pack_jitter_xy is not None
-        or entry.pack_min_clearance is not None
-        or entry.perimeter_clear_margin_m is not None
-        or entry.support_clear_mode is not None
-        or entry.perimeter_clear_mode is not None
-    ):
-        print(
-            "[Curation] overrides: "
-            f"density={entry.clutter_density}, "
-            f"pack_jitter_xy={entry.pack_jitter_xy}, "
-            f"pack_min_clearance={entry.pack_min_clearance}, "
-            f"perimeter_clear_margin_m={entry.perimeter_clear_margin_m}, "
-            f"support_clear_mode={entry.support_clear_mode}, "
-            f"perimeter_clear_mode={entry.perimeter_clear_mode}"
-        )
-    print(
-        "[Curation] video: "
-        f"eye={entry.video_camera_eye}, "
-        f"lookat={entry.video_camera_lookat}"
-    )
-    return entry
-
 
 def pipeline_exit(code=0):
     """Clean exit to avoid Isaac Sim shutdown segfault."""
@@ -1028,9 +992,10 @@ class EpisodeContext:
     # Activity
     activity_name: str = ""
     selection: Dict = field(default_factory=dict)
-    curation: Any = None
+    ltl_safety: Dict = field(default_factory=dict)
 
-    # Objects (populated by identify_objects)
+    # Objects (populated by spawn_objects + identify_objects)
+    spawned_objects: Dict[str, Any] = field(default_factory=dict)
     target_obj: Any = None
     active_objects: Dict[str, Any] = field(default_factory=dict)
 
@@ -1053,9 +1018,9 @@ class BasePipeline(ABC):
     Subclasses implement the pipeline-specific hooks:
       - add_args()          — register CLI flags
       - activity_prefix()   — default activity name prefix
-      - generate_activity() — produce BDDL + LTL + selection dict
-      - configure_task()    — tweak the env config (e.g. sampling_whitelist)
-      - identify_objects()  — partition scope objects into roles
+      - generate_activity() — produce LTL safety + selection with spawn_specs
+      - configure_env()     — tweak env/macros after load (e.g. GPU dynamics)
+      - identify_objects()  — partition spawned objects into roles
       - place_objects()     — arrange objects on the table
       - make_edge_objects() — build EdgeAlignObject list for robot placement
       - extra_gate_checks() — additional gate conditions (default: True)
@@ -1074,17 +1039,17 @@ class BasePipeline(ABC):
         """Return default activity name prefix, e.g. 'auto_stack_on'."""
 
     @abstractmethod
-    def generate_activity(self, activity_name, support_synset, support_room,
+    def generate_activity(self, activity_name, support_synset, support_room,  # noqa: F811
                           args, rng):
-        """Generate BDDL + LTL files.
+        """Generate LTL safety spec and object selection with spawn specs.
 
-        Returns (bddl_text, ltl_safety, bddl_path, json_path, selection).
+        Returns (ltl_safety, selection) where selection contains "spawn_specs".
         """
 
-    def configure_task(self, cfg, selection):
-        """Optional hook to modify the env config before loading.
+    def configure_env(self, selection):
+        """Optional hook to configure macros before env creation.
 
-        For example, inject sampling_whitelist.  Default: no-op.
+        For example, enable GPU dynamics for liquid tasks.  Default: no-op.
         """
 
     @abstractmethod
@@ -1200,7 +1165,6 @@ class BasePipeline(ABC):
         parser = self.make_parser()
         args = parser.parse_args()
         setup_run_dir(args)
-        load_scene_curation(args)
         if args.dry_run:
             self._run_dry_run(args)
         else:
@@ -1222,25 +1186,18 @@ class BasePipeline(ABC):
 
         scene_label = args.scene_model
         activity_name = args.activity_name or f"{self.activity_prefix()}_{scene_label}"
-        curation = getattr(args, "_scene_curation", None)
 
         support_synset = resolve_synset(pick["category"])
         room_instance = pick["room_instance"]
         support_room = strip_room_suffix(room_instance)
-        if curation and curation.support_category:
-            support_synset = resolve_synset(curation.support_category)
-        if curation and curation.support_room:
-            support_room = curation.support_room
 
         rng = np.random.default_rng(args.seed)
-        bddl_text, ltl_safety, bddl_path, json_path, selection = \
+        ltl_safety, selection = \
             self.generate_activity(activity_name, support_synset, support_room, args, rng)
 
-        print(f"[Pipeline] Dry-run complete:")
-        print(f"  BDDL:       {bddl_path}")
-        print(f"  ltl_safety: {json_path}")
+        print("[Pipeline] Dry-run complete:")
         print(f"  activity:   {activity_name}")
-        print(f"\nGenerated BDDL:\n{bddl_text}")
+        print(f"  spawn_specs: {selection.get('spawn_specs', [])}")
         print(f"\nLTL formula: {ltl_safety['combined_ltl']}")
 
         append_jsonl(args.debug_jsonl, {
@@ -1271,7 +1228,6 @@ class BasePipeline(ABC):
 
         scene_label = args.scene_model
         activity_name = args.activity_name or f"{self.activity_prefix()}_{scene_label}"
-        curation = getattr(args, "_scene_curation", None)
 
         # -- Resolve support surface ----------------------------------------
         scene_json = get_scene_json_path(args.scene_model)
@@ -1281,11 +1237,6 @@ class BasePipeline(ABC):
         room_instance = pick["room_instance"]
         support_room = strip_room_suffix(room_instance)
         support_synset = resolve_synset(surface_category)
-        if curation and curation.support_category:
-            surface_category = curation.support_category
-            support_synset = resolve_synset(surface_category)
-        if curation and curation.support_room:
-            support_room = curation.support_room
         print(f"[Pipeline] Discovered: category={surface_category} "
               f"synset={support_synset} room={support_room}")
 
@@ -1297,30 +1248,27 @@ class BasePipeline(ABC):
         pre_selection.setdefault("_room_type", support_room)
         pre_selection.setdefault("_room_instance", room_instance)
 
-        # -- Generate BDDL --------------------------------------------------
+        # -- Generate activity (LTL + spawn specs) --------------------------
         rng = np.random.default_rng(args.seed)
-        _, _, bddl_path, _, selection = self.generate_activity(
+        ltl_safety, selection = self.generate_activity(
             activity_name, support_synset, support_room, args, rng,
         )
-        print(f"[Pipeline] Generated BDDL: {bddl_path}")
-        refresh_activity_cache()
+        selection.setdefault("_room_instance", room_instance)
 
         # -- GPU dynamics ----------------------------------------------------
-        gpu = needs_gpu_dynamics(activity_name)
+        gpu = needs_gpu_dynamics_from_specs(selection.get("spawn_specs", []))
         gm.USE_GPU_DYNAMICS = gpu
         gm.ENABLE_FLATCACHE = not gpu
 
+        self.configure_env(selection)
+
         # -- Load environment ------------------------------------------------
-        cfg = build_task_config(args.scene_model, activity_name)
+        cfg = build_task_config(args.scene_model)
         cfg["scene"]["scene_file"] = scene_json
         cfg["scene"]["scene_instance"] = None
         if room_instance:
             cfg["scene"]["load_room_instances"] = [room_instance]
             print(f"[Pipeline] Partial load: room={room_instance}")
-        cfg["task"]["online_object_sampling"] = True
-        cfg["task"]["use_presampled_robot_pose"] = False
-
-        self.configure_task(cfg, selection)
 
         # 3 external cameras (canonical names + resolution shared across
         # task-generation, teleop, training, eval).
@@ -1337,7 +1285,8 @@ class BasePipeline(ABC):
                 ctx = EpisodeContext(
                     env=env, og=og, args=args, rng=rng,
                     activity_name=activity_name,
-                    selection=selection, episode=ep, curation=curation,
+                    selection=selection, ltl_safety=ltl_safety,
+                    episode=ep,
                 )
                 print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
                 self._run_episode(ctx)
@@ -1352,18 +1301,13 @@ class BasePipeline(ABC):
                     "ltl_violated": ctx.ltl_summary.get("violated") if hasattr(ctx, "ltl_summary") else None,
                     "steps_executed": ctx.steps_executed if hasattr(ctx, "steps_executed") else 0,
                     "selection": selection,
+                    "ltl_safety": ctx.ltl_safety,
                     "cameras": list(getattr(args, "_resolved_video_views", ())),
                     "goal_conditions": self.goal_conditions(ctx),
                     **self.diagnostics_extra(ctx),
                 }
                 if ctx.goal_region is not None:
                     payload["goal_region"] = copy.deepcopy(ctx.goal_region)
-                if curation:
-                    payload.update({
-                        "curation_status": curation.status,
-                        "repair_mode": curation.repair_mode,
-                        "issue_tags": list(curation.issue_tags),
-                    })
                 append_jsonl(args.debug_jsonl, payload)
         except Exception:
             exit_code = 1
@@ -1378,25 +1322,22 @@ class BasePipeline(ABC):
         env.reset()
         og.sim.step()
 
+        # -- Spawn task objects ---------------------------------------------
+        spawn_specs = ctx.selection.get("spawn_specs", [])
+        if spawn_specs:
+            ctx.spawned_objects = spawn_objects(env, spawn_specs, ctx.rng)
+            og.sim.step()
+            print(f"[Pipeline] Spawned {len(ctx.spawned_objects)} objects: "
+                  f"{sorted(ctx.spawned_objects.keys())}")
+
         # -- Find support surface object ------------------------------------
         # Prefer exact (category, model) match from placeable pick for
-        # instance-level precision; fall back to curation surface_name/
-        # category overrides.
         picked = getattr(args, "_picked_surface", None)
-        forced_name = getattr(ctx.curation, "surface_name", None) if ctx.curation else None
-        target_category = (
-            getattr(ctx.curation, "support_category", None) if ctx.curation else None
-        ) or (picked["category"] if picked else args._pre_selection["_surface_category"])
-        target_model = picked["model"] if picked and not forced_name else None
+        target_category = picked["category"] if picked else args._pre_selection["_surface_category"]
+        target_model = picked["model"] if picked else None
 
         support_obj = None
         for obj in env.scene.objects:
-            name = getattr(obj, "name", "")
-            if forced_name:
-                if name == forced_name:
-                    support_obj = obj
-                    break
-                continue
             if getattr(obj, "category", "") != target_category:
                 continue
             if target_model and getattr(obj, "model", "") != target_model:
@@ -1405,7 +1346,7 @@ class BasePipeline(ABC):
             break
 
         if support_obj is None:
-            detail = forced_name or (f"{target_category}/{target_model}" if target_model else target_category)
+            detail = f"{target_category}/{target_model}" if target_model else target_category
             raise RuntimeError(f"Support surface '{detail}' not found in scene objects.")
 
         ctx.support_obj = support_obj
@@ -1467,15 +1408,13 @@ class BasePipeline(ABC):
         # region on its own merit.
         ctx.surface_bounds_xy = region_bounds_to_world_xy(picked, support_obj)
         ctx.picked_region = picked
-        if ctx.curation and getattr(ctx.curation, "surface_bounds_override_xy", None):
-            ctx.surface_bounds_xy = ctx.curation.surface_bounds_override_xy
-            print(f"[Pipeline] Surface bounds override: {ctx.surface_bounds_xy}")
         ctx.table_top_z = float(aabb_max[2])
         ctx.floor_z = float(aabb_min[2])
 
         clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
         ctx.removed_area_objects = clear_support_area(
             env, support_obj, ctx.surface_bounds_xy, margin_m=clear_margin,
+            spawned_objects=ctx.spawned_objects,
         )
         if ctx.removed_area_objects:
             og.sim.step()
@@ -1497,11 +1436,7 @@ class BasePipeline(ABC):
         else:
             obstacle_bounds_xy = None
             obstacle_bounds_seq = []
-            if ctx.curation and getattr(ctx.curation, "obstacle_bounds_override_xy", None):
-                obstacle_bounds_xy = ctx.curation.obstacle_bounds_override_xy
-                print(f"[Pipeline] Obstacle bounds override: {obstacle_bounds_xy}")
-                obstacle_bounds_seq.append(obstacle_bounds_xy)
-            elif ctx.surface_info and ctx.surface_info.obstacles:
+            if ctx.surface_info and ctx.surface_info.obstacles:
                 obstacle_bounds_seq.extend(obstacle.aabb_xy for obstacle in ctx.surface_info.obstacles)
 
             zone = compute_tabletop_zone(
@@ -1516,10 +1451,8 @@ class BasePipeline(ABC):
         pack_objects_world = self.make_edge_objects(ctx)
 
         preferred_edge = None
-        if ctx.curation and ctx.curation.preferred_edge:
-            preferred_edge = ctx.curation.preferred_edge
         if ctx.surface_info and ctx.surface_info.approach_edges:
-            preferred_edge = preferred_edge or ctx.surface_info.approach_edges[0]
+            preferred_edge = ctx.surface_info.approach_edges[0]
 
         robot_half_xy = robot_half_extent_xy(ctx.robot)
         base_checker = make_base_collision_checker(env, robot_half_xy, min_clearance_m=0.05)
@@ -1565,6 +1498,7 @@ class BasePipeline(ABC):
                 workspace_front_m=getattr(args, "mount_workspace_front_m", 0.0) or 0.0,
                 workspace_side_m=getattr(args, "mount_workspace_side_m", 0.0) or 0.0,
                 workspace_rear_m=getattr(args, "mount_workspace_rear_m", 0.0) or 0.0,
+                spawned_objects=ctx.spawned_objects,
             )
         if ctx.removed_robot_base_objects:
             og.sim.step()
@@ -1626,9 +1560,7 @@ class BasePipeline(ABC):
         ctx.prompt = self.task_prompt(ctx)
 
         # -- Save scene snapshot --------------------------------------------
-        save_scene = ctx.gate_pass or bool(
-            ctx.curation and ctx.curation.save_scene_even_if_gate_fails
-        )
+        save_scene = ctx.gate_pass
         if save_scene:
             # Assign in_rooms to pipeline-spawned objects (task objects +
             # robot) so the saved snapshot supports partial room loading
@@ -1644,14 +1576,6 @@ class BasePipeline(ABC):
             print(f"[Pipeline] Scene saved: {scene_save_path}")
 
         # -- LTL rollout ----------------------------------------------------
-        camera_override = None
-        if ctx.curation and (
-            ctx.curation.video_camera_eye is not None or ctx.curation.video_camera_lookat is not None
-        ):
-            camera_override = {
-                "eye": ctx.curation.video_camera_eye,
-                "lookat": ctx.curation.video_camera_lookat,
-            }
         ctx.ltl_summary, ctx.steps_executed = run_ltl_rollout(
             env=env, activity_name=ctx.activity_name,
             scene_model=args.scene_model,
@@ -1659,6 +1583,5 @@ class BasePipeline(ABC):
             robot=ctx.robot, target_obj=ctx.target_obj,
             args=args, episode=ctx.episode, rng=ctx.rng,
             support_obj=ctx.support_obj,
-            camera_override=camera_override,
         )
         ctx.resolved_video_views = tuple(getattr(args, "_resolved_video_views", ()))

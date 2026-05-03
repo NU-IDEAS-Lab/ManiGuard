@@ -41,11 +41,10 @@ from sentinel.task_generation.pipeline_common import (
     make_settle_fn,
     object_aabb_dims,
     pipeline_exit,
-    refresh_activity_cache,
     robot_half_extent_xy,
     run_ltl_rollout,
 )
-from sentinel.utils.bddl_generator import (
+from sentinel.utils.task_spec import (
     CLUTTER_POOL,
     DENSITY_PRESETS,
     FRAGILE_POOL,
@@ -352,10 +351,9 @@ def _build_transfer_objects(rng, food_synset=None, source_synset=None,
 # BDDL generation (for LTL safety files — sampler is bypassed)
 # ---------------------------------------------------------------------------
 
-def _generate_bddl(args, activity_name, support_synset, rng, selection=None):
+def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection=None):
     support_room = None  # No rooms in empty Scene.
     if args.setup == "clutter":
-        # Build pre_selection from the already-resolved synsets.
         pre = {
             "target_synset": args.target_synset or (selection or {}).get("target_synset", "coffee_cup.n.01"),
             "fragile_picks": (selection or {}).get("fragile_synsets", []),
@@ -430,15 +428,13 @@ def run_dry_run(args):
         args.target_synset = dry_sel.get("target_synset")
         args.stack_synset = dry_sel.get("stack_synset")
 
-    bddl_text, ltl_safety, bddl_path, json_path, selection = _generate_bddl(
+    ltl_safety, selection = _generate_ltl_and_specs(
         args, activity_name, support_synset, rng, selection=dry_sel,
     )
     print(f"[Pipeline] Dry-run (empty scene, setup={args.setup}):")
-    print(f"  Surface:    {pick['category']} / {pick['model']}")
-    print(f"  BDDL:       {bddl_path}")
-    print(f"  ltl_safety: {json_path}")
-    print(f"  activity:   {activity_name}")
-    print(f"\nGenerated BDDL:\n{bddl_text}")
+    print(f"  Surface:     {pick['category']} / {pick['model']}")
+    print(f"  activity:    {activity_name}")
+    print(f"  spawn_specs: {selection.get('spawn_specs', [])}")
     print(f"\nLTL formula: {ltl_safety['combined_ltl']}")
 
     append_jsonl(args.debug_jsonl, {
@@ -727,7 +723,7 @@ def run_sim(args):
             episode_data.append((obj_cfgs, roles, selection, ep_seed))
 
         # -- Compute max footprint across episodes -------------------------
-        from sentinel.utils.bddl_generator import _load_footprint_catalog, _median_footprint
+        from sentinel.utils.task_spec import _load_footprint_catalog, _median_footprint
         fp_catalog = _load_footprint_catalog()
         max_footprint = _MIN_SURFACE_AREA_M2
         for obj_cfgs, _, _, _ in episode_data:
@@ -856,31 +852,6 @@ def run_sim(args):
             # -- Run each episode in the batch -----------------------------
             for idx, (obj_cfgs, roles, selection, ep_seed) in enumerate(episode_data):
                 ep = batch_start + idx
-
-                # Generate BDDL + LTL for this episode's synsets.
-                saved_args = copy.copy(args)
-                if args.setup == "transfer":
-                    args.food_synset = selection["food_synset"]
-                    args.source_synset = selection["source_synset"]
-                    args.dest_synset = selection["dest_synset"]
-                    args.goal_predicate = selection["goal_predicate"]
-                elif args.setup == "stack":
-                    args.target_synset = selection["target_synset"]
-                    args.stack_synset = selection["stack_synset"]
-
-                rng_bddl = np.random.default_rng(ep_seed)
-                _, _, bddl_path, _, _ = _generate_bddl(
-                    args, activity_name, support_synset, rng_bddl,
-                    selection=selection,
-                )
-                refresh_activity_cache()
-
-                # Restore args.
-                for attr in ("food_synset", "source_synset", "dest_synset",
-                             "goal_predicate", "target_synset"):
-                    setattr(args, attr, getattr(saved_args, attr, None))
-                if hasattr(saved_args, "stack_synset"):
-                    args.stack_synset = saved_args.stack_synset
 
                 print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
                 sys.stdout.flush()
