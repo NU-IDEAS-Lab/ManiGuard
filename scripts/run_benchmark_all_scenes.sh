@@ -40,11 +40,12 @@ echo "[batch] Using python: $PY"
 echo "[batch] Config: ${CONFIG}"
 
 # Read benchmark_root, scene_filter, and output_dir from the config.
+# Use tail -1 to skip conda activation noise printed to stdout.
 read -r BENCHMARK_ROOT SCENE_FILTER OUTPUT_DIR < <($PY -c "
 import yaml, sys
 cfg = yaml.safe_load(open('${CONFIG}'))
 print(cfg.get('benchmark_root', ''), cfg.get('scene_filter', ''), cfg.get('output_dir', 'outputs/benchmark_eval'))
-" 2>/dev/null || echo "")
+" 2>/dev/null | tail -1 || echo "")
 
 if [[ -z "$BENCHMARK_ROOT" ]]; then
     echo "[batch] Could not read benchmark_root from config."
@@ -60,7 +61,7 @@ RESULTS_FILE="${OUTPUT_DIR}/results.jsonl"
 > "$RESULTS_FILE"
 
 # Discover scenes.
-BENCHMARK_REVISION=$($PY -c "import yaml; print(yaml.safe_load(open('${CONFIG}')).get('benchmark_revision', 'main'))" 2>/dev/null || echo "main")
+BENCHMARK_REVISION=$($PY -c "import yaml; print(yaml.safe_load(open('${CONFIG}')).get('benchmark_revision', 'main'))" 2>/dev/null | tail -1 || echo "main")
 echo "[batch] Discovering scenes from: ${BENCHMARK_ROOT}"
 
 SCENE_LIST=$($PY -c "
