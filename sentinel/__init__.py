@@ -30,12 +30,4 @@ from sentinel._omnigibson_patches import apply as _apply_omnigibson_patches
 
 _apply_omnigibson_patches()
 
-# Register sentinel task subclasses with ``REGISTERED_TASKS`` so yaml configs
-# can reference them by class name (e.g. ``type: SentinelGraspTask``). Only
-# runs when OmniGibson itself is importable.
-try:
-    import sentinel.tasks  # noqa: F401
-except ImportError:
-    pass
-
 del _apply_omnigibson_patches
