@@ -330,7 +330,8 @@ def _apply_eager_patches() -> None:
     _patch_grasp_goal()
     _patch_grasp_reward()
     _patch_sampling_utils()
-    _patch_franka_longfinger()
+    if not os.environ.get("SENTINEL_SKIP_LONGFINGER"):
+        _patch_franka_longfinger()
     _register_bddl_predicates()
     _EAGER_APPLIED = True
 
