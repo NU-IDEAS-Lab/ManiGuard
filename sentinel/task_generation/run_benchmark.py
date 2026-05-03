@@ -162,11 +162,6 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
     ]
     if scene_model:
         cmd.extend(["--scene-model", scene_model])
-    if args.curation_manifest:
-        cmd.extend(["--curation-manifest", args.curation_manifest])
-    if args.allow_deferred:
-        cmd.append("--allow-deferred")
-
     # Pipeline-specific flags.
     if args.pipeline in ("table", "cabinet"):
         cmd.extend(["--clutter-density", args.density])
@@ -344,10 +339,6 @@ def parse_args():
                    help="Output directory (default: outputs/benchmark_runs/<timestamp>)")
     p.add_argument("--resume", default=None,
                    help="Resume a previous benchmark run directory (skip completed scenes)")
-    p.add_argument("--curation-manifest", default=None,
-                   help="Optional scene curation manifest to apply per-scene overrides")
-    p.add_argument("--allow-deferred", action="store_true",
-                   help="Allow explicitly deferred scenes in the curation manifest to run")
     return p.parse_args()
 
 
@@ -441,9 +432,6 @@ def main():
     if args.pipeline in ("table", "cabinet"):
         config_data["density"] = args.density
         config_data["randomize"] = args.randomize
-    if args.curation_manifest:
-        config_data["curation_manifest"] = args.curation_manifest
-        config_data["allow_deferred"] = args.allow_deferred
     if args.pipeline == "transfer":
         config_data.update({
             "food_synset": args.food_synset,

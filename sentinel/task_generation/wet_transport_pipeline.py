@@ -14,11 +14,11 @@ Usage:
 
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    get_scope_obj,
-    iter_scope_objects,
+    get_spawned_obj,
+    iter_spawned_objects,
     make_settle_fn,
 )
-from sentinel.utils.bddl_generator import (
+from sentinel.utils.task_spec import (
     LIQUID_CONTAINER_POOL,
     WATER_SENSITIVE_POOL,
     generate_wet_transport_activity,
@@ -57,7 +57,7 @@ class WetTransportPipeline(BasePipeline):
         )
 
     def select_objects(self, args, rng):
-        from sentinel.utils.bddl_generator import (
+        from sentinel.utils.task_spec import (
             estimate_object_set_footprint,
         )
         container = args.container_synset
@@ -79,8 +79,7 @@ class WetTransportPipeline(BasePipeline):
             "zone_synsets": zones,
         }
 
-    def configure_task(self, cfg, selection):
-        # Liquid particles require GPU dynamics.
+    def configure_env(self, selection):
         from omnigibson.macros import gm
         gm.USE_GPU_DYNAMICS = True
         gm.ENABLE_FLATCACHE = False
@@ -91,7 +90,7 @@ class WetTransportPipeline(BasePipeline):
         zone_synsets = set(selection["zone_synsets"])
 
         carried_ids, zone_ids = [], []
-        for inst, obj in iter_scope_objects(ctx.env):
+        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
             if inst.startswith(("agent.", "floor.")):
                 continue
             synset_prefix = inst.rsplit("_", 1)[0]
@@ -104,12 +103,12 @@ class WetTransportPipeline(BasePipeline):
             raise RuntimeError("No container object found in scope.")
         print(f"[Pipeline] Objects: container={carried_ids}, zones={zone_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, carried_ids[0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, carried_ids[0])
         ctx._carried_ids = carried_ids
         ctx._zone_ids = zone_ids
         ctx.active_objects = {}
         for inst in carried_ids + zone_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 

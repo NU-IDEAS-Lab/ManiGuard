@@ -22,11 +22,11 @@ import sys
 
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    get_scope_obj,
-    iter_scope_objects,
+    get_spawned_obj,
+    iter_spawned_objects,
     make_settle_fn,
 )
-from sentinel.utils.bddl_generator import (
+from sentinel.utils.task_spec import (
     STACK_HEIGHT_PRESETS,
     generate_stack_activity,
 )
@@ -39,14 +39,14 @@ log = logging.getLogger(__name__)
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-def _build_stack_descriptors(env, target_ids, stack_ids):
-    """Build StackObjectDescriptors from live env objects, ordered bottom-to-top."""
+def _build_stack_descriptors(spawned_objects, target_ids, stack_ids):
+    """Build StackObjectDescriptors from spawned objects, ordered bottom-to-top."""
     from sentinel.utils.clutter_pack_layout import StackObjectDescriptor
 
     descriptors = []
     for inst, role in ([(tid, "target") for tid in target_ids] +
                        [(sid, "stack") for sid in stack_ids]):
-        obj = get_scope_obj(env, inst)
+        obj = get_spawned_obj(spawned_objects, inst)
         if obj is None:
             continue
         try:
@@ -129,7 +129,7 @@ class _StackBase(BasePipeline):
                             help="Override stack object synset")
 
     def select_objects(self, args, rng):
-        from sentinel.utils.bddl_generator import (
+        from sentinel.utils.task_spec import (
             STACK_SAME_POOL, STACK_FLAT_TARGET_POOL, STACK_RECEPTACLE_TARGET_POOL,
             STACK_ITEM_POOL
         )
@@ -149,7 +149,7 @@ class _StackBase(BasePipeline):
             return None
 
         # Stack is vertical — footprint is just the larger of target vs stack item.
-        from sentinel.utils.bddl_generator import _load_footprint_catalog, _median_footprint
+        from sentinel.utils.task_spec import _load_footprint_catalog, _median_footprint
         catalog = _load_footprint_catalog()
         required = max(_median_footprint(catalog, target), _median_footprint(catalog, stack))
         return {
@@ -169,10 +169,6 @@ class _StackBase(BasePipeline):
             rng=rng,
         )
 
-    def configure_task(self, cfg, selection):
-        if selection.get("sampling_whitelist"):
-            cfg["task"]["sampling_whitelist"] = selection["sampling_whitelist"]
-
     def identify_objects(self, ctx):
         selection = ctx.selection
         target_synset = selection["target_synset"]
@@ -180,11 +176,10 @@ class _StackBase(BasePipeline):
         same_synset = target_synset == stack_synset
 
         target_ids, stack_ids = [], []
-        for inst, obj in iter_scope_objects(ctx.env):
+        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
             if inst.startswith(("agent.", "floor.")):
                 continue
             if same_synset and inst.startswith(target_synset + "_"):
-                # Same synset for both: _1 is target, rest are stack.
                 if inst == f"{target_synset}_1":
                     target_ids.append(inst)
                 else:
@@ -200,12 +195,12 @@ class _StackBase(BasePipeline):
             raise RuntimeError("No target objects found in scope.")
         print(f"[Pipeline] Objects: target={target_ids}, stack={stack_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, target_ids[0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, target_ids[0])
         ctx._target_ids = target_ids
         ctx._stack_ids = stack_ids
         ctx.active_objects = {}
         for inst in target_ids + stack_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 
@@ -216,7 +211,7 @@ class _StackBase(BasePipeline):
         )
 
         stack_descriptors = _build_stack_descriptors(
-            ctx.env, ctx._target_ids, ctx._stack_ids,
+            ctx.spawned_objects, ctx._target_ids, ctx._stack_ids,
         )
         if len(stack_descriptors) < 2:
             raise RuntimeError(f"Need at least 2 objects for a stack, "

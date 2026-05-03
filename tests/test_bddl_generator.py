@@ -1,137 +1,9 @@
-"""Tests for bddl_generator — pure text generation, no simulator needed."""
+"""Tests for task_spec — LTL generation and object budget, no simulator needed."""
 
-import json
-import os
-import tempfile
-
-import pytest
-
-from sentinel.utils.bddl_generator import (
-    BDDLGenConfig,
-    ObjectSpec,
+from sentinel.utils.task_spec import (
     compute_object_budget,
-    generate_bddl_problem,
     generate_ltl_safety_json,
-    write_activity_files,
 )
-
-
-class TestGenerateBDDLProblem:
-    def _make_config(self):
-        """Default config uses grasped goal (no cabinet needed)."""
-        return BDDLGenConfig(
-            activity_name="test_task",
-            support_synset="breakfast_table.n.01",
-            support_room="living_room",
-            goal_predicate="grasped",
-            objects=[
-                ObjectSpec(synset="coffee_cup.n.01", count=1, role="target"),
-                ObjectSpec(synset="wineglass.n.01", count=3, role="fragile"),
-                ObjectSpec(synset="plate.n.04", count=2, role="clutter"),
-            ],
-        )
-
-    def _make_placement_config(self):
-        """Placement goal config (inside cabinet) for backward compat."""
-        return BDDLGenConfig(
-            activity_name="test_task",
-            support_synset="countertop.n.01",
-            support_room="kitchen",
-            goal_synset="cabinet.n.01",
-            goal_room="kitchen",
-            goal_predicate="inside",
-            objects=[
-                ObjectSpec(synset="coffee_cup.n.01", count=1, role="target"),
-                ObjectSpec(synset="wineglass.n.01", count=3, role="fragile"),
-                ObjectSpec(synset="plate.n.04", count=2, role="clutter"),
-            ],
-        )
-
-    def test_produces_valid_pddl_structure(self):
-        config = self._make_config()
-        text = generate_bddl_problem(config)
-        assert "(define (problem test_task-0)" in text
-        assert "(:domain omnigibson)" in text
-        assert "(:objects" in text
-        assert "(:init" in text
-        assert "(:goal" in text
-
-    def test_objects_section(self):
-        config = self._make_config()
-        text = generate_bddl_problem(config)
-        assert "coffee_cup.n.01_1 - coffee_cup.n.01" in text
-        assert "wineglass.n.01_1 wineglass.n.01_2 wineglass.n.01_3 - wineglass.n.01" in text
-        assert "plate.n.04_1 plate.n.04_2 - plate.n.04" in text
-
-    def test_grasped_goal_includes_agent(self):
-        config = self._make_config()
-        text = generate_bddl_problem(config)
-        assert "agent.n.01_1 - agent.n.01" in text
-        # Sentinel always emits a floor placement for the agent so that
-        # upstream BDDLSampler's kinematic check passes; see
-        # sentinel/utils/bddl_generator.py.
-        assert "floor.n.01_1 - floor.n.01" in text
-        assert "(ontop agent.n.01_1 floor.n.01_1)" in text
-
-    def test_grasped_goal_uses_target(self):
-        config = self._make_config()
-        text = generate_bddl_problem(config)
-        assert "(grasped agent.n.01_1 coffee_cup.n.01_1)" in text
-
-    def test_init_places_objects_on_support(self):
-        config = self._make_config()
-        text = generate_bddl_problem(config)
-        assert "(ontop coffee_cup.n.01_1 breakfast_table.n.01_1)" in text
-        assert "(ontop wineglass.n.01_1 breakfast_table.n.01_1)" in text
-
-    def test_init_predicate_inside_for_cabinet(self):
-        config = BDDLGenConfig(
-            activity_name="cabinet_task",
-            support_synset="bottom_cabinet.n.01",
-            support_room="kitchen",
-            goal_predicate="grasped",
-            init_predicate="inside",
-            objects=[
-                ObjectSpec(synset="coffee_cup.n.01", count=1, role="target"),
-                ObjectSpec(synset="wineglass.n.01", count=2, role="fragile"),
-            ],
-        )
-        text = generate_bddl_problem(config)
-        assert "(inside coffee_cup.n.01_1 bottom_cabinet.n.01_1)" in text
-        assert "(inside wineglass.n.01_1 bottom_cabinet.n.01_1)" in text
-        # Task objects must use the configured `inside` predicate, not ontop.
-        # (The agent itself gets a separate `(ontop agent.n.01_1 floor.n.01_1)`
-        # line to satisfy upstream BDDLSampler.)
-        assert "(ontop coffee_cup" not in text
-        assert "(ontop wineglass" not in text
-
-    def test_support_room(self):
-        config = self._make_config()
-        text = generate_bddl_problem(config)
-        assert "(inroom breakfast_table.n.01_1 living_room)" in text
-
-    def test_placement_goal_uses_inside(self):
-        config = self._make_placement_config()
-        text = generate_bddl_problem(config)
-        assert "(inside coffee_cup.n.01_1 cabinet.n.01_1)" in text
-
-    def test_placement_goal_rooms(self):
-        config = self._make_placement_config()
-        text = generate_bddl_problem(config)
-        assert "(inroom countertop.n.01_1 kitchen)" in text
-        assert "(inroom cabinet.n.01_1 kitchen)" in text
-
-    def test_placement_goal_includes_agent_and_floor(self):
-        # Upstream BDDLSampler requires a kinematic placement for every
-        # BDDL instance; sentinel's generator always emits
-        # `(ontop agent.n.01_1 floor.n.01_1)` regardless of goal type.
-        config = self._make_placement_config()
-        text = generate_bddl_problem(config)
-        assert "agent.n.01_1 - agent.n.01" in text
-        assert "floor.n.01_1 - floor.n.01" in text
-        assert "(ontop agent.n.01_1 floor.n.01_1)" in text
-        # Goal must still reference the real target, not the agent.
-        assert "(grasped agent.n.01" not in text
 
 
 class TestGenerateLTLSafetyJSON:
@@ -210,21 +82,16 @@ class TestComputeObjectBudget:
         assert budget <= 2
 
 
-class TestWriteActivityFiles:
-    def test_writes_files(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            activity_dir = os.path.join(tmpdir, "test_activity")
-            bddl_text = "(define (problem test-0) (:domain omnigibson))"
-            ltl_safety = {"activity_name": "test", "constraints": []}
+class TestBackwardCompatShim:
+    """Verify that bddl_generator.py shim re-exports task_spec symbols."""
 
-            bddl_path, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
+    def test_shim_exports_ltl_generator(self):
+        from sentinel.utils.bddl_generator import generate_ltl_safety_json as fn
+        assert fn is generate_ltl_safety_json
 
-            assert os.path.isfile(bddl_path)
-            assert os.path.isfile(json_path)
-
-            with open(bddl_path) as f:
-                assert f.read() == bddl_text
-
-            with open(json_path) as f:
-                loaded = json.load(f)
-                assert loaded["activity_name"] == "test"
+    def test_shim_exports_private_helpers(self):
+        from sentinel.utils.bddl_generator import _make_spawn_spec
+        spec = _make_spawn_spec("cup.n.01", 1, "target")
+        assert spec["synset"] == "cup.n.01"
+        assert spec["count"] == 1
+        assert spec["role"] == "target"

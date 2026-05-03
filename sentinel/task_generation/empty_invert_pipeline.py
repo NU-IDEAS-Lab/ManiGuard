@@ -13,11 +13,11 @@ Usage:
 
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    get_scope_obj,
-    iter_scope_objects,
+    get_spawned_obj,
+    iter_spawned_objects,
     make_settle_fn,
 )
-from sentinel.utils.bddl_generator import (
+from sentinel.utils.task_spec import (
     INVERT_CONTAINER_POOL,
     estimate_object_set_footprint,
     generate_empty_invert_activity,
@@ -59,7 +59,7 @@ class EmptyInvertPipeline(BasePipeline):
             rng=rng,
         )
 
-    def configure_task(self, cfg, selection):
+    def configure_env(self, selection):
         from omnigibson.macros import gm
         gm.USE_GPU_DYNAMICS = True
         gm.ENABLE_FLATCACHE = False
@@ -69,7 +69,7 @@ class EmptyInvertPipeline(BasePipeline):
         container_synset = selection["container_synset"]
 
         container_ids = []
-        for inst, obj in iter_scope_objects(ctx.env):
+        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
             if inst.startswith(("agent.", "floor.")):
                 continue
             if inst.startswith(container_synset + "_"):
@@ -79,11 +79,11 @@ class EmptyInvertPipeline(BasePipeline):
             raise RuntimeError("No container found in scope.")
         print(f"[Pipeline] Objects: container={container_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, container_ids[0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, container_ids[0])
         ctx._container_ids = container_ids
         ctx.active_objects = {}
         for inst in container_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 

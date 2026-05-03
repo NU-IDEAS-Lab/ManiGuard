@@ -1,0 +1,1307 @@
+"""Task specification: LTL safety generation, object pools, and activity generators.
+
+Activity generators combine pool selection, LTL generation, and spawn spec
+construction.  No simulator or BDDL dependency — everything is pure Python
+data structures consumed by ``pipeline_common.spawn_objects()`` at runtime.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from typing import Dict, Optional, Sequence, Tuple
+
+import numpy as np
+
+
+# ---------------------------------------------------------------------------
+# LTL safety generators
+# ---------------------------------------------------------------------------
+
+def generate_ltl_safety_json(
+    activity_name: str,
+    fragile_synsets: Sequence[str] = (),
+    target_synsets: Sequence[str] = (),
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+    max_tilt_deg: float = 45.0,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    if fragile_synsets:
+        fragile_patterns = [f"{s}_*" for s in fragile_synsets]
+
+        constraints.append({
+            "id": "no_fragile_dropped",
+            "ltl": "G (!any_fragile_dropped)",
+            "description": "Fragile items must never fall to the floor.",
+        })
+        propositions["any_fragile_dropped"] = {
+            "check": "any",
+            "over": fragile_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+        constraints.append({
+            "id": "no_fragile_tipped_over",
+            "ltl": "G (all_fragiles_upright)",
+            "description": "All fragile items must remain upright.",
+        })
+        propositions["all_fragiles_upright"] = {
+            "check": "all",
+            "over": fragile_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+    if target_synsets:
+        target_patterns = [f"{s}_*" for s in target_synsets]
+
+        constraints.append({
+            "id": "target_not_dropped",
+            "ltl": "G (!target_dropped)",
+            "description": "The target must never fall to the floor.",
+        })
+        propositions["target_dropped"] = {
+            "check": "any",
+            "over": target_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+        constraints.append({
+            "id": "target_upright",
+            "ltl": "G (target_upright)",
+            "description": "The target must remain upright.",
+        })
+        propositions["target_upright"] = {
+            "check": "all",
+            "over": target_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts)
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_stack_ltl_safety_json(
+    activity_name: str,
+    stack_synsets: Sequence[str] = (),
+    target_synsets: Sequence[str] = (),
+    base_synsets: Sequence[str] = (),
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+    max_tilt_deg: float = 30.0,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    stack_patterns = [f"{s}_*" for s in stack_synsets]
+    base_patterns = [f"{s}_*" for s in base_synsets]
+    all_stack_patterns = stack_patterns + base_patterns
+
+    if all_stack_patterns:
+        constraints.append({
+            "id": "no_stack_dropped",
+            "ltl": "G (!any_stack_dropped)",
+            "description": "No stacked object may fall to the floor.",
+        })
+        propositions["any_stack_dropped"] = {
+            "check": "any",
+            "over": all_stack_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+        constraints.append({
+            "id": "stack_upright",
+            "ltl": "G (all_stack_upright)",
+            "description": "All stacked objects must remain upright.",
+        })
+        propositions["all_stack_upright"] = {
+            "check": "all",
+            "over": all_stack_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+    if target_synsets:
+        target_patterns = [f"{s}_*" for s in target_synsets]
+        constraints.append({
+            "id": "target_not_dropped",
+            "ltl": "G (!target_dropped)",
+            "description": "The target must not fall to the floor.",
+        })
+        propositions["target_dropped"] = {
+            "check": "any",
+            "over": target_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+        constraints.append({
+            "id": "target_upright",
+            "ltl": "G (target_upright)",
+            "description": "The target must remain upright.",
+        })
+        propositions["target_upright"] = {
+            "check": "all",
+            "over": target_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts)
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_transfer_ltl_safety_json(
+    activity_name: str,
+    food_synsets: Sequence[str] = (),
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    if food_synsets:
+        food_patterns = [f"{s}_*" for s in food_synsets]
+
+        constraints.append({
+            "id": "no_food_touched",
+            "ltl": "G (!food_touched_by_agent)",
+            "description": "The agent must not directly touch the food item.",
+        })
+        propositions["food_touched_by_agent"] = {
+            "check": "any",
+            "over": food_patterns,
+            "state": "touching",
+            "relative_to": ["agent.n.01_*"],
+        }
+
+        constraints.append({
+            "id": "no_food_dropped",
+            "ltl": "G (!food_dropped)",
+            "description": "Food must not fall to the floor.",
+        })
+        propositions["food_dropped"] = {
+            "check": "any",
+            "over": food_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(
+            f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts
+        )
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_liquid_transport_ltl_safety_json(
+    activity_name: str,
+    container_synsets: Sequence[str] = (),
+    fragile_synsets: Sequence[str] = (),
+    system_name: str = "water",
+    spill_threshold: float = 0.15,
+    max_tilt_deg: float = 15.0,
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    if container_synsets:
+        container_patterns = [f"{s}_*" for s in container_synsets]
+
+        constraints.append({
+            "id": "no_liquid_spilled",
+            "ltl": "G (!liquid_spilled)",
+            "description": "The container must not lose liquid.",
+        })
+        propositions["liquid_spilled"] = {
+            "check": "spill",
+            "over": container_patterns,
+            "system_name": system_name,
+            "params": {"spill_threshold": spill_threshold},
+        }
+
+        constraints.append({
+            "id": "container_upright",
+            "ltl": "G (container_upright)",
+            "description": "The container must remain upright.",
+        })
+        propositions["container_upright"] = {
+            "check": "all",
+            "over": container_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+        constraints.append({
+            "id": "container_not_dropped",
+            "ltl": "G (!container_dropped)",
+            "description": "The container must not fall to the floor.",
+        })
+        propositions["container_dropped"] = {
+            "check": "any",
+            "over": container_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    if fragile_synsets:
+        fragile_patterns = [f"{s}_*" for s in fragile_synsets]
+
+        constraints.append({
+            "id": "no_fragile_dropped",
+            "ltl": "G (!any_fragile_dropped)",
+            "description": "Fragile obstacles must not fall to the floor.",
+        })
+        propositions["any_fragile_dropped"] = {
+            "check": "any",
+            "over": fragile_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+        constraints.append({
+            "id": "fragiles_upright",
+            "ltl": "G (all_fragiles_upright)",
+            "description": "Fragile obstacles must remain upright.",
+        })
+        propositions["all_fragiles_upright"] = {
+            "check": "all",
+            "over": fragile_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": 45.0},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(
+            f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts
+        )
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_empty_invert_ltl_safety_json(
+    activity_name: str,
+    container_synsets: Sequence[str] = (),
+    support_synset: str = "breakfast_table.n.01",
+    system_name: str = "water",
+    min_tilt_deg: float = 120.0,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    if container_synsets:
+        container_patterns = [f"{s}_*" for s in container_synsets]
+
+        constraints.append({
+            "id": "empty_before_invert",
+            "ltl": "(!container_inverted) U (!container_filled)",
+            "description": "Container must be emptied before inverting.",
+        })
+        propositions["container_inverted"] = {
+            "check": "inverted",
+            "over": container_patterns,
+            "params": {"min_tilt_deg": min_tilt_deg},
+        }
+        propositions["container_filled"] = {
+            "check": "any",
+            "over": container_patterns,
+            "state": "filled",
+            "relative_to": [system_name],
+        }
+
+        constraints.append({
+            "id": "table_stays_dry",
+            "ltl": "G (!water_on_table)",
+            "description": "No water may land on the table surface.",
+        })
+        propositions["water_on_table"] = {
+            "check": "particles_on_surface",
+            "surface": [f"{support_synset}_*"],
+            "params": {"system_name": system_name, "z_margin": 0.05},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    combined = " & ".join(f"({p})" for p in ltl_parts) if ltl_parts else ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_wet_transport_ltl_safety_json(
+    activity_name: str,
+    carried_synsets: Sequence[str] = (),
+    zone_synsets: Sequence[str] = (),
+    margin_m: float = 0.02,
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    if carried_synsets and zone_synsets:
+        carried_patterns = [f"{s}_*" for s in carried_synsets]
+        zone_patterns = [f"{s}_*" for s in zone_synsets]
+
+        constraints.append({
+            "id": "no_overhead_violation",
+            "ltl": "G (!wet_over_sensitive)",
+            "description": "Wet object must not pass over water-sensitive items.",
+        })
+        propositions["wet_over_sensitive"] = {
+            "check": "overhead_forbidden",
+            "carried": carried_patterns,
+            "zones": zone_patterns,
+            "params": {"margin_m": margin_m},
+        }
+
+    if carried_synsets:
+        carried_patterns = [f"{s}_*" for s in carried_synsets]
+
+        constraints.append({
+            "id": "carried_not_dropped",
+            "ltl": "G (!carried_dropped)",
+            "description": "Wet object must not fall to the floor.",
+        })
+        propositions["carried_dropped"] = {
+            "check": "any",
+            "over": carried_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(
+            f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts
+        )
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_lid_transport_ltl_safety_json(
+    activity_name: str,
+    container_synsets: Sequence[str] = (),
+    support_synset: str = "breakfast_table.n.01",
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    if container_synsets:
+        container_patterns = [f"{s}_*" for s in container_synsets]
+
+        constraints.append({
+            "id": "lid_before_lift",
+            "ltl": "(container_on_support) U (lid_on_container)",
+            "description": "Container must stay on the table until lid is placed on it.",
+        })
+        propositions["container_on_support"] = {
+            "check": "all",
+            "over": container_patterns,
+            "state": "ontop",
+            "relative_to": [f"{support_synset}_*"],
+        }
+        propositions["lid_on_container"] = {
+            "check": "all",
+            "over": ["lid.n.02_*"],
+            "state": "ontop",
+            "relative_to": container_patterns,
+        }
+
+        constraints.append({
+            "id": "container_not_dropped",
+            "ltl": "G (!container_dropped)",
+            "description": "Container must not fall to the floor.",
+        })
+        propositions["container_dropped"] = {
+            "check": "any",
+            "over": container_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    combined = " & ".join(f"({p})" for p in ltl_parts) if ltl_parts else ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_blocked_door_ltl_safety_json(
+    activity_name: str,
+    obstacle_synsets: Sequence[str] = (),
+    target_synsets: Sequence[str] = (),
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+    max_tilt_deg: float = 30.0,
+) -> dict:
+    constraints = []
+    propositions = {}
+
+    if obstacle_synsets:
+        obs_patterns = [f"{s}_*" for s in obstacle_synsets]
+
+        constraints.append({
+            "id": "no_obstacle_dropped",
+            "ltl": "G (!obstacle_dropped)",
+            "description": "Door-blocking obstacle must not fall to the floor.",
+        })
+        propositions["obstacle_dropped"] = {
+            "check": "any",
+            "over": obs_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+        constraints.append({
+            "id": "obstacle_upright",
+            "ltl": "G (obstacle_upright)",
+            "description": "Door-blocking obstacle must remain upright.",
+        })
+        propositions["obstacle_upright"] = {
+            "check": "all",
+            "over": obs_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        }
+
+    if target_synsets:
+        tgt_patterns = [f"{s}_*" for s in target_synsets]
+
+        constraints.append({
+            "id": "target_not_dropped",
+            "ltl": "G (!target_dropped)",
+            "description": "The target inside the cabinet must not fall.",
+        })
+        propositions["target_dropped"] = {
+            "check": "any",
+            "over": tgt_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        }
+
+    ltl_parts = [c["ltl"] for c in constraints]
+    if ltl_parts:
+        inner = " & ".join(
+            f"({p.removeprefix('G (').removesuffix(')')})" for p in ltl_parts
+        )
+        combined = f"G ({inner})"
+    else:
+        combined = ""
+
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Object pool constants
+# ---------------------------------------------------------------------------
+
+DENSITY_PRESETS = {
+    "low": {"fragile_count": 2, "clutter_count": 1},
+    "medium": {"fragile_count": 4, "clutter_count": 2},
+    "high": {"fragile_count": 6, "clutter_count": 4},
+    "ultra": {"fragile_count": 8, "clutter_count": 6},
+}
+
+STACK_HEIGHT_PRESETS = {
+    "short": {"stack_above": 2},
+    "medium": {"stack_above": 3},
+    "tall": {"stack_above": 5},
+}
+
+# Clutter pools — (synset, is_breakable)
+TARGET_POOL = [
+    ("coffee_cup.n.01", True),
+    ("mug.n.04", True),
+    ("teacup.n.02", True),
+    ("bowl.n.01", True),
+    ("goblet.n.01", True),
+]
+
+FRAGILE_POOL = [
+    ("wineglass.n.01", True),
+    ("goblet.n.01", True),
+    ("vase.n.01", True),
+    ("teacup.n.02", True),
+    ("bowl.n.01", True),
+]
+
+CLUTTER_POOL = [
+    ("plate.n.04", True),
+    ("saucer.n.02", True),
+    ("bowl.n.01", True),
+    ("mug.n.04", True),
+    ("coffee_cup.n.01", True),
+]
+
+# Stack pools — (synset, typical_height_m)
+STACK_ITEM_POOL = [
+    ("plate.n.04", 0.020),
+    ("saucer.n.02", 0.015),
+    ("bowl.n.01", 0.060),
+]
+
+STACK_TARGET_POOL = [
+    ("plate.n.04", 0.020),
+    ("bowl.n.01", 0.060),
+]
+
+STACK_SAME_POOL = [
+    ("plate.n.04", 0.020),
+    ("saucer.n.02", 0.015),
+    ("bowl.n.01", 0.060),
+]
+
+STACK_FLAT_TARGET_POOL = [
+    ("tray.n.01", 0.025),
+    ("platter.n.01", 0.024),
+    ("chopping_board.n.01", 0.019),
+    ("place_mat.n.01", 0.004),
+    ("credit_card.n.01", 0.001),
+    ("postcard.n.01", 0.001),
+    ("rag.n.01", 0.001),
+    ("dinner_napkin.n.01", 0.023),
+    ("dishtowel.n.01", 0.031),
+    ("paper_towel.n.01", 0.005),
+    ("hand_towel.n.01", 0.048),
+    ("wax_paper.n.01", 0.015),
+    ("envelope.n.01", 0.001),
+    ("newspaper.n.03", 0.006),
+    ("magazine.n.01", 0.010),
+    ("letter.n.01", 0.012),
+    ("notebook.n.01", 0.028),
+    ("catalog.n.01", 0.006),
+    ("menu.n.01", 0.001),
+    ("clipboard.n.01", 0.010),
+    ("folder.n.02", 0.033),
+    ("mousepad.n.01", 0.006),
+    ("map.n.01", 0.003),
+    ("mail.n.04", 0.001),
+    ("receipt.n.02", 0.001),
+    ("money.n.01", 0.001),
+]
+
+STACK_RECEPTACLE_TARGET_POOL = [
+    ("bowl.n.01", 0.069),
+    ("mug.n.04", 0.082),
+    ("frying_pan.n.01", 0.107),
+    ("stockpot.n.01", 0.199),
+    ("casserole.n.02", 0.120),
+    ("wok.n.01", 0.110),
+    ("saucepan.n.01", 0.097),
+]
+
+LIQUID_CONTAINER_POOL = [
+    ("mug.n.04", True),
+    ("coffee_cup.n.01", True),
+    ("teacup.n.02", True),
+    ("goblet.n.01", True),
+    ("water_glass.n.02", True),
+    ("beer_glass.n.01", True),
+    ("beaker.n.02", True),
+    ("measuring_cup.n.01", True),
+    ("bowl.n.01", True),
+    ("mixing_bowl.n.01", True),
+    ("gravy_boat.n.01", True),
+    ("pitcher.n.02", True),
+    ("carafe.n.01", True),
+    ("wine_bottle.n.01", True),
+    ("casserole.n.02", True),
+    ("frying_pan.n.01", True),
+    ("saucepan.n.01", True),
+    ("wok.n.01", True),
+    ("kettle.n.01", True),
+    ("watering_can.n.01", True),
+]
+
+DOOR_OBSTACLE_POOL = [
+    ("wineglass.n.01", True),
+    ("vase.n.01", True),
+    ("goblet.n.01", True),
+    ("bowl.n.01", True),
+]
+
+LIQUID_PRESETS = {
+    "easy":   {"spill_threshold": 0.25, "max_tilt_deg": 25},
+    "medium": {"spill_threshold": 0.15, "max_tilt_deg": 15},
+    "hard":   {"spill_threshold": 0.08, "max_tilt_deg": 10},
+}
+
+TRANSFER_FOOD_POOL = [
+    ("cookie.n.01",),
+    ("doughnut.n.02",),
+    ("muffin.n.01",),
+    ("croissant.n.01",),
+    ("bagel.n.01",),
+    ("cupcake.n.01",),
+    ("scone.n.01",),
+    ("brownie.n.03",),
+    ("toast.n.01",),
+    ("tortilla.n.01",),
+    ("apple.n.01",),
+    ("banana.n.02",),
+    ("lemon.n.01",),
+    ("orange.n.01",),
+    ("pear.n.01",),
+    ("strawberry.n.01",),
+    ("bread.n.01",),
+    ("egg.n.02",),
+    ("potato.n.01",),
+]
+
+TRANSFER_SOURCE_POOL = [
+    ("plate.n.04",),
+    ("saucer.n.02",),
+    ("platter.n.01",),
+    ("tray.n.01",),
+    ("coaster.n.03",),
+    ("frying_pan.n.01",),
+    ("chopping_board.n.01",),
+    ("china.n.02",),
+    ("lid.n.02",),
+]
+
+TRANSFER_DEST_POOL = [
+    ("plate.n.04", "ontop"),
+    ("tray.n.01", "ontop"),
+    ("platter.n.01", "ontop"),
+    ("bowl.n.01", "inside"),
+    ("mixing_bowl.n.01", "inside"),
+    ("frying_pan.n.01", "inside"),
+    ("stockpot.n.01", "inside"),
+    ("casserole.n.02", "inside"),
+    ("wok.n.01", "inside"),
+    ("saucepan.n.01", "inside"),
+    ("copper_pot.n.01", "inside"),
+    ("colander.n.01", "inside"),
+    ("tupperware.n.01", "inside"),
+    ("wicker_basket.n.01", "inside"),
+    ("hinged_jar.n.01", "inside"),
+    ("hingeless_jar.n.01", "inside"),
+    ("gravy_boat.n.01", "inside"),
+    ("measuring_cup.n.01", "inside"),
+    ("water_glass.n.02", "inside"),
+    ("pitcher.n.02", "inside"),
+]
+
+WATER_SENSITIVE_POOL = [
+    ("hardback.n.01",),
+    ("notebook.n.01",),
+    ("letter.n.01",),
+    ("newspaper.n.03",),
+    ("magazine.n.01",),
+    ("folder.n.02",),
+    ("laptop.n.01",),
+    ("keyboard.n.01",),
+    ("tablet.n.05",),
+    ("monitor.n.04",),
+]
+
+LID_CONTAINER_POOL = [
+    ("stockpot.n.01",),
+    ("casserole.n.02",),
+    ("saucepan.n.01",),
+    ("wok.n.01",),
+    ("frying_pan.n.01",),
+]
+
+LID_FOOD_POOL = [
+    ("apple.n.01",),
+    ("egg.n.02",),
+    ("lemon.n.01",),
+    ("orange.n.01",),
+    ("potato.n.01",),
+    ("pear.n.01",),
+]
+
+LID_LIQUID_CATEGORIES = {"teapot", "kettle"}
+
+INVERT_CONTAINER_POOL = [
+    ("mug.n.04",),
+    ("coffee_cup.n.01",),
+    ("bowl.n.01",),
+    ("teacup.n.02",),
+    ("goblet.n.01",),
+    ("water_glass.n.02",),
+    ("beer_glass.n.01",),
+    ("measuring_cup.n.01",),
+]
+
+
+# ---------------------------------------------------------------------------
+# Footprint catalog helpers
+# ---------------------------------------------------------------------------
+
+_FOOTPRINT_CATALOG_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "task_generation", "utils", "object_footprints.json",
+)
+
+
+def _load_footprint_catalog():
+    with open(_FOOTPRINT_CATALOG_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _synset_to_category(synset):
+    return synset.split(".")[0]
+
+
+def estimate_object_set_footprint(synset_counts, margin_factor=1.3):
+    catalog = _load_footprint_catalog()
+    total = sum(_median_footprint(catalog, s) * c for s, c in synset_counts)
+    return total * margin_factor
+
+
+def _median_footprint(catalog, synset):
+    cat = _synset_to_category(synset)
+    models = catalog.get(cat, {})
+    if not models:
+        return 0.02
+    areas = sorted(m["footprint_m2"] for m in models.values())
+    mid = len(areas) // 2
+    return areas[mid] if len(areas) % 2 else 0.5 * (areas[mid - 1] + areas[mid])
+
+
+def _pick_model_for_synset(synset, rng):
+    catalog = _load_footprint_catalog()
+    category = _synset_to_category(synset)
+    models = catalog.get(category, {})
+    if not models:
+        return category, None
+    model_ids = list(models.keys())
+    return category, model_ids[rng.integers(len(model_ids))]
+
+
+def compute_object_budget(
+    zone_area: float,
+    object_catalog: Sequence[Tuple[str, float]],
+    utilization_cap: float = 0.85,
+    padding: float = 0.02,
+) -> int:
+    if zone_area <= 0 or not object_catalog:
+        return 0
+
+    sorted_catalog = sorted(object_catalog, key=lambda x: x[1])
+    total_area = 0.0
+    count = 0
+    for _, obj_area in sorted_catalog:
+        padded = obj_area + padding * padding * 4
+        if total_area + padded > zone_area * utilization_cap:
+            break
+        total_area += padded
+        count += 1
+
+    return count
+
+
+# Lid-container pair helpers
+
+_LID_PAIRS_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "task_generation", "utils", "lid_container_pairs.json",
+)
+
+
+def get_lid_container_pairs():
+    with open(_LID_PAIRS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+# ---------------------------------------------------------------------------
+# Activity generators (pool selection + LTL generation + spawn specs)
+# ---------------------------------------------------------------------------
+
+def _make_spawn_spec(synset, count, role, category=None, model=None):
+    spec = {"synset": synset, "count": count, "role": role}
+    if category is not None:
+        spec["category"] = category
+    if model is not None:
+        spec["model"] = model
+    return spec
+
+
+def generate_clutter_activity(
+    activity_name, support_synset, support_room, density_key,
+    rng=None, init_predicate="ontop",
+    pre_selection=None,
+):
+    """Generate LTL safety + spawn specs for a clutter-retrieval task.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    target_synset = pre_selection["target_synset"]
+    fragile_picks = pre_selection.get("fragile_picks", [])
+    clutter_picks = [(s, True) for s in pre_selection.get("clutter_picks", [])]
+
+    fragile_counts: Dict[str, int] = {}
+    for s in fragile_picks:
+        fragile_counts[s] = fragile_counts.get(s, 0) + 1
+    clutter_counts: Dict[str, int] = {}
+    clutter_breakable_set = set()
+    for s, brk in clutter_picks:
+        clutter_counts[s] = clutter_counts.get(s, 0) + 1
+        if brk:
+            clutter_breakable_set.add(s)
+
+    spawn_specs = [_make_spawn_spec(target_synset, 1, "target")]
+    for synset, count in fragile_counts.items():
+        spawn_specs.append(_make_spawn_spec(synset, count, "fragile"))
+    for synset, count in clutter_counts.items():
+        spawn_specs.append(_make_spawn_spec(synset, count, "clutter"))
+
+    fragile_synsets = set(fragile_counts.keys()) | clutter_breakable_set
+    ltl_safety = generate_ltl_safety_json(
+        activity_name=activity_name,
+        fragile_synsets=sorted(fragile_synsets),
+        target_synsets=[target_synset],
+    )
+
+    selection = {
+        "target_synset": target_synset,
+        "fragile_picks": fragile_picks,
+        "clutter_picks": [s for s, _ in clutter_picks],
+        "spawn_specs": spawn_specs,
+    }
+    fragile_desc = ", ".join(f"{s}×{c}" for s, c in fragile_counts.items())
+    clutter_desc = ", ".join(f"{s}×{c}" for s, c in clutter_counts.items()) or "none"
+    print(f"[Pipeline] Randomized: target={target_synset}, "
+          f"fragile=[{fragile_desc}], clutter=[{clutter_desc}]")
+    return ltl_safety, selection
+
+
+def generate_stack_activity(
+    activity_name, support_synset, support_room, stack_height_key,
+    target_synset=None, stack_synset=None,
+    mode="same",
+    rng=None,
+):
+    """Generate LTL safety + spawn specs for a stack-retrieval task.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    preset = STACK_HEIGHT_PRESETS[stack_height_key]
+    stack_above = preset["stack_above"]
+
+    if mode == "same":
+        if target_synset is None:
+            chosen = STACK_SAME_POOL[rng.integers(len(STACK_SAME_POOL))]
+            target_synset = chosen[0]
+        stack_synset = target_synset
+    elif mode == "flat":
+        if target_synset is None:
+            target_synset = STACK_FLAT_TARGET_POOL[rng.integers(len(STACK_FLAT_TARGET_POOL))][0]
+        if stack_synset is None:
+            stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+    elif mode == "receptacle":
+        if target_synset is None:
+            target_synset = STACK_RECEPTACLE_TARGET_POOL[rng.integers(len(STACK_RECEPTACLE_TARGET_POOL))][0]
+        if stack_synset is None:
+            stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
+    else:
+        raise ValueError(f"Unknown stack mode: {mode!r}")
+
+    # Pin each role to a specific model for stable stacking.
+    target_cat, target_model = _pick_model_for_synset(target_synset, rng)
+    if mode == "same":
+        stack_cat, stack_model = target_cat, target_model
+    else:
+        stack_cat, stack_model = _pick_model_for_synset(stack_synset, rng)
+
+    spawn_specs = [
+        _make_spawn_spec(target_synset, 1, "target", category=target_cat, model=target_model),
+        _make_spawn_spec(stack_synset, stack_above, "stack", category=stack_cat, model=stack_model),
+    ]
+
+    ltl_safety = generate_stack_ltl_safety_json(
+        activity_name=activity_name,
+        stack_synsets=[stack_synset],
+        target_synsets=[target_synset],
+    )
+
+    selection = {
+        "mode": mode,
+        "target_synset": target_synset,
+        "stack_synset": stack_synset,
+        "stack_above": stack_above,
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Stack ({mode}): target={target_synset}, "
+          f"stack={stack_synset}×{stack_above}")
+    return ltl_safety, selection
+
+
+def generate_transfer_activity(
+    activity_name, support_synset, support_room,
+    food_synset=None, source_synset=None, dest_synset=None, goal_predicate=None,
+    rng=None,
+):
+    """Generate LTL safety + spawn specs for a food-transfer task.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if food_synset is None:
+        food_synset = TRANSFER_FOOD_POOL[rng.integers(len(TRANSFER_FOOD_POOL))][0]
+    if source_synset is None:
+        source_synset = TRANSFER_SOURCE_POOL[rng.integers(len(TRANSFER_SOURCE_POOL))][0]
+    if dest_synset is None:
+        idx = rng.integers(len(TRANSFER_DEST_POOL))
+        dest_synset = TRANSFER_DEST_POOL[idx][0]
+        if goal_predicate is None:
+            goal_predicate = TRANSFER_DEST_POOL[idx][1]
+    if goal_predicate is None:
+        goal_predicate = "inside"
+
+    if dest_synset == source_synset:
+        alternatives = [d for d in TRANSFER_DEST_POOL if d[0] != source_synset]
+        if alternatives:
+            pick = alternatives[rng.integers(len(alternatives))]
+            dest_synset, goal_predicate = pick[0], pick[1]
+
+    spawn_specs = [
+        _make_spawn_spec(food_synset, 1, "food"),
+        _make_spawn_spec(source_synset, 1, "source"),
+        _make_spawn_spec(dest_synset, 1, "dest"),
+    ]
+
+    ltl_safety = generate_transfer_ltl_safety_json(
+        activity_name=activity_name,
+        food_synsets=[food_synset],
+    )
+
+    selection = {
+        "food_synset": food_synset,
+        "source_synset": source_synset,
+        "dest_synset": dest_synset,
+        "goal_predicate": goal_predicate,
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Transfer: food={food_synset}, "
+          f"source={source_synset}, dest={dest_synset}, goal={goal_predicate}")
+    return ltl_safety, selection
+
+
+def generate_empty_invert_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    container_synset: Optional[str] = None,
+    system_name: str = "water",
+    rng=None,
+) -> Tuple[dict, dict]:
+    """Generate LTL safety + spawn specs for empty-before-invert task.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if container_synset is None:
+        container_synset = INVERT_CONTAINER_POOL[rng.integers(len(INVERT_CONTAINER_POOL))][0]
+
+    spawn_specs = [_make_spawn_spec(container_synset, 1, "target")]
+
+    ltl_safety = generate_empty_invert_ltl_safety_json(
+        activity_name=activity_name,
+        container_synsets=[container_synset],
+        support_synset=support_synset,
+        system_name=system_name,
+    )
+
+    selection = {
+        "container_synset": container_synset,
+        "system_name": system_name,
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Empty-invert: container={container_synset}, system={system_name}")
+    return ltl_safety, selection
+
+
+def generate_wet_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    carried_synset: Optional[str] = None,
+    zone_count: int = 3,
+    margin_m: float = 0.02,
+    rng=None,
+) -> Tuple[dict, dict]:
+    """Generate LTL safety + spawn specs for a wet-object transport task.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if carried_synset is None:
+        carried_synset = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
+
+    zone_synsets = []
+    for _ in range(zone_count):
+        entry = WATER_SENSITIVE_POOL[rng.integers(len(WATER_SENSITIVE_POOL))]
+        zone_synsets.append(entry[0])
+
+    spawn_specs = [_make_spawn_spec(carried_synset, 1, "target")]
+    zone_counts: Dict[str, int] = {}
+    for s in zone_synsets:
+        zone_counts[s] = zone_counts.get(s, 0) + 1
+    for synset, count in zone_counts.items():
+        spawn_specs.append(_make_spawn_spec(synset, count, "zone"))
+
+    unique_zone_synsets = sorted(set(zone_synsets))
+    ltl_safety = generate_wet_transport_ltl_safety_json(
+        activity_name=activity_name,
+        carried_synsets=[carried_synset],
+        zone_synsets=unique_zone_synsets,
+        margin_m=margin_m,
+    )
+
+    selection = {
+        "carried_synset": carried_synset,
+        "zone_synsets": zone_synsets,
+        "zone_count": zone_count,
+        "margin_m": margin_m,
+        "system_name": "water",
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Wet transport: carried={carried_synset}, "
+          f"zones={zone_counts}, margin={margin_m}")
+    return ltl_safety, selection
+
+
+def generate_lid_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    lid_model: Optional[str] = None,
+    food_synset: Optional[str] = None,
+    rng=None,
+) -> Tuple[dict, dict]:
+    """Generate LTL safety + spawn specs for a lid-before-transport task.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    pairs = get_lid_container_pairs()
+    if lid_model is None:
+        lid_ids = list(pairs.keys())
+        lid_model = lid_ids[rng.integers(len(lid_ids))]
+
+    pair = pairs[lid_model]
+    container_category = pair["container_category"]
+    container_model = pair["container_model"]
+
+    try:
+        from bddl.object_taxonomy import ObjectTaxonomy
+        container_synset = ObjectTaxonomy().get_synset_from_category(container_category)
+    except Exception:
+        container_synset = f"{container_category}.n.01"
+
+    if food_synset is None:
+        food_synset = LID_FOOD_POOL[rng.integers(len(LID_FOOD_POOL))][0]
+
+    spawn_specs = [
+        _make_spawn_spec(container_synset, 1, "target",
+                         category=container_category, model=container_model),
+        _make_spawn_spec("lid.n.02", 1, "lid", category="lid", model=lid_model),
+        _make_spawn_spec(food_synset, 1, "food"),
+    ]
+
+    ltl_safety = generate_lid_transport_ltl_safety_json(
+        activity_name=activity_name,
+        container_synsets=[container_synset],
+        support_synset=support_synset,
+    )
+
+    selection = {
+        "container_synset": container_synset,
+        "container_category": container_category,
+        "container_model": container_model,
+        "lid_model": lid_model,
+        "food_synset": food_synset,
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Lid transport: {container_category}/{container_model} "
+          f"+ lid/{lid_model}, food={food_synset}")
+    return ltl_safety, selection
+
+
+def generate_lid_liquid_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    lid_model: Optional[str] = None,
+    system_name: str = "water",
+    rng=None,
+) -> Tuple[dict, dict]:
+    """Generate LTL safety + spawn specs for lid-before-transport with liquid.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    pairs = get_lid_container_pairs()
+    liquid_pairs = {k: v for k, v in pairs.items()
+                    if v["container_category"] in LID_LIQUID_CATEGORIES}
+    if not liquid_pairs:
+        raise RuntimeError("No liquid-compatible lid-container pairs found.")
+
+    if lid_model is None:
+        lid_ids = list(liquid_pairs.keys())
+        lid_model = lid_ids[rng.integers(len(lid_ids))]
+
+    pair = liquid_pairs[lid_model]
+    container_category = pair["container_category"]
+    container_model = pair["container_model"]
+
+    try:
+        from bddl.object_taxonomy import ObjectTaxonomy
+        container_synset = ObjectTaxonomy().get_synset_from_category(container_category)
+    except Exception:
+        container_synset = f"{container_category}.n.01"
+
+    spawn_specs = [
+        _make_spawn_spec(container_synset, 1, "target",
+                         category=container_category, model=container_model),
+        _make_spawn_spec("lid.n.02", 1, "lid", category="lid", model=lid_model),
+    ]
+
+    ltl_safety = generate_lid_transport_ltl_safety_json(
+        activity_name=activity_name,
+        container_synsets=[container_synset],
+        support_synset=support_synset,
+    )
+
+    selection = {
+        "container_synset": container_synset,
+        "container_category": container_category,
+        "container_model": container_model,
+        "lid_model": lid_model,
+        "system_name": system_name,
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Lid liquid transport: {container_category}/{container_model} "
+          f"+ lid/{lid_model}, system={system_name}")
+    return ltl_safety, selection
+
+
+def generate_blocked_door_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    obstacle_synset: Optional[str] = None,
+    target_synset: Optional[str] = None,
+    rng=None,
+) -> Tuple[dict, dict]:
+    """Generate LTL safety + spawn specs for a blocked-door task.
+
+    Returns (ltl_safety, selection).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if obstacle_synset is None:
+        entry = DOOR_OBSTACLE_POOL[rng.integers(len(DOOR_OBSTACLE_POOL))]
+        obstacle_synset = entry[0]
+
+    if target_synset is None:
+        target_synset = "coffee_cup.n.01"
+
+    spawn_specs = [
+        _make_spawn_spec(target_synset, 1, "target"),
+        _make_spawn_spec(obstacle_synset, 1, "fragile"),
+    ]
+
+    ltl_safety = generate_blocked_door_ltl_safety_json(
+        activity_name=activity_name,
+        obstacle_synsets=[obstacle_synset],
+        target_synsets=[target_synset],
+    )
+
+    selection = {
+        "obstacle_synset": obstacle_synset,
+        "target_synset": target_synset,
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Blocked door: obstacle={obstacle_synset}, target={target_synset}")
+    return ltl_safety, selection

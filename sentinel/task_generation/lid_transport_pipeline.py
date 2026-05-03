@@ -16,12 +16,12 @@ Usage:
 
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    get_scope_obj,
-    iter_scope_objects,
+    get_spawned_obj,
+    iter_spawned_objects,
     make_settle_fn,
+    resolve_synset,
 )
-from sentinel.task_generation.pipeline_common import resolve_synset
-from sentinel.utils.bddl_generator import (
+from sentinel.utils.task_spec import (
     LID_FOOD_POOL,
     estimate_object_set_footprint,
     generate_lid_transport_activity,
@@ -78,17 +78,13 @@ class LidTransportPipeline(BasePipeline):
             rng=rng,
         )
 
-    def configure_task(self, cfg, selection):
-        if selection.get("sampling_whitelist"):
-            cfg["task"]["sampling_whitelist"] = selection["sampling_whitelist"]
-
     def identify_objects(self, ctx):
         selection = ctx.selection
         container_synset = selection["container_synset"]
         food_synset = selection["food_synset"]
 
         container_ids, lid_ids, food_ids = [], [], []
-        for inst, obj in iter_scope_objects(ctx.env):
+        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
             if inst.startswith(("agent.", "floor.")):
                 continue
             if inst.startswith(container_synset + "_"):
@@ -103,13 +99,13 @@ class LidTransportPipeline(BasePipeline):
         print(f"[Pipeline] Objects: container={container_ids}, "
               f"lid={lid_ids}, food={food_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, container_ids[0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, container_ids[0])
         ctx._container_ids = container_ids
         ctx._lid_ids = lid_ids
         ctx._food_ids = food_ids
         ctx.active_objects = {}
         for inst in container_ids + lid_ids + food_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 
@@ -255,7 +251,7 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
         return "auto_lid_liquid_on"
 
     def select_objects(self, args, rng):
-        from sentinel.utils.bddl_generator import (
+        from sentinel.utils.task_spec import (
             LID_LIQUID_CATEGORIES,
         )
         pairs = get_lid_container_pairs()
@@ -273,7 +269,7 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
 
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
-        from sentinel.utils.bddl_generator import (
+        from sentinel.utils.task_spec import (
             generate_lid_liquid_transport_activity,
         )
         pre = args._pre_selection
@@ -284,8 +280,7 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
             rng=rng,
         )
 
-    def configure_task(self, cfg, selection):
-        super().configure_task(cfg, selection)
+    def configure_env(self, selection):
         from omnigibson.macros import gm
         gm.USE_GPU_DYNAMICS = True
         gm.ENABLE_FLATCACHE = False
@@ -295,7 +290,7 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
         container_synset = selection["container_synset"]
 
         container_ids, lid_ids = [], []
-        for inst, obj in iter_scope_objects(ctx.env):
+        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
             if inst.startswith(("agent.", "floor.")):
                 continue
             if inst.startswith(container_synset + "_"):
@@ -307,13 +302,13 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
             raise RuntimeError("No container found in scope.")
         print(f"[Pipeline] Objects: container={container_ids}, lid={lid_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, container_ids[0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, container_ids[0])
         ctx._container_ids = container_ids
         ctx._lid_ids = lid_ids
         ctx._food_ids = []
         ctx.active_objects = {}
         for inst in container_ids + lid_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 
