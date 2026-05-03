@@ -1,0 +1,24 @@
+name: sim_table_25k
+
+benchmark_root: datasets/final_unique_accepted-goal_region_sphere-full-perturbed_with_base-20260426/table
+scene_filter: "*/base"
+
+host: 127.0.0.1
+port: 8000
+use_openpi_client: true
+
+state_mode: eef_8d_axisangle
+policy_cameras: [cam_opposite]
+action_dim: 7
+execute_horizon: 5
+gripper_binarize: true
+
+max_steps: 2000
+camera_resolution: 256
+save_video: true
+longfinger: true
+
+output_dir: outputs/eval_sim_table_25k
+
+checkpoint: vla_models/pi05_sim_table_lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/25000
+serve_config_name: pi05_clutter_libero_lora
