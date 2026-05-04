@@ -43,6 +43,24 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+## 2026-05-04 — `refactor/remove-bddl-curation`: GraspGen install + run doc (`248a9df6`)
+
+`docs/graspgen_pipeline.md` is the end-to-end recipe for the new pipeline: clone GraspGen + GraspGenModels (with the LFS-pull caveat that bit us when `/tmp/GraspGen` got cleaned), `uv venv` + `install_uv_pointnet.sh`, server start command, render_grasps invocation, output-file table, resume rules, and 5 troubleshooting entries (LFS pointer, ZMQ recv timeout, OG import drift, Phase A 0-holds, Phase B replay didn't hold, pointnet2 CUDA arch). CLAUDE.md gets a pointer.
+
+## 2026-05-04 — `refactor/remove-bddl-curation`: standardize on GraspGen + two-phase grasp pipeline (`36a9b960`)
+
+Replaces `sentinel/rl/grasps/`'s antipodal grasp dataset path (UW Lab OmniReset port) with a NVlabs/GraspGen ZMQ client and splits per-object handling into Phase A (search, no video) and Phase B (replay, video) sharing one physics-validation kernel.
+
+Deleted (no remaining callers): `sampler.py`, `collect_batch.py`, `survey_graspability.py`, `measure_gripper.py`. New: `graspgen_sampler.py` (minimal msgpack-over-ZMQ client, in-process so the OG env doesn't pull `pointnet2_ops` / torch 2.1), `_viz_helpers.py` (matplotlib scatter + grasp-overlay shared by `render_grasps` / `inspect_mesh` / `visualize_grasps`), `inspect_mesh.py` + `visualize_grasps.py` (standalone debug viz scripts).
+
+`collector.py` slimmed (dropped `GraspCollectorConfig.shake_*`, antipodal-only `_curobo_ik`) + extended with `run_grasp_attempt`, the shared kernel both phases call: trajectory replay (hard pin) → close → AG check → gravity hold → eef-distance acceptance. Phase A invokes it with `frame_callback=None`; Phase B with a closure that pushes frames into the MP4 buffer. This removes ~80 lines of near-identical physics code that was duplicated between the two phases.
+
+`mesh.py` reduced to `mesh_from_og_object` (gripper-params helpers were antipodal-only). `render_grasps.py` rewritten as the two-phase driver: GraspGen → `collect_valid_grasps` (cuRobo motion plan, `ik_only=False` so trajectories are replayable for video) → save `.pt` (format consumed by `GraspDatasetResetter`) + `_grasps_*.png`; on Phase A success, optional `--save-video` triggers Phase B → `.mp4`; on Phase A failure, `_pcd_*.png` for diagnosis. Resume skips a row if `.pt` or `_pcd_top.png` or `.mp4` already exists.
+
+Smoke-tested on 6 varied objects (alarm_clock, apple, comic_book, baseball, mug, alphabet_abacus) — 5/6 produced `.pt` + MP4 with 1-3 holds each. alphabet_abacus is the only object that consistently fails (hollow lattice, GraspGen confidence < 0.9). Per-100-candidate stats: cuRobo `no_path` is the dominant rejector (60-98% on round/symmetric objects), AG-miss next, phase2 gravity drop ~0%. Pass rate 0-30% varies wildly by object geometry.
+
+`.gitignore`: `GraspGen/` + `GraspGenModels/` (cloned at project root for stability after `/tmp` got cleaned mid-session).
+
 ## 2026-04-28 — `feat/grasp-batch`: untrack + delete outputs/teleop/traj_*.hdf5
 
 `git rm -r outputs/teleop/` removed 21 stale goblet-task HDF5 demos (31 MB) from both index and disk. They predated the gitignore exemption-for-teleop-hdf5 rule (which the previous chore commit already dropped from .gitignore), so they were lingering as already-tracked files. Current teleop pipeline writes to `outputs/gello_teleop_hdf5/<task>/` per family, not back into `outputs/teleop/`.
