@@ -191,6 +191,14 @@ mkdocs serve    # Preview at localhost:8000
 mkdocs build    # Build static site
 ```
 
+### GraspGen pipeline (per-object grasp eval + RL reset dataset)
+
+End-to-end install + server + run instructions for the
+`sentinel.rl.grasps.render_grasps` pipeline (NVlabs/GraspGen ZMQ server
+→ cuRobo motion plan → physics validation → `.pt` for
+`GraspDatasetResetter` + diagnostic PNGs + success MP4):
+[`docs/graspgen_pipeline.md`](docs/graspgen_pipeline.md).
+
 ## Environment Setup
 
 Two separate Python environments exist:
