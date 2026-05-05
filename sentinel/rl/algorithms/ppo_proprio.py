@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Proprio-only PPO on the grasp-reset PickAndLiftTask.
+"""Object-position + proprio PPO on the grasp-reset PickAndLiftTask.
 
 This is an A/B entry point for state-based training on benchmark scene files
 whose saved robot config may be RGB-only. It leaves the original dataset scene
 and ``sentinel.rl.algorithms.ppo`` path untouched by writing a per-run scene
 copy under ``--output-dir`` with robot ``obs_modalities`` forced to
-``["proprio"]``.
+``["proprio"]``. The task still contributes object relative position through
+OG's flattened ``task::low_dim`` vector, so the policy input is robot
+proprioception plus target-object relative position, with RGB explicitly
+rejected before training starts.
 """
 from __future__ import annotations
 
@@ -41,7 +44,7 @@ _KIT_ERROR_RE = re.compile(r"\[(Error|Fatal)\]|\bERROR\b")
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Proprio-only PPO on PickAndLiftTask with grasp-reset."
+        description="Object-position + proprio PPO on PickAndLiftTask with grasp-reset."
     )
     add_env_args(p)
     add_training_args(p)
@@ -110,8 +113,18 @@ class _KitLogTailer:
             self._stop.wait(2.0)
 
 
-def _make_proprio_scene_copy(scene_file: Path, out_dir: Path) -> tuple[Path, int]:
-    """Copy ``scene_file`` into ``out_dir`` with robot obs set to proprio."""
+def _make_proprio_scene_copy(
+    scene_file: Path,
+    out_dir: Path,
+    *,
+    grasping_mode: str | None = None,
+) -> tuple[Path, int]:
+    """Copy ``scene_file`` into ``out_dir`` with robot obs set to proprio.
+
+    If ``grasping_mode`` is provided, also writes it into the saved robot
+    init args. This matters for scene-file runs because robot config is loaded
+    from the JSON snapshot rather than from ``robots_cfg``.
+    """
     source = Path(scene_file).resolve()
     if not source.exists():
         raise SystemExit(f"--scene-file does not exist: {source}")
@@ -132,6 +145,8 @@ def _make_proprio_scene_copy(scene_file: Path, out_dir: Path) -> tuple[Path, int
         if "obs_modalities" in args:
             args["obs_modalities"] = ["proprio"]
             patched += 1
+        if grasping_mode is not None:
+            args["grasping_mode"] = grasping_mode
 
     if patched == 0:
         raise RuntimeError(
@@ -140,6 +155,44 @@ def _make_proprio_scene_copy(scene_file: Path, out_dir: Path) -> tuple[Path, int
 
     target.write_text(json.dumps(data))
     return target, patched
+
+
+def _validate_state_obs_space(vec_env) -> None:
+    """Fail fast if the supposedly state-only env still exposes RGB."""
+    obs_space = getattr(vec_env, "observation_space", None)
+    spaces = getattr(obs_space, "spaces", None)
+    if not isinstance(spaces, dict):
+        raise SystemExit(f"Expected Dict observation space, got: {obs_space}")
+
+    keys = sorted(str(key) for key in spaces)
+    print("  obs keys:", flush=True)
+    for key in keys:
+        print(f"    - {key}", flush=True)
+
+    rgb_keys = [key for key in keys if key.split("::")[-1] == "rgb"]
+    proprio_keys = [key for key in keys if key.split("::")[-1] == "proprio"]
+    task_obj_pos_key = "task::obj_pos" if "task::obj_pos" in keys else "task::low_dim"
+    task_obj_pos_space = spaces.get(task_obj_pos_key)
+
+    if rgb_keys:
+        raise SystemExit(
+            "ppo_proprio expected no RGB observations, but found: "
+            + ", ".join(rgb_keys)
+        )
+    if not proprio_keys:
+        raise SystemExit(
+            "ppo_proprio expected robot proprio observations, but none were found"
+        )
+    if task_obj_pos_space is None:
+        raise SystemExit(
+            "ppo_proprio expected task object-position observation "
+            "(task::obj_pos or OG-flattened task::low_dim), but it was not found"
+        )
+    if tuple(getattr(task_obj_pos_space, "shape", ())) != (3,):
+        raise SystemExit(
+            "ppo_proprio expected 3D task object-position observation, got "
+            f"{task_obj_pos_key}: {task_obj_pos_space}"
+        )
 
 
 def main():
@@ -185,6 +238,7 @@ def main():
 
     _log_stage(f"building OmniGibson vec env (num_envs={args.num_envs})")
     vec_env = build_vec_env(args, out_dir=out)
+    _validate_state_obs_space(vec_env)
     _log_stage("vec env ready")
     set_random_seed(args.seed)
 
@@ -224,9 +278,9 @@ def main():
         run_training(
             model,
             args,
-            algo_name="ppo",
+            algo_name="ppo_proprio",
             extra_wandb_config={
-                "obs_mode": "proprio",
+                "obs_mode": "obj_pos_proprio",
                 "source_scene_file": str(source_scene_file),
                 "patched_scene_file": str(proprio_scene_file),
                 "patched_robot_obs_count": patched_robots,

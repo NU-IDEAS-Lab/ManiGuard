@@ -27,6 +27,23 @@ class SafetyCallback(BaseCallback):
         return True
 
 
+class SimFaultCallback(BaseCallback):
+    """Record simulator fault recoveries reported by the vector env wrapper."""
+
+    def __init__(self):
+        super().__init__()
+        self.total_recovered = 0
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos") or []
+        recovered = sum(1 for info in infos if info.get("sim_fault_recovered"))
+        if recovered:
+            self.total_recovered += recovered
+            self.logger.record("sim_fault/recovered_envs", recovered)
+            self.logger.record("sim_fault/recovered_total", self.total_recovered)
+        return True
+
+
 class GCCallback(BaseCallback):
     """Run ``gc.collect()`` every N env steps.
 

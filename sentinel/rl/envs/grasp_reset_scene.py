@@ -109,6 +109,7 @@ def build_config(
     grasp_reset_mode: str = "cached",
     arm_controller: str = "joint",
     goal_region_spec: Optional[dict] = None,
+    task_type: str = "PickAndLiftTask",
 ) -> dict:
     """Assemble the OG Environment config dict for the grasp-reset setup.
 
@@ -151,6 +152,9 @@ def build_config(
         goal_region_spec: optional dict from ``diagnostics.jsonl["goal_region"]``.
             When provided, ``PickAndLiftTask`` uses the benchmark's goal
             position and radius instead of ``goal_offset``/``success_radius``.
+        task_type: OG task registry name. Defaults to the legacy
+            ``PickAndLiftTask``; v2 privileged state training passes
+            ``PickAndLiftPrivilegedTask``.
     """
     if arm_controller not in ("joint", "osc"):
         raise ValueError(f"arm_controller must be 'joint' or 'osc', got {arm_controller!r}")
@@ -231,7 +235,7 @@ def build_config(
         robots=robots_cfg,
         objects=[],
         task=dict(
-            type="PickAndLiftTask",
+            type=task_type,
             obj_name=target_name,
             goal_offset=list(goal_offset),
             success_radius=success_radius,

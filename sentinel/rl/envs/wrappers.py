@@ -22,6 +22,8 @@ different abstraction levels: turning OG into something SB3 can train on.
 from __future__ import annotations
 
 import copy
+import logging
+import re
 import time
 from pathlib import Path
 
@@ -38,6 +40,76 @@ from omnigibson.envs.sb3_vec_env import (
 # OG's task registry so ``type: "PickAndLiftTask"`` resolves in the config
 # produced by ``grasp_reset_scene.build_config``.
 import sentinel.rl.tasks  # noqa: F401
+
+log = logging.getLogger(__name__)
+
+
+_RECOVERABLE_SIM_FAULT_MARKERS = (
+    "Illegal BroadPhaseUpdateData",
+    "Exception occurred during pre-physics step",
+    "Exception occurred during post-physics step",
+    "not a unit quaternion",
+    "tensor([nan",
+    "tensor([NaN",
+    "non-finite",
+    "nan",
+    "NaN",
+)
+
+_SCENE_INDEX_RE = re.compile(r"/World/scene_(\d+)/")
+
+
+def _contains_nonfinite(value) -> bool:
+    """Return True if a nested obs/reward payload contains NaN or inf."""
+    if isinstance(value, th.Tensor):
+        return bool(value.is_floating_point() and not th.isfinite(value).all().item())
+    if isinstance(value, np.ndarray):
+        return bool(np.issubdtype(value.dtype, np.floating) and not np.isfinite(value).all())
+    if isinstance(value, dict):
+        return any(_contains_nonfinite(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_nonfinite(v) for v in value)
+    if isinstance(value, (float, np.floating)):
+        return not np.isfinite(value)
+    return False
+
+
+def _is_recoverable_sim_fault(exc: BaseException) -> bool:
+    msg = _exception_chain_text(exc)
+    return any(marker in msg for marker in _RECOVERABLE_SIM_FAULT_MARKERS)
+
+
+def _exception_chain_text(exc: BaseException) -> str:
+    """Flatten an exception chain so wrapped OG errors still expose root text."""
+    parts = []
+    seen = set()
+    cur: BaseException | None = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        parts.append(f"{type(cur).__name__}: {cur}")
+        cur = cur.__cause__ or cur.__context__
+    return "\n".join(parts)
+
+
+def _scene_indices_from_exception(exc: BaseException, num_envs: int) -> list[int]:
+    """Return env indices mentioned in paths like ``/World/scene_31/...``."""
+    text = _exception_chain_text(exc)
+    env_indices = []
+    for match in _SCENE_INDEX_RE.finditer(text):
+        env_idx = int(match.group(1))
+        if 0 <= env_idx < num_envs and env_idx not in env_indices:
+            env_indices.append(env_idx)
+    return env_indices
+
+
+def _clear_pending_sim_step_exceptions() -> None:
+    """Clear OG's latched step exception state after we decide to recover."""
+    for attr in ("pre_step_exception", "post_step_exception"):
+        if hasattr(og.sim, attr):
+            setattr(og.sim, attr, None)
+    for attr in ("currently_stepping", "currently_in_isaac_step"):
+        if hasattr(og.sim, attr):
+            setattr(og.sim, attr, False)
 
 
 # ---------------------------------------------------------------- low-level
@@ -70,14 +142,109 @@ class SentinelSB3VectorEnvironment(SB3VectorEnvironment):
             for i, action in enumerate(actions):
                 self.envs[i]._pre_step(action)
 
+    def _recover_from_sim_step_fault(self, exc: BaseException) -> VecEnvStepReturn:
+        """Turn an OG global sim-step fault into terminal reset(s) for SB3.
+
+        OG steps all tiled scenes through one ``og.sim.step()`` call. If one
+        scene's PhysX state goes non-finite during pre/post physics callbacks,
+        the exception is raised before per-env ``_post_step`` can run. We cannot
+        replay a clean transition for the other scenes, so we return a skipped
+        zero-reward vector step, resetting the bad scene(s) when identifiable.
+        """
+        bad_envs = _scene_indices_from_exception(exc, self.num_envs)
+        if not bad_envs:
+            bad_envs = list(range(self.num_envs))
+            log.warning(
+                "Recovering all envs after simulator fault with no scene index: %s",
+                _exception_chain_text(exc),
+            )
+        else:
+            log.warning(
+                "Recovering env(s) %s after simulator step fault: %s",
+                bad_envs,
+                _exception_chain_text(exc),
+            )
+
+        _clear_pending_sim_step_exceptions()
+        bad_env_set = set(bad_envs)
+        error_text = _exception_chain_text(exc)
+        for env_idx in range(self.num_envs):
+            self.buf_rews[env_idx] = 0.0
+            self.buf_dones[env_idx] = env_idx in bad_env_set
+            self.buf_infos[env_idx] = {
+                "TimeLimit.truncated": False,
+                "sim_fault_recovered": env_idx in bad_env_set,
+                "sim_fault_env_idx": env_idx if env_idx in bad_env_set else None,
+                "sim_fault_stage": "sim_step",
+                "sim_step_skipped": True,
+            }
+
+            if env_idx not in bad_env_set:
+                continue
+
+            self.buf_infos[env_idx]["sim_fault_error"] = error_text
+            obs, self.reset_infos[env_idx] = self.envs[env_idx].reset()
+            if _contains_nonfinite(obs):
+                raise RuntimeError(
+                    f"env {env_idx} reset after simulator step fault still "
+                    "returned non-finite observations"
+                ) from exc
+            self.buf_infos[env_idx]["terminal_observation"] = None
+            self._save_obs(env_idx, obs)
+
+        return (
+            self._obs_from_buf(),
+            np.copy(self.buf_rews),
+            np.copy(self.buf_dones),
+            copy.deepcopy(self.buf_infos),
+        )
+
     def step_wait(self) -> VecEnvStepReturn:
         with og.sim.render_on_step(self.render_on_step):
-            og.sim.step()
+            try:
+                og.sim.step()
+            except Exception as exc:
+                if not _is_recoverable_sim_fault(exc):
+                    raise
+                return self._recover_from_sim_step_fault(exc)
 
             for env_idx in range(self.num_envs):
-                obs, self.buf_rews[env_idx], terminated, truncated, self.buf_infos[env_idx] = self.envs[
-                    env_idx
-                ]._post_step(self.actions[env_idx])
+                try:
+                    obs, reward, terminated, truncated, info = self.envs[
+                        env_idx
+                    ]._post_step(self.actions[env_idx])
+                    if _contains_nonfinite(obs) or _contains_nonfinite(reward):
+                        raise RuntimeError(
+                            f"non-finite observation or reward in env {env_idx}"
+                        )
+                except Exception as exc:
+                    if not _is_recoverable_sim_fault(exc):
+                        raise
+                    log.warning(
+                        "Recovering env %d after simulator fault: %s",
+                        env_idx,
+                        exc,
+                    )
+                    obs, self.reset_infos[env_idx] = self.envs[env_idx].reset()
+                    if _contains_nonfinite(obs):
+                        raise RuntimeError(
+                            f"env {env_idx} reset after simulator fault still "
+                            "returned non-finite observations"
+                        ) from exc
+                    self.buf_rews[env_idx] = 0.0
+                    self.buf_dones[env_idx] = True
+                    self.buf_infos[env_idx] = {
+                        "TimeLimit.truncated": False,
+                        "terminal_observation": None,
+                        "sim_fault_recovered": True,
+                        "sim_fault_env_idx": env_idx,
+                        "sim_fault_error": str(exc),
+                    }
+                    self._save_obs(env_idx, obs)
+                    continue
+
+                self.buf_rews[env_idx] = reward
+                self.buf_infos[env_idx] = info
                 self.buf_dones[env_idx] = terminated or truncated
                 self.buf_infos[env_idx]["TimeLimit.truncated"] = truncated and not terminated
 
@@ -167,6 +334,8 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
         grasp_reset_mode=args.reset_mode,
         arm_controller=args.arm_controller,
         goal_region_spec=goal_region_spec,
+        task_type=getattr(args, "task_type", "PickAndLiftTask"),
+        max_steps=getattr(args, "task_max_steps", 200),
     )
     if verbose:
         print(f"[{time.strftime('%H:%M:%S')}] Booting OG "

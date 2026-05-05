@@ -30,7 +30,7 @@ def _build_common_callbacks(args, out_dir: Path, algo_name: str) -> list:
     from stable_baselines3.common.callbacks import CheckpointCallback
 
     from sentinel.rl.training.callbacks import (
-        GCCallback, PeriodicEvalCallback, ViewerVideoCallback,
+        GCCallback, PeriodicEvalCallback, SimFaultCallback, ViewerVideoCallback,
     )
 
     # SB3's CheckpointCallback counts ``n_calls`` (one per vec-step), not env
@@ -45,6 +45,7 @@ def _build_common_callbacks(args, out_dir: Path, algo_name: str) -> list:
             save_path=str(out_dir / "ckpts"),
             name_prefix=algo_name,
         ),
+        SimFaultCallback(),
         # Python GC every 1k vec-step calls — clears cycle-held obs buffers
         # from OG's per-step path. Does not address C-level PhysX leaks.
         GCCallback(collect_every=1000, verbose=1),

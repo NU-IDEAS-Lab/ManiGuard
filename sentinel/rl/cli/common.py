@@ -56,6 +56,9 @@ def add_env_args(parser: argparse.ArgumentParser) -> None:
                         "is used instead of the hardcoded goal_offset. "
                         "Also infers --scene-file from the sibling "
                         "scene_ep1.json if not explicitly set.")
+    g.add_argument("--task-max-steps", type=int, default=200,
+                   help="Task timeout in environment steps. Training defaults "
+                        "to 200; increase for long eval rollouts.")
 
 
 def add_training_args(parser: argparse.ArgumentParser) -> None:
