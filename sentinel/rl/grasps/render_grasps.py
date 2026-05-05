@@ -581,6 +581,16 @@ def main():
     if os.environ.get("OMNIGIBSON_HEADLESS", "0") == "1":
         gm.HEADLESS = True
 
+    # Shorten OG's assisted-grasp commit window so AG fires after ~2 action
+    # steps of stable contact (default is 10, ~333 ms) instead of waiting
+    # for a perfectly stable squeeze. Same patch as the GELLO teleop batch
+    # uses; helps the gravity-hold step retain phantom-but-real-enough
+    # grasps that the strict default window flickers off. Must run before
+    # og.Environment() constructs the robot (read at robot _post_load).
+    from omnigibson.robots.manipulation_robot import m as _ag_macros
+    _ag_macros.GRASP_WINDOW = 1.0 / 300.0
+    _ag_macros.RELEASE_WINDOW = 1.0 / 300.0
+
     import omnigibson as og
 
     print(f"[{time.strftime('%H:%M:%S')}] Booting OG ...", flush=True)
@@ -626,6 +636,19 @@ def main():
                 import traceback
                 traceback.print_exc()
                 print(f"  ! {cat}/{mdl} failed: {exc}", flush=True)
+                # OG's articulation_view sometimes invalidates after many
+                # add/remove cycles; once that happens, every subsequent
+                # robot.get_joint_positions() returns None and the rest of
+                # this boot insta-fails. Bail out so the watchdog can
+                # restart with a fresh OG state.
+                msg = str(exc)
+                if ("NoneType" in msg and "view" in msg) or \
+                   "articulation_view" in msg.lower():
+                    print(f"[{time.strftime('%H:%M:%S')}] FATAL: OG "
+                          f"articulation state corrupted, exiting so "
+                          f"watchdog can restart.", flush=True)
+                    sys.stdout.flush()
+                    sys.exit(2)
 
             elapsed = time.time() - t0
             if n_held > 0:

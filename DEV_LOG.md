@@ -43,6 +43,41 @@
 - **Patch OG upstream `CuRoboMotionGenerator.__init__` single-scene assertion**
   (alternative to DLS port — upstream PR, riskier timeline).
 
+- **Replace `render_grasps.py` Phase A with NVlabs/GraspDataGen-style
+  free-floating gripper validation.** Spawn a Panda gripper prim alone
+  in OG, teleport to the GraspGen eef pose, close, run 5-direction tug
+  test (~2.5 s). Gravity off globally so no hard pin, no
+  gripper-sweeping pathology, no cuRobo. Per-grasp ~50 s → ~1-3 s.
+  New script `sentinel/rl/grasps/validate_grasps_floating.py`; saved
+  ``.pt`` drops `arm_joint_pos` so `GraspDatasetResetter` must run in
+  `ik` mode (or use the DLS port above) instead of `cached`.
+
+- **Finetune our `GraspGen` ckpt on BEHAVIOR-1K via GraspDataGen.**
+  Current `graspgen_franka_panda` was trained on ACRONYM (ShapeNet);
+  BEHAVIOR-1K thin/floppy/hollow objects are under-represented and
+  account for the bulk of our ~33% Phase A failures. Workflow: Isaac
+  Lab venv, export BEHAVIOR visual meshes via `mesh_from_og_object`,
+  generate ~4.4 M labeled grasps (1024 envs in parallel), finetune
+  `*_gen.pth` ~5-20 epochs at low LR, drop into the existing ZMQ
+  server (no `render_grasps.py` change). Defer until free-floating
+  validation lands AND reset failures actually hurt RL convergence;
+  Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
+  post-finetune.
+
+## 2026-05-05 — `refactor/remove-bddl-curation`: full-dataset run perf — ik_only + longfinger + AG window + corruption fast-fail
+
+After watching the first 1152-row pass land at 67% hold rate but ~50 s/object, four runtime tweaks for the rerun:
+
+`collector._curobo_ik_fast` flipped to `ik_only=True`. Single goal-config teleport per candidate instead of replaying the 30-100-waypoint trajopt path. ~5-10x faster; final config still validated through close + gravity-hold + obj-to-eef. Trade-off: Phase B videos are now teleport-flash style instead of smooth approach animation.
+
+`scripts/render_grasps_loop.sh` no longer sets `SENTINEL_SKIP_LONGFINGER=1`, so OG's longfinger Franka bundle loads. The longer fingertip mesh extends OG's AG ray segment and lifts hold rate on thin/floppy objects (default-finger 1152-row pass: 67%; longfinger 50-row trial earlier: 84%). `hand_to_eef_offset=0.1034` is still the default-panda value, so the gripper goes a few cm deeper into the GraspGen-predicted pose — empirically a non-issue, AG-fire reliability is the bigger effect.
+
+`render_grasps.main` shortens `m.GRASP_WINDOW = m.RELEASE_WINDOW = 1/300 s` before OG boot — same patch the GELLO teleop batch lands. Default `1/30 s` requires 10 consecutive contact steps; under hard-pin contact jitter that flickers off frequently, hurting both Phase A AG-engage and Phase B replay drops.
+
+`render_grasps.main`'s exception handler `sys.exit(2)`'s when an inner exception contains `'NoneType' object has no attribute 'view'`. After many target add/remove cycles OG's `articulation_view` invalidates, after which every `robot.get_joint_positions()` raises that error and the rest of the boot insta-fails. Fast-fail lets `scripts/render_grasps_loop.sh` restart immediately instead of burning ~30 s on every remaining pending row insta-failing it.
+
+Wiped `outputs/grasp_datasets/graspgen_full/` and restarted from row 0. Mean per-object dropped to ~20 s on the first sample; ETA now ~5-15 hours for the 3405 pending rows (was ~36 hours with motion-plan + default fingers).
+
 ## 2026-05-04 — `refactor/remove-bddl-curation`: GraspGen install + run doc (`248a9df6`)
 
 `docs/graspgen_pipeline.md` is the end-to-end recipe for the new pipeline: clone GraspGen + GraspGenModels (with the LFS-pull caveat that bit us when `/tmp/GraspGen` got cleaned), `uv venv` + `install_uv_pointnet.sh`, server start command, render_grasps invocation, output-file table, resume rules, and 5 troubleshooting entries (LFS pointer, ZMQ recv timeout, OG import drift, Phase A 0-holds, Phase B replay didn't hold, pointnet2 CUDA arch). CLAUDE.md gets a pointer.

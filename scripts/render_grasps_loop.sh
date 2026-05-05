@@ -58,7 +58,6 @@ while true; do
     target=$((done_count + RESTART_EVERY))
     echo "[$(date '+%F %T')] watchdog: launching (done=$done_count, restart_at=$target)" >> "$LOG"
 
-    SENTINEL_SKIP_LONGFINGER=1 \
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 \
         conda run -n behavior --no-capture-output \
