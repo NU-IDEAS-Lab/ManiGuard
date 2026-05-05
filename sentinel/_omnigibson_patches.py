@@ -313,6 +313,57 @@ def _patch_franka_longfinger() -> None:
     franka_cls.usd_path = property(_usd_path)
     franka_cls.urdf_path = property(_urdf_path)
     franka_cls.curobo_path = property(_curobo_path)
+
+    # AG endpoints are hardcoded in FrankaPanda.__init__ (franka.py:118-123)
+    # at the original short-finger position (z=0.045, ~83% along a 54mm
+    # finger). With the long-finger asset (~150mm finger), z=0.045 sits at
+    # ~30% — the rays span the finger ROOT, not the tip, so `is_grasping`
+    # never fires when the operator closes around the actual tip contact.
+    # Override the assisted_grasp_*_points properties to return 4 points
+    # along the finger (root → tip) when the longfinger bundle is in use;
+    # AG fires if any start/end ray pair triggers, so denser = better
+    # coverage. Patching properties (not __init__) sidesteps the
+    # save_init_info sig.bind decorator at python_utils.py:66.
+    import torch as _th
+    from omnigibson.robots.manipulation_robot import GraspingPoint as _GraspingPoint
+
+    # 1 × 4 (= 4 points per finger). The x sweep we tried earlier was
+    # measurably slower (12×12 = 144 ray pairs every step) and wasn't the
+    # gating factor anyway — AG mostly fails on the "two fingers in
+    # contact" requirement, not on raycast coverage.
+    LONG_AG_X = (0.0,)
+    LONG_AG_Z = (0.045, 0.085, 0.120, 0.140)
+
+    def _longfinger_start_points(arm):
+        return [_GraspingPoint(link_name="panda_rightfinger",
+                               position=_th.tensor([x, 0.001, z]))
+                for z in LONG_AG_Z for x in LONG_AG_X]
+
+    def _longfinger_end_points(arm):
+        return [_GraspingPoint(link_name="panda_leftfinger",
+                               position=_th.tensor([x, 0.001, z]))
+                for z in LONG_AG_Z for x in LONG_AG_X]
+
+    def _is_longfinger_in_use(self):
+        if getattr(self, "end_effector", None) != "gripper":
+            return False
+        try:
+            return self._franka_panda_asset_bundle == longfinger_bundle
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _patched_ag_start(self):
+        if _is_longfinger_in_use(self):
+            return {self.default_arm: _longfinger_start_points(self.default_arm)}
+        return {self.default_arm: self._ag_start_points}
+
+    def _patched_ag_end(self):
+        if _is_longfinger_in_use(self):
+            return {self.default_arm: _longfinger_end_points(self.default_arm)}
+        return {self.default_arm: self._ag_end_points}
+
+    franka_cls._assisted_grasp_start_points = property(_patched_ag_start)
+    franka_cls._assisted_grasp_end_points = property(_patched_ag_end)
     franka_cls._sentinel_longfinger_patched = True
 
 

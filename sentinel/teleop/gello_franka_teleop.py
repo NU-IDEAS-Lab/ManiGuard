@@ -81,13 +81,17 @@ from sentinel.teleop.so101_franka_teleop import _read_first_jsonl  # noqa: E402
 GELLO_PORT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTB8HNJP-if00-port0"
 GELLO_JOINT_IDS = (1, 2, 3, 4, 5, 6, 7)
 GELLO_JOINT_OFFSETS = [
-    3 * np.pi / 2,   # J1
-    1 * np.pi / 2 + (1.7628 - np.pi / 4),   # J2  (trim: GELLO physical max-back -> Franka -π/4 instead of joint limit -1.7628, for a relaxed rest pose)
-    4 * np.pi / 2,   # J3  (≡ 0 mod 2π; calibration picked the wrapped form)
-    3 * np.pi / 2 - (3.0718 - np.pi / 4 - np.pi / 9),   # J4  (trim: GELLO physical max-forward -> Franka ~-65° (-π/4 - 20°), slightly more bent than -π/4)
-    0 * np.pi / 2,   # J5
-    1 * np.pi / 2,   # J6
-    0 * np.pi / 2 - np.pi / 4,   # J7  (-π/4 trim: GELLO J7 mounting offset, calibration script rounds to π/2)
+    # 2026-05-05 recal: ran gello_get_offset.py with --start-joints 0 0 0 0 0 0 0
+    # so each raw offset puts Franka cmd ≈ 0 at the calibration physical pose.
+    # Trims below shift cmd_at_cal to GELLO_CALIBRATION_FRANKA_POSE (relaxed
+    # rest pose). Per-joint: delta_offset = -CALIB_POSE[i] * sign[i].
+    3 * np.pi / 2,                                    # J1: no trim (CALIB=0)
+    2 * np.pi / 2 - np.pi / 4,                        # J2: sign=-1, want -π/4 → δ=-π/4
+    8 * np.pi / 2,                                    # J3: no trim (recal'd 14:33: drifted 4π/2 → 8π/2 = 2π more turns)
+    1 * np.pi / 2 + np.pi / 4 + np.pi / 9,            # J4: sign=+1, want -π/4-π/9 → δ=+π/4+π/9
+    8 * np.pi / 2,                                    # J5: servo wrapped 2 turns; raw 4π must stay literal
+    1 * np.pi / 2 + 0.0175,                           # J6: sign=+1, want -0.0175 → δ=+0.0175
+    0 * np.pi / 2,                                    # J7: no trim (CALIB=0; previous -π/4 was a different mount)
 ]
 GELLO_JOINT_SIGNS = (1, -1, 1, 1, 1, 1, 1)
 GELLO_GRIPPER_CONFIG = None  # no physical gripper attached yet — keyboard takes over
