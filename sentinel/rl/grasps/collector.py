@@ -190,7 +190,7 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
         attached_obj_scale=None,
         motion_constraint=None,
         skip_obstacle_update=skip_obstacle_update,
-        ik_only=False,
+        ik_only=True,
         ik_world_collision_check=True,
         emb_sel=CuRoboEmbodimentSelection.DEFAULT,
     )
