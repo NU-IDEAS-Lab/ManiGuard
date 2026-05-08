@@ -28,13 +28,13 @@ from sentinel.utils.goal_region import (
 
 log = logging.getLogger(__name__)
 
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 
 
 from sentinel.utils.task_spec import DENSITY_PRESETS  # noqa: F401, E402
 from sentinel.utils.task_spec import generate_clutter_activity as generate_activity  # noqa: F401, F811, E402
-from sentinel.utils.task_spec import _pick_model_for_synset, _synset_to_category  # noqa: E402
+from sentinel.utils.task_spec import _pick_model_for_category  # noqa: E402
 
 STRUCTURAL_CATEGORY_KEYWORDS = (
     "wall", "walls", "floor", "ceiling", "roof", "window", "door",
@@ -103,34 +103,19 @@ def strip_room_suffix(room: str) -> str:
     return room
 
 
-def get_taxonomy():
-    from bddl.object_taxonomy import ObjectTaxonomy
-    if not hasattr(get_taxonomy, "_cache"):
-        get_taxonomy._cache = ObjectTaxonomy()
-    return get_taxonomy._cache
-
-
-def resolve_synset(category):
-    try:
-        return get_taxonomy().get_synset_from_category(category)
-    except Exception:
-        return f"{category}.n.01"
+_SUBSTANCE_CATEGORIES = frozenset({
+    "water", "juice", "milk", "coffee", "tea", "soup", "oil", "wine",
+    "beer", "soda", "sauce", "vinegar", "honey", "syrup", "cream",
+})
 
 
 def needs_gpu_dynamics_from_specs(spawn_specs):
     """Check if any spawn spec requires GPU dynamics (substance/liquid tasks)."""
-    try:
-        taxonomy = get_taxonomy()
-        for spec in spawn_specs:
-            synset = spec.get("synset", "")
-            try:
-                if "substance" in taxonomy.get_abilities(synset):
-                    print(f"[Pipeline] GPU dynamics enabled (substance: {synset})")
-                    return True
-            except Exception:
-                continue
-    except Exception:
-        pass
+    for spec in spawn_specs:
+        category = spec["category"]
+        if category in _SUBSTANCE_CATEGORIES:
+            print(f"[Pipeline] GPU dynamics enabled (substance: {category})")
+            return True
     return False
 
 
@@ -139,35 +124,6 @@ def get_scene_json_path(scene_model):
     return os.path.join(
         get_scene_path(scene_model), "json", f"{scene_model}_best.json",
     )
-
-
-def discover_from_scene_json(scene_json_path, category_filter_fn, priority_map=None):
-    """Find (category, room_type, room_instance) of best matching object from scene JSON.
-
-    Returns a 3-tuple: (category, room_type, room_instance) where room_type
-    is the stripped semantic name (for BDDL ``inroom``) and room_instance is
-    the full instance name (for ``load_room_instances``).  Returns None if no
-    match is found.
-    """
-    with open(scene_json_path, "r", encoding="utf-8") as f:
-        init_infos = json.load(f).get("objects_info", {}).get("init_info", {})
-
-    candidates = []
-    for info in init_infos.values():
-        args = info.get("args", {})
-        cat = args.get("category", "")
-        if not category_filter_fn(cat):
-            continue
-        rooms = args.get("in_rooms", [])
-        room_instance = rooms[0] if rooms else "living_room_0"
-        room_type = strip_room_suffix(room_instance)
-        candidates.append((cat, room_type, room_instance))
-
-    if not candidates:
-        return None
-    if priority_map:
-        candidates.sort(key=lambda c: priority_map.get(c[0], 0), reverse=True)
-    return candidates[0]
 
 
 # Placeable-driven scene selection helpers live in utils/placeable.py.
@@ -212,37 +168,57 @@ def get_spawned_obj(spawned_objects, inst):
     return spawned_objects.get(inst)
 
 
-def spawn_objects(env, spawn_specs, rng):
+def spawn_objects(env, spawn_specs, rng, episode_label=""):
     """Import DatasetObjects into the running scene from spawn specs.
 
-    Each spec: {"synset", "count", "role"} plus optional {"category", "model"}.
-    Returns {inst_id: obj} where inst_id follows the "{synset}_{N}" convention
-    to match LTL proposition glob patterns.
+    Each spec must contain {"category", "model", "count", "role"}.
+    Returns ``(registry, obj_sets)``:
+      * ``registry`` — ``{inst_id: DatasetObject}``. ``inst_id`` follows the
+        ``"{category}_{N}"`` (or ``"{category}_{episode_label}_{N}"``)
+        convention; LTL globs ``"{category}_*"`` match either form.
+      * ``obj_sets`` — ``{role: tuple(inst_ids)}``, keyed directly by the
+        spec's ``role`` (e.g. ``"target"``, ``"fragile"``, ``"clutter"``,
+        ``"food"``, ``"source"``, ``"dest"``, ``"stack"``, ``"lid"``).
+        Use ``obj_sets.get(role, ())`` for roles that may not be present.
+
+    ``episode_label`` (optional): a short string (e.g. ``"ep3"``) embedded
+    after the category in inst_id and name, so multiple ``spawn_objects``
+    calls in one session don't collide. Empty string preserves the original
+    ``"{category}_{N}"`` naming for single-episode callers.
     """
     from omnigibson.objects import DatasetObject
 
     registry = {}
-    synset_counters = {}
+    by_role = {}
+    category_counters = {}
     for spec in spawn_specs:
-        synset = spec["synset"]
         count = spec["count"]
         role = spec["role"]
-        category = spec.get("category") or _synset_to_category(synset)
+        category = spec["category"]
         model = spec.get("model")
         if model is None:
-            category, model = _pick_model_for_synset(synset, rng)
+            log.warning("spawn_objects: spec for role=%s category=%s has no model; "
+                        "picking randomly (callers should resolve model at selection time)",
+                        role, category)
+            category, model = _pick_model_for_category(category, rng)
 
         for _ in range(count):
-            idx = synset_counters.get(synset, 0) + 1
-            synset_counters[synset] = idx
-            inst_id = f"{synset}_{idx}"
-            name = f"{role}_{category}_{idx}"
+            idx = category_counters.get(category, 0) + 1
+            category_counters[category] = idx
+            if episode_label:
+                inst_id = f"{category}_{episode_label}_{idx}"
+                name = f"{role}_{category}_{episode_label}_{idx}"
+            else:
+                inst_id = f"{category}_{idx}"
+                name = f"{role}_{category}_{idx}"
             obj = DatasetObject(name=name, category=category, model=model)
             env.scene.add_object(obj)
             obj.set_position_orientation(position=[0, 0, 10])
             registry[inst_id] = obj
+            by_role.setdefault(role, []).append(inst_id)
 
-    return registry
+    obj_sets = {role: tuple(sorted(ids)) for role, ids in by_role.items()}
+    return registry, obj_sets
 
 
 def is_structural_object(obj):
@@ -407,32 +383,6 @@ def clear_robot_base_region(env, support_obj, base_xy, robot_half_extent_xy,
     return [getattr(o, "name", "") for o in to_remove]
 
 
-def build_task_object_sets(spawned_objects, task_spec=None):
-    """Classify spawned objects by role.
-
-    Roles are inferred from the object name prefix (target_, fragile_,
-    clutter_, source_, dest_, food_, stack_).  The legacy task_spec argument
-    is accepted but ignored.
-    """
-    target_ids, fragile_ids, support_ids, clutter_ids = [], [], [], []
-    for inst_id, obj in spawned_objects.items():
-        name = getattr(obj, "name", "")
-        if name.startswith("target_"):
-            target_ids.append(inst_id)
-        elif name.startswith("fragile_"):
-            fragile_ids.append(inst_id)
-        elif name.startswith(("source_", "dest_")):
-            support_ids.append(inst_id)
-        else:
-            clutter_ids.append(inst_id)
-    return {
-        "target_ids": tuple(target_ids),
-        "fragile_ids": tuple(sorted(fragile_ids)),
-        "support_ids": tuple(sorted(support_ids)),
-        "clutter_ids": tuple(sorted(clutter_ids)),
-    }
-
-
 def object_aabb_dims(obj):
     """Return (dx, dy, dz) AABB dimensions in meters, each floored at 0.01.
 
@@ -456,8 +406,8 @@ def build_descriptors(spawned_objects, obj_sets):
     from sentinel.utils.clutter_pack_layout import ClutterObjectDescriptor
 
     descriptors, objects_by_inst = [], {}
-    for role, id_key in [("target", "target_ids"), ("fragile", "fragile_ids"), ("clutter", "clutter_ids")]:
-        for inst in obj_sets[id_key]:
+    for role in ("target", "fragile", "clutter"):
+        for inst in obj_sets.get(role, ()):
             obj = spawned_objects.get(inst)
             if obj is None:
                 continue
@@ -675,11 +625,8 @@ def remove_objects(og_mod, objs_by_inst):
 def validate_poses(objs):
     invalid = []
     for inst, obj in objs.items():
-        try:
-            pos = obj.get_position_orientation()[0]
-            if not all(math.isfinite(float(pos[i])) for i in range(3)):
-                invalid.append(inst)
-        except Exception:
+        pos = obj.get_position_orientation()[0]
+        if not all(math.isfinite(float(pos[i])) for i in range(3)):
             invalid.append(inst)
     return invalid
 
@@ -1039,7 +986,7 @@ class BasePipeline(ABC):
         """Return default activity name prefix, e.g. 'auto_stack_on'."""
 
     @abstractmethod
-    def generate_activity(self, activity_name, support_synset, support_room,  # noqa: F811
+    def generate_activity(self, activity_name, support_category, support_room,
                           args, rng):
         """Generate LTL safety spec and object selection with spawn specs.
 
@@ -1187,13 +1134,13 @@ class BasePipeline(ABC):
         scene_label = args.scene_model
         activity_name = args.activity_name or f"{self.activity_prefix()}_{scene_label}"
 
-        support_synset = resolve_synset(pick["category"])
+        support_category = pick["category"]
         room_instance = pick["room_instance"]
         support_room = strip_room_suffix(room_instance)
 
         rng = np.random.default_rng(args.seed)
         ltl_safety, selection = \
-            self.generate_activity(activity_name, support_synset, support_room, args, rng)
+            self.generate_activity(activity_name, support_category, support_room, args, rng)
 
         print("[Pipeline] Dry-run complete:")
         print(f"  activity:   {activity_name}")
@@ -1214,11 +1161,20 @@ class BasePipeline(ABC):
         gm.ENABLE_OBJECT_STATES = True
 
         # -- Object-first scene selection -----------------------------------
+        # Pre-select args.episodes triples so each episode uses a different
+        # (food, source, dest) combination. The surface must accommodate the
+        # LARGEST triple (max required_area_m2) — sum would be wrong since
+        # only one triple exists on the surface at a time.
         rng_pre = np.random.default_rng(args.seed)
-        pre_selection = self.select_objects(args, rng_pre)
-        args._pre_selection = pre_selection
+        pre_selections = [self.select_objects(args, rng_pre)
+                          for _ in range(args.episodes)]
+        required_areas = [s["required_area_m2"] for s in pre_selections]
+        required = max(required_areas)
+        print(f"[Pipeline] Pre-selected {len(pre_selections)} episode triples; "
+              f"required_area max={required:.3f} m² "
+              f"(min={min(required_areas):.3f}, "
+              f"mean={sum(required_areas)/len(required_areas):.3f})")
 
-        required = pre_selection["required_area_m2"]
         pick = pick_scene_from_placeable(rng_pre, required, scene_model=args.scene_model)
         args.scene_model = pick["scene_model"]
         args._picked_surface = pick
@@ -1236,27 +1192,39 @@ class BasePipeline(ABC):
         surface_category = pick["category"]
         room_instance = pick["room_instance"]
         support_room = strip_room_suffix(room_instance)
-        support_synset = resolve_synset(surface_category)
         print(f"[Pipeline] Discovered: category={surface_category} "
-              f"synset={support_synset} room={support_room}")
+              f"room={support_room}")
 
-        # Store surface info in pre_selection for _run_episode.
-        if pre_selection is None:
-            pre_selection = {}
-            args._pre_selection = pre_selection
-        pre_selection.setdefault("_surface_category", surface_category)
-        pre_selection.setdefault("_room_type", support_room)
-        pre_selection.setdefault("_room_instance", room_instance)
+        # Annotate every pre_selection with the resolved scene info so
+        # generate_activity (which reads args._pre_selection) sees it.
+        for pre_sel in pre_selections:
+            pre_sel.setdefault("_surface_category", surface_category)
+            pre_sel.setdefault("_room_type", support_room)
+            pre_sel.setdefault("_room_instance", room_instance)
 
-        # -- Generate activity (LTL + spawn specs) --------------------------
+        # -- Generate per-episode activities (LTL + spawn specs) ------------
         rng = np.random.default_rng(args.seed)
-        ltl_safety, selection = self.generate_activity(
-            activity_name, support_synset, support_room, args, rng,
-        )
-        selection.setdefault("_room_instance", room_instance)
+        episode_activities = []
+        for pre_sel in pre_selections:
+            args._pre_selection = pre_sel
+            ep_ltl, ep_sel = self.generate_activity(
+                activity_name, surface_category, support_room, args, rng,
+            )
+            ep_sel.setdefault("_room_instance", room_instance)
+            episode_activities.append((ep_ltl, ep_sel))
+        # Reset args._pre_selection to ep0 for any downstream reads during
+        # env construction; the per-episode swap happens inside the loop.
+        args._pre_selection = pre_selections[0]
+        ltl_safety, selection = episode_activities[0]
 
         # -- GPU dynamics ----------------------------------------------------
-        gpu = needs_gpu_dynamics_from_specs(selection.get("spawn_specs", []))
+        # OR across all episodes' specs: if any triple needs GPU dynamics
+        # (substance/liquid), the env has to be configured for it from the
+        # start since we can't toggle GPU dynamics mid-session.
+        gpu = any(
+            needs_gpu_dynamics_from_specs(sel.get("spawn_specs", []))
+            for _, sel in episode_activities
+        )
         gm.USE_GPU_DYNAMICS = gpu
         gm.ENABLE_FLATCACHE = not gpu
 
@@ -1272,23 +1240,67 @@ class BasePipeline(ABC):
 
         # 3 external cameras (canonical names + resolution shared across
         # task-generation, teleop, training, eval).
-        from sentinel.utils.camera_setup import build_external_camera_configs
-        cfg.setdefault("env", {})["external_sensors"] = build_external_camera_configs()
+        from sentinel.utils.camera_setup import (
+            CAMERA_RESOLUTION,
+            build_external_camera_configs,
+        )
+        cfg.setdefault("env", {})["external_sensors"] = build_external_camera_configs(
+            resolution=CAMERA_RESOLUTION,
+        )
 
         print(f"[Pipeline] scene={scene_label}, activity={activity_name}, "
               f"strict_gate={args.strict_gate}")
         env = og.Environment(configs=cfg)
+
+        # OG bug workaround (StanfordVL/OmniGibson#266, #1875): sensor_kwargs
+        # in env config doesn't reliably set image_height/image_width on
+        # creation. Explicitly set each sensor's resolution and reload the
+        # observation space so downstream consumers see the right shape.
+        ext_sensors = env.external_sensors or {}
+        if ext_sensors:
+            for cam in ext_sensors.values():
+                cam.image_height = CAMERA_RESOLUTION
+                cam.image_width = CAMERA_RESOLUTION
+            env.load_observation_space()
         exit_code = 0
 
         try:
+            # Single ctx persists across episodes. _setup_session runs the
+            # one-time work (env.reset, scene cleanup, robot mount); each
+            # _run_episode then refreshes only the task objects. This
+            # avoids env.reset() between episodes — that path tries to
+            # revive objects clear_support_area removed (kitchen
+            # toggleables crash on visual_marker re-init upstream).
+            # Initialize ctx with episode 0's activity. _setup_session reads
+            # ctx._episode_activities to spawn ALL episodes' task objects
+            # upfront (parking ep>0 far away).
+            ctx = EpisodeContext(
+                env=env, og=og, args=args, rng=rng,
+                activity_name=activity_name,
+                selection=episode_activities[0][1],
+                ltl_safety=episode_activities[0][0],
+                episode=0,
+            )
+            ctx._episode_activities = episode_activities
+            self._setup_session(ctx)
+
             for ep in range(args.episodes):
-                ctx = EpisodeContext(
-                    env=env, og=og, args=args, rng=rng,
-                    activity_name=activity_name,
-                    selection=selection, ltl_safety=ltl_safety,
-                    episode=ep,
+                ctx.episode = ep
+                # Swap in this episode's pre-selected activity. _run_episode
+                # reads ctx.selection["spawn_specs"] for the respawn (ep>0).
+                ctx.ltl_safety, ctx.selection = (
+                    episode_activities[ep][0],
+                    episode_activities[ep][1],
+                )
+                args._pre_selection = pre_selections[ep]
+
+                spawn_specs = ctx.selection.get("spawn_specs", [])
+                triple = ", ".join(
+                    f"{s.get('role')}={s.get('category')}/{s.get('model')}"
+                    for s in spawn_specs
                 )
                 print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
+                print(f"[Pipeline] Triple: {triple}")
                 self._run_episode(ctx)
 
                 payload = {
@@ -1300,7 +1312,7 @@ class BasePipeline(ABC):
                     "gate_pass": ctx.gate_pass,
                     "ltl_violated": ctx.ltl_summary.get("violated") if hasattr(ctx, "ltl_summary") else None,
                     "steps_executed": ctx.steps_executed if hasattr(ctx, "steps_executed") else 0,
-                    "selection": selection,
+                    "selection": ctx.selection,
                     "ltl_safety": ctx.ltl_safety,
                     "cameras": list(getattr(args, "_resolved_video_views", ())),
                     "goal_conditions": self.goal_conditions(ctx),
@@ -1317,18 +1329,62 @@ class BasePipeline(ABC):
             print("[Pipeline] Shutdown simulator.")
             pipeline_exit(exit_code)
 
-    def _run_episode(self, ctx):
+    def _setup_session(self, ctx):
+        """Run one-time scene/robot setup before the episode loop.
+
+        Spawns ALL episodes' task objects upfront with episode-labelled
+        inst_ids (e.g. ``bowl_ep1_1``, ``bowl_ep5_1``). Episode-0's objects
+        stay in the parking position the spawner leaves them at; later
+        episodes' objects get teleported to a far parking pose so only
+        episode 0's task objects participate in the surface/mount setup.
+
+        Per-episode work is then: park the previous episode's 3 objects,
+        teleport the current episode's 3 onto the surface — no scene
+        mutations (add/remove) during the run, which sidesteps OG's
+        registry-staleness on objects added while the sim is playing.
+        """
         env, og, args = ctx.env, ctx.og, ctx.args
         env.reset()
         og.sim.step()
 
-        # -- Spawn task objects ---------------------------------------------
-        spawn_specs = ctx.selection.get("spawn_specs", [])
-        if spawn_specs:
-            ctx.spawned_objects = spawn_objects(env, spawn_specs, ctx.rng)
-            og.sim.step()
-            print(f"[Pipeline] Spawned {len(ctx.spawned_objects)} objects: "
-                  f"{sorted(ctx.spawned_objects.keys())}")
+        # -- Spawn ALL episodes' task objects upfront -----------------------
+        episode_activities = ctx._episode_activities
+        per_ep_spawned = []
+        per_ep_obj_sets = []
+        all_spawned = {}
+        for ep, (_, sel) in enumerate(episode_activities):
+            specs = sel.get("spawn_specs", [])
+            if not specs:
+                per_ep_spawned.append({})
+                per_ep_obj_sets.append({})
+                continue
+            ep_label = f"ep{ep + 1}"
+            spawned, obj_sets = spawn_objects(
+                env, specs, ctx.rng, episode_label=ep_label,
+            )
+            per_ep_spawned.append(spawned)
+            per_ep_obj_sets.append(obj_sets)
+            all_spawned.update(spawned)
+
+        og.sim.step()
+        print(f"[Pipeline] Spawned {len(all_spawned)} task objects across "
+              f"{len(per_ep_spawned)} episodes")
+
+        # Park ep > 0 objects far from the active workspace. Each episode
+        # gets its own row so they can't physically interfere even if some
+        # drift downward under gravity over the duration of the run.
+        for ep in range(1, len(per_ep_spawned)):
+            park = (50.0 + ep * 2.0, 50.0, 10.0)
+            for obj in per_ep_spawned[ep].values():
+                obj.set_position_orientation(position=park)
+                obj.keep_still()
+        og.sim.step()
+
+        ctx._per_ep_spawned = per_ep_spawned
+        ctx._per_ep_obj_sets = per_ep_obj_sets
+        ctx._all_spawned = all_spawned
+        ctx.spawned_objects = per_ep_spawned[0]
+        ctx.obj_sets = per_ep_obj_sets[0]
 
         # -- Find support surface object ------------------------------------
         # Prefer exact (category, model) match from placeable pick for
@@ -1389,7 +1445,8 @@ class BasePipeline(ABC):
                 ctx.surface_name, target_category, surface_aabb_xy, top_z,
                 scene_data, scene_object_aabbs=other_aabbs,
             )
-        except Exception:
+        except Exception as exc:
+            log.warning("surface analysis failed: %s", exc)
             ctx.surface_info = None
 
         print(f"[Pipeline] Support surface: {ctx.surface_name} ({target_category})")
@@ -1414,7 +1471,7 @@ class BasePipeline(ABC):
         clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
         ctx.removed_area_objects = clear_support_area(
             env, support_obj, ctx.surface_bounds_xy, margin_m=clear_margin,
-            spawned_objects=ctx.spawned_objects,
+            spawned_objects=ctx._all_spawned,
         )
         if ctx.removed_area_objects:
             og.sim.step()
@@ -1498,7 +1555,7 @@ class BasePipeline(ABC):
                 workspace_front_m=getattr(args, "mount_workspace_front_m", 0.0) or 0.0,
                 workspace_side_m=getattr(args, "mount_workspace_side_m", 0.0) or 0.0,
                 workspace_rear_m=getattr(args, "mount_workspace_rear_m", 0.0) or 0.0,
-                spawned_objects=ctx.spawned_objects,
+                spawned_objects=ctx._all_spawned,
             )
         if ctx.removed_robot_base_objects:
             og.sim.step()
@@ -1523,6 +1580,50 @@ class BasePipeline(ABC):
               f"gap={ctx.edge_result.gap_actual:.3f}, "
               f"collision_hits={list(ctx.edge_result.collision_hits)}, "
               f"failure_reason={ctx.edge_result.failure_reason}")
+
+    def _run_episode(self, ctx):
+        """Run one episode: swap in this episode's task objects, gate, rollout.
+
+        All ``args.episodes`` triples were spawned upfront in
+        :meth:`_setup_session`. Each episode just teleports its 3 active
+        objects onto the support surface (via :meth:`place_objects`) and
+        parks the previous episode's 3 back to their far parking pose.
+        No scene mutation (add/remove) happens here.
+        """
+        env, og, args = ctx.env, ctx.og, ctx.args
+
+        # -- Swap active objects for episodes > 0 ---------------------------
+        if ctx.episode > 0:
+            # Park previous episode's task objects far away. They keep
+            # existing in the scene but are out of the workspace and
+            # excluded from ctx.active_objects (which the LTL monitor and
+            # gate look at).
+            prev_ep = ctx.episode - 1
+            park = (50.0 + prev_ep * 2.0, 50.0, 10.0)
+            for obj in ctx._per_ep_spawned[prev_ep].values():
+                obj.set_position_orientation(position=park)
+                obj.keep_still()
+
+            # Activate this episode's pre-spawned objects.
+            ctx.spawned_objects = ctx._per_ep_spawned[ctx.episode]
+            ctx.obj_sets = ctx._per_ep_obj_sets[ctx.episode]
+            print(f"[Pipeline] Activated {len(ctx.spawned_objects)} objects: "
+                  f"{sorted(ctx.spawned_objects.keys())}")
+
+            self.identify_objects(ctx)
+            self.place_objects(ctx)
+            og.sim.step()
+            post_mount_settle_steps = int(getattr(args, "post_mount_settle_steps", 0) or 0)
+            if post_mount_settle_steps > 0:
+                stabilize_active_objects(
+                    og, ctx.active_objects, post_mount_settle_steps,
+                    support_obj=ctx.support_obj,
+                )
+
+        # Reset per-episode rollout state (kept fresh each call).
+        ctx.gate_pass = False
+        ctx.goal_region = None
+        ctx.prompt = ""
 
         # -- Gate -----------------------------------------------------------
         rp = [float(v) for v in ctx.robot.get_position_orientation()[0][:3]]

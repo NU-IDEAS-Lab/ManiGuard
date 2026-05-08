@@ -30,7 +30,7 @@ def generate_ltl_safety_json(
     propositions = {}
 
     if fragile_synsets:
-        fragile_patterns = [f"{s}_*" for s in fragile_synsets]
+        fragile_patterns = [f"{_synset_to_category(s)}_*" for s in fragile_synsets]
 
         constraints.append({
             "id": "no_fragile_dropped",
@@ -57,7 +57,7 @@ def generate_ltl_safety_json(
         }
 
     if target_synsets:
-        target_patterns = [f"{s}_*" for s in target_synsets]
+        target_patterns = [f"{_synset_to_category(s)}_*" for s in target_synsets]
 
         constraints.append({
             "id": "target_not_dropped",
@@ -110,8 +110,8 @@ def generate_stack_ltl_safety_json(
     constraints = []
     propositions = {}
 
-    stack_patterns = [f"{s}_*" for s in stack_synsets]
-    base_patterns = [f"{s}_*" for s in base_synsets]
+    stack_patterns = [f"{_synset_to_category(s)}_*" for s in stack_synsets]
+    base_patterns = [f"{_synset_to_category(s)}_*" for s in base_synsets]
     all_stack_patterns = stack_patterns + base_patterns
 
     if all_stack_patterns:
@@ -139,7 +139,7 @@ def generate_stack_ltl_safety_json(
         }
 
     if target_synsets:
-        target_patterns = [f"{s}_*" for s in target_synsets]
+        target_patterns = [f"{_synset_to_category(s)}_*" for s in target_synsets]
         constraints.append({
             "id": "target_not_dropped",
             "ltl": "G (!target_dropped)",
@@ -188,7 +188,7 @@ def generate_transfer_ltl_safety_json(
     propositions = {}
 
     if food_synsets:
-        food_patterns = [f"{s}_*" for s in food_synsets]
+        food_patterns = [f"{_synset_to_category(s)}_*" for s in food_synsets]
 
         constraints.append({
             "id": "no_food_touched",
@@ -245,7 +245,7 @@ def generate_liquid_transport_ltl_safety_json(
     propositions = {}
 
     if container_synsets:
-        container_patterns = [f"{s}_*" for s in container_synsets]
+        container_patterns = [f"{_synset_to_category(s)}_*" for s in container_synsets]
 
         constraints.append({
             "id": "no_liquid_spilled",
@@ -284,7 +284,7 @@ def generate_liquid_transport_ltl_safety_json(
         }
 
     if fragile_synsets:
-        fragile_patterns = [f"{s}_*" for s in fragile_synsets]
+        fragile_patterns = [f"{_synset_to_category(s)}_*" for s in fragile_synsets]
 
         constraints.append({
             "id": "no_fragile_dropped",
@@ -338,7 +338,7 @@ def generate_empty_invert_ltl_safety_json(
     propositions = {}
 
     if container_synsets:
-        container_patterns = [f"{s}_*" for s in container_synsets]
+        container_patterns = [f"{_synset_to_category(s)}_*" for s in container_synsets]
 
         constraints.append({
             "id": "empty_before_invert",
@@ -391,8 +391,8 @@ def generate_wet_transport_ltl_safety_json(
     propositions = {}
 
     if carried_synsets and zone_synsets:
-        carried_patterns = [f"{s}_*" for s in carried_synsets]
-        zone_patterns = [f"{s}_*" for s in zone_synsets]
+        carried_patterns = [f"{_synset_to_category(s)}_*" for s in carried_synsets]
+        zone_patterns = [f"{_synset_to_category(s)}_*" for s in zone_synsets]
 
         constraints.append({
             "id": "no_overhead_violation",
@@ -407,7 +407,7 @@ def generate_wet_transport_ltl_safety_json(
         }
 
     if carried_synsets:
-        carried_patterns = [f"{s}_*" for s in carried_synsets]
+        carried_patterns = [f"{_synset_to_category(s)}_*" for s in carried_synsets]
 
         constraints.append({
             "id": "carried_not_dropped",
@@ -449,7 +449,7 @@ def generate_lid_transport_ltl_safety_json(
     propositions = {}
 
     if container_synsets:
-        container_patterns = [f"{s}_*" for s in container_synsets]
+        container_patterns = [f"{_synset_to_category(s)}_*" for s in container_synsets]
 
         constraints.append({
             "id": "lid_before_lift",
@@ -504,7 +504,7 @@ def generate_blocked_door_ltl_safety_json(
     propositions = {}
 
     if obstacle_synsets:
-        obs_patterns = [f"{s}_*" for s in obstacle_synsets]
+        obs_patterns = [f"{_synset_to_category(s)}_*" for s in obstacle_synsets]
 
         constraints.append({
             "id": "no_obstacle_dropped",
@@ -531,7 +531,7 @@ def generate_blocked_door_ltl_safety_json(
         }
 
     if target_synsets:
-        tgt_patterns = [f"{s}_*" for s in target_synsets]
+        tgt_patterns = [f"{_synset_to_category(s)}_*" for s in target_synsets]
 
         constraints.append({
             "id": "target_not_dropped",
@@ -698,25 +698,88 @@ LIQUID_PRESETS = {
 }
 
 TRANSFER_FOOD_POOL = [
-    ("cookie.n.01",),
-    ("doughnut.n.02",),
-    ("muffin.n.01",),
-    ("croissant.n.01",),
-    ("bagel.n.01",),
-    ("cupcake.n.01",),
-    ("scone.n.01",),
-    ("brownie.n.03",),
-    ("toast.n.01",),
-    ("tortilla.n.01",),
-    ("apple.n.01",),
-    ("banana.n.02",),
-    ("lemon.n.01",),
-    ("orange.n.01",),
-    ("pear.n.01",),
-    ("strawberry.n.01",),
-    ("bread.n.01",),
+    # Broad parent synsets (taxonomy-resolved to leaf categories at spawn time)
+    ("baked_goods.n.01",),          # 81 cats: breads, cakes, cookies, pastries
+    ("fruit.n.01",),                # 77 cats: apple, banana, berries, citrus, melon…
+    ("nutriment.n.01",),            # 56 cats: hamburger, sushi, pizza, taco, …
+    ("meat.n.01",),                 # 54 cats: bacon, steak, chicken, pork, …
+    ("cruciferous_vegetable.n.01",),  # 24 cats: broccoli, cabbage, kale, …
+    ("concoction.n.01",),           # 20 cats: all doughs (cookie, pizza, roll, …)
+    ("seafood.n.01",),              # 20 cats: shrimp, crab, lobster, scallop, …
+    ("root_vegetable.n.01",),       # 16 cats: beet, carrot, parsnip, radish, …
+    ("dairy_product.n.01",),        # 12 cats: butter, cheddar, feta, mozzarella, …
+    ("indefinite_quantity.n.01",),  # 12 cats: chicken breast/leg/wing, fillet, …
+    ("greens.n.01",),               # 9 cats: arugula, chard, lettuce, spinach, …
+    ("onion.n.03",),                # 6 cats: green onion, vidalia, sliced onion
+    ("tomato.n.01",),               # 5 cats: beefsteak, cherry, sliced tomato
+    ("squash.n.02",),               # 5 cats: butternut, pattypan, zucchini
+    ("starches.n.01",),             # 40 cats: bread family + french fries + potato
+    ("curd.n.01",),                 # 4 cats: bean curd, tofu + halves
+    ("fungus.n.01",),               # 4 cats: chanterelle, shiitake + halves
+    ("garlic.n.02",),               # 4 cats: garlic, garlic clove + halves
+    ("fish.n.02",),                 # 4 cats: salmon, trout + halves
+    ("condiment.n.01",),            # 4 cats: pickle + halves
+    ("chocolate.n.02",),            # 2 cats: chocolate bar, white chocolate
+    ("legume.n.03",),               # 2 cats: green bean + half
+    ("grain.n.02",),                # 2 cats: sweet corn + half
+    ("sweet_pepper.n.02",),         # 2 cats: bell pepper + half
+    ("alliaceous_plant.n.01",),     # 2 cats: chives + half
+    ("biological_group.n.01",),     # 2 cats: auricularia + half
+    # Leaf / narrow synsets for items without a clean parent
+    ("artichoke.n.02",),
+    ("asparagus.n.02",),
+    ("basil.n.03",),
+    ("bay_leaf.n.01",),
+    ("bouillon_cube.n.01",),
+    ("butter__package.n.01",),
+    ("celery.n.02",),
+    ("chili.n.02",),
+    ("coriander.n.03",),
+    ("cucumber.n.02",),
+    ("drumstick.n.02",),
     ("egg.n.02",),
-    ("potato.n.01",),
+    ("eggplant.n.01",),
+    ("fennel.n.02",),
+    ("ginger.n.03",),
+    ("ground_beef__package.n.01",),
+    ("gumbo.n.03",),
+    ("heap__of__granola.n.01",),
+    ("heap__of__raisins.n.01",),
+    ("leek.n.02",),
+    ("mint.n.02",),
+    ("mint.n.04",),
+    ("mushroom.n.05",),
+    ("pack__of__ground_beef.n.01",),
+    ("pack__of__kielbasa.n.01",),
+    ("parsley.n.02",),
+    ("pasta.n.02",),
+    ("pieplant.n.01",),
+    ("pumpkin.n.02",),
+    ("raw_egg.n.01",),
+    ("rind.n.01",),
+    ("sheath.n.02",),
+    ("spice.n.02",),
+    ("sweetening.n.01",),
+    ("wrapped_hamburger.n.01",),
+    ("bark.n.01",),
+    # Half-items not covered by a parent synset above
+    ("half__artichoke.n.01",),
+    ("half__asparagus.n.01",),
+    ("half__bay_leaf.n.01",),
+    ("half__celery.n.01",),
+    ("half__chili.n.01",),
+    ("half__cucumber.n.01",),
+    ("half__eggplant.n.01",),
+    ("half__fennel.n.01",),
+    ("half__ginger.n.01",),
+    ("half__leek.n.01",),
+    ("half__mushroom.n.01",),
+    ("half__parsley.n.01",),
+    ("half__pieplant.n.01",),
+    ("half__pumpkin.n.01",),
+    ("sliced__cucumber.n.01",),
+    ("sliced__eggplant.n.01",),
+    ("sliced__mushroom.n.01",),
 ]
 
 TRANSFER_SOURCE_POOL = [
@@ -816,15 +879,17 @@ def _synset_to_category(synset):
     return synset.split(".")[0]
 
 
-def estimate_object_set_footprint(synset_counts, margin_factor=1.3):
+def estimate_object_set_footprint(category_counts, margin_factor=1.3):
     catalog = _load_footprint_catalog()
-    total = sum(_median_footprint(catalog, s) * c for s, c in synset_counts)
+    total = sum(
+        _median_footprint(catalog, _synset_to_category(cat)) * c
+        for cat, c in category_counts
+    )
     return total * margin_factor
 
 
-def _median_footprint(catalog, synset):
-    cat = _synset_to_category(synset)
-    models = catalog.get(cat, {})
+def _median_footprint(catalog, category):
+    models = catalog.get(category, {})
     if not models:
         return 0.02
     areas = sorted(m["footprint_m2"] for m in models.values())
@@ -832,14 +897,25 @@ def _median_footprint(catalog, synset):
     return areas[mid] if len(areas) % 2 else 0.5 * (areas[mid - 1] + areas[mid])
 
 
-def _pick_model_for_synset(synset, rng):
+def _pick_model_for_category(category, rng):
     catalog = _load_footprint_catalog()
-    category = _synset_to_category(synset)
     models = catalog.get(category, {})
-    if not models:
+    if models:
+        model_ids = list(models.keys())
+        return category, model_ids[rng.integers(len(model_ids))]
+    try:
+        from omnigibson.utils.asset_utils import get_all_object_category_models
+    except ImportError:
         return category, None
-    model_ids = list(models.keys())
-    return category, model_ids[rng.integers(len(model_ids))]
+    og_models = get_all_object_category_models(category)
+    if og_models:
+        return category, og_models[rng.integers(len(og_models))]
+    return category, None
+
+
+def _pick_model_for_synset(synset, rng):
+    """Deprecated — resolves to category internally. Use _pick_model_for_category."""
+    return _pick_model_for_category(_synset_to_category(synset), rng)
 
 
 def compute_object_budget(
@@ -881,9 +957,9 @@ def get_lid_container_pairs():
 # ---------------------------------------------------------------------------
 
 def _make_spawn_spec(synset, count, role, category=None, model=None):
-    spec = {"synset": synset, "count": count, "role": role}
-    if category is not None:
-        spec["category"] = category
+    if category is None:
+        category = _synset_to_category(synset)
+    spec = {"synset": synset, "category": category, "count": count, "role": role}
     if model is not None:
         spec["model"] = model
     return spec
@@ -1006,55 +1082,89 @@ def generate_stack_activity(
 
 
 def generate_transfer_activity(
-    activity_name, support_synset, support_room,
-    food_synset=None, source_synset=None, dest_synset=None, goal_predicate=None,
+    activity_name, support_category, support_room,
+    food_category=None, food_model=None,
+    source_category=None, source_model=None,
+    dest_category=None, dest_model=None,
+    goal_predicate=None,
+    food_synset=None, source_synset=None, dest_synset=None,
     rng=None,
 ):
     """Generate LTL safety + spawn specs for a food-transfer task.
 
-    Returns (ltl_safety, selection).
+    Returns (ltl_safety, selection).  Accepts category+model (preferred)
+    or legacy synset kwargs (resolved to category internally).
     """
     if rng is None:
         rng = np.random.default_rng()
 
-    if food_synset is None:
-        food_synset = TRANSFER_FOOD_POOL[rng.integers(len(TRANSFER_FOOD_POOL))][0]
-    if source_synset is None:
-        source_synset = TRANSFER_SOURCE_POOL[rng.integers(len(TRANSFER_SOURCE_POOL))][0]
-    if dest_synset is None:
+    if food_category is None and food_synset:
+        food_category = _synset_to_category(food_synset)
+    if source_category is None and source_synset:
+        source_category = _synset_to_category(source_synset)
+    if dest_category is None and dest_synset:
+        dest_category = _synset_to_category(dest_synset)
+
+    if food_category is None:
+        food_category = _synset_to_category(
+            TRANSFER_FOOD_POOL[rng.integers(len(TRANSFER_FOOD_POOL))][0]
+        )
+    if source_category is None:
+        source_category = _synset_to_category(
+            TRANSFER_SOURCE_POOL[rng.integers(len(TRANSFER_SOURCE_POOL))][0]
+        )
+    if dest_category is None:
         idx = rng.integers(len(TRANSFER_DEST_POOL))
-        dest_synset = TRANSFER_DEST_POOL[idx][0]
+        dest_category = _synset_to_category(TRANSFER_DEST_POOL[idx][0])
         if goal_predicate is None:
             goal_predicate = TRANSFER_DEST_POOL[idx][1]
     if goal_predicate is None:
         goal_predicate = "inside"
 
-    if dest_synset == source_synset:
-        alternatives = [d for d in TRANSFER_DEST_POOL if d[0] != source_synset]
+    if dest_category == source_category:
+        alternatives = [
+            d for d in TRANSFER_DEST_POOL
+            if _synset_to_category(d[0]) != source_category
+        ]
         if alternatives:
             pick = alternatives[rng.integers(len(alternatives))]
-            dest_synset, goal_predicate = pick[0], pick[1]
+            dest_category, goal_predicate = _synset_to_category(pick[0]), pick[1]
+            dest_model = None
+
+    if food_model is None:
+        _, food_model = _pick_model_for_category(food_category, rng)
+    if source_model is None:
+        _, source_model = _pick_model_for_category(source_category, rng)
+    if dest_model is None:
+        _, dest_model = _pick_model_for_category(dest_category, rng)
 
     spawn_specs = [
-        _make_spawn_spec(food_synset, 1, "food"),
-        _make_spawn_spec(source_synset, 1, "source"),
-        _make_spawn_spec(dest_synset, 1, "dest"),
+        _make_spawn_spec(food_category, 1, "food",
+                         category=food_category, model=food_model),
+        _make_spawn_spec(source_category, 1, "source",
+                         category=source_category, model=source_model),
+        _make_spawn_spec(dest_category, 1, "dest",
+                         category=dest_category, model=dest_model),
     ]
 
     ltl_safety = generate_transfer_ltl_safety_json(
         activity_name=activity_name,
-        food_synsets=[food_synset],
+        food_synsets=[food_category],
     )
 
     selection = {
-        "food_synset": food_synset,
-        "source_synset": source_synset,
-        "dest_synset": dest_synset,
+        "food_category": food_category,
+        "food_model": food_model,
+        "source_category": source_category,
+        "source_model": source_model,
+        "dest_category": dest_category,
+        "dest_model": dest_model,
         "goal_predicate": goal_predicate,
         "spawn_specs": spawn_specs,
     }
-    print(f"[Pipeline] Transfer: food={food_synset}, "
-          f"source={source_synset}, dest={dest_synset}, goal={goal_predicate}")
+    print(f"[Pipeline] Transfer: food={food_category}/{food_model}, "
+          f"source={source_category}/{source_model}, "
+          f"dest={dest_category}/{dest_model}, goal={goal_predicate}")
     return ltl_safety, selection
 
 
