@@ -36,8 +36,8 @@ class TestGenerateLTLSafetyJSON:
             fragile_synsets=["wineglass.n.01"],
             target_synsets=["coffee_cup.n.01"],
         )
-        assert "wineglass.n.01_*" in result["propositions"]["any_fragile_dropped"]["over"]
-        assert "coffee_cup.n.01_*" in result["propositions"]["target_dropped"]["over"]
+        assert "wineglass_*" in result["propositions"]["any_fragile_dropped"]["over"]
+        assert "coffee_cup_*" in result["propositions"]["target_dropped"]["over"]
 
     def test_no_fragile_no_target(self):
         result = generate_ltl_safety_json(activity_name="empty_task")

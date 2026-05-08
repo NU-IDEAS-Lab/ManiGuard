@@ -44,6 +44,7 @@ from sentinel.task_generation.pipeline_common import (
     robot_half_extent_xy,
     run_ltl_rollout,
 )
+from sentinel.task_generation.transfer_scene_pipeline import build_transfer_objects
 from sentinel.utils.task_spec import (
     CLUTTER_POOL,
     DENSITY_PRESETS,
@@ -52,9 +53,6 @@ from sentinel.utils.task_spec import (
     STACK_ITEM_POOL,
     STACK_TARGET_POOL,
     TARGET_POOL,
-    TRANSFER_DEST_POOL,
-    TRANSFER_FOOD_POOL,
-    TRANSFER_SOURCE_POOL,
     generate_clutter_activity as generate_activity,
     generate_stack_activity,
     generate_transfer_activity,
@@ -63,7 +61,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 _PARK_POS = (100.0, 100.0, -100.0)
 
@@ -107,9 +105,12 @@ def parse_args():
     p.add_argument("--target-synset", default=None)
     p.add_argument("--stack-synset", default=None)
     # Transfer.
-    p.add_argument("--food-synset", default=None)
-    p.add_argument("--source-synset", default=None)
-    p.add_argument("--dest-synset", default=None)
+    p.add_argument("--food-model", default=None,
+                   help="Override food model id; category is inferred from compat matrix.")
+    p.add_argument("--source-model", default=None,
+                   help="Override source container model id.")
+    p.add_argument("--dest-model", default=None,
+                   help="Override destination container model id.")
     p.add_argument("--goal-predicate", default=None, choices=["inside", "ontop"])
     # Batch mode.
     p.add_argument("--batch-size", type=int, default=None,
@@ -307,44 +308,6 @@ def _build_stack_objects(rng, stack_height_key, target_synset=None, stack_synset
     return cfgs, roles, selection
 
 
-def _build_transfer_objects(rng, food_synset=None, source_synset=None,
-                            dest_synset=None, goal_predicate=None):
-    # Pick synsets that actually have models in the asset catalog.
-    if food_synset is None:
-        entry = _pick_synset_with_model(TRANSFER_FOOD_POOL, rng)
-        food_synset = entry[0] if entry else "cookie.n.01"
-    if source_synset is None:
-        entry = _pick_synset_with_model(TRANSFER_SOURCE_POOL, rng)
-        source_synset = entry[0] if entry else "plate.n.04"
-    if dest_synset is None:
-        entry = _pick_synset_with_model(TRANSFER_DEST_POOL, rng)
-        if entry:
-            dest_synset = entry[0]
-            if goal_predicate is None:
-                goal_predicate = entry[1]
-        else:
-            dest_synset = "bowl.n.01"
-    if goal_predicate is None:
-        goal_predicate = "inside"
-
-    cfgs, roles = [], {}
-    idx = 0
-    for synset, role in [(food_synset, "food"), (source_synset, "source"), (dest_synset, "dest")]:
-        cat = _synset_to_category(synset)
-        model = _pick_random_model(cat, rng)
-        if model:
-            name = f"{role}_{cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = role
-            idx += 1
-
-    selection = {
-        "food_synset": food_synset,
-        "source_synset": source_synset,
-        "dest_synset": dest_synset,
-        "goal_predicate": goal_predicate,
-    }
-    return cfgs, roles, selection
 
 
 # ---------------------------------------------------------------------------
@@ -369,10 +332,17 @@ def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection=
             target_synset=args.target_synset, stack_synset=args.stack_synset, rng=rng,
         )
     elif args.setup == "transfer":
+        sel = selection or {}
         return generate_transfer_activity(
             activity_name, support_synset, support_room,
-            food_synset=args.food_synset, source_synset=args.source_synset,
-            dest_synset=args.dest_synset, goal_predicate=args.goal_predicate, rng=rng,
+            food_category=sel.get("food_category"),
+            food_model=sel.get("food_model"),
+            source_category=sel.get("source_category"),
+            source_model=sel.get("source_model"),
+            dest_category=sel.get("dest_category"),
+            dest_model=sel.get("dest_model"),
+            goal_predicate=args.goal_predicate or sel.get("goal_predicate"),
+            rng=rng,
         )
     raise ValueError(f"Unknown setup: {args.setup}")
 
@@ -385,7 +355,7 @@ def setup_run_dir(args):
     from sentinel.task_generation.pipeline_common import init_run_dir
     label = f"empty_{args.surface_category or 'random'}_{args.setup}"
     init_run_dir(args, label)
-    args.scene_model = f"empty_{args.surface_category or 'random'}"
+    args.scene_model = None
     sys.stdout.flush()
 
 
@@ -411,18 +381,20 @@ def run_dry_run(args):
             target_synset=args.target_synset, stack_synset=args.stack_synset,
         )
     elif args.setup == "transfer":
-        dry_cfgs, dry_roles, dry_sel = _build_transfer_objects(
-            rng, food_synset=args.food_synset, source_synset=args.source_synset,
-            dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+        dry_cfgs, dry_roles, dry_sel = build_transfer_objects(
+            rng,
+            food_model=args.food_model,
+            source_model=args.source_model,
+            dest_model=args.dest_model,
+            goal_predicate=args.goal_predicate,
         )
     else:
         dry_sel = {}
 
-    # Patch args with resolved synsets for BDDL gen.
     if args.setup == "transfer":
-        args.food_synset = dry_sel.get("food_synset")
-        args.source_synset = dry_sel.get("source_synset")
-        args.dest_synset = dry_sel.get("dest_synset")
+        args.food_model = dry_sel.get("food_model")
+        args.source_model = dry_sel.get("source_model")
+        args.dest_model = dry_sel.get("dest_model")
         args.goal_predicate = dry_sel.get("goal_predicate")
     elif args.setup == "stack":
         args.target_synset = dry_sel.get("target_synset")
@@ -456,7 +428,7 @@ def _park_objects(objects_by_inst, og_mod):
 def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
                        surface_bounds_xy, table_top_z, floor_z,
                        obj_cfgs, roles, selection, activity_name, support_synset,
-                       surface_cat, surface_model):
+                       surface_cat, surface_model, ltl_safety=None):
     """Run a single episode (placement + rollout) on a live env.
 
     Objects are already in the scene (parked). This function unparks them,
@@ -558,33 +530,12 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
     # -- Transfer: teleport food onto source -------------------------------
     if args.setup == "transfer":
-        food_obj, source_obj = None, None
-        for name, role in roles_by_inst.items():
-            obj = objects_by_inst.get(name)
-            if obj is None:
-                continue
-            if role == "food" and food_obj is None:
-                food_obj = obj
-            elif role == "source" and source_obj is None:
-                source_obj = obj
+        from sentinel.task_generation.transfer_scene_pipeline import place_food_on_source
+        role_to_name = {r: n for n, r in roles_by_inst.items()}
+        food_obj = objects_by_inst.get(role_to_name.get("food"))
+        source_obj = objects_by_inst.get(role_to_name.get("source"))
         if food_obj and source_obj:
-            src_pos = source_obj.get_position_orientation()[0]
-            try:
-                src_top_z = float(source_obj.aabb[1][2])
-            except Exception:
-                src_top_z = float(src_pos[2]) + 0.03
-            try:
-                f_half_h = 0.5 * max(0.01, float(food_obj.aabb[1][2] - food_obj.aabb[0][2]))
-            except Exception:
-                f_half_h = 0.02
-            food_obj.set_position_orientation(
-                position=(float(src_pos[0]), float(src_pos[1]),
-                          src_top_z + f_half_h + 0.005),
-            )
-            if hasattr(food_obj, "keep_still"):
-                food_obj.keep_still()
-            og.sim.step()
-            print("[Pipeline] Food teleported onto source")
+            place_food_on_source(env, food_obj, source_obj)
 
     # -- Robot placement ---------------------------------------------------
     zone = compute_tabletop_zone(
@@ -672,12 +623,15 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
     append_jsonl(args.debug_jsonl, {
         "episode": ep + 1, "setup": args.setup,
+        "scene_model": args.scene_model,
         "surface": f"{surface_cat}/{surface_model}",
         "activity_name": activity_name,
         "gate_pass": gate_pass,
         "ltl_violated": summary["violated"],
         "steps_executed": executed,
         "selection": selection,
+        "ltl_safety": ltl_safety,
+        "cameras": list(getattr(args, "_resolved_video_views", ())),
     })
 
     # -- Park objects back -------------------------------------------------
@@ -714,9 +668,12 @@ def run_sim(args):
                     target_synset=args.target_synset, stack_synset=args.stack_synset,
                 )
             elif args.setup == "transfer":
-                obj_cfgs, roles, selection = _build_transfer_objects(
-                    rng, food_synset=args.food_synset, source_synset=args.source_synset,
-                    dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+                obj_cfgs, roles, selection = build_transfer_objects(
+                    rng,
+                    food_model=args.food_model,
+                    source_model=args.source_model,
+                    dest_model=args.dest_model,
+                    goal_predicate=args.goal_predicate,
                 )
             else:
                 raise ValueError(f"Unknown setup: {args.setup}")
@@ -853,6 +810,12 @@ def run_sim(args):
             for idx, (obj_cfgs, roles, selection, ep_seed) in enumerate(episode_data):
                 ep = batch_start + idx
 
+                rng_ltl = np.random.default_rng(ep_seed)
+                ltl_safety, selection = _generate_ltl_and_specs(
+                    args, activity_name, support_synset, rng_ltl,
+                    selection=selection,
+                )
+
                 print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
                 sys.stdout.flush()
                 _t_ep_start = _time.time()
@@ -870,6 +833,7 @@ def run_sim(args):
                         support_synset=support_synset,
                         surface_cat=surface_cat,
                         surface_model=surface_model,
+                        ltl_safety=ltl_safety,
                     )
                     print(f"[Pipeline] Episode {ep + 1} took {_time.time() - _t_ep_start:.1f}s")
                 except RuntimeError as e:

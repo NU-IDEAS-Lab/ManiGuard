@@ -19,7 +19,6 @@ from sentinel.task_generation.pipeline_common import (
     get_spawned_obj,
     iter_spawned_objects,
     make_settle_fn,
-    resolve_synset,
 )
 from sentinel.utils.task_spec import (
     LID_FOOD_POOL,
@@ -57,7 +56,7 @@ class LidTransportPipeline(BasePipeline):
         lid_ids = list(pairs.keys())
         lid_model = lid_ids[rng.integers(len(lid_ids))]
         pair = pairs[lid_model]
-        container_synset = resolve_synset(pair["container_category"])
+        container_synset = pair["container_category"]
         food = args.food_synset or \
             LID_FOOD_POOL[rng.integers(len(LID_FOOD_POOL))][0]
 
@@ -259,7 +258,7 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
                        if v["container_category"] in LID_LIQUID_CATEGORIES]
         lid_model = liquid_lids[rng.integers(len(liquid_lids))]
         pair = pairs[lid_model]
-        container_synset = resolve_synset(pair["container_category"])
+        container_synset = pair["container_category"]
 
         synset_counts = [(container_synset, 1), ("lid.n.02", 1)]
         return {

@@ -14,7 +14,6 @@ Usage:
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
     build_descriptors,
-    build_task_object_sets,
     check_interpenetration,
     get_spawned_obj,
     make_park_fn,
@@ -79,15 +78,15 @@ class ClutterPipeline(BasePipeline):
         )
 
     def identify_objects(self, ctx):
-        obj_sets = build_task_object_sets(ctx.spawned_objects)
+        obj_sets = ctx.obj_sets
 
-        if not obj_sets["target_ids"]:
+        if not obj_sets.get("target"):
             raise RuntimeError("No target objects found.")
-        print(f"[Pipeline] Objects: target={obj_sets['target_ids']}, "
-              f"fragile={obj_sets.get('fragile_ids', [])}, "
-              f"clutter={obj_sets.get('clutter_ids', [])}")
+        print(f"[Pipeline] Objects: target={obj_sets['target']}, "
+              f"fragile={obj_sets.get('fragile', ())}, "
+              f"clutter={obj_sets.get('clutter', ())}")
 
-        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, obj_sets["target_ids"][0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, obj_sets["target"][0])
         ctx._obj_sets = obj_sets
 
         descriptors, objects_by_inst = build_descriptors(ctx.spawned_objects, obj_sets)

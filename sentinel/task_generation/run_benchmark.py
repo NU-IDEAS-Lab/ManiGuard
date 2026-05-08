@@ -168,12 +168,12 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         if args.randomize:
             cmd.append("--randomize")
     if args.pipeline == "transfer":
-        if args.food_synset:
-            cmd.extend(["--food-synset", args.food_synset])
-        if args.source_synset:
-            cmd.extend(["--source-synset", args.source_synset])
-        if args.dest_synset:
-            cmd.extend(["--dest-synset", args.dest_synset])
+        if args.food_model:
+            cmd.extend(["--food-model", args.food_model])
+        if args.source_model:
+            cmd.extend(["--source-model", args.source_model])
+        if args.dest_model:
+            cmd.extend(["--dest-model", args.dest_model])
         if args.goal_predicate:
             cmd.extend(["--goal-predicate", args.goal_predicate])
     if args.pipeline.startswith("stack"):
@@ -327,9 +327,9 @@ def parse_args():
     p.add_argument("--randomize", action="store_true",
                    help="Randomize target, fragile, and clutter object types each episode")
     # Transfer pipeline flags.
-    p.add_argument("--food-synset", default=None, help="(transfer) Override food synset")
-    p.add_argument("--source-synset", default=None, help="(transfer) Override source synset")
-    p.add_argument("--dest-synset", default=None, help="(transfer) Override dest synset")
+    p.add_argument("--food-model", default=None, help="(transfer) Override food model id")
+    p.add_argument("--source-model", default=None, help="(transfer) Override source container model id")
+    p.add_argument("--dest-model", default=None, help="(transfer) Override dest container model id")
     p.add_argument("--goal-predicate", default=None, help="(transfer) Override goal predicate")
     # Stack pipeline flags.
     p.add_argument("--stack-height", default=None, help="(stack) Stack height preset")
@@ -434,9 +434,9 @@ def main():
         config_data["randomize"] = args.randomize
     if args.pipeline == "transfer":
         config_data.update({
-            "food_synset": args.food_synset,
-            "source_synset": args.source_synset,
-            "dest_synset": args.dest_synset,
+            "food_model": args.food_model,
+            "source_model": args.source_model,
+            "dest_model": args.dest_model,
             "goal_predicate": args.goal_predicate,
         })
     if args.pipeline.startswith("stack"):
