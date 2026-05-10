@@ -25,3 +25,7 @@ datasets/*
 # GraspGen client/server (NVlabs/GraspGen) — checkpoints + uv venv kept local
 GraspGen/
 GraspGenModels/
+
+# stack_pipeline raw raycast (122 MB; reproducible from scan_top_surface.py)
+sentinel/task_generation/utils/stack_pipeline/scan_top_full.json
+sentinel/task_generation/utils/stack_pipeline/__pycache__/
