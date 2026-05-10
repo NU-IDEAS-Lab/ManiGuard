@@ -18,7 +18,7 @@
   "counts": {
     "categories": 13,
     "models": 145,
-    "surfaces": 165,
+    "surfaces": 166,
     "skipped_not_ready": 47
   },
   "skipped_not_ready": [
@@ -2425,14 +2425,33 @@
         -0.801784
       ],
       "xy_max": [
+        -0.009,
+        0.80629
+      ],
+      "top_plane_z_local": 0.014046,
+      "area_m2": 1.284,
+      "reachable_edge_labels": [
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "puapey",
+      "region_id": "region_01",
+      "xy_min": [
+        0.001,
+        -0.801784
+      ],
+      "xy_max": [
         0.808215,
         0.80629
       ],
       "top_plane_z_local": 0.014046,
-      "area_m2": 2.598084,
+      "area_m2": 1.298,
       "reachable_edge_labels": [
         "x_max",
-        "x_min",
         "y_max",
         "y_min"
       ]
