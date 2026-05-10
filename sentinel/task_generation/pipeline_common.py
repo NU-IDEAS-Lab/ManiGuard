@@ -51,6 +51,12 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p = argparse.ArgumentParser(description=description)
     p.add_argument("--scene-model", default=None,
                    help="Scene to use. If omitted, auto-selects based on object footprint.")
+    p.add_argument("--surface-model", default=None,
+                   help="Pin the support-surface model id (e.g. 'puapey'). "
+                        "Pipeline still picks a region within the model based "
+                        "on required area.")
+    p.add_argument("--surface-category", default=None,
+                   help="Pin the support-surface category (e.g. 'desk').")
     p.add_argument("--activity-name", default=None)
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--episodes", type=int, default=1)
@@ -227,6 +233,33 @@ def is_structural_object(obj):
     if getattr(obj, "is_system", False):
         return True
     return any(token in name or token in cat for token in STRUCTURAL_CATEGORY_KEYWORDS)
+
+
+# Categories to hide for cleaner camera angles. Floors are kept visible —
+# we want to see the ground under the surface — and so are doors/windows
+# (they're useful spatial reference points). Visibility-only: physics,
+# collision, and LTL/goal predicates are unaffected.
+_HIDE_FOR_CAMERA_KEYWORDS = ("wall", "ceiling", "roof")
+
+
+def hide_walls_and_ceiling(env):
+    """Hide wall + ceiling geometry so external cameras aren't trapped against
+    surface back-walls (kitchen counters, etc.). Returns the names of hidden
+    objects so callers can log / restore.
+    """
+    hidden = []
+    for obj in env.scene.objects:
+        cat = str(getattr(obj, "category", "") or "").lower()
+        if not any(t in cat for t in _HIDE_FOR_CAMERA_KEYWORDS):
+            continue
+        try:
+            obj.visible = False
+        except Exception as exc:
+            log.warning("hide_walls_and_ceiling: %s.visible=False failed: %s",
+                        getattr(obj, "name", obj), exc)
+            continue
+        hidden.append(getattr(obj, "name", ""))
+    return hidden
 
 
 def _object_bounds_xy(obj):
@@ -1037,6 +1070,10 @@ class BasePipeline(ABC):
         support_name = str(getattr(ctx.support_obj, "name", "") or ctx.surface_name)
         if not pack_names or not support_name:
             return None
+        # Use a per-episode rng derived from the run seed so the goal
+        # sphere lands in a different reachable spot each episode while
+        # remaining reproducible for a given seed/episode pair.
+        ep_rng = np.random.default_rng(int(ctx.args.seed) + 13_000 * (ctx.episode + 1))
         spec = build_goal_region_spec(
             env=ctx.env,
             diagnostics={
@@ -1049,6 +1086,7 @@ class BasePipeline(ABC):
             target_name=str(getattr(ctx.target_obj, "name", "")),
             support_name=support_name,
             pack_object_names=pack_names,
+            rng=ep_rng,
         )
         return spec.to_json()
 
@@ -1124,7 +1162,12 @@ class BasePipeline(ABC):
         args._pre_selection = pre_selection
 
         required = pre_selection["required_area_m2"]
-        pick = pick_scene_from_placeable(rng_pre, required, scene_model=args.scene_model)
+        pick = pick_scene_from_placeable(
+            rng_pre, required,
+            scene_model=args.scene_model,
+            required_category=getattr(args, "surface_category", None),
+            required_model=getattr(args, "surface_model", None),
+        )
         args.scene_model = pick["scene_model"]
         args._picked_surface = pick
         print(f"[Pipeline] Scene={pick['scene_model']}, "
@@ -1175,7 +1218,12 @@ class BasePipeline(ABC):
               f"(min={min(required_areas):.3f}, "
               f"mean={sum(required_areas)/len(required_areas):.3f})")
 
-        pick = pick_scene_from_placeable(rng_pre, required, scene_model=args.scene_model)
+        pick = pick_scene_from_placeable(
+            rng_pre, required,
+            scene_model=args.scene_model,
+            required_category=getattr(args, "surface_category", None),
+            required_model=getattr(args, "surface_model", None),
+        )
         args.scene_model = pick["scene_model"]
         args._picked_surface = pick
         print(f"[Pipeline] Scene={pick['scene_model']}, "
@@ -1347,6 +1395,14 @@ class BasePipeline(ABC):
         env.reset()
         og.sim.step()
 
+        # Hide walls + ceiling — visibility-only, physics/gates unaffected.
+        # Surfaces mounted on walls (kitchen countertops) otherwise trap the
+        # external cameras inside the wall and produce solid-color frames.
+        hidden = hide_walls_and_ceiling(env)
+        if hidden:
+            print(f"[Pipeline] Hid {len(hidden)} structural objects "
+                  f"(walls/ceiling) for camera clearance")
+
         # -- Spawn ALL episodes' task objects upfront -----------------------
         episode_activities = ctx._episode_activities
         per_ep_spawned = []
@@ -1408,15 +1464,39 @@ class BasePipeline(ABC):
         ctx.support_obj = support_obj
         ctx.surface_name = getattr(support_obj, "name", "")
 
-        # Analyze the surface for obstacle/approach info.
+        print(f"[Pipeline] Support surface: {ctx.surface_name} ({target_category})")
+        # Pin support first so it cannot move, then compute geometry once.
+        if pin_support_object_to_world(support_obj):
+            print(f"[Pipeline] Pinned support to world: {support_obj.name}")
+        og.sim.step()
+
+        aabb_min, aabb_max = support_obj.aabb
+        # surface_bounds_xy comes from the raycast-validated placeable region
+        # (object-local, scale-invariant) carried in picked, transformed into
+        # world via support_obj's live pose. NOT the full object world AABB:
+        # this respects L/U shaped tables where the AABB includes empty
+        # corners, and picks the specific region (region_00 or region_01) the
+        # picker selected -- so 2-region models can expose their smaller
+        # region on its own merit.
+        ctx.surface_bounds_xy = region_bounds_to_world_xy(picked, support_obj)
+        ctx.picked_region = picked
+        # Top of the *placeable region*, not the object's full AABB. Matches
+        # the convention in empty_scene_pipeline: world top z = support's
+        # local-origin world z + top_plane_z_local (scaled). This matters
+        # for objects with vertical features rising above the placeable
+        # plane (e.g. desk/puapey's central divider, where aabb_max[2] is
+        # the divider top, ~30 cm above the desktop).
+        support_pos, _ = support_obj.get_position_orientation()
+        scale_z = float(support_obj.scale[2])
+        top_plane_local = float(picked.get("top_plane_z_local", 0.0))
+        ctx.table_top_z = float(support_pos[2]) + top_plane_local * scale_z
+        ctx.floor_z = float(aabb_min[2])
+
+        # Analyze the surface for obstacle/approach info using the picked
+        # region's bounds and the placeable plane's z (NOT the full object
+        # AABB) so 2-region models analyse only the half they were assigned.
         from sentinel.utils.surface_discovery import analyze_surface
         try:
-            aabb_min, aabb_max = support_obj.aabb
-            surface_aabb_xy = (
-                (float(aabb_min[0]), float(aabb_min[1])),
-                (float(aabb_max[0]), float(aabb_max[1])),
-            )
-            top_z = float(aabb_max[2])
             scene_data = []
             for obj in env.scene.objects:
                 try:
@@ -1439,34 +1519,15 @@ class BasePipeline(ABC):
                 d["aabb_xy"] for d in scene_data
                 if d["name"] != ctx.surface_name
                 and d["top_z"] >= 0.15
-                and d.get("bottom_z", 0) <= top_z + 0.3
+                and d.get("bottom_z", 0) <= ctx.table_top_z + 0.3
             ]
             ctx.surface_info = analyze_surface(
-                ctx.surface_name, target_category, surface_aabb_xy, top_z,
-                scene_data, scene_object_aabbs=other_aabbs,
+                ctx.surface_name, target_category, ctx.surface_bounds_xy,
+                ctx.table_top_z, scene_data, scene_object_aabbs=other_aabbs,
             )
         except Exception as exc:
             log.warning("surface analysis failed: %s", exc)
             ctx.surface_info = None
-
-        print(f"[Pipeline] Support surface: {ctx.surface_name} ({target_category})")
-        # Pin support first so it cannot move, then clear and compute geometry once.
-        if pin_support_object_to_world(support_obj):
-            print(f"[Pipeline] Pinned support to world: {support_obj.name}")
-        og.sim.step()
-
-        aabb_min, aabb_max = support_obj.aabb
-        # surface_bounds_xy comes from the raycast-validated placeable region
-        # (object-local, scale-invariant) carried in picked, transformed into
-        # world via support_obj's live pose. NOT the full object world AABB:
-        # this respects L/U shaped tables where the AABB includes empty
-        # corners, and picks the specific region (region_00 or region_01) the
-        # picker selected -- so 2-region models can expose their smaller
-        # region on its own merit.
-        ctx.surface_bounds_xy = region_bounds_to_world_xy(picked, support_obj)
-        ctx.picked_region = picked
-        ctx.table_top_z = float(aabb_max[2])
-        ctx.floor_z = float(aabb_min[2])
 
         clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
         ctx.removed_area_objects = clear_support_area(
@@ -1656,7 +1717,24 @@ class BasePipeline(ABC):
 
         ctx.goal_region = self.goal_region(ctx)
         if ctx.goal_region is not None:
-            spawn_goal_region_marker(ctx.env, GoalRegionSpec.from_json(ctx.goal_region))
+            # Park the previous episode's marker (if any) far below the
+            # floor and hide it, so only this episode's sphere shows.
+            # Mid-play env.scene.remove_object() trips OmniGibson's
+            # registry-staleness bug — the same reason we park task
+            # objects in _setup_session instead of removing them.
+            prev_marker = getattr(ctx, "_prev_goal_marker", None)
+            if prev_marker is not None:
+                try:
+                    prev_marker.set_position_orientation(
+                        position=(100.0, 100.0, -10.0),
+                        orientation=(0.0, 0.0, 0.0, 1.0),
+                    )
+                    prev_marker.visible = False
+                except Exception as exc:
+                    log.warning("park previous goal marker failed: %s", exc)
+            ctx._prev_goal_marker = spawn_goal_region_marker(
+                ctx.env, GoalRegionSpec.from_json(ctx.goal_region),
+            )
             og.sim.step()
         ctx.prompt = self.task_prompt(ctx)
 
