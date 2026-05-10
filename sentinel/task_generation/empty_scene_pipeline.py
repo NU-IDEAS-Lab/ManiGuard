@@ -45,13 +45,12 @@ from sentinel.task_generation.pipeline_common import (
     run_ltl_rollout,
 )
 from sentinel.task_generation.transfer_scene_pipeline import build_transfer_objects
+from sentinel.task_generation.utils.stack_pipeline.select import select_stack_objects
 from sentinel.utils.task_spec import (
     CLUTTER_POOL,
     DENSITY_PRESETS,
     FRAGILE_POOL,
     STACK_HEIGHT_PRESETS,
-    STACK_ITEM_POOL,
-    STACK_TARGET_POOL,
     TARGET_POOL,
     generate_clutter_activity as generate_activity,
     generate_stack_activity,
@@ -101,9 +100,17 @@ def parse_args():
     p.add_argument("--pack-jitter-xy", type=float, default=None)
     p.add_argument("--pack-min-clearance", type=float, default=None)
     # Stack.
+    p.add_argument("--stack-mode", default="same",
+                   choices=["same", "flat", "receptacle"],
+                   help="Stack variant: same target/item, flat target, or "
+                        "concave receptacle target.")
     p.add_argument("--stack-height", default="medium", choices=list(STACK_HEIGHT_PRESETS))
-    p.add_argument("--target-synset", default=None)
-    p.add_argument("--stack-synset", default=None)
+    p.add_argument("--target-model", default=None,
+                   help="Override target model id; category resolved from the "
+                        "stack-mode's pool.")
+    p.add_argument("--stack-model", default=None,
+                   help="Override stack-item model id; category resolved from "
+                        "the stack-mode's pool (or target pool in same-mode).")
     # Transfer.
     p.add_argument("--food-model", default=None,
                    help="Override food model id; category is inferred from compat matrix.")
@@ -269,40 +276,51 @@ def _build_clutter_objects(rng, density_key):
     return cfgs, roles, selection
 
 
-def _build_stack_objects(rng, stack_height_key, target_synset=None, stack_synset=None):
+def _build_stack_objects(rng, stack_height_key, mode="same",
+                         target_model=None, stack_model=None):
+    """Build stack-task object cfgs using the verified shared selector.
+
+    Delegates target/stack-item selection to ``select_stack_objects`` so
+    empty-scene and in-scene pipelines pull from the same pools (verified
+    self-stack pool for ``same``, geometric compat matrices for ``flat`` /
+    ``receptacle``). The role labels (target / stack) and instance-name
+    layout are empty-scene-specific.
+    """
     preset = STACK_HEIGHT_PRESETS[stack_height_key]
     stack_above = preset["stack_above"]
 
-    if target_synset is None:
-        entry = _pick_synset_with_model(STACK_TARGET_POOL, rng)
-        target_synset = entry[0] if entry else "plate.n.04"
-    if stack_synset is None:
-        entry = _pick_synset_with_model(STACK_ITEM_POOL, rng)
-        stack_synset = entry[0] if entry else "plate.n.04"
+    sel = select_stack_objects(
+        mode, rng, target_model=target_model, stack_model=stack_model,
+    )
+    target_cat = sel["target_category"]
+    target_model = sel["target_model"]
+    stack_cat = sel["stack_category"]
+    stack_model = sel["stack_model"]
 
     cfgs, roles = [], {}
     idx = 0
 
-    cat = _synset_to_category(target_synset)
-    model = _pick_random_model(cat, rng)
-    if model:
-        name = f"target_{cat}_{idx}"
-        cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-        roles[name] = "target"
+    name = f"target_{target_cat}_{idx}"
+    cfgs.append(_make_obj_cfg(name, target_cat, target_model,
+                              position=(100 + idx, 100, -100)))
+    roles[name] = "target"
+    idx += 1
+
+    for _ in range(stack_above):
+        name = f"stack_{stack_cat}_{idx}"
+        cfgs.append(_make_obj_cfg(name, stack_cat, stack_model,
+                                  position=(100 + idx, 100, -100)))
+        roles[name] = "stack"
         idx += 1
 
-    stack_cat = _synset_to_category(stack_synset)
-    for i in range(stack_above):
-        model = _pick_random_model(stack_cat, rng)
-        if model:
-            name = f"stack_{stack_cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, stack_cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = "stack"
-            idx += 1
-
     selection = {
-        "target_synset": target_synset,
-        "stack_synset": stack_synset,
+        "mode": mode,
+        "target_synset": sel["target_synset"],
+        "target_category": target_cat,
+        "target_model": target_model,
+        "stack_synset": sel["stack_synset"],
+        "stack_category": stack_cat,
+        "stack_model": stack_model,
         "stack_above": stack_above,
     }
     return cfgs, roles, selection
@@ -318,7 +336,7 @@ def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection=
     support_room = None  # No rooms in empty Scene.
     if args.setup == "clutter":
         pre = {
-            "target_synset": args.target_synset or (selection or {}).get("target_synset", "coffee_cup.n.01"),
+            "target_synset": (selection or {}).get("target_synset", "coffee_cup.n.01"),
             "fragile_picks": (selection or {}).get("fragile_synsets", []),
             "clutter_picks": [],
         }
@@ -327,9 +345,16 @@ def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection=
             rng=rng, pre_selection=pre,
         )
     elif args.setup == "stack":
+        sel = selection or {}
         return generate_stack_activity(
             activity_name, support_synset, support_room, args.stack_height,
-            target_synset=args.target_synset, stack_synset=args.stack_synset, rng=rng,
+            target_synset=sel.get("target_synset"),
+            target_category=sel.get("target_category"),
+            target_model=sel.get("target_model") or args.target_model,
+            stack_synset=sel.get("stack_synset"),
+            stack_category=sel.get("stack_category"),
+            stack_model=sel.get("stack_model") or args.stack_model,
+            mode=args.stack_mode,
         )
     elif args.setup == "transfer":
         sel = selection or {}
@@ -377,8 +402,8 @@ def run_dry_run(args):
         dry_cfgs, dry_roles, dry_sel = _build_clutter_objects(rng, args.clutter_density)
     elif args.setup == "stack":
         dry_cfgs, dry_roles, dry_sel = _build_stack_objects(
-            rng, args.stack_height,
-            target_synset=args.target_synset, stack_synset=args.stack_synset,
+            rng, args.stack_height, mode=args.stack_mode,
+            target_model=args.target_model, stack_model=args.stack_model,
         )
     elif args.setup == "transfer":
         dry_cfgs, dry_roles, dry_sel = build_transfer_objects(
@@ -397,8 +422,8 @@ def run_dry_run(args):
         args.dest_model = dry_sel.get("dest_model")
         args.goal_predicate = dry_sel.get("goal_predicate")
     elif args.setup == "stack":
-        args.target_synset = dry_sel.get("target_synset")
-        args.stack_synset = dry_sel.get("stack_synset")
+        args.target_model = dry_sel.get("target_model")
+        args.stack_model = dry_sel.get("stack_model")
 
     ltl_safety, selection = _generate_ltl_and_specs(
         args, activity_name, support_synset, rng, selection=dry_sel,
@@ -664,8 +689,8 @@ def run_sim(args):
                 obj_cfgs, roles, selection = _build_clutter_objects(rng, args.clutter_density)
             elif args.setup == "stack":
                 obj_cfgs, roles, selection = _build_stack_objects(
-                    rng, args.stack_height,
-                    target_synset=args.target_synset, stack_synset=args.stack_synset,
+                    rng, args.stack_height, mode=args.stack_mode,
+                    target_model=args.target_model, stack_model=args.stack_model,
                 )
             elif args.setup == "transfer":
                 obj_cfgs, roles, selection = build_transfer_objects(

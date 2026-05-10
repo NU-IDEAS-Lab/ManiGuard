@@ -574,6 +574,7 @@ DENSITY_PRESETS = {
 }
 
 STACK_HEIGHT_PRESETS = {
+    "single": {"stack_above": 1},
     "short": {"stack_above": 2},
     "medium": {"stack_above": 3},
     "tall": {"stack_above": 5},
@@ -604,62 +605,10 @@ CLUTTER_POOL = [
     ("coffee_cup.n.01", True),
 ]
 
-# Stack pools — (synset, typical_height_m)
-STACK_ITEM_POOL = [
-    ("plate.n.04", 0.020),
-    ("saucer.n.02", 0.015),
-    ("bowl.n.01", 0.060),
-]
-
-STACK_TARGET_POOL = [
-    ("plate.n.04", 0.020),
-    ("bowl.n.01", 0.060),
-]
-
-STACK_SAME_POOL = [
-    ("plate.n.04", 0.020),
-    ("saucer.n.02", 0.015),
-    ("bowl.n.01", 0.060),
-]
-
-STACK_FLAT_TARGET_POOL = [
-    ("tray.n.01", 0.025),
-    ("platter.n.01", 0.024),
-    ("chopping_board.n.01", 0.019),
-    ("place_mat.n.01", 0.004),
-    ("credit_card.n.01", 0.001),
-    ("postcard.n.01", 0.001),
-    ("rag.n.01", 0.001),
-    ("dinner_napkin.n.01", 0.023),
-    ("dishtowel.n.01", 0.031),
-    ("paper_towel.n.01", 0.005),
-    ("hand_towel.n.01", 0.048),
-    ("wax_paper.n.01", 0.015),
-    ("envelope.n.01", 0.001),
-    ("newspaper.n.03", 0.006),
-    ("magazine.n.01", 0.010),
-    ("letter.n.01", 0.012),
-    ("notebook.n.01", 0.028),
-    ("catalog.n.01", 0.006),
-    ("menu.n.01", 0.001),
-    ("clipboard.n.01", 0.010),
-    ("folder.n.02", 0.033),
-    ("mousepad.n.01", 0.006),
-    ("map.n.01", 0.003),
-    ("mail.n.04", 0.001),
-    ("receipt.n.02", 0.001),
-    ("money.n.01", 0.001),
-]
-
-STACK_RECEPTACLE_TARGET_POOL = [
-    ("bowl.n.01", 0.069),
-    ("mug.n.04", 0.082),
-    ("frying_pan.n.01", 0.107),
-    ("stockpot.n.01", 0.199),
-    ("casserole.n.02", 0.120),
-    ("wok.n.01", 0.110),
-    ("saucepan.n.01", 0.097),
-]
+# Stack pools live in
+# sentinel/task_generation/utils/stack_pipeline/{stack_same_pool,
+# stack_flat_compatibility, stack_recep_compatibility}.json and are loaded
+# via utils/stack_pipeline/select.py.
 
 LIQUID_CONTAINER_POOL = [
     ("mug.n.04", True),
@@ -1019,48 +968,26 @@ def generate_clutter_activity(
 
 def generate_stack_activity(
     activity_name, support_synset, support_room, stack_height_key,
-    target_synset=None, stack_synset=None,
-    mode="same",
-    rng=None,
+    *,
+    target_synset, target_category, target_model,
+    stack_synset, stack_category, stack_model,
+    mode,
 ):
     """Generate LTL safety + spawn specs for a stack-retrieval task.
 
-    Returns (ltl_safety, selection).
+    Caller (a stack pipeline) pre-resolves the target/stack identifiers via
+    ``utils/stack_pipeline/select.select_stack_objects``, which uses the
+    verified self-stack pool (``same``) or the geometric compat matrices
+    (``flat`` / ``receptacle``). All identifier kwargs are required.
     """
-    if rng is None:
-        rng = np.random.default_rng()
-
     preset = STACK_HEIGHT_PRESETS[stack_height_key]
     stack_above = preset["stack_above"]
 
-    if mode == "same":
-        if target_synset is None:
-            chosen = STACK_SAME_POOL[rng.integers(len(STACK_SAME_POOL))]
-            target_synset = chosen[0]
-        stack_synset = target_synset
-    elif mode == "flat":
-        if target_synset is None:
-            target_synset = STACK_FLAT_TARGET_POOL[rng.integers(len(STACK_FLAT_TARGET_POOL))][0]
-        if stack_synset is None:
-            stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
-    elif mode == "receptacle":
-        if target_synset is None:
-            target_synset = STACK_RECEPTACLE_TARGET_POOL[rng.integers(len(STACK_RECEPTACLE_TARGET_POOL))][0]
-        if stack_synset is None:
-            stack_synset = STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
-    else:
-        raise ValueError(f"Unknown stack mode: {mode!r}")
-
-    # Pin each role to a specific model for stable stacking.
-    target_cat, target_model = _pick_model_for_synset(target_synset, rng)
-    if mode == "same":
-        stack_cat, stack_model = target_cat, target_model
-    else:
-        stack_cat, stack_model = _pick_model_for_synset(stack_synset, rng)
-
     spawn_specs = [
-        _make_spawn_spec(target_synset, 1, "target", category=target_cat, model=target_model),
-        _make_spawn_spec(stack_synset, stack_above, "stack", category=stack_cat, model=stack_model),
+        _make_spawn_spec(target_synset, 1, "target",
+                         category=target_category, model=target_model),
+        _make_spawn_spec(stack_synset, stack_above, "stack",
+                         category=stack_category, model=stack_model),
     ]
 
     ltl_safety = generate_stack_ltl_safety_json(
@@ -1073,6 +1000,10 @@ def generate_stack_activity(
         "mode": mode,
         "target_synset": target_synset,
         "stack_synset": stack_synset,
+        "target_category": target_category,
+        "target_model": target_model,
+        "stack_category": stack_category,
+        "stack_model": stack_model,
         "stack_above": stack_above,
         "spawn_specs": spawn_specs,
     }
