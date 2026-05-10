@@ -15,7 +15,7 @@ to ``render_grasps.py`` and it will iterate the rest.
 Usage::
 
     python scripts/build_grasp_target_csv.py \\
-        --output sentinel/utils/franka_graspability_full.csv
+        --output sentinel/task_generation/utils/franka_graspability_full.csv
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def parse_args():
     p.add_argument("--dataset-root", type=Path,
                    default=Path("behavior-1k/datasets/behavior-1k-assets/objects"))
     p.add_argument("--output", type=Path,
-                   default=Path("sentinel/utils/franka_graspability_full.csv"))
+                   default=Path("sentinel/task_generation/utils/franka_graspability_full.csv"))
     p.add_argument("--max-dim", type=float, default=0.5,
                    help="Largest-bbox-dim threshold (m). Objects above this "
                         "are flagged 'too_large'.")

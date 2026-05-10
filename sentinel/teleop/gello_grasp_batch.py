@@ -18,7 +18,7 @@ Resume: rows whose .pt already exists are skipped.
 
 Usage:
     python -m sentinel.teleop.gello_grasp_batch \\
-        --csv sentinel/utils/franka_graspability.csv \\
+        --csv sentinel/task_generation/utils/franka_graspability.csv \\
         --limit 50 \\
         --output-dir outputs/grasp_datasets/teleop/tensors
 
@@ -87,7 +87,7 @@ def parse_args():
         description="GELLO -> Franka grasp teleop, batched over the survey CSV."
     )
     p.add_argument("--csv", type=Path,
-                   default=Path("sentinel/utils/franka_graspability.csv"))
+                   default=Path("sentinel/task_generation/utils/franka_graspability.csv"))
     p.add_argument("--output-dir", type=Path,
                    default=Path("outputs/grasp_datasets/teleop/tensors"),
                    help="Where ``grasps_{cat}_{model}.pt`` files land.")

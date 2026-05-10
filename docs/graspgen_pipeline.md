@@ -129,7 +129,7 @@ Flags worth knowing:
 | Flag | Default | Effect |
 |---|---|---|
 | `--targets cat:model ...` | (use CSV) | Skip CSV, run on listed objects only |
-| `--csv path` | `sentinel/utils/franka_graspability.csv` | Drive from a CSV with `category,model,status,...` columns |
+| `--csv path` | `sentinel/task_generation/utils/franka_graspability.csv` | Drive from a CSV with `category,model,status,...` columns |
 | `--exclude-statuses` | `too_large,no_grasp,no_candidates,timeout` | CSV statuses to skip; default keeps only `graspable` rows |
 | `--num-target-grasps N` | 1 | Phase A stops once N valid grasps collected per object |
 | `--save-grasp-dataset DIR` | unset | Write `grasps_{cat}_{model}.pt` per object |
