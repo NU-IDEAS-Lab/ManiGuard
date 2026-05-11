@@ -68,11 +68,21 @@ def _build_common_callbacks(args, out_dir: Path, algo_name: str) -> list:
 
 
 def _init_wandb(args, algo_name: str, extra_config: dict | None = None):
-    """Initialise a wandb run and return (wandb_run, WandbCallback) or (None, None)."""
+    """Initialise a wandb run and return (wandb_run, WandbCallback) or (None, None).
+
+    If ``<output-dir>/wandb_run_id.txt`` already exists (e.g. a watchdog
+    re-entered after a crash), resume that run instead of starting a new
+    one. Persists the run ID on first launch so subsequent attempts find it.
+    """
     if not args.wandb:
         return None, None
     import wandb
     from wandb.integration.sb3 import WandbCallback
+
+    out_dir = Path(args.output_dir).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    run_id_file = out_dir / "wandb_run_id.txt"
+    existing_run_id = run_id_file.read_text().strip() if run_id_file.exists() else None
 
     run_name = args.wandb_run_name or (
         f"{algo_name}_{args.category}_{args.model}_n{args.num_envs}_"
@@ -97,7 +107,7 @@ def _init_wandb(args, algo_name: str, extra_config: dict | None = None):
     if extra_config:
         config.update(extra_config)
 
-    run = wandb.init(
+    init_kwargs = dict(
         project=args.wandb_project,
         entity=args.wandb_entity,
         name=run_name,
@@ -106,6 +116,17 @@ def _init_wandb(args, algo_name: str, extra_config: dict | None = None):
         save_code=False,
         config=config,
     )
+    if existing_run_id:
+        # ``resume="allow"`` attaches to the existing run; the timeline
+        # continues seamlessly. The run name + config from the original
+        # ``init`` are preserved server-side.
+        init_kwargs["id"] = existing_run_id
+        init_kwargs["resume"] = "allow"
+        print(f"  resuming wandb run id:  {existing_run_id}", flush=True)
+
+    run = wandb.init(**init_kwargs)
+    if not existing_run_id:
+        run_id_file.write_text(run.id)
     cb = WandbCallback(
         model_save_path=str(Path(args.output_dir).resolve() / "ckpts")
         if args.wandb_upload_ckpts else None,
