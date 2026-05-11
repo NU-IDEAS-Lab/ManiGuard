@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Per-object Franka grasp evaluation + video/visualisation pipeline.
 
-For each row of ``sentinel/utils/franka_graspability.csv`` (or any
+For each row of ``sentinel/task_generation/utils/franka_graspability.csv`` (or any
 compatible CSV), spawns the target floating in front of a FrankaPanda,
 queries the GraspGen ZMQ server for 6-DoF grasp candidates, and runs
 each by descending confidence: cuRobo motion plan → close gripper
@@ -48,7 +48,7 @@ def parse_args():
         description="Render successful Franka grasps from the survey CSV into MP4s."
     )
     p.add_argument("--csv", type=Path,
-                   default=Path("sentinel/utils/franka_graspability.csv"),
+                   default=Path("sentinel/task_generation/utils/franka_graspability.csv"),
                    help="(category, model, status, ...) CSV that drives "
                         "the per-object loop. Status filtering is "
                         "controlled by --exclude-statuses.")
@@ -110,14 +110,10 @@ def parse_args():
     p.add_argument("--no-pcd-on-fail", action="store_true",
                    help="Skip the point-cloud PNG dump when an object "
                         "fails (default: dump it for diagnostic purposes).")
-    # RL grasp-dataset producer (.pt files in the format
-    # ``GraspDatasetResetter`` consumes; see sentinel/rl/grasps/reset.py).
+    # Deprecated: .pt files now go into the per-object subfolder.
     p.add_argument("--save-grasp-dataset", type=Path, default=None,
-                   help="If set, write ``grasps_{cat}_{model}.pt`` into "
-                        "this directory in the format "
-                        "sentinel.rl.grasps.reset.GraspDatasetResetter "
-                        "consumes (rel_position, rel_orientation_xyzw, "
-                        "gripper_qpos, arm_joint_pos, approach_traj).")
+                   help="(Deprecated, ignored) .pt files are now saved "
+                        "into each object's subfolder automatically.")
     p.add_argument("--num-target-grasps", type=int, default=1,
                    help="Phase A stops once this many valid grasps have "
                         "been collected per object. 1 = fastest per object; "
@@ -242,7 +238,7 @@ def _capture_frame(viewer_cam, target_hw=None):
     return arr
 
 
-def _render_one(env, primitives, category, model, args, video_path,
+def _render_one(env, primitives, category, model, args, obj_dir,
                 viewer_cam, deadline):
     """Two-phase per-object eval: search for valid grasps, then optionally
     record a video of the first one.
@@ -253,13 +249,9 @@ def _render_one(env, primitives, category, model, args, video_path,
         frame capture, then close + gravity-hold (also captured) and write
         the MP4 if it still holds.
 
-    Side effects:
-        - Always: top-K GraspGen poses → ``{stem}_grasps_*.png``.
-        - Phase A empty: ``{stem}_pcd_*.png`` for diagnostics.
-        - Phase A non-empty + ``--save-grasp-dataset`` set:
-          ``grasps_{cat}_{model}.pt`` (format consumed by
-          GraspDatasetResetter).
-        - Phase A non-empty + ``--save-video``: ``{stem}.mp4``.
+    All per-object artifacts (PNGs, MP4, .pt) are written into ``obj_dir``.
+    The caller is responsible for renaming the directory with a
+    ``_success`` / ``_fail`` suffix after this function returns.
 
     Returns the number of held grasps (0 = failure path).
     """
@@ -292,7 +284,8 @@ def _render_one(env, primitives, category, model, args, video_path,
     open_gripper_q = robot.joint_upper_limits[gripper_control_idx].clone()
     target_hw = (args.video_height, args.video_width)
     stem = f"{category}_{model}"
-    out_dir = video_path.parent
+    out_dir = obj_dir
+    video_path = obj_dir / f"{stem}.mp4"
 
     # Spawn target.
     name = f"render_target_{category}_{model}"
@@ -418,14 +411,13 @@ def _render_one(env, primitives, category, model, args, video_path,
             return 0
 
         print(f"    Phase A: {len(held)} valid grasps collected", flush=True)
-        # Save .pt dataset.
-        if args.save_grasp_dataset is not None:
-            try:
-                pt_path = args.save_grasp_dataset.resolve() / f"grasps_{stem}.pt"
-                save_grasp_dataset(held, pt_path, target_name=stem)
-                print(f"  wrote {pt_path.name} (N={len(held)})", flush=True)
-            except Exception as exc:  # noqa: BLE001
-                print(f"  grasp dataset save failed: {exc}", flush=True)
+        # Save .pt dataset into the per-object folder.
+        try:
+            pt_path = obj_dir / f"grasps_{stem}.pt"
+            save_grasp_dataset(held, pt_path, target_name=stem)
+            print(f"  wrote {pt_path.name} (N={len(held)})", flush=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  grasp dataset save failed: {exc}", flush=True)
 
         if not args.save_video:
             return len(held)
@@ -546,20 +538,17 @@ def main():
         print("Nothing to render.", flush=True)
         return
 
-    # Resume: skip rows that have artifacts from a prior run.
-    # - .pt file in --save-grasp-dataset dir → Phase A succeeded.
-    # - pcd_top.png in out_dir → Phase A produced 0 grasps.
-    # - mp4 in out_dir → Phase B succeeded (implies Phase A succeeded too).
-    pt_dir = args.save_grasp_dataset.resolve() if args.save_grasp_dataset else None
-
+    # Resume: skip rows whose per-object subfolder already exists
+    # (suffixed with _success or _fail from a prior run).
+    # Clean up un-suffixed dirs left by mid-object crashes so they retry.
     def _already_done(c, m):
-        if pt_dir is not None and (pt_dir / f"grasps_{c}_{m}.pt").exists():
-            return True
-        if (out_dir / f"{c}_{m}_pcd_top.png").exists():
-            return True
-        if (out_dir / f"{c}_{m}.mp4").exists():
-            return True
-        return False
+        stem = f"{c}_{m}"
+        incomplete = out_dir / stem
+        if incomplete.is_dir():
+            import shutil
+            shutil.rmtree(incomplete, ignore_errors=True)
+        return ((out_dir / f"{stem}_success").is_dir()
+                or (out_dir / f"{stem}_fail").is_dir())
 
     pending = [(c, m) for (c, m) in rows if not _already_done(c, m)]
     print(f"[{time.strftime('%H:%M:%S')}] {len(pending)} pending "
@@ -623,24 +612,21 @@ def main():
             n_done += 1
             t0 = time.time()
             deadline = t0 + args.per_object_timeout
-            video_path = out_dir / f"{cat}_{mdl}.mp4"
+            stem = f"{cat}_{mdl}"
+            obj_dir = out_dir / stem
+            obj_dir.mkdir(parents=True, exist_ok=True)
             print(f"\n[{time.strftime('%H:%M:%S')}] "
                   f"({n_done}/{len(pending)}) {cat}/{mdl}", flush=True)
             n_held = 0
             try:
                 n_held = _render_one(
                     env, primitives, cat, mdl, args,
-                    video_path, viewer_cam, deadline,
+                    obj_dir, viewer_cam, deadline,
                 )
             except Exception as exc:  # noqa: BLE001
                 import traceback
                 traceback.print_exc()
                 print(f"  ! {cat}/{mdl} failed: {exc}", flush=True)
-                # OG's articulation_view sometimes invalidates after many
-                # add/remove cycles; once that happens, every subsequent
-                # robot.get_joint_positions() returns None and the rest of
-                # this boot insta-fails. Bail out so the watchdog can
-                # restart with a fresh OG state.
                 msg = str(exc)
                 if ("NoneType" in msg and "view" in msg) or \
                    "articulation_view" in msg.lower():
@@ -651,18 +637,22 @@ def main():
                     sys.exit(2)
 
             elapsed = time.time() - t0
+            # Rename folder with success/fail suffix.
+            suffix = "_success" if n_held > 0 else "_fail"
+            final_dir = out_dir / f"{stem}{suffix}"
+            try:
+                if final_dir.exists():
+                    import shutil
+                    shutil.rmtree(final_dir)
+                obj_dir.rename(final_dir)
+            except Exception:  # noqa: BLE001
+                pass
             if n_held > 0:
                 n_ok += 1
                 print(f"  -> {n_held} valid grasps  ({elapsed:.1f}s)",
                       flush=True)
             else:
                 n_fail += 1
-                # Drop any incomplete file so resume retries it.
-                try:
-                    if video_path.exists():
-                        video_path.unlink()
-                except Exception:  # noqa: BLE001
-                    pass
                 print(f"  -> FAILED  ({elapsed:.1f}s)", flush=True)
     finally:
         print(f"\n[{time.strftime('%H:%M:%S')}] DONE. "
