@@ -29,3 +29,6 @@ GraspGenModels/
 # stack_pipeline raw raycast (122 MB; reproducible from scan_top_surface.py)
 sentinel/task_generation/utils/stack_pipeline/scan_top_full.json
 sentinel/task_generation/utils/stack_pipeline/__pycache__/
+
+# mkdocs build output (regenerable via `mkdocs build`)
+site/
