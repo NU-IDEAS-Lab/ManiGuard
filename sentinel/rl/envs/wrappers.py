@@ -136,6 +136,8 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     goal_region_spec = None
+    load_room_instances = None
+    scene_model = None
     diagnostics_file = getattr(args, "diagnostics_file", None)
     if diagnostics_file is not None:
         diag = _load_diagnostics(Path(diagnostics_file))
@@ -147,6 +149,10 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
             )
         if args.target_name is None:
             args.target_name = goal_region_spec.get("target_name")
+        room = (diag.get("support_selection") or {}).get("room_instance")
+        if room:
+            load_room_instances = [room]
+        scene_model = diag.get("scene_model")
 
     target_name = args.target_name or f"target_{args.category}_{args.model}"
     grasp_path = args.grasp_dataset_dir / f"grasps_{args.category}_{args.model}.pt"
@@ -167,6 +173,9 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
         grasp_reset_mode=args.reset_mode,
         arm_controller=args.arm_controller,
         goal_region_spec=goal_region_spec,
+        max_steps=getattr(args, "max_steps", 200),
+        load_room_instances=load_room_instances,
+        scene_model=scene_model if load_room_instances else None,
     )
     if verbose:
         print(f"[{time.strftime('%H:%M:%S')}] Booting OG "
