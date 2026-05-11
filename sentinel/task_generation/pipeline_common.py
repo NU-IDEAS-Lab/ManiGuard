@@ -803,6 +803,7 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
     """
     import omnigibson as og
     from sentinel.utils.safety_monitor import TaskLTLMonitor
+    from sentinel.utils.lid_attach import LidSnapper
 
     ltl_monitor = TaskLTLMonitor(
         env=env, activity_name=activity_name,
@@ -811,6 +812,10 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
     )
     ltl_monitor.reset()
     ltl_monitor.step(0)
+
+    # Eager (lid|cap, container) snap-attach. No-op when no eligible pair
+    # is loaded. Discovers pairs once at rollout start.
+    lid_snapper = LidSnapper(env)
 
     video_writers = []
     if args.save_video:
@@ -870,6 +875,9 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
         env._pre_step(action)
         og.sim.step()
         executed += 1
+
+        # Auto-attach lids placed within range of their canonical container.
+        lid_snapper.try_snap(robot=robot)
 
         # Record from all external cameras simultaneously (one render pass)
         if video_writers:
