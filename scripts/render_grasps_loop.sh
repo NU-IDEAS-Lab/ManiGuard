@@ -21,7 +21,7 @@ cd "$(dirname "$0")/.."
 
 # Required by render_grasps.
 : "${OUTPUT_DIR:=outputs/grasp_datasets/graspgen_full}"
-: "${CSV_PATH:=sentinel/utils/franka_graspability_full.csv}"
+: "${CSV_PATH:=sentinel/task_generation/utils/franka_graspability_full.csv}"
 : "${EXCLUDE_STATUSES:=too_large,degenerate_bbox,no_metadata,not_ready}"
 : "${NUM_TARGET_GRASPS:=5}"
 : "${PER_OBJECT_TIMEOUT:=150}"
@@ -30,16 +30,16 @@ cd "$(dirname "$0")/.."
 : "${NO_GROWTH_TIMEOUT:=300}"  # seconds of zero progress before SIGKILL
 : "${POLL_INTERVAL:=30}"
 
-DATASET_DIR="$OUTPUT_DIR/datasets"
 LOG="$OUTPUT_DIR/run.log"
-mkdir -p "$DATASET_DIR"
+mkdir -p "$OUTPUT_DIR"
 
 count_done() {
-    # A row is "done" iff it has a .pt (success) or _pcd_top.png (failure).
-    local pt fail
-    pt=$(find "$DATASET_DIR" -maxdepth 1 -name "grasps_*.pt" 2>/dev/null | wc -l)
-    fail=$(find "$OUTPUT_DIR" -maxdepth 1 -name "*_pcd_top.png" 2>/dev/null | wc -l)
-    echo $((pt + fail))
+    # A row is "done" iff its per-object subfolder has been renamed
+    # with a _success or _fail suffix.
+    local ok fail
+    ok=$(find "$OUTPUT_DIR" -maxdepth 1 -type d -name "*_success" 2>/dev/null | wc -l)
+    fail=$(find "$OUTPUT_DIR" -maxdepth 1 -type d -name "*_fail" 2>/dev/null | wc -l)
+    echo $((ok + fail))
 }
 
 kill_run() {
@@ -65,8 +65,8 @@ while true; do
                 --csv "$CSV_PATH" \
                 --exclude-statuses "$EXCLUDE_STATUSES" \
                 --output-dir "$OUTPUT_DIR" \
-                --save-grasp-dataset "$DATASET_DIR" \
                 --num-target-grasps "$NUM_TARGET_GRASPS" \
+                --graspgen-topk "${GRASPGEN_TOPK:-200}" \
                 --per-object-timeout "$PER_OBJECT_TIMEOUT" \
                 $video_flag \
                 --limit 0 >> "$LOG" 2>&1 &
