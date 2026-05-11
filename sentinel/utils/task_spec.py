@@ -779,25 +779,6 @@ WATER_SENSITIVE_POOL = [
     ("monitor.n.04",),
 ]
 
-LID_CONTAINER_POOL = [
-    ("stockpot.n.01",),
-    ("casserole.n.02",),
-    ("saucepan.n.01",),
-    ("wok.n.01",),
-    ("frying_pan.n.01",),
-]
-
-LID_FOOD_POOL = [
-    ("apple.n.01",),
-    ("egg.n.02",),
-    ("lemon.n.01",),
-    ("orange.n.01",),
-    ("potato.n.01",),
-    ("pear.n.01",),
-]
-
-LID_LIQUID_CATEGORIES = {"teapot", "kettle"}
-
 INVERT_CONTAINER_POOL = [
     ("mug.n.04",),
     ("coffee_cup.n.01",),
@@ -905,12 +886,14 @@ def get_lid_container_pairs():
 # Activity generators (pool selection + LTL generation + spawn specs)
 # ---------------------------------------------------------------------------
 
-def _make_spawn_spec(synset, count, role, category=None, model=None):
+def _make_spawn_spec(synset, count, role, category=None, model=None, abilities=None):
     if category is None:
         category = _synset_to_category(synset)
     spec = {"synset": synset, "category": category, "count": count, "role": role}
     if model is not None:
         spec["model"] = model
+    if abilities is not None:
+        spec["abilities"] = abilities
     return spec
 
 
@@ -1187,44 +1170,57 @@ def generate_wet_transport_activity(
     return ltl_safety, selection
 
 
+_ITEM_CATEGORY_TO_SYNSET = {"lid": "lid.n.02", "cap": "cap.n.02"}
+
+
+def _resolve_container_synset(container_category):
+    try:
+        from bddl.object_taxonomy import ObjectTaxonomy
+        return ObjectTaxonomy().get_synset_from_category(container_category)
+    except Exception:
+        return f"{container_category}.n.01"
+
+
 def generate_lid_transport_activity(
     activity_name: str,
     support_synset: str,
     support_room: Optional[str],
-    lid_model: Optional[str] = None,
-    food_synset: Optional[str] = None,
-    rng=None,
+    *,
+    item_category: str,
+    item_model: str,
+    container_category: str,
+    container_model: str,
+    food_synset: str,
+    food_category: Optional[str] = None,
+    food_model: Optional[str] = None,
 ) -> Tuple[dict, dict]:
-    """Generate LTL safety + spawn specs for a lid-before-transport task.
+    """Generate LTL safety + spawn specs for a lid-before-transport food task.
 
-    Returns (ltl_safety, selection).
+    Caller (the pipeline) pre-resolves all identifiers via
+    ``utils/lid_transport_pipeline/select.select_pair_for_food``. This
+    function is a pure transformer: build spawn specs + LTL, return.
+
+    ``item_category`` is ``"lid"`` or ``"cap"``; the corresponding wordnet
+    synset (``lid.n.02`` / ``cap.n.02``) is used for the spawn spec.
     """
-    if rng is None:
-        rng = np.random.default_rng()
+    if item_category not in _ITEM_CATEGORY_TO_SYNSET:
+        raise ValueError(f"Unknown item_category: {item_category!r}")
+    item_synset = _ITEM_CATEGORY_TO_SYNSET[item_category]
+    container_synset = _resolve_container_synset(container_category)
 
-    pairs = get_lid_container_pairs()
-    if lid_model is None:
-        lid_ids = list(pairs.keys())
-        lid_model = lid_ids[rng.integers(len(lid_ids))]
-
-    pair = pairs[lid_model]
-    container_category = pair["container_category"]
-    container_model = pair["container_model"]
-
-    try:
-        from bddl.object_taxonomy import ObjectTaxonomy
-        container_synset = ObjectTaxonomy().get_synset_from_category(container_category)
-    except Exception:
-        container_synset = f"{container_category}.n.01"
-
-    if food_synset is None:
-        food_synset = LID_FOOD_POOL[rng.integers(len(LID_FOOD_POOL))][0]
-
+    # Force `attachable` ability on container + lid/cap so AttachedTo is
+    # registered for categories that aren't taxonomy-attachable
+    # (cap.n.02, kettle, stockpot, …). Without this, the lid snapper
+    # finds no AttachedTo state and the eager attach is a no-op.
     spawn_specs = [
         _make_spawn_spec(container_synset, 1, "target",
-                         category=container_category, model=container_model),
-        _make_spawn_spec("lid.n.02", 1, "lid", category="lid", model=lid_model),
-        _make_spawn_spec(food_synset, 1, "food"),
+                         category=container_category, model=container_model,
+                         abilities={"attachable": {}}),
+        _make_spawn_spec(item_synset, 1, "lid",
+                         category=item_category, model=item_model,
+                         abilities={"attachable": {}}),
+        _make_spawn_spec(food_synset, 1, "food",
+                         category=food_category, model=food_model),
     ]
 
     ltl_safety = generate_lid_transport_ltl_safety_json(
@@ -1234,15 +1230,22 @@ def generate_lid_transport_activity(
     )
 
     selection = {
+        "item_category": item_category,
+        "item_model": item_model,
+        "item_synset": item_synset,
         "container_synset": container_synset,
         "container_category": container_category,
         "container_model": container_model,
-        "lid_model": lid_model,
         "food_synset": food_synset,
+        "food_category": food_category,
+        "food_model": food_model,
         "spawn_specs": spawn_specs,
+        # Backwards-compat aliases for older diagnostics consumers.
+        "lid_model": item_model,
     }
     print(f"[Pipeline] Lid transport: {container_category}/{container_model} "
-          f"+ lid/{lid_model}, food={food_synset}")
+          f"+ {item_category}/{item_model}, food={food_category or food_synset}"
+          f"/{food_model or '?'}")
     return ltl_safety, selection
 
 
@@ -1250,41 +1253,31 @@ def generate_lid_liquid_transport_activity(
     activity_name: str,
     support_synset: str,
     support_room: Optional[str],
-    lid_model: Optional[str] = None,
+    *,
+    item_category: str,
+    item_model: str,
+    container_category: str,
+    container_model: str,
     system_name: str = "water",
-    rng=None,
 ) -> Tuple[dict, dict]:
     """Generate LTL safety + spawn specs for lid-before-transport with liquid.
 
-    Returns (ltl_safety, selection).
+    Caller pre-resolves all identifiers via
+    ``utils/lid_transport_pipeline/select.select_pair_for_liquid``.
     """
-    if rng is None:
-        rng = np.random.default_rng()
+    if item_category not in _ITEM_CATEGORY_TO_SYNSET:
+        raise ValueError(f"Unknown item_category: {item_category!r}")
+    item_synset = _ITEM_CATEGORY_TO_SYNSET[item_category]
+    container_synset = _resolve_container_synset(container_category)
 
-    pairs = get_lid_container_pairs()
-    liquid_pairs = {k: v for k, v in pairs.items()
-                    if v["container_category"] in LID_LIQUID_CATEGORIES}
-    if not liquid_pairs:
-        raise RuntimeError("No liquid-compatible lid-container pairs found.")
-
-    if lid_model is None:
-        lid_ids = list(liquid_pairs.keys())
-        lid_model = lid_ids[rng.integers(len(lid_ids))]
-
-    pair = liquid_pairs[lid_model]
-    container_category = pair["container_category"]
-    container_model = pair["container_model"]
-
-    try:
-        from bddl.object_taxonomy import ObjectTaxonomy
-        container_synset = ObjectTaxonomy().get_synset_from_category(container_category)
-    except Exception:
-        container_synset = f"{container_category}.n.01"
-
+    # See generate_lid_transport_activity for why we force `attachable`.
     spawn_specs = [
         _make_spawn_spec(container_synset, 1, "target",
-                         category=container_category, model=container_model),
-        _make_spawn_spec("lid.n.02", 1, "lid", category="lid", model=lid_model),
+                         category=container_category, model=container_model,
+                         abilities={"attachable": {}}),
+        _make_spawn_spec(item_synset, 1, "lid",
+                         category=item_category, model=item_model,
+                         abilities={"attachable": {}}),
     ]
 
     ltl_safety = generate_lid_transport_ltl_safety_json(
@@ -1294,15 +1287,19 @@ def generate_lid_liquid_transport_activity(
     )
 
     selection = {
+        "item_category": item_category,
+        "item_model": item_model,
+        "item_synset": item_synset,
         "container_synset": container_synset,
         "container_category": container_category,
         "container_model": container_model,
-        "lid_model": lid_model,
         "system_name": system_name,
         "spawn_specs": spawn_specs,
+        # Backwards-compat aliases.
+        "lid_model": item_model,
     }
     print(f"[Pipeline] Lid liquid transport: {container_category}/{container_model} "
-          f"+ lid/{lid_model}, system={system_name}")
+          f"+ {item_category}/{item_model}, system={system_name}")
     return ltl_safety, selection
 
 

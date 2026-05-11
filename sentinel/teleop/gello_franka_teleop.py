@@ -81,17 +81,18 @@ from sentinel.teleop.so101_franka_teleop import _read_first_jsonl  # noqa: E402
 GELLO_PORT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTB8HNJP-if00-port0"
 GELLO_JOINT_IDS = (1, 2, 3, 4, 5, 6, 7)
 GELLO_JOINT_OFFSETS = [
-    # 2026-05-05 recal: ran gello_get_offset.py with --start-joints 0 0 0 0 0 0 0
-    # so each raw offset puts Franka cmd ≈ 0 at the calibration physical pose.
-    # Trims below shift cmd_at_cal to GELLO_CALIBRATION_FRANKA_POSE (relaxed
-    # rest pose). Per-joint: delta_offset = -CALIB_POSE[i] * sign[i].
+    # 2026-05-10 recal: ran gello_get_offset.py with --start-joints 0 0 0 0 0 0 0.
+    # Same calibration target as the 2026-05-05 run — only the raw multiples
+    # of π/2 changed because three servos (J3, J5, J7) wrapped to different
+    # turn counts on this power-up. Trims (J2, J4, J6) are unchanged.
+    # Per-joint: delta_offset = -CALIB_POSE[i] * sign[i].
     3 * np.pi / 2,                                    # J1: no trim (CALIB=0)
     2 * np.pi / 2 - np.pi / 4,                        # J2: sign=-1, want -π/4 → δ=-π/4
-    8 * np.pi / 2,                                    # J3: no trim (recal'd 14:33: drifted 4π/2 → 8π/2 = 2π more turns)
+    4 * np.pi / 2,                                    # J3: no trim (CALIB=0; was 8π/2 last recal — wrapped back 4π)
     1 * np.pi / 2 + np.pi / 4 + np.pi / 9,            # J4: sign=+1, want -π/4-π/9 → δ=+π/4+π/9
-    8 * np.pi / 2,                                    # J5: servo wrapped 2 turns; raw 4π must stay literal
+    -4 * np.pi / 2,                                   # J5: no trim (CALIB=0; servo wrapped to negative this time)
     1 * np.pi / 2 + 0.0175,                           # J6: sign=+1, want -0.0175 → δ=+0.0175
-    0 * np.pi / 2,                                    # J7: no trim (CALIB=0; previous -π/4 was a different mount)
+    4 * np.pi / 2,                                    # J7: no trim (CALIB=0; was 0π/2 — wrapped 4π more)
 ]
 GELLO_JOINT_SIGNS = (1, -1, 1, 1, 1, 1, 1)
 GELLO_GRIPPER_CONFIG = None  # no physical gripper attached yet — keyboard takes over
@@ -326,6 +327,12 @@ def main():
                              "contact. 'assisted' = AG raycast + FixedJoint weld when both "
                              "fingers contact. 'sticky' = any finger contact + close welds. "
                              "Use 'assisted' for thin/flat objects when slip is the bottleneck.")
+    parser.add_argument("--no-lid-snap", action="store_true",
+                        help="Disable the eager lid/cap → container "
+                             "snap-attach. By default, when an eligible "
+                             "pair is loaded, the lid auto-attaches when "
+                             "the lid is touching the container and the "
+                             "gripper has released it.")
     parser.add_argument("--gpu-dynamics", action="store_true",
                         help="Enable PhysX GPU dynamics (gm.USE_GPU_DYNAMICS=True). "
                              "REQUIRED for fluid / particle / cloth simulation — "
@@ -400,6 +407,11 @@ def main():
               f"(only_successes={args.only_successes})")
 
     robot = env.robots[0]
+
+    # Eager (lid|cap, container) snap-attach. No-op when no eligible pair
+    # is loaded. Discovery runs once, hooked after each env.step below.
+    from sentinel.utils.lid_attach import LidSnapper
+    lid_snapper = None if args.no_lid_snap else LidSnapper(env)
 
     # ----- Cameras -----
     _setup_cameras_for_scene(env, robot, args)
@@ -529,6 +541,9 @@ def main():
                 dtype=th.float32,
             )
             env.step(action)
+
+            if lid_snapper is not None:
+                lid_snapper.try_snap(robot=robot)
 
             # Auto-success — break the loop the moment the goal region fires.
             if success_checker is not None:
