@@ -208,6 +208,21 @@ def spawn_objects(env, spawn_specs, rng, episode_label=""):
                         role, category)
             category, model = _pick_model_for_category(category, rng)
 
+        spec_abilities = spec.get("abilities")
+        # OG's StatefulObject.__init__ only consults the BEHAVIOR taxonomy
+        # for default abilities when abilities=None — passing any dict
+        # REPLACES the taxonomy abilities entirely (stateful_object.py:122).
+        # That silently wipes out e.g. `fillable` on cartons when we add
+        # `attachable` to enable AttachedTo for lid/cap pairs. Merge our
+        # extras INTO the taxonomy abilities instead.
+        if spec_abilities is not None:
+            from omnigibson.objects.stateful_object import OBJECT_TAXONOMY
+            tax_synset = OBJECT_TAXONOMY.get_synset_from_category(category)
+            taxonomy_abilities = (OBJECT_TAXONOMY.get_abilities(tax_synset)
+                                  if tax_synset is not None else {})
+            merged_abilities = {**taxonomy_abilities, **spec_abilities}
+        else:
+            merged_abilities = None
         for _ in range(count):
             idx = category_counters.get(category, 0) + 1
             category_counters[category] = idx
@@ -217,7 +232,10 @@ def spawn_objects(env, spawn_specs, rng, episode_label=""):
             else:
                 inst_id = f"{category}_{idx}"
                 name = f"{role}_{category}_{idx}"
-            obj = DatasetObject(name=name, category=category, model=model)
+            kwargs = {"name": name, "category": category, "model": model}
+            if merged_abilities is not None:
+                kwargs["abilities"] = merged_abilities
+            obj = DatasetObject(**kwargs)
             env.scene.add_object(obj)
             obj.set_position_orientation(position=[0, 0, 10])
             registry[inst_id] = obj
@@ -343,11 +361,16 @@ def clear_support_area(env, support_obj, surface_bounds_xy, margin_m=0.60,
     expanded_bounds = _expanded_bounds(surface_bounds_xy, margin_m)
     support_name = getattr(support_obj, "name", "")
     scope_names = {getattr(obj, "name", "") for obj in (spawned_objects or {}).values()}
+    # Robot lives at world origin until place_franka_edge_aligned moves it;
+    # for surfaces near origin (e.g. Pomaria_1_int kitchen) it overlaps the
+    # support_bounds+margin and would otherwise be removed, leaving env.robots
+    # empty for the rest of setup.
+    robot_names = {getattr(r, "name", "") for r in (getattr(env, "robots", []) or [])}
 
     to_remove = []
     for obj in env.scene.objects:
         name = getattr(obj, "name", "")
-        if not name or name == support_name or name in scope_names:
+        if not name or name == support_name or name in scope_names or name in robot_names:
             continue
         if is_structural_object(obj):
             continue
@@ -376,6 +399,12 @@ def clear_robot_base_region(env, support_obj, base_xy, robot_half_extent_xy,
 
     support_name = getattr(support_obj, "name", "")
     scope_names = {getattr(obj, "name", "") for obj in (spawned_objects or {}).values()}
+    # Don't remove the robot itself: in scenes where the picked surface is
+    # near the robot's initial pose (e.g. Pomaria_1_int kitchen near world
+    # origin), the keepout region overlaps the robot and would otherwise
+    # delete every Franka link prim (panda_link0..7, eef_link, ...),
+    # invalidating the eef_link RigidPrimView via _on_prim_deletion.
+    robot_names = {getattr(r, "name", "") for r in (getattr(env, "robots", []) or [])}
     hx = float(robot_half_extent_xy[0]) + margin_m
     hy = float(robot_half_extent_xy[1]) + margin_m
     keepout_bounds = _oriented_keepout_bounds_xy(
@@ -390,7 +419,7 @@ def clear_robot_base_region(env, support_obj, base_xy, robot_half_extent_xy,
     to_remove = []
     for obj in env.scene.objects:
         name = getattr(obj, "name", "")
-        if not name or name == support_name or name in scope_names:
+        if not name or name == support_name or name in scope_names or name in robot_names:
             continue
         if is_structural_object(obj):
             continue
@@ -1290,9 +1319,19 @@ class BasePipeline(ABC):
         cfg = build_task_config(args.scene_model)
         cfg["scene"]["scene_file"] = scene_json
         cfg["scene"]["scene_instance"] = None
-        if room_instance:
+        # Partial-room load is incompatible with GPU dynamics + spawning new
+        # articulated objects: PhysX pre-allocates a GPU articulation pool
+        # sized for the partially-loaded room, and the post-spawn sim.step()
+        # fires kernels that read past the pool with CUDA 700 (illegal
+        # address). Confirmed via /tmp/gpu_dynamics_full.py bisect — same
+        # config minus partial-room passes. For substance/liquid pipelines
+        # we accept the slower full-scene load.
+        if room_instance and not gm.USE_GPU_DYNAMICS:
             cfg["scene"]["load_room_instances"] = [room_instance]
             print(f"[Pipeline] Partial load: room={room_instance}")
+        elif room_instance:
+            print(f"[Pipeline] Partial load skipped (GPU dynamics on): "
+                  f"loading full scene {args.scene_model}")
 
         # 3 external cameras (canonical names + resolution shared across
         # task-generation, teleop, training, eval).
