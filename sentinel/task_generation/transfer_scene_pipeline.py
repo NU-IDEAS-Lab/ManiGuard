@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 # Transfer object selection: data paths, constants, and compatibility logic
 # ---------------------------------------------------------------------------
 
-_UTILS_DIR = os.path.join(os.path.dirname(__file__), "utils")
+_UTILS_DIR = os.path.join(os.path.dirname(__file__), "utils", "food_transfer_pipeline")
 _COMPAT_PATH = os.path.join(_UTILS_DIR, "transfer_compatibility.json")
 
 # Categories excluded by ROLE (matrix is keyed by individual model; these
@@ -224,31 +224,38 @@ def _upright_half_height(obj):
 # ---------------------------------------------------------------------------
 
 def place_food_on_source(env, food_obj, source_obj, settle_steps=60):
-    """Teleport the food just above the source rim, then settle into the cavity.
+    """Teleport the food just above the source's actual cavity opening,
+    then settle into the cavity.
 
-    Per-failure debug from a 10-ep run showed the food hovering 5-300mm above
-    the source rim because we only stepped sim 1-2 times after teleport,
-    nowhere near long enough for gravity to drop it into the cavity (1 step
-    @ 60Hz = 16.7ms = 1.4mm of fall). ``settle_steps`` runs enough physics
-    iterations for the food to actually descend into the source's interior
-    cavity, where the OnTop / Inside predicates can succeed.
+    Drop XY comes from the offline-derived opening centroid in
+    ``container_openings.json`` (offset relative to AABB center, applied
+    to the live AABB center at runtime). For wide-mouth containers this
+    is ~AABB center; for cap-style spouts and asymmetric jars it
+    correctly aims at the opening, not the closed body.
+
+    ``settle_steps`` runs enough physics iterations for the food to
+    actually descend into the source's interior cavity (1 step @ 60Hz
+    = 1.4mm of fall), where Inside / OnTop predicates can succeed.
     """
     import omnigibson as og
+    from sentinel.task_generation.utils.food_transfer_pipeline.lookup import (
+        container_drop_xy,
+    )
 
-    src_pos = source_obj.get_position_orientation()[0]
     src_top_z = float(source_obj.aabb[1][2])
     food_half_h = _upright_half_height(food_obj)
-
     z = src_top_z + food_half_h + 0.005
+
+    cx, cy = container_drop_xy(source_obj)
     food_obj.set_position_orientation(
-        position=(float(src_pos[0]), float(src_pos[1]), z),
+        position=(cx, cy, z),
         orientation=(0, 0, 0, 1),
     )
     food_obj.keep_still()
     for _ in range(settle_steps):
         og.sim.step()
     final_z = float(food_obj.get_position_orientation()[0][2])
-    print(f"[Pipeline] Teleported food onto source at z={z:.3f}, "
+    print(f"[Pipeline] Food drop xy=({cx:.3f}, {cy:.3f}) from z={z:.3f}, "
           f"settled to z={final_z:.3f} after {settle_steps} steps")
 
 
