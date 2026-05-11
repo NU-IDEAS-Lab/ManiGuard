@@ -180,7 +180,7 @@ class GraspDatasetResetter:
         if self._reset_mode == "ik":
             self._ensure_curobo()
         import omnigibson as og
-        from omnigibson.object_states import Touching
+        from omnigibson.controllers.controller_base import IsGraspingState
 
         # Pre-build a "hold" action so the arm doesn't collapse under gravity
         # during settle steps. OSC pose_delta_ori with zero delta = keep
@@ -266,7 +266,7 @@ class GraspDatasetResetter:
                 self._robot.apply_action(hold_action)
                 og.sim.step()
 
-            if self._robot.states[Touching].get_value(self._target_obj):
+            if self._robot.is_grasping(self._arm, self._target_obj) == IsGraspingState.TRUE:
                 return True
 
             # Not touching — grasp didn't physically hold. Clean up so the
