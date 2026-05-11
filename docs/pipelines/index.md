@@ -6,6 +6,11 @@ support surface in the given scene, generates BDDL + `ltl_safety.json` at
 runtime, spawns objects, places the robot, runs gate checks, and executes an
 LTL-monitored rollout.
 
+The cross-cutting [Data flow](data_flow.md) page describes the four-stage
+architecture every pipeline shares: offline JSON pool generation (raycast
+scans + admission filters) → object selection → scene + surface selection →
+placement.
+
 ## Pipelines
 
 | Pipeline | Module | One-liner |
