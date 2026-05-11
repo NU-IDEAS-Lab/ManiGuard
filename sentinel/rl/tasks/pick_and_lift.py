@@ -48,15 +48,20 @@ _LIFT_HOLD_THRESHOLD = 0.0  # kept for signature compatibility; no longer gates
 
 
 def _is_physically_holding(robot, obj, init_obj_z: float) -> bool:
-    """Return True if the robot is in contact with ``obj``.
+    """Return True if the robot's assisted-grasp controller reports a hold.
 
-    ``init_obj_z`` is retained in the signature for back-compat with existing
-    call sites but is no longer used (see module docstring above for why).
+    Uses AG's ``is_grasping`` so the reward/termination gate is consistent
+    with the grasp-collection pipeline (which validates grasps under AG).
+    Falls back to ``Touching`` if AG is unavailable (e.g. physical mode).
     """
+    from omnigibson.controllers.controller_base import IsGraspingState
     try:
-        return robot.states[Touching].get_value(obj)
-    except Exception:  # noqa: BLE001 — conservative fallback if state unavailable
-        return False
+        return robot.is_grasping(robot.default_arm, obj) == IsGraspingState.TRUE
+    except Exception:  # noqa: BLE001
+        try:
+            return robot.states[Touching].get_value(obj)
+        except Exception:  # noqa: BLE001
+            return False
 
 
 class InGoalRegion(SuccessCondition):
