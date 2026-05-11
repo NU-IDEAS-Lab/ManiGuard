@@ -65,6 +65,7 @@ nav:
       - Overview: architecture/overview.md
   - Task Generation:
       - Pipelines overview: pipelines/index.md
+      - Data flow: pipelines/data_flow.md
       - Tabletop clutter: pipelines/clutter.md
       - Stack retrieval: pipelines/stack.md
       - Food transfer: pipelines/transfer.md
