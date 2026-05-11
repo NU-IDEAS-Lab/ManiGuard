@@ -16,9 +16,22 @@ SPHERE_GOAL_FAMILIES = {
     "lid_transport_liquid",
 }
 
-GOAL_REGION_COLOR_RGBA = (0.10, 0.80, 0.20, 0.18)
+GOAL_REGION_COLOR_RGBA = (0.10, 0.80, 0.20, 0.60)
 GOAL_REGION_DISTANCE_SCALE = 1.5
-GOAL_REGION_RADIUS_SCALE = 0.30
+GOAL_REGION_RADIUS_SCALE = 0.45
+
+# Random-placement reach polygon in robot-local frame (Franka on stand).
+# x = forward distance from base, y = lateral; tuned to keep the sphere
+# inside the arm's typical IK-feasible workspace at table height.
+GOAL_RANDOM_X_RANGE_M = (0.30, 0.65)
+GOAL_RANDOM_Y_RANGE_M = (-0.40, 0.40)
+# z range is anchored to the support top, not robot frame (so the
+# sphere always sits above the table regardless of robot mount height).
+GOAL_RANDOM_Z_ABOVE_SUPPORT_RANGE_M = (0.08, 0.30)
+# Reject a sample if it overlaps the pack with less than this margin
+# (in target-widths). Keeps the sphere visibly separate from the stack.
+GOAL_RANDOM_PACK_CLEARANCE_TARGET_WIDTHS = 1.2
+GOAL_RANDOM_MAX_TRIES = 50
 
 FAMILY_ALIASES = {
     "clutter": "table",
@@ -446,7 +459,16 @@ def build_goal_region_spec(
     color_rgba: Sequence[float] = GOAL_REGION_COLOR_RGBA,
     distance_scale: float = GOAL_REGION_DISTANCE_SCALE,
     radius_scale: float = GOAL_REGION_RADIUS_SCALE,
+    rng=None,
 ) -> GoalRegionSpec:
+    """Build the green goal-sphere spec.
+
+    If ``rng`` (a numpy Generator) is provided, the sphere centre is
+    sampled uniformly in the robot-local reach polygon and at a random
+    z above the support top, rejecting samples that overlap the pack.
+    If ``rng`` is None, the legacy deterministic placement (1.5×
+    target-width to the left of the pack) is used.
+    """
     family = canonicalize_family(family)
     if family not in SPHERE_GOAL_FAMILIES:
         raise ValueError(f"Family {family} does not use a goal region sphere")
@@ -479,14 +501,42 @@ def build_goal_region_spec(
     support_world_xy = _support_bounds_world_xy(diagnostics, support_obj)
     support_local_bounds = _local_xy_bounds_from_world_bounds(robot_pos, robot_quat, support_world_xy, support_top_z)
 
-    desired_x = float(target_center_local[0])
-    desired_y = float(pack_local_bounds[1][1]) + float(distance_scale) * target_width
-    anchor_x = desired_x
-    anchor_y = desired_y
     clamped = False
+    if rng is None:
+        # Legacy deterministic placement.
+        desired_x = float(target_center_local[0])
+        desired_y = float(pack_local_bounds[1][1]) + float(distance_scale) * target_width
+        anchor_x = desired_x
+        anchor_y = desired_y
+        center_x, center_y = _local_xy_to_world(robot_pos, robot_quat, anchor_x, anchor_y)
+        center_z = support_top_z + target_half_h
+    else:
+        # Random placement inside the robot's reach polygon. Reject
+        # samples that overlap the object pack to avoid burying the
+        # sphere in the stack.
+        pack_min_xy = pack_local_bounds[0]
+        pack_max_xy = pack_local_bounds[1]
+        pack_cx = 0.5 * (float(pack_min_xy[0]) + float(pack_max_xy[0]))
+        pack_cy = 0.5 * (float(pack_min_xy[1]) + float(pack_max_xy[1]))
+        pack_half_w = max(
+            float(pack_max_xy[0]) - pack_cx,
+            float(pack_max_xy[1]) - pack_cy,
+            target_width,
+        )
+        clear_dist = pack_half_w + GOAL_RANDOM_PACK_CLEARANCE_TARGET_WIDTHS * target_width
 
-    center_x, center_y = _local_xy_to_world(robot_pos, robot_quat, anchor_x, anchor_y)
-    center_z = support_top_z + target_half_h
+        anchor_x = float(target_center_local[0])
+        anchor_y = float(pack_local_bounds[1][1]) + float(distance_scale) * target_width
+        for _ in range(GOAL_RANDOM_MAX_TRIES):
+            cand_x = float(rng.uniform(*GOAL_RANDOM_X_RANGE_M))
+            cand_y = float(rng.uniform(*GOAL_RANDOM_Y_RANGE_M))
+            dx = cand_x - pack_cx
+            dy = cand_y - pack_cy
+            if (dx * dx + dy * dy) ** 0.5 >= clear_dist:
+                anchor_x, anchor_y = cand_x, cand_y
+                break
+        center_x, center_y = _local_xy_to_world(robot_pos, robot_quat, anchor_x, anchor_y)
+        center_z = support_top_z + float(rng.uniform(*GOAL_RANDOM_Z_ABOVE_SUPPORT_RANGE_M))
 
     return GoalRegionSpec(
         mode="held_intersection",
@@ -535,6 +585,9 @@ def spawn_goal_region_marker(env, spec: GoalRegionSpec):
     )
     env.scene.add_object(marker)
     marker.set_position_orientation(position=spec.center_world, orientation=(0.0, 0.0, 0.0, 1.0))
+    print(f"[goal_region] spawned {spec.marker_name} at "
+          f"{tuple(round(v, 3) for v in spec.center_world)} "
+          f"radius={spec.radius_m:.3f} rgba={spec.color_rgba}")
     for visual_mesh in marker.root_link.visual_meshes.values():
         material = visual_mesh.material
         if material is None:
@@ -571,7 +624,7 @@ def robot_holds_target(env, target_obj) -> bool:
     robot = env.robots[0] if env.robots else None
     if robot is None:
         return False
-    from omnigibson.utils.constants import IsGraspingState
+    from omnigibson.controllers.controller_base import IsGraspingState
     result = robot.is_grasping(candidate_obj=target_obj)
     return result == IsGraspingState.TRUE
 
