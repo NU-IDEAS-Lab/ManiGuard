@@ -1,12 +1,12 @@
 """Regenerate transfer_compatibility.json from food + container geometry.
 
 Geometric filter: a food fits in a container iff
-    max(food.bbox_dims_m) <= container.opening_minor_m
+    max(food.bbox_dims_m) <= container.opening_square_side_m
 
-That is, the food's longest 3D dimension (any of x/y/z) must fit through
-the container's narrowest opening dim. Fully 3D-rotation-independent: the
-food drops in regardless of how it's tumbled. Strictest possible
-orientation-free fit test.
+That is, the food's longest 3D dimension (any of x/y/z) must fit inside
+the largest axis-aligned square that fits in the cavity opening (from
+the top-down raycast in derive_container_openings). 3D-rotation
+independent — the food drops in regardless of how it's tumbled.
 
 Asset-readiness filter (from docs/graspability_classified.csv):
   * food: status=graspable AND food_transfer_target in {perfect, possible}
@@ -16,11 +16,11 @@ Models flagged ``too_large``, ``not_ready``, ``no_grasp``, or
 ``degenerate_bbox`` are excluded — these have unresolved asset complaints.
 
 Reads:
-    sentinel/task_generation/utils/food_cross_sections.json
-    sentinel/task_generation/utils/wide_opening_sizes.json
+    sentinel/task_generation/utils/food_transfer_pipeline/food_cross_sections.json
+    sentinel/task_generation/utils/food_transfer_pipeline/container_openings.json
     docs/graspability_classified.csv
 Writes:
-    sentinel/task_generation/utils/transfer_compatibility.json
+    sentinel/task_generation/utils/food_transfer_pipeline/transfer_compatibility.json
 """
 from __future__ import annotations
 
@@ -29,11 +29,11 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-UTILS_DIR = ROOT / "sentinel" / "task_generation" / "utils"
-FOOD_PATH = UTILS_DIR / "food_cross_sections.json"
-OPEN_PATH = UTILS_DIR / "wide_opening_sizes.json"
-OUT_PATH = UTILS_DIR / "transfer_compatibility.json"
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[3]   # repo root: …/SENTINEL-Lite
+FOOD_PATH = HERE / "food_cross_sections.json"
+OPEN_PATH = HERE / "container_openings.json"
+OUT_PATH = HERE / "transfer_compatibility.json"
 GRASP_CSV = ROOT / "docs" / "graspability_classified.csv"
 
 _USABLE_SUITABILITY = {"perfect", "possible"}
@@ -44,7 +44,7 @@ def load_foods() -> list[tuple[str, str, float]]:
 
     ``max_bbox_dim_m`` is ``max(bbox_dims_m)`` — the food's longest 3D dim
     across any axis. The filter requires this to fit through the
-    container's narrowest opening dim.
+    container's largest inscribed-square opening.
     """
     with open(FOOD_PATH) as f:
         raw = json.load(f)
@@ -58,18 +58,34 @@ def load_foods() -> list[tuple[str, str, float]]:
     return rows
 
 
-def load_containers() -> list[tuple[str, str, float, float]]:
-    """Return [(category, model, opening_major_m, opening_minor_m), ...]."""
+def load_containers() -> list[dict]:
+    """Return container entries with opening geometry, only ``scan_status='ok'``.
+
+    Each entry: ``{category, model, opening_square_side_m, centroid_xy,
+    floor_z_above_aabb_min_m, floor_depth_below_aabb_top_m, area_m2}``.
+    """
     with open(OPEN_PATH) as f:
         raw = json.load(f)
     rows = []
-    for cat, cat_info in raw.items():
+    for cat, cat_info in raw.get("containers", {}).items():
         for m in cat_info.get("models", []):
-            op_maj = m.get("opening_major_m")
-            op_min = m.get("opening_minor_m")
-            if op_maj is None or op_min is None:
+            if m.get("scan_status") != "ok":
                 continue
-            rows.append((cat, m["model"], float(op_maj), float(op_min)))
+            side = m.get("opening_square_side_m")
+            if side is None or side <= 0:
+                continue
+            rows.append({
+                "category": cat,
+                "model": m["model"],
+                "opening_square_side_m": float(side),
+                "opening_centroid_xy_relative_to_aabb_center_m":
+                    m.get("opening_centroid_xy_relative_to_aabb_center_m", [0.0, 0.0]),
+                "opening_floor_z_above_aabb_min_m":
+                    float(m.get("opening_floor_z_above_aabb_min_m", 0.0)),
+                "opening_floor_depth_below_aabb_top_m":
+                    float(m.get("opening_floor_depth_below_aabb_top_m", 0.0)),
+                "opening_area_m2": float(m.get("opening_area_m2", 0.0)),
+            })
     return rows
 
 
@@ -102,24 +118,32 @@ def main() -> int:
 
     # Filter by asset readiness up front.
     foods = [(c, m, mj) for (c, m, mj) in foods if (c, m) in food_ok]
-    containers = [(c, m, mj, mn) for (c, m, mj, mn) in containers if (c, m) in container_ok]
+    containers = [c for c in containers if (c["category"], c["model"]) in container_ok]
     print(f"After readiness filter: {len(foods)} foods, {len(containers)} containers.")
 
     # Sort foods by (category, model) for deterministic output.
     foods.sort()
 
     out: dict[str, dict] = {}
-    for c_cat, c_model, op_maj, op_min in containers:
+    for c in containers:
+        side = c["opening_square_side_m"]
         fit = [
             {"category": f_cat, "model": f_model}
             for f_cat, f_model, f_max in foods
-            if f_max <= op_min
+            if f_max <= side
         ]
-        out[f"{c_cat}/{c_model}"] = {
-            "category": c_cat,
-            "model": c_model,
-            "opening_major_m": round(op_maj, 4),
-            "opening_minor_m": round(op_min, 4),
+        cx, cy = c["opening_centroid_xy_relative_to_aabb_center_m"]
+        out[f"{c['category']}/{c['model']}"] = {
+            "category": c["category"],
+            "model": c["model"],
+            "opening_square_side_m": round(side, 4),
+            "opening_centroid_xy_relative_to_aabb_center_m":
+                [round(float(cx), 4), round(float(cy), 4)],
+            "opening_floor_z_above_aabb_min_m":
+                round(c["opening_floor_z_above_aabb_min_m"], 4),
+            "opening_floor_depth_below_aabb_top_m":
+                round(c["opening_floor_depth_below_aabb_top_m"], 4),
+            "opening_area_m2": round(c["opening_area_m2"], 6),
             "n_food_models_fit": len(fit),
             "food_models": fit,
         }
