@@ -155,8 +155,8 @@ class PickAndLiftReward(BaseRewardFunction):
         reward = 0.0
         info = {"grasping": grasping}
 
-        # Collision penalty
-        if detect_robot_collision_in_sim(robot, filter_objs=[self._obj]):
+        # Collision penalty (skip the expensive query when penalty is zero)
+        if self.collision_penalty > 0 and detect_robot_collision_in_sim(robot, filter_objs=[self._obj]):
             reward -= self.collision_penalty
             info["collision"] = True
 
@@ -300,10 +300,10 @@ class PickAndLiftTask(GraspTask):
         # re-collect with collision-aware sampling, zero the penalty so
         # grasp_reward + carry_shaping aren't drowned by -1/step collisions.
         return {
-            "pregrasp_dist_coeff": 1.0,
-            "carry_dist_coeff": 2.0,
-            "grasp_reward": 1.0,
-            "goal_bonus": 50.0,
+            "pregrasp_dist_coeff": 0.0,
+            "carry_dist_coeff": 0.0,
+            "grasp_reward": 0.0,
+            "goal_bonus": 100.0,
             "collision_penalty": 0.0,
             "regularization_coef": 0.0,
         }
