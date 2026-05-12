@@ -62,31 +62,46 @@ class LiquidTransportPipeline(ClutterPipeline):
         return "liquid_transport"
 
     def select_objects(self, args, rng):
-        # Override clutter's select_objects to use LIQUID_CONTAINER_POOL as target.
         from sentinel.utils.task_spec import (
-            FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
+            FRAGILE_POOL, DENSITY_PRESETS,
             estimate_object_set_footprint,
+            _pick_model_for_category, _synset_to_category,
         )
+        from sentinel.task_generation.utils.clutter_pipeline.select import (
+            select_obstacle,
+        )
+
         density = DENSITY_PRESETS[args.clutter_density]
         container = args.container_synset
         if container is None:
             container = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
+        container_category = _synset_to_category(container)
+        # Pin a concrete container model so the picker uses exact footprint.
+        _, container_model = _pick_model_for_category(container_category, rng)
 
+        # Pin a concrete model for each fragile pick too.
         fragile_pool = [s for s in FRAGILE_POOL if s[0] != container] or list(FRAGILE_POOL)
-        fragile_picks = [fragile_pool[rng.integers(len(fragile_pool))][0]
-                         for _ in range(density["fragile_count"])]
-        clutter_picks = [CLUTTER_POOL[rng.integers(len(CLUTTER_POOL))][0]
+        fragile_picks = []
+        for _ in range(density["fragile_count"]):
+            synset = fragile_pool[rng.integers(len(fragile_pool))][0]
+            cat, model = _pick_model_for_category(_synset_to_category(synset), rng)
+            fragile_picks.append((synset, cat, model))
+
+        clutter_picks = [select_obstacle(rng, exclude_cats={container_category})
                          for _ in range(density["clutter_count"])]
 
-        synset_counts = [(container, 1)]
-        for s in set(fragile_picks):
-            synset_counts.append((s, fragile_picks.count(s)))
-        for s in set(clutter_picks):
-            synset_counts.append((s, clutter_picks.count(s)))
+        # Every entry is (category, count, model) — exact per-model footprint.
+        counts = [(container_category, 1, container_model)]
+        for _, cat, model in fragile_picks:
+            counts.append((cat, 1, model))
+        for _, cat, model in clutter_picks:
+            counts.append((cat, 1, model))
 
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_area_m2": estimate_object_set_footprint(counts),
             "target_synset": container,
+            "target_category": container_category,
+            "target_model": container_model,
             "fragile_picks": fragile_picks,
             "clutter_picks": clutter_picks,
         }
@@ -101,7 +116,8 @@ class LiquidTransportPipeline(ClutterPipeline):
 
         preset = LIQUID_PRESETS[args.difficulty]
         target_synset = selection["target_synset"]
-        fragile_synsets = sorted(set(selection.get("fragile_picks", [])))
+        # fragile_picks is a list of [synset, cat, model] triples.
+        fragile_synsets = sorted({p[0] for p in selection.get("fragile_picks", [])})
 
         ltl_safety = generate_liquid_transport_ltl_safety_json(
             activity_name=activity_name,

@@ -81,7 +81,7 @@ def select_stack_objects(mode, rng, target_model=None, stack_model=None):
     The returned dict is the same shape ``stack_scene_pipeline`` and
     ``empty_scene_pipeline`` both consume.
     """
-    from sentinel.utils.task_spec import _load_footprint_catalog, _median_footprint
+    from sentinel.utils.task_spec import _load_footprint_catalog
 
     if mode == "same":
         pool = load_stack_same_pool()
@@ -110,7 +110,8 @@ def select_stack_objects(mode, rng, target_model=None, stack_model=None):
         t_synset = f"{t_cat}.n.01"
         s_synset = t_synset
         catalog = _load_footprint_catalog()
-        required = _median_footprint(catalog, t_cat)
+        # Exact per-model footprint (target == stack item in "same" mode).
+        required = catalog[t_cat][t_model]["footprint_m2"]
         return {
             "required_area_m2": required,
             "target_synset": t_synset,
@@ -179,8 +180,9 @@ def select_stack_objects(mode, rng, target_model=None, stack_model=None):
         s_synset = f"{s_cat}.n.01"
 
         catalog = _load_footprint_catalog()
-        required = max(_median_footprint(catalog, t_cat),
-                       _median_footprint(catalog, s_cat))
+        # Exact per-model footprint of the larger of the two participants.
+        required = max(catalog[t_cat][t_model]["footprint_m2"],
+                       catalog[s_cat][s_model]["footprint_m2"])
         return {
             "required_area_m2": required,
             "target_synset": t_synset,

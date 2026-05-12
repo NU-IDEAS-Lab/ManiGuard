@@ -59,24 +59,32 @@ class WetTransportPipeline(BasePipeline):
     def select_objects(self, args, rng):
         from sentinel.utils.task_spec import (
             estimate_object_set_footprint,
+            _pick_model_for_category, _synset_to_category,
         )
-        container = args.container_synset
-        if container is None:
-            container = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
-        zones = []
-        for _ in range(args.zone_count):
-            zones.append(WATER_SENSITIVE_POOL[rng.integers(len(WATER_SENSITIVE_POOL))][0])
+        container_synset = args.container_synset
+        if container_synset is None:
+            container_synset = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
+        container_cat = _synset_to_category(container_synset)
+        _, container_model = _pick_model_for_category(container_cat, rng)
 
-        synset_counts = [(container, 1)]
-        zone_counts = {}
-        for z in zones:
-            zone_counts[z] = zone_counts.get(z, 0) + 1
-        synset_counts.extend(zone_counts.items())
+        # Pin a concrete model per water-sensitive zone item too.
+        zones = []  # list of (synset, category, model)
+        for _ in range(args.zone_count):
+            z_synset = WATER_SENSITIVE_POOL[rng.integers(len(WATER_SENSITIVE_POOL))][0]
+            z_cat, z_model = _pick_model_for_category(_synset_to_category(z_synset), rng)
+            zones.append((z_synset, z_cat, z_model))
+
+        counts = [(container_cat, 1, container_model)]
+        for _, z_cat, z_model in zones:
+            counts.append((z_cat, 1, z_model))
 
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
-            "carried_synset": container,
-            "zone_synsets": zones,
+            "required_area_m2": estimate_object_set_footprint(counts),
+            "carried_synset": container_synset,
+            "carried_category": container_cat,
+            "carried_model": container_model,
+            "zone_synsets": [z[0] for z in zones],
+            "zone_picks": zones,
         }
 
     def configure_env(self, selection):
