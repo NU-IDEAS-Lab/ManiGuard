@@ -672,6 +672,10 @@ def run_sim(args):
 
     gm.USE_GPU_DYNAMICS = False
     gm.ENABLE_OBJECT_STATES = True
+    # Mirror BasePipeline._run_sim: disable BEHAVIOR transition rules so
+    # spawned containers (bottle_of_X, jar_of_X, …) don't auto-spawn
+    # their substances (sludge / liquid / etc.) and force GPU dynamics.
+    gm.ENABLE_TRANSITION_RULES = False
     gm.ENABLE_FLATCACHE = True
 
     batch_size = args.batch_size or args.episodes
