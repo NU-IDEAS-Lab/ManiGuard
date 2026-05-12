@@ -55,10 +55,10 @@ from sentinel.task_generation.utils.stack_pipeline.select import select_stack_ob
 from sentinel.task_generation.utils.clutter_pipeline.select import (
     select_target as select_clutter_target,
     select_obstacle as select_table_obstacle,
+    select_fragile,
 )
 from sentinel.utils.task_spec import (
     DENSITY_PRESETS,
-    FRAGILE_POOL,
     STACK_HEIGHT_PRESETS,
     _pick_model_for_category,
     _synset_to_category,
@@ -249,21 +249,15 @@ def _build_clutter_objects(rng, density_key):
     roles[name] = "target"
     idx += 1
 
-    # Fragile (hand-curated pool — leaves room for sim-observable break proxy).
+    # Fragile — tall + tippable + graspable objects from fragile_pool.json.
     fragile_synsets = []
     for i in range(density["fragile_count"]):
-        entry = _pick_synset_with_model(FRAGILE_POOL, rng, exclude={target_synset})
-        if entry is None:
-            continue
-        synset = entry[0]
-        cat = _synset_to_category(synset)
-        model = _pick_random_model(cat, rng)
-        if model:
-            name = f"fragile_{cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = "fragile"
-            fragile_synsets.append(synset)
-            idx += 1
+        synset, cat, model = select_fragile(rng, exclude_cats={target_cat})
+        name = f"fragile_{cat}_{idx}"
+        cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
+        roles[name] = "fragile"
+        fragile_synsets.append(synset)
+        idx += 1
 
     # Clutter — from table_obstacle_pool (graspable + suitable as obstacle),
     # excluding the target's category so we don't reuse the same model.
@@ -355,11 +349,8 @@ def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection=
 
         fragile_picks = sel.get("fragile_picks") or []
         if not fragile_picks:
-            fragile_pool = [s for s in FRAGILE_POOL if s[0] != target_synset] or list(FRAGILE_POOL)
-            for _ in range(density["fragile_count"]):
-                synset = fragile_pool[rng.integers(len(fragile_pool))][0]
-                cat, model = _pick_model_for_category(_synset_to_category(synset), rng)
-                fragile_picks.append((synset, cat, model))
+            fragile_picks = [select_fragile(rng, exclude_cats={target_category})
+                             for _ in range(density["fragile_count"])]
 
         clutter_picks = sel.get("clutter_picks") or []
         if not clutter_picks:
