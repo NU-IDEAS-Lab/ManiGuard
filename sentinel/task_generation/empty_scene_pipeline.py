@@ -44,14 +44,24 @@ from sentinel.task_generation.pipeline_common import (
     robot_half_extent_xy,
     run_ltl_rollout,
 )
+from sentinel.utils.goal_region import (
+    GoalRegionSpec,
+    build_goal_region_spec,
+    family_uses_goal_region,
+    spawn_goal_region_marker,
+)
 from sentinel.task_generation.transfer_scene_pipeline import build_transfer_objects
 from sentinel.task_generation.utils.stack_pipeline.select import select_stack_objects
+from sentinel.task_generation.utils.clutter_pipeline.select import (
+    select_target as select_clutter_target,
+    select_obstacle as select_table_obstacle,
+)
 from sentinel.utils.task_spec import (
-    CLUTTER_POOL,
     DENSITY_PRESETS,
     FRAGILE_POOL,
     STACK_HEIGHT_PRESETS,
-    TARGET_POOL,
+    _pick_model_for_category,
+    _synset_to_category,
     generate_clutter_activity as generate_activity,
     generate_stack_activity,
     generate_transfer_activity,
@@ -142,11 +152,15 @@ def _resolve_synset(category):
 
 
 def _pick_random_model(category, rng):
-    from omnigibson.utils.asset_utils import get_all_object_category_models
-    models = get_all_object_category_models(category)
-    if not models:
-        return None
-    return models[rng.integers(len(models))]
+    """Pick a random model from the footprint catalog (raises if missing).
+
+    Going through ``_pick_model_for_category`` guarantees the model has a
+    catalog entry so the downstream footprint sum can use exact per-model
+    area — no median, no missing-asset surprises.
+    """
+    from sentinel.utils.task_spec import _pick_model_for_category
+    _, model = _pick_model_for_category(category, rng)
+    return model
 
 
 def _pick_synset_with_model(pool, rng, exclude=None):
@@ -228,18 +242,14 @@ def _build_clutter_objects(rng, density_key):
     cfgs, roles = [], {}
     idx = 0
 
-    # Target (1) — must have a model in the asset catalog.
-    entry = _pick_synset_with_model(TARGET_POOL, rng)
-    target_synset = entry[0] if entry else "coffee_cup.n.01"
-    cat = _synset_to_category(target_synset)
-    model = _pick_random_model(cat, rng)
-    if model:
-        name = f"target_{cat}_{idx}"
-        cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-        roles[name] = "target"
-        idx += 1
+    # Target (1) — from clutter_target_pool (graspable + suitable as target).
+    target_synset, target_cat, target_model = select_clutter_target(rng)
+    name = f"target_{target_cat}_{idx}"
+    cfgs.append(_make_obj_cfg(name, target_cat, target_model, position=(100 + idx, 100, -100)))
+    roles[name] = "target"
+    idx += 1
 
-    # Fragile.
+    # Fragile (hand-curated pool — leaves room for sim-observable break proxy).
     fragile_synsets = []
     for i in range(density["fragile_count"]):
         entry = _pick_synset_with_model(FRAGILE_POOL, rng, exclude={target_synset})
@@ -255,19 +265,14 @@ def _build_clutter_objects(rng, density_key):
             fragile_synsets.append(synset)
             idx += 1
 
-    # Clutter.
+    # Clutter — from table_obstacle_pool (graspable + suitable as obstacle),
+    # excluding the target's category so we don't reuse the same model.
     for i in range(density["clutter_count"]):
-        entry = _pick_synset_with_model(CLUTTER_POOL, rng)
-        if entry is None:
-            continue
-        synset = entry[0]
-        cat = _synset_to_category(synset)
-        model = _pick_random_model(cat, rng)
-        if model:
-            name = f"clutter_{cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = "clutter"
-            idx += 1
+        _, cat, model = select_table_obstacle(rng, exclude_cats={target_cat})
+        name = f"clutter_{cat}_{idx}"
+        cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
+        roles[name] = "clutter"
+        idx += 1
 
     selection = {
         "target_synset": target_synset,
@@ -335,10 +340,38 @@ def _build_stack_objects(rng, stack_height_key, mode="same",
 def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection=None):
     support_room = None  # No rooms in empty Scene.
     if args.setup == "clutter":
+        sel = selection or {}
+        density = DENSITY_PRESETS[args.clutter_density]
+        # generate_clutter_activity expects pre_selection to pin concrete
+        # category + model for the target and every fragile/clutter atom
+        # (no median footprints, no fallbacks). Mirror what
+        # clutter_scene_pipeline.select_objects produces.
+        if "target_category" in sel and "target_model" in sel:
+            target_synset = sel["target_synset"]
+            target_category = sel["target_category"]
+            target_model = sel["target_model"]
+        else:
+            target_synset, target_category, target_model = select_clutter_target(rng)
+
+        fragile_picks = sel.get("fragile_picks") or []
+        if not fragile_picks:
+            fragile_pool = [s for s in FRAGILE_POOL if s[0] != target_synset] or list(FRAGILE_POOL)
+            for _ in range(density["fragile_count"]):
+                synset = fragile_pool[rng.integers(len(fragile_pool))][0]
+                cat, model = _pick_model_for_category(_synset_to_category(synset), rng)
+                fragile_picks.append((synset, cat, model))
+
+        clutter_picks = sel.get("clutter_picks") or []
+        if not clutter_picks:
+            clutter_picks = [select_table_obstacle(rng, exclude_cats={target_category})
+                             for _ in range(density["clutter_count"])]
+
         pre = {
-            "target_synset": (selection or {}).get("target_synset", "coffee_cup.n.01"),
-            "fragile_picks": (selection or {}).get("fragile_synsets", []),
-            "clutter_picks": [],
+            "target_synset": target_synset,
+            "target_category": target_category,
+            "target_model": target_model,
+            "fragile_picks": fragile_picks,
+            "clutter_picks": clutter_picks,
         }
         return generate_activity(
             activity_name, support_synset, support_room, args.clutter_density,
@@ -627,6 +660,65 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
     if args.strict_gate and not gate_pass:
         raise RuntimeError("Strict gate failed.")
 
+    # -- Goal region marker (clutter only) ---------------------------------
+    # Spawns a green sphere on the side of the pack the robot must move the
+    # target into. Mirrors BasePipeline._run_episode's goal-region step.
+    # Tracked on args._prev_goal_marker so we can park the previous
+    # episode's marker before spawning this one (mid-play remove_object
+    # trips OmniGibson's registry-staleness bug).
+    goal_region_payload = None
+    family = "table" if args.setup == "clutter" else None
+    if (gate_pass and target_obj is not None and family
+            and family_uses_goal_region(family)):
+        pack_names = tuple(getattr(obj, "name", "")
+                           for obj in objects_by_inst.values()
+                           if getattr(obj, "name", ""))
+        support_name = getattr(support_obj, "name", "") or "support_surface"
+        if pack_names and support_name:
+            ep_rng_goal = np.random.default_rng(
+                int(args.seed) + 13_000 * (ep + 1)
+            )
+            try:
+                spec = build_goal_region_spec(
+                    env=env,
+                    diagnostics={
+                        "pipeline": family,
+                        "surface": support_name,
+                        "selection": selection,
+                        "support_selection": {
+                            "result_world_bounds_xy": surface_bounds_xy,
+                        },
+                    },
+                    family=family,
+                    target_name=str(getattr(target_obj, "name", "")),
+                    support_name=support_name,
+                    pack_object_names=pack_names,
+                    rng=ep_rng_goal,
+                )
+                goal_region_payload = spec.to_json()
+                prev_marker = getattr(args, "_prev_goal_marker", None)
+                if prev_marker is not None:
+                    try:
+                        prev_marker.set_position_orientation(
+                            position=(100.0, 100.0, -10.0),
+                            orientation=(0.0, 0.0, 0.0, 1.0),
+                        )
+                        prev_marker.visible = False
+                    except Exception as exc:
+                        log.warning(
+                            "park previous goal marker failed: %s", exc,
+                        )
+                args._prev_goal_marker = spawn_goal_region_marker(
+                    env, GoalRegionSpec.from_json(goal_region_payload),
+                )
+                og.sim.step()
+                print(f"[Pipeline] Goal region: "
+                      f"{spec.shape}@({spec.center_world[0]:.2f},"
+                      f"{spec.center_world[1]:.2f},{spec.center_world[2]:.2f})")
+            except Exception as exc:
+                log.warning("goal region setup failed: %s", exc)
+                goal_region_payload = None
+
     # Save full Omniverse scene snapshot (same format BasePipeline uses):
     # objects_info.init_info + state.registry.object_registry, replayable by
     # og.sim.load() and by so101_franka_teleop's _build_from_snapshot.
@@ -646,7 +738,7 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         support_obj=support_obj,
     )
 
-    append_jsonl(args.debug_jsonl, {
+    payload = {
         "episode": ep + 1, "setup": args.setup,
         "scene_model": args.scene_model,
         "surface": f"{surface_cat}/{surface_model}",
@@ -657,7 +749,10 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         "selection": selection,
         "ltl_safety": ltl_safety,
         "cameras": list(getattr(args, "_resolved_video_views", ())),
-    })
+    }
+    if goal_region_payload is not None:
+        payload["goal_region"] = copy.deepcopy(goal_region_payload)
+    append_jsonl(args.debug_jsonl, payload)
 
     # -- Park objects back -------------------------------------------------
     _park_objects(objects_by_inst, og)
@@ -709,12 +804,15 @@ def run_sim(args):
             episode_data.append((obj_cfgs, roles, selection, ep_seed))
 
         # -- Compute max footprint across episodes -------------------------
-        from sentinel.utils.task_spec import _load_footprint_catalog, _median_footprint
+        # Every obj_cfg has both category and model pinned, so we use the
+        # exact per-model footprint from object_footprints.json. No median,
+        # no fallback — the catalog raises if anything is missing.
+        from sentinel.utils.task_spec import _load_footprint_catalog
         fp_catalog = _load_footprint_catalog()
         max_footprint = _MIN_SURFACE_AREA_M2
         for obj_cfgs, _, _, _ in episode_data:
             ep_fp = sum(
-                _median_footprint(fp_catalog, _resolve_synset(c["category"]))
+                fp_catalog[c["category"]][c["model"]]["footprint_m2"]
                 for c in obj_cfgs
             )
             max_footprint = max(max_footprint, ep_fp * 1.3)
