@@ -49,26 +49,20 @@ class ClutterPipeline(BasePipeline):
 
     def select_objects(self, args, rng):
         from sentinel.utils.task_spec import (
-            FRAGILE_POOL, DENSITY_PRESETS,
-            estimate_object_set_footprint, _pick_model_for_category,
-            _synset_to_category,
+            DENSITY_PRESETS, estimate_object_set_footprint,
         )
         from sentinel.task_generation.utils.clutter_pipeline.select import (
-            select_target, select_obstacle,
+            select_target, select_obstacle, select_fragile,
         )
 
         density = DENSITY_PRESETS[args.clutter_density]
         target_synset, target_category, target_model = select_target(rng)
 
-        # Pin a concrete model for each fragile pick too, so the picker uses
-        # exact per-model footprints — never the category median.
-        fragile_pool = [s for s in FRAGILE_POOL if s[0] != target_synset] or list(FRAGILE_POOL)
-        fragile_picks = []
-        for _ in range(density["fragile_count"]):
-            synset = fragile_pool[rng.integers(len(fragile_pool))][0]
-            cat, model = _pick_model_for_category(_synset_to_category(synset), rng)
-            fragile_picks.append((synset, cat, model))
-
+        # Pin concrete models for every fragile / clutter atom so the
+        # picker uses exact per-model footprints. Excluding the target's
+        # category keeps fragile/clutter from re-using the target asset.
+        fragile_picks = [select_fragile(rng, exclude_cats={target_category})
+                         for _ in range(density["fragile_count"])]
         clutter_picks = [select_obstacle(rng, exclude_cats={target_category})
                          for _ in range(density["clutter_count"])]
 

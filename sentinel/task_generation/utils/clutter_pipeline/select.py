@@ -22,9 +22,11 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 _TARGET_PATH = _HERE / "clutter_target_pool.json"
 _OBSTACLE_PATH = _HERE / "table_obstacle_pool.json"
+_FRAGILE_PATH = _HERE / "fragile_pool.json"
 
 _target_cache = None
 _obstacle_cache = None
+_fragile_cache = None
 
 
 def _load(path, cache_attr):
@@ -42,6 +44,10 @@ def load_target_pool():
 
 def load_obstacle_pool():
     return _load(_OBSTACLE_PATH, "_obstacle_cache")
+
+
+def load_fragile_pool():
+    return _load(_FRAGILE_PATH, "_fragile_cache")
 
 
 def _entries(doc):
@@ -79,3 +85,13 @@ def select_obstacle(rng, exclude_cats=()):
     (synset, category, model).
     """
     return _pick(_entries(load_obstacle_pool()), rng, exclude_cats=exclude_cats)
+
+
+def select_fragile(rng, exclude_cats=()):
+    """Pick one fragile (tall, tippable, graspable) object uniformly.
+
+    Source: ``fragile_pool.json`` (regenerate via
+    ``build_fragile_pool.py`` if the graspability CSV or the footprint
+    catalog changes). Returns (synset, category, model).
+    """
+    return _pick(_entries(load_fragile_pool()), rng, exclude_cats=exclude_cats)
