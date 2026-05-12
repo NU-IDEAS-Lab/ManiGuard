@@ -7,6 +7,7 @@ pack callbacks, and other utilities reused across different pipeline types
 
 import argparse
 import copy
+import dataclasses
 import json
 import logging
 import math
@@ -95,11 +96,13 @@ def append_jsonl(path, payload):
 
 
 def _json_default(obj):
-    """Fallback serializer for Tensor / ndarray values in diagnostics."""
+    """Fallback serializer for Tensor / ndarray / dataclass values in diagnostics."""
     if hasattr(obj, "item"):
         return obj.item()
     if hasattr(obj, "tolist"):
         return obj.tolist()
+    if dataclasses.is_dataclass(obj):
+        return dataclasses.asdict(obj)
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
@@ -243,6 +246,70 @@ def spawn_objects(env, spawn_specs, rng, episode_label=""):
 
     obj_sets = {role: tuple(sorted(ids)) for role, ids in by_role.items()}
     return registry, obj_sets
+
+
+def predict_inst_ids(spawn_specs, episode_label=""):
+    """Predict the inst_ids ``spawn_objects`` will assign for these specs.
+
+    Mirrors the ``{category}_{episode_label}_{idx}`` naming and per-category
+    counter inside ``spawn_objects`` so callers can plan placements offline
+    (before spawn) and still address objects by their post-spawn id.
+
+    Returns a list of ``(inst_id, role, category, model)`` tuples in the
+    same order ``spawn_objects`` will create the DatasetObjects.
+    """
+    counters = {}
+    out = []
+    for spec in spawn_specs:
+        cat = spec["category"]
+        for _ in range(spec["count"]):
+            counters[cat] = counters.get(cat, 0) + 1
+            inst_id = (f"{cat}_{episode_label}_{counters[cat]}"
+                       if episode_label else f"{cat}_{counters[cat]}")
+            out.append((inst_id, spec["role"], cat, spec.get("model")))
+    return out
+
+
+def filter_specs_for_placed(spawn_specs, placed_inst_ids, episode_label=""):
+    """Return (new_specs, id_remap) so spawn produces only solver-placed objs.
+
+    Walks ``spawn_specs`` in the same order ``spawn_objects`` /
+    ``predict_inst_ids`` would, keeping only atoms whose predicted inst_id
+    is in ``placed_inst_ids``. Each kept atom becomes its own ``count=1``
+    spec — preserves all spec fields (category, model, role, abilities,
+    …) while letting the post-filter counter renumber the gaps.
+
+    Without this renumbering: if the solver places ``teacup_ep2_2`` but
+    drops ``teacup_ep2_1``, a filtered spec list of ``[teacup × 1]`` would
+    spawn ``teacup_ep2_1`` and the pack solution's reference to
+    ``teacup_ep2_2`` would dangle. ``id_remap`` maps every old (predicted)
+    inst_id to the new one ``spawn_objects`` will actually assign.
+    """
+    placed_set = set(placed_inst_ids)
+    atom_specs = []          # one count=1 spec per kept atom
+    old_inst_ids = []        # parallel list of predicted inst_ids
+
+    counters_old = {}
+    for spec in spawn_specs:
+        cat = spec["category"]
+        for _ in range(spec["count"]):
+            counters_old[cat] = counters_old.get(cat, 0) + 1
+            old_inst = (f"{cat}_{episode_label}_{counters_old[cat]}"
+                        if episode_label else f"{cat}_{counters_old[cat]}")
+            if old_inst in placed_set:
+                atom_specs.append({**spec, "count": 1})
+                old_inst_ids.append(old_inst)
+
+    counters_new = {}
+    id_remap = {}
+    for atom_spec, old_inst in zip(atom_specs, old_inst_ids):
+        cat = atom_spec["category"]
+        counters_new[cat] = counters_new.get(cat, 0) + 1
+        new_inst = (f"{cat}_{episode_label}_{counters_new[cat]}"
+                    if episode_label else f"{cat}_{counters_new[cat]}")
+        id_remap[old_inst] = new_inst
+
+    return atom_specs, id_remap
 
 
 def is_structural_object(obj):
@@ -462,38 +529,6 @@ def object_aabb_dims(obj):
         max(0.01, float(a_max[1] - a_min[1])),
         max(0.01, float(a_max[2] - a_min[2])),
     )
-
-
-def build_descriptors(spawned_objects, obj_sets):
-    from sentinel.utils.clutter_pack_layout import ClutterObjectDescriptor
-
-    descriptors, objects_by_inst = [], {}
-    for role in ("target", "fragile", "clutter"):
-        for inst in obj_sets.get(role, ()):
-            obj = spawned_objects.get(inst)
-            if obj is None:
-                continue
-            dims = object_aabb_dims(obj)
-            if dims is None:
-                continue
-            dx, dy, dz = dims
-            try:
-                obj_pos = obj.get_position_orientation()[0]
-                aabb_min = obj.aabb[0]
-                root_to_bottom_z = max(0.0, float(obj_pos[2]) - float(aabb_min[2]))
-            except Exception as exc:
-                log.warning(
-                    "build_descriptors: pose/aabb lookup for %s failed: %s", inst, exc,
-                )
-                continue
-            descriptors.append(ClutterObjectDescriptor(
-                instance_id=inst, role=role,
-                half_extent_xy=(0.5 * dx, 0.5 * dy),
-                height=dz,
-                root_to_bottom_z=root_to_bottom_z,
-            ))
-            objects_by_inst[inst] = obj
-    return descriptors, objects_by_inst
 
 
 def robot_half_extent_xy(robot):
@@ -1037,6 +1072,10 @@ class BasePipeline(ABC):
       - activity_prefix()   — default activity name prefix
       - generate_activity() — produce LTL safety + selection with spawn_specs
       - configure_env()     — tweak env/macros after load (e.g. GPU dynamics)
+      - offline_pack()      — pure-Python placement plan (after env + support
+                              resolution, before spawn). Optional; default
+                              no-op. Caches a ``PackSolution`` on each
+                              episode's selection dict.
       - identify_objects()  — partition spawned objects into roles
       - place_objects()     — arrange objects on the table
       - make_edge_objects() — build EdgeAlignObject list for robot placement
@@ -1067,6 +1106,27 @@ class BasePipeline(ABC):
         """Optional hook to configure macros before env creation.
 
         For example, enable GPU dynamics for liquid tasks.  Default: no-op.
+        """
+
+    def offline_pack(self, episode_activities, picked, args, support_obj=None):
+        """Pre-compute pack placements once per session.
+
+        Called from ``_setup_session`` after the env is built and the
+        support object resolved, but **before** ``spawn_objects`` runs.
+        The base class then filters each episode's ``spawn_specs`` down
+        to inst_ids the solver actually placed (and renumbers the pack
+        solution to match the post-filter sequence) so spawn only emits
+        objects that have a planned seat.
+
+        Overrides should cache a ``PackSolution`` on each episode's
+        selection dict (typically under ``_pack_solution``). They can
+        read ``support_obj.scale`` / ``.get_position_orientation()`` to
+        plan in world-frame dimensions. In dry-run mode ``support_obj``
+        is ``None`` (no env was built); pipelines should fall back to
+        unit scale.
+
+        Default: no-op (pipelines without an offline planner skip this
+        hook and decide layout in ``place_objects``).
         """
 
     @abstractmethod
@@ -1221,6 +1281,11 @@ class BasePipeline(ABC):
         rng = np.random.default_rng(args.seed)
         ltl_safety, selection = \
             self.generate_activity(activity_name, support_category, support_room, args, rng)
+
+        # Offline pack solve (pure-Python, no env needed) — exercises the
+        # same path as a real run so dry-run can produce planned-pack PNGs.
+        picked = getattr(args, "_picked_surface", None) or pick
+        self.offline_pack([(ltl_safety, selection)], picked, args)
 
         print("[Pipeline] Dry-run complete:")
         print(f"  activity:   {activity_name}")
@@ -1427,16 +1492,20 @@ class BasePipeline(ABC):
     def _setup_session(self, ctx):
         """Run one-time scene/robot setup before the episode loop.
 
-        Spawns ALL episodes' task objects upfront with episode-labelled
-        inst_ids (e.g. ``bowl_ep1_1``, ``bowl_ep5_1``). Episode-0's objects
-        stay in the parking position the spawner leaves them at; later
-        episodes' objects get teleported to a far parking pose so only
-        episode 0's task objects participate in the surface/mount setup.
+        Order matters: support surface is resolved *before* any task
+        objects are spawned, so ``offline_pack`` can plan against the
+        support's applied scale/yaw, and ``spawn_specs`` can be filtered
+        down to only solver-placed objects + renumbered to match the
+        post-filter inst_ids ``spawn_objects`` will produce.
 
-        Per-episode work is then: park the previous episode's 3 objects,
-        teleport the current episode's 3 onto the surface — no scene
-        mutations (add/remove) during the run, which sidesteps OG's
-        registry-staleness on objects added while the sim is playing.
+        After that, all episodes' task objects are spawned upfront with
+        episode-labelled inst_ids (e.g. ``bowl_ep1_1``, ``bowl_ep5_1``).
+        Episode-0's objects participate in the surface/mount setup;
+        later episodes' objects are parked far away. Per-episode work is
+        then just teleporting the current episode's objects onto the
+        surface and parking the previous episode's — no scene mutations
+        during the run, which sidesteps OmniGibson's registry-staleness
+        bug on objects added while the sim is playing.
         """
         env, og, args = ctx.env, ctx.og, ctx.args
         env.reset()
@@ -1450,47 +1519,12 @@ class BasePipeline(ABC):
             print(f"[Pipeline] Hid {len(hidden)} structural objects "
                   f"(walls/ceiling) for camera clearance")
 
-        # -- Spawn ALL episodes' task objects upfront -----------------------
+        # -- Find support surface object (BEFORE spawn) ---------------------
+        # offline_pack needs the support's applied scale to size the pack
+        # region in world units; we also use the same lookup to filter
+        # spawn_specs down to only solver-placed objects, so support
+        # resolution happens before any task object is spawned.
         episode_activities = ctx._episode_activities
-        per_ep_spawned = []
-        per_ep_obj_sets = []
-        all_spawned = {}
-        for ep, (_, sel) in enumerate(episode_activities):
-            specs = sel.get("spawn_specs", [])
-            if not specs:
-                per_ep_spawned.append({})
-                per_ep_obj_sets.append({})
-                continue
-            ep_label = f"ep{ep + 1}"
-            spawned, obj_sets = spawn_objects(
-                env, specs, ctx.rng, episode_label=ep_label,
-            )
-            per_ep_spawned.append(spawned)
-            per_ep_obj_sets.append(obj_sets)
-            all_spawned.update(spawned)
-
-        og.sim.step()
-        print(f"[Pipeline] Spawned {len(all_spawned)} task objects across "
-              f"{len(per_ep_spawned)} episodes")
-
-        # Park ep > 0 objects far from the active workspace. Each episode
-        # gets its own row so they can't physically interfere even if some
-        # drift downward under gravity over the duration of the run.
-        for ep in range(1, len(per_ep_spawned)):
-            park = (50.0 + ep * 2.0, 50.0, 10.0)
-            for obj in per_ep_spawned[ep].values():
-                obj.set_position_orientation(position=park)
-                obj.keep_still()
-        og.sim.step()
-
-        ctx._per_ep_spawned = per_ep_spawned
-        ctx._per_ep_obj_sets = per_ep_obj_sets
-        ctx._all_spawned = all_spawned
-        ctx.spawned_objects = per_ep_spawned[0]
-        ctx.obj_sets = per_ep_obj_sets[0]
-
-        # -- Find support surface object ------------------------------------
-        # Prefer exact (category, model) match from placeable pick for
         picked = getattr(args, "_picked_surface", None)
         target_category = picked["category"] if picked else args._pre_selection["_surface_category"]
         target_model = picked["model"] if picked else None
@@ -1512,7 +1546,6 @@ class BasePipeline(ABC):
         ctx.surface_name = getattr(support_obj, "name", "")
 
         print(f"[Pipeline] Support surface: {ctx.surface_name} ({target_category})")
-        # Pin support first so it cannot move, then compute geometry once.
         if pin_support_object_to_world(support_obj):
             print(f"[Pipeline] Pinned support to world: {support_obj.name}")
         og.sim.step()
@@ -1577,12 +1610,87 @@ class BasePipeline(ABC):
             ctx.surface_info = None
 
         clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
+        # No task objects spawned yet, so nothing to protect from clearing.
         ctx.removed_area_objects = clear_support_area(
             env, support_obj, ctx.surface_bounds_xy, margin_m=clear_margin,
-            spawned_objects=ctx._all_spawned,
+            spawned_objects={},
         )
         if ctx.removed_area_objects:
             og.sim.step()
+
+        # -- Offline pack pre-computation -----------------------------------
+        # Plans placements per episode using object_footprints.json and the
+        # support's applied scale/yaw. Caches PackSolution + inputs on each
+        # episode's selection dict.
+        self.offline_pack(
+            episode_activities, picked, args, support_obj=ctx.support_obj,
+        )
+
+        # -- Filter spawn_specs to solver-placed objects --------------------
+        # Drop unplaced atoms from each episode's spawn_specs and rewrite
+        # the pack solution's inst_ids to match what spawn_objects will
+        # produce post-filter. No retroactive culling needed.
+        for ep, (_, sel) in enumerate(episode_activities):
+            sol = sel.get("_pack_solution")
+            if sol is None:
+                continue
+            ep_label = f"ep{ep + 1}"
+            specs = sel.get("spawn_specs", [])
+            new_specs, id_remap = filter_specs_for_placed(
+                specs, [p.inst_id for p in sol.placements], episode_label=ep_label,
+            )
+            sol.placements = [
+                dataclasses.replace(p, inst_id=id_remap[p.inst_id])
+                for p in sol.placements
+            ]
+            sel["spawn_specs"] = new_specs
+            dropped = sum(s["count"] for s in specs) - len(new_specs)
+            if dropped:
+                print(f"[Pipeline] {ep_label}: dropped {dropped} unplaced "
+                      f"objects (kept {len(new_specs)})")
+
+        # -- Spawn the planned task objects ---------------------------------
+        per_ep_spawned = []
+        per_ep_obj_sets = []
+        all_spawned = {}
+        for ep, (_, sel) in enumerate(episode_activities):
+            specs = sel.get("spawn_specs", [])
+            if not specs:
+                per_ep_spawned.append({})
+                per_ep_obj_sets.append({})
+                continue
+            ep_label = f"ep{ep + 1}"
+            spawned, obj_sets = spawn_objects(
+                env, specs, ctx.rng, episode_label=ep_label,
+            )
+            per_ep_spawned.append(spawned)
+            per_ep_obj_sets.append(obj_sets)
+            all_spawned.update(spawned)
+
+        # Step a few times so all spawned prim views are fully registered
+        # before we move them. One step isn't always enough at high
+        # density — the first set_position_orientation on a late-spawned
+        # prim can raise "not a valid view".
+        for _ in range(3):
+            og.sim.step()
+        print(f"[Pipeline] Spawned {len(all_spawned)} task objects across "
+              f"{len(per_ep_spawned)} episodes")
+
+        # Park ep > 0 objects far from the active workspace. Each episode
+        # gets its own row so they can't physically interfere even if some
+        # drift downward under gravity over the duration of the run.
+        for ep in range(1, len(per_ep_spawned)):
+            park = (50.0 + ep * 2.0, 50.0, 10.0)
+            for obj in per_ep_spawned[ep].values():
+                obj.set_position_orientation(position=park)
+                obj.keep_still()
+        og.sim.step()
+
+        ctx._per_ep_spawned = per_ep_spawned
+        ctx._per_ep_obj_sets = per_ep_obj_sets
+        ctx._all_spawned = all_spawned
+        ctx.spawned_objects = per_ep_spawned[0]
+        ctx.obj_sets = per_ep_obj_sets[0]
 
         # -- Pipeline-specific: identify & place objects --------------------
         self.identify_objects(ctx)

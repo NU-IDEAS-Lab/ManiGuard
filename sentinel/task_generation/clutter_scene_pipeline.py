@@ -11,18 +11,24 @@ Usage:
         --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
 """
 
+import os
+
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    build_descriptors,
-    check_interpenetration,
     get_spawned_obj,
-    make_park_fn,
     make_settle_fn,
-    remove_objects,
-    validate_poses,
+    predict_inst_ids,
 )
-from sentinel.utils.task_spec import generate_clutter_activity
+from sentinel.utils.maxrects_pack import PackInputDescriptor, solve_pack
+from sentinel.utils.task_spec import _load_footprint_catalog, generate_clutter_activity
 import logging
+
+# Edge buffer (m): shrink the picked region by this much on every side so
+# packed objects keep a generous gap to the actual surface boundary.
+_EDGE_BUFFER_M = 0.05
+# Min clearance (m): gap between adjacent padded AABBs in the offline pack
+# solve. Big enough for physics settle to converge without interpenetration.
+_MIN_CLEARANCE_M = 0.05
 
 log = logging.getLogger(__name__)
 
@@ -43,28 +49,41 @@ class ClutterPipeline(BasePipeline):
 
     def select_objects(self, args, rng):
         from sentinel.utils.task_spec import (
-            TARGET_POOL, FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
-            estimate_object_set_footprint,
+            FRAGILE_POOL, DENSITY_PRESETS,
+            estimate_object_set_footprint, _pick_model_for_category,
+            _synset_to_category,
         )
+        from sentinel.task_generation.utils.clutter_pipeline.select import (
+            select_target, select_obstacle,
+        )
+
         density = DENSITY_PRESETS[args.clutter_density]
-        target_synset = TARGET_POOL[rng.integers(len(TARGET_POOL))][0]
+        target_synset, target_category, target_model = select_target(rng)
 
+        # Pin a concrete model for each fragile pick too, so the picker uses
+        # exact per-model footprints — never the category median.
         fragile_pool = [s for s in FRAGILE_POOL if s[0] != target_synset] or list(FRAGILE_POOL)
-        fragile_picks = [fragile_pool[rng.integers(len(fragile_pool))][0]
-                         for _ in range(density["fragile_count"])]
+        fragile_picks = []
+        for _ in range(density["fragile_count"]):
+            synset = fragile_pool[rng.integers(len(fragile_pool))][0]
+            cat, model = _pick_model_for_category(_synset_to_category(synset), rng)
+            fragile_picks.append((synset, cat, model))
 
-        clutter_picks = [CLUTTER_POOL[rng.integers(len(CLUTTER_POOL))][0]
+        clutter_picks = [select_obstacle(rng, exclude_cats={target_category})
                          for _ in range(density["clutter_count"])]
 
-        synset_counts = [(target_synset, 1)]
-        for s in set(fragile_picks):
-            synset_counts.append((s, fragile_picks.count(s)))
-        for s in set(clutter_picks):
-            synset_counts.append((s, clutter_picks.count(s)))
+        # Every entry is (category, count, model) — exact per-model footprint.
+        counts = [(target_category, 1, target_model)]
+        for _, cat, model in fragile_picks:
+            counts.append((cat, 1, model))
+        for _, cat, model in clutter_picks:
+            counts.append((cat, 1, model))
 
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_area_m2": estimate_object_set_footprint(counts),
             "target_synset": target_synset,
+            "target_category": target_category,
+            "target_model": target_model,
             "fragile_picks": fragile_picks,
             "clutter_picks": clutter_picks,
         }
@@ -79,123 +98,231 @@ class ClutterPipeline(BasePipeline):
 
     def identify_objects(self, ctx):
         obj_sets = ctx.obj_sets
-
         if not obj_sets.get("target"):
             raise RuntimeError("No target objects found.")
         print(f"[Pipeline] Objects: target={obj_sets['target']}, "
               f"fragile={obj_sets.get('fragile', ())}, "
               f"clutter={obj_sets.get('clutter', ())}")
-
         ctx.target_obj = get_spawned_obj(ctx.spawned_objects, obj_sets["target"][0])
-        ctx._obj_sets = obj_sets
+        # inst_id → DatasetObject lookup used by place_objects to apply
+        # the offline solver's placements. spawned_objects is already
+        # keyed by inst_id, so this is a straight reference.
+        ctx._objects_by_inst = dict(ctx.spawned_objects)
 
-        descriptors, objects_by_inst = build_descriptors(ctx.spawned_objects, obj_sets)
-        if not descriptors:
-            raise RuntimeError("No clutter-pack descriptors created.")
-        ctx._descriptors = descriptors
-        ctx._objects_by_inst = objects_by_inst
+    def offline_pack(self, episode_activities, picked, args, support_obj=None):
+        """Pre-compute pack placements for every episode after env load.
+
+        Runs in pure Python over ``object_footprints.json`` + the picked
+        region from ``placeable_surfaces_v1.json``, but is invoked after
+        the env exists so we can read the support's *applied* scale and
+        size the region in actual world dimensions. Caches a
+        ``PackSolution`` plus the prepared ``PackInputDescriptor`` list and
+        shrunken region bounds on each episode's ``selection`` dict; the
+        runtime ``place_objects`` later teleports objects to the cached
+        positions with no further solving.
+        """
+        if picked is None:
+            return
+        catalog = _load_footprint_catalog()
+        # Support scale (applied to the placeable region's local extents).
+        # Object extents come from object_footprints.json and are already in
+        # world units (objects are spawned at scale=1), so we only scale the
+        # surface bounds — not the per-object AABBs.
+        if support_obj is not None:
+            scale_vec = support_obj.scale
+            sx_scale = float(scale_vec[0])
+            sy_scale = float(scale_vec[1])
+        else:
+            sx_scale = sy_scale = 1.0
+
+        # World-sized region bounds (still in support-local axes; the world
+        # rotation+translation is applied at place time). Shrink by the edge
+        # buffer so packed objects keep a gap to the actual surface
+        # boundary.
+        (lx0, ly0), (lx1, ly1) = picked["xy_min"], picked["xy_max"]
+        sx0, sy0 = lx0 * sx_scale, ly0 * sy_scale
+        sx1, sy1 = lx1 * sx_scale, ly1 * sy_scale
+        bx0, by0 = sx0 + _EDGE_BUFFER_M, sy0 + _EDGE_BUFFER_M
+        bx1, by1 = sx1 - _EDGE_BUFFER_M, sy1 - _EDGE_BUFFER_M
+        region_w, region_h = max(0.0, bx1 - bx0), max(0.0, by1 - by0)
+        print(f"[Pipeline] offline_pack: support scale=({sx_scale:.3f}, "
+              f"{sy_scale:.3f}); world region "
+              f"{sx1 - sx0:.3f}×{sy1 - sy0:.3f} m "
+              f"(local {lx1 - lx0:.3f}×{ly1 - ly0:.3f})")
+
+        run_dir = getattr(args, "run_dir", None)
+        scene_label = args.scene_model or "?"
+        surface_label = f"{picked.get('category')}/{picked.get('model')}"
+
+        for ep, (_, selection) in enumerate(episode_activities):
+            spawn_specs = selection.get("spawn_specs", [])
+            if not spawn_specs:
+                continue
+            ep_label = f"ep{ep + 1}"
+
+            # Mirror spawn_objects' inst_id assignment so place_objects can
+            # later look up the spawned DatasetObject by inst_id.
+            inst_plan = predict_inst_ids(spawn_specs, episode_label=ep_label)
+
+            pack_inputs = []
+            target_inst_id = None
+            for inst_id, role, cat, model in inst_plan:
+                if model is None or cat not in catalog or model not in catalog[cat]:
+                    log.warning("offline_pack: %s/%s missing from catalog; "
+                                "regenerate object_footprints.json",
+                                cat, model)
+                    continue
+                ext = catalog[cat][model]["extent_xyz"]
+                pack_inputs.append(PackInputDescriptor(
+                    inst_id=inst_id, role=role,
+                    extent_xy=(ext[0], ext[1]),
+                    bottom_offset_z=0.5 * max(ext[2], 0.01),
+                ))
+                if role == "target" and target_inst_id is None:
+                    target_inst_id = inst_id
+
+            sol = solve_pack(
+                descriptors=pack_inputs,
+                region_bounds=((0.0, 0.0), (region_w, region_h)),
+                min_clearance=_MIN_CLEARANCE_M,
+                target_inst_id=target_inst_id,
+            )
+            print(f"[Pipeline] Offline pack {ep_label}: "
+                  f"placed={len(sol.placements)}/{len(pack_inputs)}, "
+                  f"unplaced={sol.unplaced}")
+
+            # Cache the solution; place_objects applies it after spawn.
+            selection["_pack_solution"] = sol
+
+            if run_dir:
+                from sentinel.utils.pack_viz import save_pack_viz
+                viz_path = os.path.join(run_dir, f"pack_planned_{ep_label}.png")
+                try:
+                    save_pack_viz(
+                        out_path=viz_path,
+                        surface_bounds_xy=((sx0, sy0), (sx1, sy1)),
+                        pack_region_bounds=((bx0, by0), (bx1, by1)),
+                        placements=sol.placements,
+                        descriptors=pack_inputs,
+                        unplaced=sol.unplaced,
+                        min_clearance=_MIN_CLEARANCE_M,
+                        episode_label=ep_label,
+                        scene_label=scene_label,
+                        surface_label=surface_label,
+                    )
+                except Exception as exc:
+                    log.warning("pack viz save failed: %s", exc)
 
     def place_objects(self, ctx):
+        """Apply the offline-computed pack: teleport then settle.
+
+        All solving happened in ``offline_pack``; ``_setup_session``
+        already filtered ``spawn_specs`` down to solver-placed objects
+        and renumbered inst_ids, so every placement here corresponds to
+        a spawned ``DatasetObject``. We translate region-centred,
+        support-local coords into world via the live support pose (yaw
+        + position; the scale was baked into the solver region).
+        """
+        import math
         import torch as th
-        from sentinel.utils.clutter_pack_layout import validate_pack_integrity
-        from sentinel.utils.tabletop_workspace import compute_tabletop_zone
-        from sentinel.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
-
-        args = ctx.args
-
-        # Compute zone (needed for pack layout).
-        obstacle_bounds_xy = None
-        obstacle_bounds_seq = []
-        if ctx.surface_info and ctx.surface_info.obstacles:
-            obstacle_bounds_seq.extend(obstacle.aabb_xy for obstacle in ctx.surface_info.obstacles)
-
-        zone = compute_tabletop_zone(
-            surface_bounds_xy=ctx.surface_bounds_xy,
-            obstacle_bounds_xy=obstacle_bounds_xy,
-            obstacle_bounds_seq=tuple(obstacle_bounds_seq),
-            edge_margin_m=args.zone_edge_margin_m or 0.04,
-            obstacle_keepout_margin_m=args.obstacle_keepout_margin_m or 0.08,
-            obstacle_side_clearance_m=args.obstacle_side_clearance_m or 0.015,
-        )
-        ctx._zone = zone
-        print(f"[Pipeline] Zone: red_zone={zone.red_zone_bounds}, "
-              f"long_axis={zone.long_axis}")
-
-        pack_config = PackRetryConfig(
-            pack_jitter_xy=args.pack_jitter_xy or 0.022,
-            pack_min_clearance=args.pack_min_clearance or 0.008,
-            pack_clearance_step_m=getattr(args, "pack_clearance_step_m", None) or 0.005,
-            pack_clearance_floor_m=getattr(args, "pack_clearance_floor_m", None) or 0.002,
-            pack_clearance_search_mode=getattr(args, "pack_clearance_search_mode", None) or "shrink_from_start",
-        )
-        settle_fn = make_settle_fn(ctx.og, th)
-        park_fn = make_park_fn(ctx.og, zone.surface_bounds, ctx.floor_z)
-
-        extra_validation_fn = None
-
-        pack_result = run_pack_retry_loop(
-            support_name=getattr(ctx.support_obj, "name", "support"),
-            descriptors=ctx._descriptors,
-            objects_by_inst=ctx._objects_by_inst,
-            red_zone_bounds=zone.red_zone_bounds,
-            table_top_z=ctx.table_top_z,
-            floor_z=ctx.floor_z,
-            config=pack_config,
-            base_seed=args.seed,
-            episode=ctx.episode,
-            settle_fn=settle_fn,
-            park_fn=park_fn,
-            validate_poses_fn=validate_poses,
-            check_interpenetration_fn=check_interpenetration,
-            obstacle_keepout_bounds=zone.obstacle_keepout_bounds,
-            obstacle_keepout_bounds_seq=getattr(zone, "obstacle_keepout_bounds_seq", ()),
-            extra_validation_fn=extra_validation_fn,
-        )
-        ctx._pack_result = pack_result
-        print(f"[Pipeline] Pack solved: attempt={pack_result.attempt_used}, "
-              f"active={len(pack_result.active_descriptors)}")
-
-        # Remove inactive objects from the scene (they were parked during retries).
-        passive = {i: o for i, o in ctx._objects_by_inst.items()
-                   if i not in pack_result.active_objects_by_inst}
-        remove_objects(ctx.og, passive)
-
-        # Integrity check.
-        ctx._integrity = validate_pack_integrity(
-            pack_spec=pack_result.pack_spec,
-            world_positions=pack_result.world_positions,
-            pack_origin_world=pack_result.pack_origin,
-            pack_yaw=0.0, tol_xy=pack_config.integrity_tol_xy,
+        from sentinel.utils.tabletop_workspace import TabletopZoneSpec
+        from sentinel.task_generation.pipeline_common import (
+            _try_upright_objects, _yaw_from_quat,
         )
 
-        # active_objects for the LTL rollout.
-        ctx.active_objects = pack_result.active_objects_by_inst
+        sol = ctx.selection.get("_pack_solution")
+        if sol is None:
+            raise RuntimeError(
+                "place_objects: no cached _pack_solution. offline_pack must "
+                "run inside _setup_session before place_objects (see "
+                "BasePipeline._setup_session)."
+            )
+
+        # Live support pose. Scale was already baked into the solver region
+        # in offline_pack, so placements are in *world-scaled* support-local
+        # coords — only apply yaw + translation here.
+        pos, quat = ctx.support_obj.get_position_orientation()
+        pos = [float(v) for v in pos]
+        scale_vec = ctx.support_obj.scale
+        sx_scale = float(scale_vec[0])
+        sy_scale = float(scale_vec[1])
+        yaw = _yaw_from_quat([float(v) for v in quat])
+        cos_y, sin_y = math.cos(yaw), math.sin(yaw)
+
+        # Region centroid in world-scaled support-local frame. The solver
+        # returned placements region-centred, so we add this centroid to
+        # recover support-local coords.
+        (lx_min, ly_min) = ctx.args._picked_surface["xy_min"]
+        (lx_max, ly_max) = ctx.args._picked_surface["xy_max"]
+        centroid_x = 0.5 * (lx_min + lx_max) * sx_scale
+        centroid_y = 0.5 * (ly_min + ly_max) * sy_scale
+
+        world_positions: dict = {}
+        roles: dict = {}
+        for p in sol.placements:
+            obj = ctx._objects_by_inst.get(p.inst_id)
+            if obj is None:
+                continue
+            ex = p.cx + centroid_x
+            ey = p.cy + centroid_y
+            wx = pos[0] + cos_y * ex - sin_y * ey
+            wy = pos[1] + sin_y * ex + cos_y * ey
+            wz = ctx.table_top_z + p.cz
+            half_yaw = 0.5 * (yaw + p.yaw)
+            obj.set_position_orientation(
+                position=(wx, wy, wz),
+                orientation=(0.0, 0.0, math.sin(half_yaw), math.cos(half_yaw)),
+            )
+            # Zero residual velocity — objects parked at z=10 during prior
+            # episodes accumulate gravity, and set_position_orientation
+            # alone doesn't reset velocity. Without this they punch through
+            # the desk on the first settle step.
+            obj.keep_still()
+            world_positions[p.inst_id] = (wx, wy, wz)
+            roles[p.inst_id] = p.role
+
+        active_objects = {inst: ctx._objects_by_inst[inst] for inst in world_positions}
+
+        settle = make_settle_fn(ctx.og, th)
+        settle(active_objects)
+        _try_upright_objects(ctx.og, active_objects)
+        settle(active_objects)
+
+        # TabletopZoneSpec describes the world-frame placeable rectangle
+        # for the Franka edge picker.
+        (rx0, _ry0), (rx1, _ry1) = ctx.surface_bounds_xy
+        long_axis = "x" if (rx1 - rx0) >= (ctx.surface_bounds_xy[1][1]
+                                           - ctx.surface_bounds_xy[0][1]) else "y"
+        ctx._zone = TabletopZoneSpec(
+            surface_bounds=ctx.surface_bounds_xy,
+            obstacle_keepout_bounds=None,
+            obstacle_keepout_bounds_seq=(),
+            red_zone_bounds=ctx.surface_bounds_xy,
+            long_axis=long_axis,
+        )
+        ctx.active_objects = active_objects
+        ctx._world_positions = world_positions
         ctx._active_object_summary = [
             {
                 "inst_id": inst_id,
                 "scene_object_name": getattr(obj, "name", None),
                 "category": str(getattr(obj, "category", "")),
-                "role": next(
-                    (d.role for d in pack_result.active_descriptors if d.instance_id == inst_id),
-                    None,
-                ),
+                "role": roles.get(inst_id),
             }
-            for inst_id, obj in sorted(ctx.active_objects.items())
+            for inst_id, obj in sorted(active_objects.items())
         ]
-        print(f"[Pipeline] Active object summary: {ctx._active_object_summary}")
 
     def make_edge_objects(self, ctx):
         from sentinel.utils.franka_edge_align import EdgeAlignObject
-
-        pack_result = ctx._pack_result
+        sol = ctx.selection["_pack_solution"]
         objects = tuple(
             EdgeAlignObject(
-                name=e.inst_id, role=e.role,
-                position_xy=(pack_result.world_positions[e.inst_id][0],
-                             pack_result.world_positions[e.inst_id][1]),
+                name=p.inst_id, role=p.role,
+                position_xy=(ctx._world_positions[p.inst_id][0],
+                             ctx._world_positions[p.inst_id][1]),
             )
-            for e in pack_result.pack_spec.object_entries
-            if e.inst_id in pack_result.world_positions
+            for p in sol.placements
+            if p.inst_id in ctx._world_positions
         )
         if not objects:
             raise RuntimeError("No pack objects for edge alignment.")
@@ -206,21 +333,12 @@ class ClutterPipeline(BasePipeline):
             return [{"predicate": "grasping", "subject": "robot", "reference": ctx.target_obj.name}]
         return []
 
-    def extra_gate_checks(self, ctx):
-        if getattr(ctx, "_integrity", None) is None or not ctx._integrity.ok:
-            return False
-        return True
-
     def diagnostics_extra(self, ctx):
         extra = {"density": getattr(ctx.args, "clutter_density", None), "pipeline": "table"}
-        if hasattr(ctx, "_pack_result"):
-            extra["pack_attempt_used"] = ctx._pack_result.attempt_used
-            extra["pack_clearance_used"] = ctx._pack_result.clearance_used
         if hasattr(ctx, "_active_object_summary"):
             extra["active_object_summary"] = ctx._active_object_summary
-        sel = ctx.selection
-        if sel is not None:
-            extra["selection"] = sel
+        if ctx.selection is not None:
+            extra["selection"] = ctx.selection
         if getattr(ctx, "removed_area_objects", None):
             extra["removed_area_objects"] = list(ctx.removed_area_objects)
         if getattr(ctx, "removed_robot_base_objects", None):
