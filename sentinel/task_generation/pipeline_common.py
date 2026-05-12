@@ -1304,6 +1304,14 @@ class BasePipeline(ABC):
         from omnigibson.macros import gm
 
         gm.ENABLE_OBJECT_STATES = True
+        # Disable BEHAVIOR transition rules. Spawning containers like
+        # ``bottle_of_dish_soap`` would otherwise trigger a recipe that
+        # auto-creates the substance (sludge) inside, forcing GPU
+        # dynamics on at scene-load. We want containers to remain inert
+        # rigid bodies unless a pipeline explicitly opts into the
+        # substance (e.g. wet-transport). Same goes for slicing / dicing
+        # / cooking recipes that would alter our spawned objects mid-run.
+        gm.ENABLE_TRANSITION_RULES = False
 
         # -- Object-first scene selection -----------------------------------
         # Pre-select args.episodes triples so each episode uses a different
