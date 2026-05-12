@@ -88,15 +88,15 @@ class LidTransportPipeline(BasePipeline):
         sel = select_pair_for_food(rng,
                                     item_categories=item_cats,
                                     item_model=args.item_model)
-        # Synthetic synsets for the food (cat.n.01 round-trips through
-        # _synset_to_category in task_spec for spawn-spec building).
         food_synset = f"{sel['food_category']}.n.01"
-        # Container synset for footprint estimation only.
-        container_synset = sel["container_category"]
-        item_synset = "lid.n.02" if sel["item_category"] == "lid" else "cap.n.02"
-        synset_counts = [(container_synset, 1), (item_synset, 1), (food_synset, 1)]
+        # Pinned (category, count, model) — exact per-model footprints.
+        counts = [
+            (sel["container_category"], 1, sel["container_model"]),
+            (sel["item_category"], 1, sel["item_model"]),
+            (sel["food_category"], 1, sel["food_model"]),
+        ]
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_area_m2": estimate_object_set_footprint(counts),
             "item_category": sel["item_category"],
             "item_model": sel["item_model"],
             "container_category": sel["container_category"],
@@ -305,11 +305,13 @@ class LidLiquidTransportPipeline(LidTransportPipeline):
         sel = select_pair_for_liquid(rng,
                                       item_categories=item_cats,
                                       item_model=args.item_model)
-        container_synset = sel["container_category"]
-        item_synset = "lid.n.02" if sel["item_category"] == "lid" else "cap.n.02"
-        synset_counts = [(container_synset, 1), (item_synset, 1)]
+        # Pinned (category, count, model) — exact per-model footprints.
+        counts = [
+            (sel["container_category"], 1, sel["container_model"]),
+            (sel["item_category"], 1, sel["item_model"]),
+        ]
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
+            "required_area_m2": estimate_object_set_footprint(counts),
             "item_category": sel["item_category"],
             "item_model": sel["item_model"],
             "container_category": sel["container_category"],

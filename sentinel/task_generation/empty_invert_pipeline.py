@@ -41,12 +41,19 @@ class EmptyInvertPipeline(BasePipeline):
         return "auto_empty_invert_on"
 
     def select_objects(self, args, rng):
-        container = args.container_synset or \
+        from sentinel.utils.task_spec import (
+            _pick_model_for_category, _synset_to_category,
+        )
+        container_synset = args.container_synset or \
             INVERT_CONTAINER_POOL[rng.integers(len(INVERT_CONTAINER_POOL))][0]
-        synset_counts = [(container, 1)]
+        container_cat = _synset_to_category(container_synset)
+        _, container_model = _pick_model_for_category(container_cat, rng)
+        counts = [(container_cat, 1, container_model)]
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
-            "container_synset": container,
+            "required_area_m2": estimate_object_set_footprint(counts),
+            "container_synset": container_synset,
+            "container_category": container_cat,
+            "container_model": container_model,
         }
 
     def generate_activity(self, activity_name, support_synset, support_room,

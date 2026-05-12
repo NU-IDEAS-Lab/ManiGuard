@@ -289,12 +289,14 @@ class TransferPipeline(BasePipeline):
             goal_predicate=args.goal_predicate,
         )
         from sentinel.utils.task_spec import estimate_object_set_footprint
-        category_counts = [
-            (selection["food_category"], 1),
-            (selection["source_category"], 1),
-            (selection["dest_category"], 1),
+        # Models are already pinned by build_transfer_objects — forward them
+        # so the picker uses exact per-model footprints, not category medians.
+        counts = [
+            (selection["food_category"], 1, selection["food_model"]),
+            (selection["source_category"], 1, selection["source_model"]),
+            (selection["dest_category"], 1, selection["dest_model"]),
         ]
-        selection["required_area_m2"] = estimate_object_set_footprint(category_counts)
+        selection["required_area_m2"] = estimate_object_set_footprint(counts)
         return selection
 
     def generate_activity(self, activity_name, support_category, support_room,

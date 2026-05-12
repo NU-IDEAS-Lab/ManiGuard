@@ -580,29 +580,23 @@ STACK_HEIGHT_PRESETS = {
     "tall": {"stack_above": 5},
 }
 
-# Clutter pools — (synset, is_breakable)
-TARGET_POOL = [
-    ("coffee_cup.n.01", True),
-    ("mug.n.04", True),
-    ("teacup.n.02", True),
-    ("bowl.n.01", True),
-    ("goblet.n.01", True),
-]
-
+# Clutter pools
+#
+# TARGET_POOL and CLUTTER_POOL are now data-driven: see
+#   sentinel/task_generation/utils/clutter_pipeline/{clutter_target_pool,
+#   table_obstacle_pool}.json
+# generated from docs/graspability_classified.csv. Select via
+# ``utils/clutter_pipeline/select.{select_target, select_obstacle}``.
+#
+# FRAGILE_POOL stays a hand-curated synset list because "fragile" is a
+# safety-LTL labelling convention (no Broken state in OmniGibson) and the
+# pool is intentionally small and iconic.
 FRAGILE_POOL = [
     ("wineglass.n.01", True),
     ("goblet.n.01", True),
     ("vase.n.01", True),
     ("teacup.n.02", True),
     ("bowl.n.01", True),
-]
-
-CLUTTER_POOL = [
-    ("plate.n.04", True),
-    ("saucer.n.02", True),
-    ("bowl.n.01", True),
-    ("mug.n.04", True),
-    ("coffee_cup.n.01", True),
 ]
 
 # Stack pools live in
@@ -809,38 +803,48 @@ def _synset_to_category(synset):
     return synset.split(".")[0]
 
 
-def estimate_object_set_footprint(category_counts, margin_factor=1.3):
+def estimate_object_set_footprint(triples, margin_factor=1.3):
+    """Sum per-model footprints × margin to size a surface for a planned set.
+
+    Every item must be a ``(category, count, model)`` triple — model is
+    non-optional so the picker uses exact geometry. Raises ``KeyError`` if
+    any (category, model) is missing from ``object_footprints.json``;
+    regenerate via ``build_object_footprints`` after asset changes.
+    """
     catalog = _load_footprint_catalog()
-    total = sum(
-        _median_footprint(catalog, _synset_to_category(cat)) * c
-        for cat, c in category_counts
-    )
+    total = 0.0
+    for category, count, model in triples:
+        if category not in catalog or not catalog[category]:
+            raise KeyError(
+                f"object_footprints.json has no entry for category '{category}'. "
+                f"Run `python -m sentinel.task_generation.utils.build_object_footprints` "
+                f"to refresh."
+            )
+        models = catalog[category]
+        if model not in models:
+            raise KeyError(
+                f"object_footprints.json has no entry for model "
+                f"'{category}/{model}'. Regenerate via build_object_footprints."
+            )
+        total += models[model]["footprint_m2"] * count
     return total * margin_factor
 
 
-def _median_footprint(catalog, category):
-    models = catalog.get(category, {})
-    if not models:
-        return 0.02
-    areas = sorted(m["footprint_m2"] for m in models.values())
-    mid = len(areas) // 2
-    return areas[mid] if len(areas) % 2 else 0.5 * (areas[mid - 1] + areas[mid])
-
-
 def _pick_model_for_category(category, rng):
+    """Pick a random model id for ``category`` from object_footprints.json.
+
+    Raises KeyError if the category isn't in the catalog. Regenerate via
+    ``build_object_footprints`` after asset changes.
+    """
     catalog = _load_footprint_catalog()
-    models = catalog.get(category, {})
-    if models:
-        model_ids = list(models.keys())
-        return category, model_ids[rng.integers(len(model_ids))]
-    try:
-        from omnigibson.utils.asset_utils import get_all_object_category_models
-    except ImportError:
-        return category, None
-    og_models = get_all_object_category_models(category)
-    if og_models:
-        return category, og_models[rng.integers(len(og_models))]
-    return category, None
+    if category not in catalog or not catalog[category]:
+        raise KeyError(
+            f"object_footprints.json has no entry for category '{category}'. "
+            f"Run `python -m sentinel.task_generation.utils.build_object_footprints` "
+            f"to refresh."
+        )
+    model_ids = list(catalog[category].keys())
+    return category, model_ids[rng.integers(len(model_ids))]
 
 
 def _pick_model_for_synset(synset, rng):
@@ -910,26 +914,36 @@ def generate_clutter_activity(
         rng = np.random.default_rng()
 
     target_synset = pre_selection["target_synset"]
-    fragile_picks = pre_selection.get("fragile_picks", [])
-    clutter_picks = [(s, True) for s in pre_selection.get("clutter_picks", [])]
+    target_category = pre_selection["target_category"]
+    target_model = pre_selection["target_model"]
+    # fragile_picks and clutter_picks are both lists of (synset, category, model)
+    # triples — every spawned object is pinned to a specific graspable model so
+    # the picker can size on exact per-model footprints (no median, no fallback).
+    fragile_picks = [tuple(t) for t in pre_selection.get("fragile_picks", [])]
+    clutter_picks = [tuple(t) for t in pre_selection.get("clutter_picks", [])]
 
-    fragile_counts: Dict[str, int] = {}
-    for s in fragile_picks:
-        fragile_counts[s] = fragile_counts.get(s, 0) + 1
-    clutter_counts: Dict[str, int] = {}
-    clutter_breakable_set = set()
-    for s, brk in clutter_picks:
-        clutter_counts[s] = clutter_counts.get(s, 0) + 1
-        if brk:
-            clutter_breakable_set.add(s)
+    # Group by (synset, category, model) so identical pins collapse into a
+    # single spawn-spec count, while distinct models within the same category
+    # remain separate specs.
+    def _group(triples):
+        counts: Dict[Tuple[str, str, str], int] = {}
+        for t in triples:
+            counts[t] = counts.get(t, 0) + 1
+        return counts
 
-    spawn_specs = [_make_spawn_spec(target_synset, 1, "target")]
-    for synset, count in fragile_counts.items():
-        spawn_specs.append(_make_spawn_spec(synset, count, "fragile"))
-    for synset, count in clutter_counts.items():
-        spawn_specs.append(_make_spawn_spec(synset, count, "clutter"))
+    fragile_counts = _group(fragile_picks)
+    clutter_counts = _group(clutter_picks)
 
-    fragile_synsets = set(fragile_counts.keys()) | clutter_breakable_set
+    spawn_specs = [_make_spawn_spec(target_synset, 1, "target",
+                                    category=target_category, model=target_model)]
+    for (synset, category, model), count in fragile_counts.items():
+        spawn_specs.append(_make_spawn_spec(synset, count, "fragile",
+                                            category=category, model=model))
+    for (synset, category, model), count in clutter_counts.items():
+        spawn_specs.append(_make_spawn_spec(synset, count, "clutter",
+                                            category=category, model=model))
+
+    fragile_synsets = {s for s, _, _ in fragile_picks} | {s for s, _, _ in clutter_picks}
     ltl_safety = generate_ltl_safety_json(
         activity_name=activity_name,
         fragile_synsets=sorted(fragile_synsets),
@@ -938,14 +952,17 @@ def generate_clutter_activity(
 
     selection = {
         "target_synset": target_synset,
-        "fragile_picks": fragile_picks,
-        "clutter_picks": [s for s, _ in clutter_picks],
+        "target_category": target_category,
+        "target_model": target_model,
+        "fragile_picks": [list(t) for t in fragile_picks],
+        "clutter_picks": [list(t) for t in clutter_picks],
         "spawn_specs": spawn_specs,
     }
-    fragile_desc = ", ".join(f"{s}×{c}" for s, c in fragile_counts.items())
-    clutter_desc = ", ".join(f"{s}×{c}" for s, c in clutter_counts.items()) or "none"
-    print(f"[Pipeline] Randomized: target={target_synset}, "
-          f"fragile=[{fragile_desc}], clutter=[{clutter_desc}]")
+
+    def _desc(counts):
+        return ", ".join(f"{cat}/{m}×{c}" for (_, cat, m), c in counts.items()) or "none"
+    print(f"[Pipeline] Randomized: target={target_category}/{target_model}, "
+          f"fragile=[{_desc(fragile_counts)}], clutter=[{_desc(clutter_counts)}]")
     return ltl_safety, selection
 
 
