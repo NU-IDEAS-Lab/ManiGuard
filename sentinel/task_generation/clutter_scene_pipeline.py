@@ -104,30 +104,30 @@ class ClutterPipeline(BasePipeline):
         ctx._objects_by_inst = dict(ctx.spawned_objects)
 
     def offline_pack(self, episode_activities, picked, args, support_obj=None):
-        """Pre-compute pack placements for every episode after env load.
+        """Pre-compute pack placements for every episode (offline).
 
         Runs in pure Python over ``object_footprints.json`` + the picked
-        region from ``placeable_surfaces_v1.json``, but is invoked after
-        the env exists so we can read the support's *applied* scale and
-        size the region in actual world dimensions. Caches a
-        ``PackSolution`` plus the prepared ``PackInputDescriptor`` list and
-        shrunken region bounds on each episode's ``selection`` dict; the
+        region from ``placeable_surfaces_v1.json``. The picked region
+        carries the per-instance ``scale_xyz`` from
+        ``build_placeable_surface_scales.py`` so the world-frame region
+        bounds can be sized without a live env. Caches a
+        ``PackSolution`` on each episode's ``selection`` dict; the
         runtime ``place_objects`` later teleports objects to the cached
         positions with no further solving.
+
+        ``support_obj`` is unused — kept in the signature only to match
+        the ``BasePipeline.offline_pack`` hook signature, which other
+        pipelines may need.
         """
-        if picked is None:
-            return
+        del support_obj  # noqa: F841 — see docstring
         catalog = _load_footprint_catalog()
         # Support scale (applied to the placeable region's local extents).
         # Object extents come from object_footprints.json and are already in
         # world units (objects are spawned at scale=1), so we only scale the
         # surface bounds — not the per-object AABBs.
-        if support_obj is not None:
-            scale_vec = support_obj.scale
-            sx_scale = float(scale_vec[0])
-            sy_scale = float(scale_vec[1])
-        else:
-            sx_scale = sy_scale = 1.0
+        scale_xyz = picked["scale_xyz"]
+        sx_scale = float(scale_xyz[0])
+        sy_scale = float(scale_xyz[1])
 
         # World-sized region bounds (still in support-local axes; the world
         # rotation+translation is applied at place time). Shrink by the edge
@@ -144,28 +144,32 @@ class ClutterPipeline(BasePipeline):
               f"{sx1 - sx0:.3f}×{sy1 - sy0:.3f} m "
               f"(local {lx1 - lx0:.3f}×{ly1 - ly0:.3f})")
 
-        run_dir = getattr(args, "run_dir", None)
-        scene_label = args.scene_model or "?"
-        surface_label = f"{picked.get('category')}/{picked.get('model')}"
+        run_dir = args.run_dir
+        scene_label = args.scene_model
+        surface_label = f"{picked['category']}/{picked['model']}"
 
         for ep, (_, selection) in enumerate(episode_activities):
-            spawn_specs = selection.get("spawn_specs", [])
-            if not spawn_specs:
-                continue
+            spawn_specs = selection["spawn_specs"]
             ep_label = f"ep{ep + 1}"
 
-            # Mirror spawn_objects' inst_id assignment so place_objects can
+            # Mirror build_task_object_cfgs' inst_id assignment so place_objects can
             # later look up the spawned DatasetObject by inst_id.
             inst_plan = predict_inst_ids(spawn_specs, episode_label=ep_label)
 
             pack_inputs = []
             target_inst_id = None
             for inst_id, role, cat, model in inst_plan:
-                if model is None or cat not in catalog or model not in catalog[cat]:
-                    log.warning("offline_pack: %s/%s missing from catalog; "
-                                "regenerate object_footprints.json",
-                                cat, model)
-                    continue
+                if model is None:
+                    raise RuntimeError(
+                        f"offline_pack: spec for {role}/{cat} has model=None — "
+                        "every spec must pin a concrete model at select_objects() time."
+                    )
+                if cat not in catalog or model not in catalog[cat]:
+                    raise RuntimeError(
+                        f"offline_pack: {cat}/{model} missing from "
+                        "object_footprints.json — regenerate the catalog "
+                        "before running new categories."
+                    )
                 ext = catalog[cat][model]["extent_xyz"]
                 pack_inputs.append(PackInputDescriptor(
                     inst_id=inst_id, role=role,
@@ -191,21 +195,18 @@ class ClutterPipeline(BasePipeline):
             if run_dir:
                 from sentinel.utils.pack_viz import save_pack_viz
                 viz_path = os.path.join(run_dir, f"pack_planned_{ep_label}.png")
-                try:
-                    save_pack_viz(
-                        out_path=viz_path,
-                        surface_bounds_xy=((sx0, sy0), (sx1, sy1)),
-                        pack_region_bounds=((bx0, by0), (bx1, by1)),
-                        placements=sol.placements,
-                        descriptors=pack_inputs,
-                        unplaced=sol.unplaced,
-                        min_clearance=_MIN_CLEARANCE_M,
-                        episode_label=ep_label,
-                        scene_label=scene_label,
-                        surface_label=surface_label,
-                    )
-                except Exception as exc:
-                    log.warning("pack viz save failed: %s", exc)
+                save_pack_viz(
+                    out_path=viz_path,
+                    surface_bounds_xy=((sx0, sy0), (sx1, sy1)),
+                    pack_region_bounds=((bx0, by0), (bx1, by1)),
+                    placements=sol.placements,
+                    descriptors=pack_inputs,
+                    unplaced=sol.unplaced,
+                    min_clearance=_MIN_CLEARANCE_M,
+                    episode_label=ep_label,
+                    scene_label=scene_label,
+                    surface_label=surface_label,
+                )
 
     def place_objects(self, ctx):
         """Apply the offline-computed pack: teleport then settle.
@@ -328,19 +329,15 @@ class ClutterPipeline(BasePipeline):
         return []
 
     def diagnostics_extra(self, ctx):
-        extra = {"density": getattr(ctx.args, "clutter_density", None), "pipeline": "table"}
-        if hasattr(ctx, "_active_object_summary"):
-            extra["active_object_summary"] = ctx._active_object_summary
-        if ctx.selection is not None:
-            extra["selection"] = ctx.selection
-        if getattr(ctx, "removed_area_objects", None):
-            extra["removed_area_objects"] = list(ctx.removed_area_objects)
-        if getattr(ctx, "removed_robot_base_objects", None):
-            extra["removed_robot_base_objects"] = list(ctx.removed_robot_base_objects)
-        if getattr(ctx, "resolved_video_views", None):
-            extra["resolved_video_views"] = list(ctx.resolved_video_views)
-        if getattr(ctx.args, "video_candidate_mode", None) is not None:
-            extra["video_candidate_mode"] = ctx.args.video_candidate_mode
+        extra = {
+            "pipeline": "table",
+            "density": ctx.args.clutter_density,
+            "selection": ctx.selection,
+            "active_object_summary": ctx._active_object_summary,
+            "removed_area_objects": list(ctx.removed_area_objects),
+            "removed_robot_base_objects": list(ctx.removed_robot_base_objects),
+            "resolved_video_views": list(ctx.resolved_video_views),
+        }
         return extra
 
 
