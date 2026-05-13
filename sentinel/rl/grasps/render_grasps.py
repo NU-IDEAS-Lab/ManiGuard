@@ -62,24 +62,47 @@ def parse_args():
                    help="Hard wall-clock budget per object (s). Phase A "
                         "stops iterating candidates when this trips and "
                         "returns whatever holds were collected so far.")
-    # Sampling — GraspGen ZMQ client only.
+    # Sampling — choose among GraspGen ZMQ (learned) and the geometric
+    # samplers in this package.
+    p.add_argument("--sampler", type=str, default="obb",
+                   choices=["obb", "graspgen"],
+                   help="Which grasp-pose sampler to use. Default: obb "
+                        "(geometric, OBB-based assisted-grasp sampler).")
     p.add_argument("--max-candidates", type=int, default=400,
-                   help="Cap on GraspGen candidates considered per object.")
+                   help="Cap on sampler candidates considered per object.")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--graspgen-confidence-threshold", type=float, default=0.0,
-                   help="Drop GraspGen grasps below this discriminator score "
-                        "client-side. Server's top-K already enforces a soft "
-                        "threshold, so 0.0 keeps the server's full top-K.")
+                   help="GraspGen-only: drop grasps below this discriminator "
+                        "score client-side. Server's top-K already enforces a "
+                        "soft threshold, so 0.0 keeps the server's full top-K.")
     p.add_argument("--graspgen-num-grasps", type=int, default=200,
-                   help="How many diffusion samples GraspGen draws per object.")
+                   help="GraspGen-only: diffusion samples drawn per object.")
     p.add_argument("--graspgen-topk", type=int, default=100,
-                   help="Server returns top-K by discriminator score.")
+                   help="GraspGen-only: server returns top-K by discriminator score.")
     p.add_argument("--graspgen-host", type=str, default=None,
-                   help="Override GRASPGEN_HOST (default localhost).")
+                   help="GraspGen-only: override GRASPGEN_HOST (default localhost).")
     p.add_argument("--graspgen-port", type=int, default=None,
-                   help="Override GRASPGEN_PORT (default 5556).")
-    # Scene geometry — no table; target floats in mid-air.
+                   help="GraspGen-only: override GRASPGEN_PORT (default 5556).")
+    # Scene geometry. Without --with-surface, target floats in mid-air at
+    # --object-xyz; with --with-surface, a support object is spawned once
+    # and the target is placed `--object-lift-above-surface` m above its
+    # top face at `--surface-xy`.
     p.add_argument("--object-xyz", type=float, nargs=3, default=[0.55, 0.0, 0.55])
+    p.add_argument("--with-surface", action="store_true",
+                   help="Spawn a support surface (e.g. breakfast_table) once "
+                        "and place each target above its top face — gives the "
+                        "grasp eval a realistic table-top context.")
+    p.add_argument("--surface-category", type=str, default="breakfast_table",
+                   help="DatasetObject category for the support surface.")
+    p.add_argument("--surface-model", type=str, default=None,
+                   help="Specific model id; None picks a random model from the "
+                        "category.")
+    p.add_argument("--surface-xy", type=float, nargs=2, default=[0.55, 0.0],
+                   help="World xy for the support surface center.")
+    p.add_argument("--object-lift-above-surface", type=float, default=0.05,
+                   help="Clearance (m) between target's spawn pose and the "
+                        "support's top face. Small positive value gives the "
+                        "fingers room to slip underneath.")
     p.add_argument("--franka-xy", type=float, nargs=2, default=[0.0, 0.0])
     p.add_argument("--franka-z", type=float, default=0.72)
     p.add_argument("--max-reach", type=float, default=0.95)
@@ -176,6 +199,37 @@ def _read_graspable(csv_path: Path, exclude_statuses=("too_large",)):
             yield row["category"], row["model"]
 
 
+def _run_sampler(args, mesh, rng):
+    """Dispatch to the configured grasp-pose sampler.
+
+    Returns ``(poses (N, 4, 4) float32, scores (N,) float32)`` in mesh-
+    local frame. All samplers agree on the Franka pose convention and
+    eef_link origin so the downstream cuRobo / physics-validation path
+    is identical regardless of which sampler ran.
+    """
+    if args.sampler == "graspgen":
+        from sentinel.rl.grasps.graspgen_sampler import sample_graspgen_grasps
+        return sample_graspgen_grasps(
+            mesh,
+            num_grasps=args.graspgen_num_grasps,
+            topk_num_grasps=args.graspgen_topk,
+            confidence_threshold=args.graspgen_confidence_threshold,
+            host=args.graspgen_host,
+            port=args.graspgen_port,
+            rng=rng,
+        )
+    if args.sampler == "obb":
+        from sentinel.rl.grasps.obb_sampler import (
+            OBBConfig, sample_obb_assisted_grasps,
+        )
+        return sample_obb_assisted_grasps(
+            mesh,
+            config=OBBConfig(max_candidates=args.max_candidates),
+            rng=rng,
+        )
+    raise ValueError(f"Unknown sampler: {args.sampler!r}")
+
+
 def _build_env_config(args, franka_base_z: float) -> dict:
     """Empty Scene + FrankaPanda only. Target is spawned floating per-object."""
     return dict(
@@ -269,7 +323,6 @@ def _render_one(env, primitives, category, model, args, obj_dir,
         save_grasp_dataset,
     )
     from sentinel.rl.grasps.mesh import mesh_from_og_object
-    from sentinel.rl.grasps.graspgen_sampler import sample_graspgen_grasps
     from sentinel.rl.grasps._viz_helpers import (
         render_grasp_views,
         render_point_cloud_views,
@@ -309,6 +362,30 @@ def _render_one(env, primitives, category, model, args, obj_dir,
     obj.root_link.set_angular_velocity(th.zeros(3))
     obj.root_link.disable_gravity()
 
+    # If a support surface exists, recompute init_pos so the target's BOTTOM
+    # rests `object_lift_above_surface` above the table top — regardless of
+    # the object's height. Without this, tall objects (e.g. alphabet_abacus
+    # at 39 cm) spawn with their center 5 cm above the table → bottom 15 cm
+    # below the surface → PhysX penetration → "swirling" as the pin fights
+    # the contact resolver.
+    if getattr(args, "_support_top_z", None) is not None:
+        # Settle one substep so AABB reflects the chosen orientation.
+        for _ in range(2):
+            og.sim.step()
+        aabb_min, aabb_max = obj.aabb
+        center_to_bottom = float(init_pos[2]) - float(aabb_min[2])
+        sx, sy = args._surface_xy
+        new_z = (args._support_top_z
+                 + float(args.object_lift_above_surface)
+                 + center_to_bottom)
+        init_pos = th.tensor([sx, sy, new_z], dtype=th.float32)
+        obj.set_position_orientation(position=init_pos, orientation=init_quat)
+        obj.root_link.set_linear_velocity(th.zeros(3))
+        obj.root_link.set_angular_velocity(th.zeros(3))
+        print(f"  target init: bottom on table  "
+              f"(center_to_bottom={center_to_bottom:.3f}m  z={new_z:.3f})",
+              flush=True)
+
     try:
         # Brief pinned settle so PhysX/USD initialise the new prim.
         for _ in range(8):
@@ -322,25 +399,17 @@ def _render_one(env, primitives, category, model, args, obj_dir,
             print(f"  mesh extraction failed: {exc}", flush=True)
             return 0
 
-        # GraspGen candidates (in target-local frame already).
+        # Grasp candidates (in target-local frame; all samplers agree on
+        # the Franka pose convention and eef_link origin).
         rng = np.random.default_rng(args.seed)
-        candidates, scores = sample_graspgen_grasps(
-            mesh,
-            num_grasps=args.graspgen_num_grasps,
-            topk_num_grasps=args.graspgen_topk,
-            confidence_threshold=args.graspgen_confidence_threshold,
-            host=args.graspgen_host,
-            port=args.graspgen_port,
-            rng=rng,
-        )
+        candidates, scores = _run_sampler(args, mesh, rng)
         if len(candidates) == 0:
-            print(f"  GraspGen returned 0 candidates above threshold "
-                  f"{args.graspgen_confidence_threshold}", flush=True)
+            print(f"  sampler={args.sampler}: 0 candidates", flush=True)
             return 0
         if len(candidates) > args.max_candidates:
             candidates = candidates[:args.max_candidates]
             scores = scores[:args.max_candidates]
-        print(f"  GraspGen: {len(candidates)} grasps, "
+        print(f"  sampler={args.sampler}: {len(candidates)} grasps, "
               f"score range={scores[-1]:.3f}-{scores[0]:.3f}", flush=True)
 
         # Diagnostic: top-K grasp PNGs (always written).
@@ -363,7 +432,10 @@ def _render_one(env, primitives, category, model, args, obj_dir,
                 print(f"  grasp PNG dump failed: {exc}", flush=True)
 
         # Phase A: validate.
-        primitives._motion_generator.update_obstacles(ignore_objects=[obj])
+        # Include the target in cuRobo's obstacle world — assisted-grasp
+        # pre-grasp pose is OPEN-gripper at the chord midpoint and must
+        # not clip the target along the approach.
+        primitives._motion_generator.update_obstacles(ignore_objects=[])
         cfg = GraspCollectorConfig(
             num_target_grasps=args.num_target_grasps,
             settle_open_steps=args.settle_open_steps,
@@ -581,14 +653,80 @@ def main():
     _ag_macros.RELEASE_WINDOW = 1.0 / 300.0
 
     import omnigibson as og
+    import torch as th
 
     print(f"[{time.strftime('%H:%M:%S')}] Booting OG ...", flush=True)
     env = og.Environment(configs=_build_env_config(args, franka_base_z=franka_base_z))
     env.reset()
 
+    # Optional support surface — spawned once and shared across all targets.
+    # The surface and the per-attempt target are both in cuRobo's obstacle
+    # world (see update_obstacles(ignore_objects=[]) in collector.py and in
+    # the Phase A call below). Open-gripper approach must clear both.
+    args._support_top_z = None
+    args._surface_xy = None
+    if args.with_surface:
+        from omnigibson.objects import DatasetObject
+        support_name = "render_support_surface"
+        try:
+            # fixed_base anchors the support to world via a fixed joint, so
+            # the franka arm and target prevent it from being knocked around
+            # during planning + close+hold attempts.
+            support = DatasetObject(
+                name=support_name,
+                category=args.surface_category,
+                model=args.surface_model,
+                fixed_base=True,
+            )
+            env.scene.add_object(support)
+        except Exception as exc:  # noqa: BLE001
+            raise SystemExit(
+                f"--with-surface: failed to spawn "
+                f"{args.surface_category}/{args.surface_model}: {exc}"
+            )
+        sx, sy = args.surface_xy
+        support.set_position_orientation(
+            position=th.tensor([sx, sy, 0.0], dtype=th.float32),
+            orientation=th.tensor([0.0, 0.0, 0.0, 1.0], dtype=th.float32),
+        )
+        # Settle so AABB reflects the resting pose.
+        for _ in range(20):
+            og.sim.step()
+        aabb_min, aabb_max = support.aabb
+        support_top_z = float(aabb_max[2])
+        args._support_top_z = support_top_z
+        args._surface_xy = (float(sx), float(sy))
+        # Provisional spawn xyz (correct xy + sentinel z = support_top_z +
+        # lift). Per-object code overrides z after AABB lookup so tall
+        # objects don't penetrate the table.
+        args.object_xyz = [
+            float(sx), float(sy),
+            support_top_z + float(args.object_lift_above_surface),
+        ]
+        # Re-mount the Franka on the support surface (table-mounted convention).
+        # The default --franka-z=0.72 sits 64 cm above the table top, which
+        # makes every grasp a long reach-down and routinely fails kinematics.
+        # Set the base 2 mm above the table top (Franka is bolted to the
+        # table). Must happen BEFORE cuRobo init below — cuRobo reads the
+        # robot's current pose to build its kinematic + collision world.
+        robot = env.robots[0]
+        mounted_z = support_top_z + 0.002
+        robot.set_position_orientation(
+            position=th.tensor([args.franka_xy[0], args.franka_xy[1], mounted_z],
+                               dtype=th.float32),
+            orientation=th.tensor([0.0, 0.0, 0.0, 1.0], dtype=th.float32),
+        )
+        for _ in range(5):
+            og.sim.step()
+        print(f"  support: {args.surface_category}/{getattr(support, 'model', '?')}  "
+              f"top_z={support_top_z:.3f}  fixed_base=True  "
+              f"target_xyz_seed={[round(v, 3) for v in args.object_xyz]}",
+              flush=True)
+        print(f"  franka re-mounted at z={mounted_z:.3f} (was {franka_base_z:.3f})",
+              flush=True)
+
     # Set viewer camera to a fixed side-3/4 angle so all videos share framing.
     quat = _eye_lookat_to_quat(args.camera_eye, args.camera_lookat)
-    import torch as th
     og.sim.viewer_camera.set_position_orientation(
         position=th.tensor(args.camera_eye, dtype=th.float32),
         orientation=th.tensor(quat, dtype=th.float32),
