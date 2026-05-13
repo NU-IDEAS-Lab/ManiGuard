@@ -153,16 +153,42 @@ def _patch_curobo_mimic_lookup() -> None:
     _CUROBO_MIMIC_PATCHED = True
 
 
-def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
-                    skip_obstacle_update):
-    """Full cuRobo motion plan to a Cartesian eef target.
+# Franka panda gripper link names — used to disable collision on the
+# in-contact leg so the fingers can close around the target.
+# Names must match the URDF that cuRobo loaded for the Franka asset.
+_FRANKA_GRIPPER_COLLISION_LINKS = (
+    "panda_hand",
+    "panda_leftfinger",
+    "panda_rightfinger",
+)
 
-    Returns ``(T, J)`` torch tensor of arm-joint waypoints, or ``None``
-    if no plan was found within budget. Without table or any other
-    obstacle (target ignored, floor far below Franka mount), cuRobo's
-    sphere-based collision check has plenty of free space to plan an
-    approach trajectory. The mimic-joint monkey-patch above keeps the
-    planner from choking on missing finger-joint state.
+
+def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
+                    skip_obstacle_update,
+                    pregrasp_standoff_m: float = 0.25):
+    """Two-stage cuRobo plan: obstacle-aware approach to a pre-grasp
+    standoff, then a linear-constrained continuation to the grasp pose
+    with the Franka gripper links removed from the collision world.
+
+    Why this shape:
+      * Phase A's caller keeps the target in cuRobo's obstacle world.
+        The OBB sampler designs the grasp pose with the open gripper
+        ~2 mm clear of the target — but cuRobo's Franka panda collision
+        spheres have ~13 mm effective radius and span the chord midline.
+        So planning all the way to the grasp pose with the full robot
+        collision model registers as colliding with the target every
+        time. The "right" answer is a pre-grasp standoff + linear servo
+        with gripper-link collision disabled on the last segment.
+      * cuRobo's own ``plan_grasp`` API does exactly this internally,
+        but on CUDA 11.x its goal-type switch (plan_single ↔ plan_goalset
+        within a single call) trips the cuda-graph reset path that only
+        works on CUDA >= 12, so we re-implement the same logic using
+        the ``compute_trajectories`` path that OmniGibson's wrapper has
+        already warmed up cleanly. Single goal type throughout, no
+        graph switching.
+
+    Returns ``(T, J)`` torch tensor of arm-joint waypoints (stage 1 +
+    stage 2 stitched), or ``None`` on failure.
     """
     import torch as th
     from omnigibson.action_primitives.curobo import CuRoboEmbodimentSelection
@@ -171,16 +197,25 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
 
     eef_link = robot.eef_link_names[arm]
     bs = motion_gen.batch_size
-    target_pos = {eef_link: th.stack([eef_pos for _ in range(bs)])}
-    target_quat = {eef_link: th.stack([eef_quat for _ in range(bs)])}
 
+    # --- Stage 1: full collision-aware plan to the pre-grasp standoff.
+    # Pre-grasp pose = grasp pose shifted by `pregrasp_standoff_m` back
+    # along -approach (the +Z column of the rotation in our Franka-pose
+    # convention).
+    T_grasp = _pose_to_mat(eef_pos.cpu().numpy(), eef_quat.cpu().numpy())
+    approach_w = T_grasp[:3, 2]
+    standoff_pos_np = eef_pos.cpu().numpy() - pregrasp_standoff_m * approach_w
+    standoff_pos_t = th.tensor(standoff_pos_np, dtype=eef_pos.dtype)
+
+    target_pos = {eef_link: th.stack([standoff_pos_t for _ in range(bs)])}
+    target_quat = {eef_link: th.stack([eef_quat for _ in range(bs)])}
     successes, joint_states = motion_gen.compute_trajectories(
         target_pos=target_pos,
         target_quat=target_quat,
         initial_joint_pos=None,
         is_local=False,
-        max_attempts=8,
-        timeout=30.0,
+        max_attempts=16,
+        timeout=60.0,
         ik_fail_return=4,
         enable_finetune_trajopt=True,
         finetune_attempts=2,
@@ -190,7 +225,7 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
         attached_obj_scale=None,
         motion_constraint=None,
         skip_obstacle_update=skip_obstacle_update,
-        ik_only=True,
+        ik_only=False,
         ik_world_collision_check=True,
         emb_sel=CuRoboEmbodimentSelection.DEFAULT,
     )
@@ -204,8 +239,80 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
     )
     manip_idx = th.cat([robot.arm_control_idx[arm]])
     if joint_pos.dim() == 1:
-        return joint_pos[manip_idx].unsqueeze(0).cpu()
-    return joint_pos[:, manip_idx].cpu()
+        stage1_arm = joint_pos[manip_idx].unsqueeze(0).cpu()
+    else:
+        stage1_arm = joint_pos[:, manip_idx].cpu()
+
+    # Capture Stage 1's FINAL full-DoF joint state — this is the seed for
+    # Stage 2 so trajopt plans the linear segment from the standoff (where
+    # the arm actually lands after Stage 1) to the grasp pose, NOT from
+    # home. Without this, Stage 2's hold_partial_pose constraint compares
+    # home_quat vs grasp_quat and fails with "Partial orientation between
+    # start and goal is not equal" → TypeError on update_pose_cost_metric.
+    joint_pos_full = motion_gen.path_to_joint_trajectory(
+        joint_state, get_full_js=True,
+        emb_sel=CuRoboEmbodimentSelection.DEFAULT,
+    )
+    stage1_end_full = (joint_pos_full if joint_pos_full.dim() == 1
+                       else joint_pos_full[-1])
+
+    # --- Stage 2: linear-constrained continuation from standoff to grasp,
+    # with Franka gripper links REMOVED from the collision world so the
+    # final segment can clamp around the target.
+    #
+    # ``motion_constraint`` is forwarded by the OG wrapper as a
+    # PoseCostMetric(hold_partial_pose=True, hold_vec_weight=...). The
+    # [0.1, 0.1, 0.1, 0.1, 0.1, 0.0] weights (orientation, then position)
+    # with zero on the approach (z) axis tell trajopt to hold the relative
+    # orientation + perpendicular position constant while letting the
+    # arm advance along the approach axis only — a pure linear servo.
+    raw_mg = motion_gen.mg[CuRoboEmbodimentSelection.DEFAULT]
+    if hasattr(raw_mg, "toggle_link_collision"):
+        raw_mg.toggle_link_collision(list(_FRANKA_GRIPPER_COLLISION_LINKS), False)
+    try:
+        target_pos = {eef_link: th.stack([eef_pos for _ in range(bs)])}
+        target_quat = {eef_link: th.stack([eef_quat for _ in range(bs)])}
+        g_successes, g_joint_states = motion_gen.compute_trajectories(
+            target_pos=target_pos,
+            target_quat=target_quat,
+            initial_joint_pos=stage1_end_full,
+            is_local=False,
+            max_attempts=8,
+            timeout=30.0,
+            ik_fail_return=4,
+            enable_finetune_trajopt=True,
+            finetune_attempts=2,
+            return_full_result=False,
+            success_ratio=1.0 / bs,
+            attached_obj=None,
+            attached_obj_scale=None,
+            motion_constraint=[0.1, 0.1, 0.1, 0.1, 0.1, 0.0],
+            skip_obstacle_update=True,
+            ik_only=False,
+            ik_world_collision_check=True,
+            emb_sel=CuRoboEmbodimentSelection.DEFAULT,
+        )
+    finally:
+        if hasattr(raw_mg, "toggle_link_collision"):
+            raw_mg.toggle_link_collision(list(_FRANKA_GRIPPER_COLLISION_LINKS), True)
+
+    g_success_idx = th.where(g_successes)[0].cpu()
+    if len(g_success_idx) == 0:
+        # Stage 1 reached but stage 2 (linear segment into the target)
+        # failed. Return stage 1 only — close+hold downstream will fail
+        # the AG check, but the trajectory itself is valid.
+        return stage1_arm
+    g_joint_state = g_joint_states[g_success_idx[0]]
+    g_joint_pos = motion_gen.path_to_joint_trajectory(
+        g_joint_state, get_full_js=False,
+        emb_sel=CuRoboEmbodimentSelection.DEFAULT,
+    )
+    if g_joint_pos.dim() == 1:
+        stage2_arm = g_joint_pos[manip_idx].unsqueeze(0).cpu()
+    else:
+        stage2_arm = g_joint_pos[:, manip_idx].cpu()
+
+    return th.cat([stage1_arm, stage2_arm], dim=0)
 
 
 # ---------------------------------------------------------------------------
@@ -422,6 +529,23 @@ def _try_grasp_candidate(
     """
     import torch as th
 
+    arm = robot.default_arm
+
+    # Stage 0: reset the world to a clean state BEFORE planning.
+    # Without this, after the first successful candidate the robot ends in
+    # a "still gripping" pose (gripper closed around target, fingers in
+    # collision with the target). cuRobo then plans from that constrained
+    # start state and reports "no path" for every subsequent candidate —
+    # the reset that normally runs inside ``run_grasp_attempt`` never
+    # fires because we never get past the motion plan.
+    robot.release_grasp_immediately(arm)
+    robot.set_joint_positions(initial_joint_pos)
+    target_obj.set_position_orientation(position=init_pos, orientation=init_quat)
+    target_obj.root_link.set_linear_velocity(th.zeros(3))
+    target_obj.root_link.set_angular_velocity(th.zeros(3))
+    _reset_controller_goals(robot)
+    _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
+
     # Stage 1: reach prefilter.
     T_eef_world = T_target_world @ T_local
     eef_pos_np, eef_quat_np = _mat_to_pose(T_eef_world)
@@ -433,23 +557,35 @@ def _try_grasp_candidate(
         return None
 
     # Stage 2: cuRobo motion plan.
-    arm = robot.default_arm
     eef_pos_t = th.tensor(eef_pos_np, dtype=th.float32)
     eef_quat_t = th.tensor(eef_quat_np, dtype=th.float32)
     try:
-        # Refresh cuRobo's collision world per candidate. Skipping the
-        # update is faster but a previous candidate's gravity hold can
-        # leave PhysX state that cuRobo's cached world disagrees with,
-        # making subsequent motion plans return "no path".
-        primitives._motion_generator.update_obstacles(ignore_objects=[target_obj])
+        # Refresh cuRobo's collision world per candidate. Include the
+        # target object as an obstacle: the grasp is assisted, so the
+        # pre-grasp pose is OPEN-gripper at the chord midpoint with 2 mm
+        # finger clearance (enforced by the OBB sampler) — the target
+        # should NOT be in the gripper's volume at the goal pose. Letting
+        # cuRobo ignore the target previously allowed IK / trajopt to
+        # plan paths that clip the fingers through the object surface,
+        # which broke the "open approach → close" sequence and produced
+        # the swirling we observed.
+        primitives._motion_generator.update_obstacles(ignore_objects=[])
         joint_traj = _curobo_ik_fast(
             primitives._motion_generator, robot, arm,
             eef_pos_t, eef_quat_t, skip_obstacle_update=True,
         )
     except Exception as exc:  # noqa: BLE001
         if verbose_idx is not None:
-            print(f"    cand {verbose_idx}: cuRobo raised "
-                  f"{type(exc).__name__}", flush=True)
+            # Verbose during debug: full traceback on the FIRST candidate,
+            # condensed thereafter (otherwise tracebacks flood the log).
+            import traceback as _tb
+            if verbose_idx == 0:
+                print(f"    cand {verbose_idx}: cuRobo raised "
+                      f"{type(exc).__name__}: {exc}", flush=True)
+                _tb.print_exc()
+            else:
+                print(f"    cand {verbose_idx}: cuRobo raised "
+                      f"{type(exc).__name__}: {str(exc)[:200]}", flush=True)
         return None
     if joint_traj is None or len(joint_traj) == 0:
         if verbose_idx is not None:
