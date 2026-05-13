@@ -2,7 +2,8 @@
 
 Activity generators combine pool selection, LTL generation, and spawn spec
 construction.  No simulator or BDDL dependency — everything is pure Python
-data structures consumed by ``pipeline_common.spawn_objects()`` at runtime.
+data structures consumed by ``pipeline_common.build_task_object_cfgs()`` at
+session-setup time (pre-spawn via ``cfg["objects"]``).
 """
 
 from __future__ import annotations
