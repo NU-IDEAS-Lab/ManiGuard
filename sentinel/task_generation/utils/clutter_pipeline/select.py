@@ -23,10 +23,12 @@ _HERE = Path(__file__).resolve().parent
 _TARGET_PATH = _HERE / "clutter_target_pool.json"
 _OBSTACLE_PATH = _HERE / "table_obstacle_pool.json"
 _FRAGILE_PATH = _HERE / "fragile_pool.json"
+_FILLABLE_PATH = _HERE / "fillable_container_pool.json"
 
 _target_cache = None
 _obstacle_cache = None
 _fragile_cache = None
+_fillable_cache = None
 
 
 def _load(path, cache_attr):
@@ -48,6 +50,10 @@ def load_obstacle_pool():
 
 def load_fragile_pool():
     return _load(_FRAGILE_PATH, "_fragile_cache")
+
+
+def load_fillable_pool():
+    return _load(_FILLABLE_PATH, "_fillable_cache")
 
 
 def _entries(doc):
@@ -95,3 +101,14 @@ def select_fragile(rng, exclude_cats=()):
     catalog changes). Returns (synset, category, model).
     """
     return _pick(_entries(load_fragile_pool()), rng, exclude_cats=exclude_cats)
+
+
+def select_fillable_container(rng, exclude_cats=()):
+    """Pick one graspable + fillable container uniformly.
+
+    Source: ``fillable_container_pool.json`` (regenerate via
+    ``build_fillable_pool.py``). Used by liquid_transport / wet_transport
+    pipelines as the carried-container target. Returns (synset,
+    category, model).
+    """
+    return _pick(_entries(load_fillable_pool()), rng, exclude_cats=exclude_cats)
