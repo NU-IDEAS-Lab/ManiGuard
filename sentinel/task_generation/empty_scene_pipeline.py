@@ -554,6 +554,23 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
             objects_by_inst[name] = obj
             roles_by_inst[name] = roles[name]
 
+    # -- Wipe particles from any previous episode's fill (liquid only) -----
+    # Previous episode's container parks at z=-100 and releases its
+    # particles to the floor. They stay in the scene-global water
+    # system and physically interact with this episode's pack placements
+    # (particles below the surface push containers around mid-place).
+    # Remove and give the solver several steps to actually drop them
+    # before any object placement happens.
+    if args.setup == "liquid":
+        system_name = selection["system_name"]
+        system = env.scene.get_system(system_name)
+        if int(system.n_particles) > 0:
+            print(f"[Pipeline] Removing {int(system.n_particles)} stale "
+                  f"particles from previous episode")
+            system.remove_all_particles()
+            for _ in range(10):
+                og.sim.step()
+
     # -- Place objects on the surface --------------------------------------
     if args.setup in ("clutter", "transfer", "liquid"):
         # Switched from the ring-based ``build_clutter_pack`` to the
@@ -676,8 +693,6 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         from omnigibson.object_states import Filled
         role_to_name = {r: n for n, r in roles_by_inst.items()}
         target_obj = objects_by_inst[role_to_name["target"]]
-        system_name = selection["system_name"]
-        system = env.scene.get_system(system_name)
         if Filled not in target_obj.states:
             raise RuntimeError(
                 f"empty_scene liquid: target {target_obj.name} "
@@ -685,9 +700,29 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
                 "fillable_container_pool.json admitted a category whose "
                 "taxonomy entry lacks 'fillable'/'openfillable'."
             )
-        target_obj.states[Filled].set_value(system, True)
+
+        # Snap the target to identity quat + zero velocity before fill so
+        # the volume-link AABB is gravity-aligned. Residual tilt from the
+        # pack settle lets particles drift over the rim on the first
+        # post-fill sim step — the "liquid spread on the table" symptom.
+        # (Stale particles were already cleared at the start of this
+        # episode, before the pack placed objects on the surface.)
+        tpos, _ = target_obj.get_position_orientation()
+        target_obj.set_position_orientation(
+            position=(float(tpos[0]), float(tpos[1]), float(tpos[2])),
+            orientation=(0.0, 0.0, 0.0, 1.0),
+        )
+        target_obj.keep_still()
         og.sim.step()
+
+        target_obj.states[Filled].set_value(system, True)
         print(f"[Pipeline] Container filled with {system_name}")
+
+        # Settle particles while pinning the container so its CoM shift
+        # from the new water mass can't tilt it back over the rim.
+        for _ in range(20):
+            target_obj.keep_still()
+            og.sim.step()
 
     # -- Robot placement ---------------------------------------------------
     zone = compute_tabletop_zone(
@@ -804,9 +839,26 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
     # Save full Omniverse scene snapshot (same format BasePipeline uses):
     # objects_info.init_info + state.registry.object_registry, replayable by
     # og.sim.load() and by so101_franka_teleop's _build_from_snapshot.
+    #
+    # Strip parked (inactive-episode) task objects from the snapshot:
+    # they have no business in this episode's scene file and under GPU
+    # dynamics they can carry NaN poses that would crash the registry
+    # dump (RigidDynamicPrim's unit-quat assert). Same helper the
+    # scene-based BasePipeline uses.
     if gate_pass:
         scene_save = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
-        og.sim.save(json_paths=[scene_save])
+        from sentinel.task_generation.pipeline_common import save_episode_scene
+        # Active = this episode's task objects + support + robot. Every
+        # other registered object is a parked task object from a
+        # different episode in the batch — strip it from the snapshot.
+        active_names = {obj.name for obj in objects_by_inst.values()}
+        active_names.add(support_obj.name)
+        active_names.add(robot.name)
+        parked_names = {
+            obj.name for obj in env.scene.objects
+            if obj.name not in active_names
+        }
+        save_episode_scene(og, env.scene, scene_save, parked_names)
         print(f"[Pipeline] Scene saved: {scene_save}")
 
     # -- LTL rollout -------------------------------------------------------

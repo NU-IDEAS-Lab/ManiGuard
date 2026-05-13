@@ -151,21 +151,44 @@ class LiquidTransportPipeline(ClutterPipeline):
         gm.ENABLE_FLATCACHE = False
 
     def place_objects(self, ctx):
-        """Pack objects via clutter logic, then fill the target container.
+        """Wipe stale particles, pack objects, then fill the target.
 
-        ``Filled.set_value`` samples particles across the container's
-        volume-link AABB and spawns them at points that pass an
-        in-volume + non-contact filter. Any residual tilt or linear
-        velocity on the container at fill time lets particles drift
-        over the rim on the first sim step — visible as liquid spread
-        across the table. Snap the target to identity orientation +
-        zero velocity right before filling, then ``keep_still`` it on
-        every post-fill step so the new water mass can't slosh the
-        container itself. Identity quat assumes BEHAVIOR's authored
-        upright is +Z, which holds for every category in
-        ``fillable_container_pool.json`` (graspable+fillable
-        containers — cups, bowls, bottles, jars, …).
+        Order matters:
+          1. Wipe particles from the previous episode's fill BEFORE the
+             clutter pack runs. The water system is scene-global, so
+             once the previous episode's container parks at z=-100 its
+             particles release to the floor and stay in the system —
+             where they physically interact with this episode's pack
+             placements (containers landing on stale water get pushed
+             around mid-place) and accumulate until one ends up in a
+             degenerate pose that crashes
+             ``MicroParticleSystem._dump_state`` at save time.
+          2. Pack via the clutter logic (super()).
+          3. Snap the target to identity quat + zero velocity right
+             before ``Filled.set_value``. The volume-link AABB sampler
+             is gravity-aware; residual tilt from the pack settle lets
+             particles drift over the rim on the first post-fill step
+             (the "liquid spread on the table" symptom).
+          4. ``keep_still`` the container every post-fill step so the
+             new water mass can't tilt it back over the rim.
+
+        Identity quat assumes BEHAVIOR's authored upright is +Z, which
+        holds for every category in ``fillable_container_pool.json``
+        (graspable+fillable containers — cups, bowls, bottles, jars, …).
         """
+        from omnigibson.object_states import Filled
+        system_name = ctx.selection["system_name"]
+        system = ctx.env.scene.get_system(system_name)
+
+        # 1. Wipe stale particles before the pack runs.
+        if int(system.n_particles) > 0:
+            print(f"[Pipeline] Removing {int(system.n_particles)} stale "
+                  f"particles from previous episode")
+            system.remove_all_particles()
+            for _ in range(10):
+                ctx.og.sim.step()
+
+        # 2. Pack (clutter layout).
         super().place_objects(ctx)
 
         target = ctx.target_obj
@@ -174,7 +197,15 @@ class LiquidTransportPipeline(ClutterPipeline):
                 "liquid_transport place_objects: ctx.target_obj is None — "
                 "identify_objects must populate it before fill."
             )
+        if Filled not in target.states:
+            raise RuntimeError(
+                f"liquid_transport: target {target.name} "
+                f"({target.category}) does not support Filled state — "
+                "fillable_container_pool.json admitted a category whose "
+                "taxonomy entry lacks 'fillable'/'openfillable'."
+            )
 
+        # 3. Snap to canonical upright before fill.
         pos, _ = target.get_position_orientation()
         target.set_position_orientation(
             position=(float(pos[0]), float(pos[1]), float(pos[2])),
@@ -183,33 +214,10 @@ class LiquidTransportPipeline(ClutterPipeline):
         target.keep_still()
         ctx.og.sim.step()
 
-        from omnigibson.object_states import Filled
-        system_name = ctx.selection["system_name"]
-        system = ctx.env.scene.get_system(system_name)
-        if Filled not in target.states:
-            raise RuntimeError(
-                f"liquid_transport: target {target.name} "
-                f"({target.category}) does not support Filled state — "
-                "fillable_container_pool.json admitted a category whose "
-                "taxonomy entry lacks 'fillable'/'openfillable'."
-            )
-        # Wipe particles left over from previous episodes. The water
-        # system is scene-global, not container-scoped — once the
-        # previous episode's container is parked at z=-100 its particles
-        # are released, fall onto the floor, and stay in the system.
-        # Each episode-N fill would then add MORE particles on top,
-        # eventually leaving a stray particle with a degenerate pose
-        # that crashes the system-registry dump at save time
-        # (decompose_mat: 'matrices have perspective components').
-        system.remove_all_particles()
-        ctx.og.sim.step()
         target.states[Filled].set_value(system, True)
         print(f"[Pipeline] Container filled with {system_name}")
 
-        # Settle particles while pinning the container. Without the
-        # per-step keep_still the water mass shifts the CoM, the
-        # container tilts a few degrees on step 1, and the same
-        # particles dribble out the opening before damping.
+        # 4. Settle particles while pinning the container.
         for _ in range(20):
             target.keep_still()
             ctx.og.sim.step()
