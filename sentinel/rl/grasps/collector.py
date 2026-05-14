@@ -74,6 +74,58 @@ def _build_action(robot, arm_cmd: "torch.Tensor",
     return action
 
 
+def _all_joint_controllers(robot) -> bool:
+    """True iff every controller on the robot is a JointController in
+    absolute-position mode (use_delta_commands=False). When this holds,
+    ``robot.q_to_action`` is callable and we can hand it an arbitrary
+    full-DoF joint setpoint to build an action."""
+    from omnigibson.controllers.joint_controller import JointController
+    for ctrl in robot._controllers.values():
+        if not isinstance(ctrl, JointController):
+            return False
+        if getattr(ctrl, "use_delta_commands", False):
+            return False
+    return True
+
+
+def _build_hold_action(robot, gripper_open: bool) -> "torch.Tensor":
+    """Build an "arm-stationary + gripper-{open,close}" action.
+
+    OSC arm: arm-action slot = zero (no pose delta).
+    JointController arm: arm-action slot = q_to_action(current arm pose)
+        so the controller holds the arm where it currently is rather
+        than driving every arm joint to zero.
+
+    The gripper command is +1.0 (open) or -1.0 (close) for both control
+    schemes — both MultiFingerGripper (smooth mode) and JointController
+    (with action_normalize=True) interpret ±1.0 as joint upper/lower
+    limit, which matches what AG's controller.control_type==POSITION
+    branch checks against.
+    """
+    import torch as th
+
+    arm = robot.default_arm
+    gripper_idx = robot.gripper_action_idx[arm]
+    arm_idx = robot.arm_action_idx[arm]
+    gripper_cmd = +1.0 if gripper_open else -1.0
+
+    if _all_joint_controllers(robot):
+        # Compose a full-DoF target: current arm pose, gripper at the
+        # commanded limit. q_to_action will normalize → action vector.
+        q_full = robot.get_joint_positions().clone()
+        arm_ctrl_idx = robot.arm_control_idx[arm]
+        gripper_ctrl_idx = robot.gripper_control_idx[arm]
+        if gripper_open:
+            q_full[gripper_ctrl_idx] = robot.joint_upper_limits[gripper_ctrl_idx]
+        else:
+            q_full[gripper_ctrl_idx] = robot.joint_lower_limits[gripper_ctrl_idx]
+        return robot.q_to_action(q_full)
+
+    # OSC fallback — zero arm delta + scalar gripper command.
+    zero_arm = th.zeros(len(arm_idx), dtype=th.float32)
+    return _build_action(robot, zero_arm, gripper_cmd)
+
+
 def _reset_controller_goals(robot) -> None:
     """Zero out controller goals so OSC / IK controllers don't spring the arm
     back to a pre-teleport commanded pose on the next step."""
@@ -165,7 +217,9 @@ _FRANKA_GRIPPER_COLLISION_LINKS = (
 
 def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
                     skip_obstacle_update,
-                    pregrasp_standoff_m: float = 0.25):
+                    pregrasp_standoff_m: float = 0.25,
+                    ik_precheck: bool = False,
+                    timings: dict | None = None):
     """Two-stage cuRobo plan: obstacle-aware approach to a pre-grasp
     standoff, then a linear-constrained continuation to the grasp pose
     with the Franka gripper links removed from the collision world.
@@ -198,15 +252,42 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
     eef_link = robot.eef_link_names[arm]
     bs = motion_gen.batch_size
 
-    # --- Stage 1: full collision-aware plan to the pre-grasp standoff.
-    # Pre-grasp pose = grasp pose shifted by `pregrasp_standoff_m` back
-    # along -approach (the +Z column of the rotation in our Franka-pose
-    # convention).
+    # Compute the pre-grasp standoff once (also used by Stage 1 below).
     T_grasp = _pose_to_mat(eef_pos.cpu().numpy(), eef_quat.cpu().numpy())
     approach_w = T_grasp[:3, 2]
     standoff_pos_np = eef_pos.cpu().numpy() - pregrasp_standoff_m * approach_w
     standoff_pos_t = th.tensor(standoff_pos_np, dtype=eef_pos.dtype)
 
+    # --- Precheck: ik_only at the STANDOFF with world-collision ON.
+    # Same goal Stage 1 reaches via trajopt, but skips the trajopt cost.
+    # If even IK to the standoff is infeasible, the collision-aware trajopt
+    # downstream will also fail — fast-reject here.
+    if ik_precheck:
+        t_pc0 = time.time()
+        pc_pos = {eef_link: th.stack([standoff_pos_t for _ in range(bs)])}
+        pc_quat = {eef_link: th.stack([eef_quat for _ in range(bs)])}
+        pc_successes, _pc_js = motion_gen.compute_trajectories(
+            target_pos=pc_pos, target_quat=pc_quat,
+            initial_joint_pos=None, is_local=False,
+            max_attempts=4, timeout=5.0, ik_fail_return=2,
+            enable_finetune_trajopt=False, finetune_attempts=0,
+            return_full_result=False, success_ratio=1.0 / bs,
+            attached_obj=None, attached_obj_scale=None,
+            motion_constraint=None,
+            skip_obstacle_update=skip_obstacle_update,
+            ik_only=True, ik_world_collision_check=True,
+            emb_sel=CuRoboEmbodimentSelection.DEFAULT,
+        )
+        ik_ok = bool(th.any(pc_successes).item())
+        if timings is not None:
+            timings["ik_precheck_s"] = time.time() - t_pc0
+            timings["ik_precheck_ok"] = ik_ok
+        if not ik_ok:
+            return None
+
+    # --- Stage 1: full collision-aware plan to the pre-grasp standoff
+    # (standoff_pos_t computed above).
+    t_s1 = time.time()
     target_pos = {eef_link: th.stack([standoff_pos_t for _ in range(bs)])}
     target_quat = {eef_link: th.stack([eef_quat for _ in range(bs)])}
     successes, joint_states = motion_gen.compute_trajectories(
@@ -229,9 +310,15 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
         ik_world_collision_check=True,
         emb_sel=CuRoboEmbodimentSelection.DEFAULT,
     )
+    if timings is not None:
+        timings["stage1_s"] = time.time() - t_s1
     success_idx = th.where(successes)[0].cpu()
     if len(success_idx) == 0:
+        if timings is not None:
+            timings["stage1_ok"] = False
         return None
+    if timings is not None:
+        timings["stage1_ok"] = True
     joint_state = joint_states[success_idx[0]]
     joint_pos = motion_gen.path_to_joint_trajectory(
         joint_state, get_full_js=False,
@@ -266,6 +353,7 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
     # with zero on the approach (z) axis tell trajopt to hold the relative
     # orientation + perpendicular position constant while letting the
     # arm advance along the approach axis only — a pure linear servo.
+    t_s2 = time.time()
     raw_mg = motion_gen.mg[CuRoboEmbodimentSelection.DEFAULT]
     if hasattr(raw_mg, "toggle_link_collision"):
         raw_mg.toggle_link_collision(list(_FRANKA_GRIPPER_COLLISION_LINKS), False)
@@ -295,6 +383,8 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
     finally:
         if hasattr(raw_mg, "toggle_link_collision"):
             raw_mg.toggle_link_collision(list(_FRANKA_GRIPPER_COLLISION_LINKS), True)
+    if timings is not None:
+        timings["stage2_s"] = time.time() - t_s2
 
     g_success_idx = th.where(g_successes)[0].cpu()
     if len(g_success_idx) == 0:
@@ -329,6 +419,12 @@ class GraspCollectorConfig:
     GraspGen pipeline (default panda fingers, no support surface). Adjust
     via constructor; everything is plain data so safe to pickle.
     """
+
+    ik_precheck: bool = False
+    """If True, run an ik_only=True query at the grasp pose (with world
+    collision OFF) before launching the Stage 1 trajopt. Fast-rejects
+    candidates that have no IK solution at all, skipping the expensive
+    trajopt cost on dead candidates."""
 
     num_target_grasps: int = 10
     """Stop iterating candidates once this many holding grasps have been
@@ -441,22 +537,25 @@ def run_grasp_attempt(
             frame_callback()
 
     # Stage 2: open settle + close, still pinned.
+    # _build_hold_action picks the right "arm-stationary + gripper-{open/close}"
+    # action assembly for both OSC (legacy) and JointController (pick_and_place)
+    # controller setups. For JointController, q_to_action(current_arm_q) is
+    # rebuilt each iteration because contact reactions during gripper close
+    # shift the arm pose slightly.
     robot.set_joint_positions(open_gripper_q, gripper_control_idx)
     _reset_controller_goals(robot)
-    settle_action = _build_action(robot, zero_arm_cmd, gripper_cmd=+1.0)
     for _ in range(cfg.settle_open_steps):
         if time.time() > deadline:
             return None
-        robot.apply_action(settle_action)
+        robot.apply_action(_build_hold_action(robot, gripper_open=True))
         _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
         if frame_callback is not None:
             frame_callback()
 
-    close_action = _build_action(robot, zero_arm_cmd, gripper_cmd=-1.0)
     for _ in range(cfg.close_steps):
         if time.time() > deadline:
             return None
-        robot.apply_action(close_action)
+        robot.apply_action(_build_hold_action(robot, gripper_open=False))
         _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
         if frame_callback is not None:
             frame_callback()
@@ -473,7 +572,7 @@ def run_grasp_attempt(
         for _ in range(cfg.gravity_hold_steps):
             if time.time() > deadline:
                 return None
-            robot.apply_action(close_action)
+            robot.apply_action(_build_hold_action(robot, gripper_open=False))
             og.sim.step()
             if frame_callback is not None:
                 frame_callback()
@@ -523,6 +622,7 @@ def _try_grasp_candidate(
     initial_joint_pos,
     deadline: float,
     verbose_idx: int | None = None,
+    cand_timings: dict | None = None,
 ) -> dict | None:
     """Phase A per-candidate: reach prefilter → cuRobo motion plan →
     :func:`run_grasp_attempt`.
@@ -560,19 +660,17 @@ def _try_grasp_candidate(
     eef_pos_t = th.tensor(eef_pos_np, dtype=th.float32)
     eef_quat_t = th.tensor(eef_quat_np, dtype=th.float32)
     try:
-        # Refresh cuRobo's collision world per candidate. Include the
-        # target object as an obstacle: the grasp is assisted, so the
-        # pre-grasp pose is OPEN-gripper at the chord midpoint with 2 mm
-        # finger clearance (enforced by the OBB sampler) — the target
-        # should NOT be in the gripper's volume at the goal pose. Letting
-        # cuRobo ignore the target previously allowed IK / trajopt to
-        # plan paths that clip the fingers through the object surface,
-        # which broke the "open approach → close" sequence and produced
-        # the swirling we observed.
-        primitives._motion_generator.update_obstacles(ignore_objects=[])
+        # cuRobo's collision world is refreshed ONCE at the top of
+        # ``collect_valid_grasps`` (which pins the target to ``init_pos``
+        # before refreshing). Every candidate resets the target back to
+        # the same pose before this point, so the obstacle world is
+        # bit-identical and re-running ``update_obstacles`` per candidate
+        # just costs 50-200 ms of prim iteration for no benefit.
         joint_traj = _curobo_ik_fast(
             primitives._motion_generator, robot, arm,
             eef_pos_t, eef_quat_t, skip_obstacle_update=True,
+            ik_precheck=cfg.ik_precheck,
+            timings=cand_timings,
         )
     except Exception as exc:  # noqa: BLE001
         if verbose_idx is not None:
@@ -621,6 +719,7 @@ def collect_valid_grasps(
     deadline: float,
     on_progress: Callable[[int, dict | None], None] | None = None,
     verbose: bool = False,
+    timings_log: list | None = None,
 ) -> list[dict]:
     """Iterate through ``candidates_local`` and return up to
     ``cfg.num_target_grasps`` validated grasps (or as many as fit
@@ -646,12 +745,23 @@ def collect_valid_grasps(
         init_quat.cpu().numpy() if hasattr(init_quat, "cpu") else init_quat,
     )
 
+    # Pin the target to (init_pos, init_quat) and refresh cuRobo's
+    # collision world ONCE, then keep ``skip_obstacle_update=True`` for
+    # every per-candidate plan. The target is reset to the same pose at
+    # the start of every candidate so the obstacle world is identical
+    # each time — re-scanning per candidate cost 50-200 ms × N for no
+    # behavioural change.
+    target_obj.set_position_orientation(position=init_pos, orientation=init_quat)
+    primitives._motion_generator.update_obstacles(ignore_objects=[])
+
     held: list[dict] = []
     for ci, T_local in enumerate(candidates_local):
         if time.time() > deadline:
             break
         if len(held) >= cfg.num_target_grasps:
             break
+        cand_timings: dict = {}
+        t_cand0 = time.time()
         result = _try_grasp_candidate(
             env, robot, primitives, target_obj,
             init_pos, init_quat, T_target_world,
@@ -660,7 +770,12 @@ def collect_valid_grasps(
             arm_control_idx, gripper_control_idx,
             initial_joint_pos, deadline,
             verbose_idx=ci if verbose else None,
+            cand_timings=cand_timings,
         )
+        cand_timings["total_s"] = time.time() - t_cand0
+        cand_timings["held"] = result is not None
+        if timings_log is not None:
+            timings_log.append(cand_timings)
         if on_progress is not None:
             on_progress(ci, result)
         if result is not None:
