@@ -605,29 +605,6 @@ FRAGILE_POOL = [
 # stack_flat_compatibility, stack_recep_compatibility}.json and are loaded
 # via utils/stack_pipeline/select.py.
 
-LIQUID_CONTAINER_POOL = [
-    ("mug.n.04", True),
-    ("coffee_cup.n.01", True),
-    ("teacup.n.02", True),
-    ("goblet.n.01", True),
-    ("water_glass.n.02", True),
-    ("beer_glass.n.01", True),
-    ("beaker.n.02", True),
-    ("measuring_cup.n.01", True),
-    ("bowl.n.01", True),
-    ("mixing_bowl.n.01", True),
-    ("gravy_boat.n.01", True),
-    ("pitcher.n.02", True),
-    ("carafe.n.01", True),
-    ("wine_bottle.n.01", True),
-    ("casserole.n.02", True),
-    ("frying_pan.n.01", True),
-    ("saucepan.n.01", True),
-    ("wok.n.01", True),
-    ("kettle.n.01", True),
-    ("watering_can.n.01", True),
-]
-
 DOOR_OBSTACLE_POOL = [
     ("wineglass.n.01", True),
     ("vase.n.01", True),
@@ -759,19 +736,6 @@ TRANSFER_DEST_POOL = [
     ("measuring_cup.n.01", "inside"),
     ("water_glass.n.02", "inside"),
     ("pitcher.n.02", "inside"),
-]
-
-WATER_SENSITIVE_POOL = [
-    ("hardback.n.01",),
-    ("notebook.n.01",),
-    ("letter.n.01",),
-    ("newspaper.n.03",),
-    ("magazine.n.01",),
-    ("folder.n.02",),
-    ("laptop.n.01",),
-    ("keyboard.n.01",),
-    ("tablet.n.05",),
-    ("monitor.n.04",),
 ]
 
 INVERT_CONTAINER_POOL = [
@@ -1133,58 +1097,6 @@ def generate_empty_invert_activity(
         "spawn_specs": spawn_specs,
     }
     print(f"[Pipeline] Empty-invert: container={container_synset}, system={system_name}")
-    return ltl_safety, selection
-
-
-def generate_wet_transport_activity(
-    activity_name: str,
-    support_synset: str,
-    support_room: Optional[str],
-    carried_synset: Optional[str] = None,
-    zone_count: int = 3,
-    margin_m: float = 0.02,
-    rng=None,
-) -> Tuple[dict, dict]:
-    """Generate LTL safety + spawn specs for a wet-object transport task.
-
-    Returns (ltl_safety, selection).
-    """
-    if rng is None:
-        rng = np.random.default_rng()
-
-    if carried_synset is None:
-        carried_synset = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
-
-    zone_synsets = []
-    for _ in range(zone_count):
-        entry = WATER_SENSITIVE_POOL[rng.integers(len(WATER_SENSITIVE_POOL))]
-        zone_synsets.append(entry[0])
-
-    spawn_specs = [_make_spawn_spec(carried_synset, 1, "target")]
-    zone_counts: Dict[str, int] = {}
-    for s in zone_synsets:
-        zone_counts[s] = zone_counts.get(s, 0) + 1
-    for synset, count in zone_counts.items():
-        spawn_specs.append(_make_spawn_spec(synset, count, "zone"))
-
-    unique_zone_synsets = sorted(set(zone_synsets))
-    ltl_safety = generate_wet_transport_ltl_safety_json(
-        activity_name=activity_name,
-        carried_synsets=[carried_synset],
-        zone_synsets=unique_zone_synsets,
-        margin_m=margin_m,
-    )
-
-    selection = {
-        "carried_synset": carried_synset,
-        "zone_synsets": zone_synsets,
-        "zone_count": zone_count,
-        "margin_m": margin_m,
-        "system_name": "water",
-        "spawn_specs": spawn_specs,
-    }
-    print(f"[Pipeline] Wet transport: carried={carried_synset}, "
-          f"zones={zone_counts}, margin={margin_m}")
     return ltl_safety, selection
 
 

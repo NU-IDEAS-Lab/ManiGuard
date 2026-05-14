@@ -1,258 +1,131 @@
 """Wet transport pipeline (liquid container + overhead-forbidden zones).
 
 Carries a water-filled container across a table while avoiding passing
-over water-sensitive items (books, laptops, keyboards).  Combines liquid
-filling with overhead-forbidden safety monitoring.
+over water-sensitive items (books, papers, keyboards). Same setup
+mechanics as ``liquid_transport`` — fillable-container target +
+maxrects pack + Filled fill + particle-count gate — but the
+"fragile-role" slot is filled by the water-sensitive pool instead of
+the liquid-fragile pool, and the LTL uses overhead-forbidden zone
+predicates instead of fragile-upright / fragile-dropped.
 
 Usage:
-    python -m sentinel.task_generation.wet_transport_pipeline \
+    python -m sentinel.task_generation.wet_transport_pipeline \\
         --scene-model Rs_int --episodes 1 --steps 300 --save-video
 
-    python -m sentinel.task_generation.wet_transport_pipeline \
+    python -m sentinel.task_generation.wet_transport_pipeline \\
         --scene-model Rs_int --dry-run
 """
 
-from sentinel.task_generation.pipeline_common import (
-    BasePipeline,
-    get_spawned_obj,
-    iter_spawned_objects,
-    make_settle_fn,
+from sentinel.task_generation.liquid_transport_pipeline import LiquidTransportPipeline
+from sentinel.task_generation.utils.clutter_pipeline.select import (
+    select_fillable_container,
 )
+from sentinel.task_generation.utils.wet_transport.select import select_water_sensitive
 from sentinel.utils.task_spec import (
-    LIQUID_CONTAINER_POOL,
-    WATER_SENSITIVE_POOL,
-    generate_wet_transport_activity,
+    DENSITY_PRESETS,
+    _pick_model_for_category,
+    estimate_object_set_footprint,
+    generate_clutter_activity,
+    generate_wet_transport_ltl_safety_json,
 )
-import logging
-
-log = logging.getLogger(__name__)
 
 
-class WetTransportPipeline(BasePipeline):
-    """Liquid container transport with overhead-forbidden zones."""
+class WetTransportPipeline(LiquidTransportPipeline):
+    """Liquid-filled container transport with overhead-forbidden zones.
+
+    Inherits container fill + particle hygiene + clutter pack +
+    edge-aligned robot mount from ``LiquidTransportPipeline``. The only
+    differences are:
+
+      * ``select_objects`` draws zones from
+        ``water_sensitive_pool.json`` (papers / electronics — items
+        that must not get wet) instead of the liquid-fragile pool, and
+        skips clutter entirely. Zones occupy the "fragile" role in
+        the spawn_specs so the clutter pack treats them as obstacles
+        to surround the target with.
+      * ``generate_activity`` overrides the LTL with
+        ``generate_wet_transport_ltl_safety_json`` — overhead-forbidden
+        zone predicates instead of fragile-upright / fragile-dropped.
+    """
 
     @classmethod
     def add_args(cls, parser):
-        parser.add_argument("--container-synset", default=None,
-                            help="Override container synset")
-        parser.add_argument("--zone-count", type=int, default=3,
-                            help="Number of water-sensitive zone objects")
-        parser.add_argument("--overhead-margin-m", type=float, default=0.02,
-                            help="XY margin around zone footprints")
-        parser.add_argument("--system-name", default="water",
-                            help="Liquid particle system name")
+        super().add_args(parser)
+        parser.add_argument(
+            "--overhead-margin-m", type=float, default=0.02,
+            help="XY margin around zone footprints for overhead-forbidden LTL",
+        )
 
     def activity_prefix(self):
         return "auto_wet_transport_on"
 
-    def generate_activity(self, activity_name, support_synset, support_room,
-                          args, rng):
-        pre = getattr(args, "_pre_selection", None)
-        return generate_wet_transport_activity(
-            activity_name, support_synset, support_room,
-            carried_synset=pre["carried_synset"] if pre else args.container_synset,
-            zone_count=args.zone_count,
-            margin_m=args.overhead_margin_m,
-            rng=rng,
-        )
+    def scene_family(self, ctx):
+        return "wet_transport"
 
     def select_objects(self, args, rng):
-        from sentinel.utils.task_spec import (
-            estimate_object_set_footprint,
-            _pick_model_for_category, _synset_to_category,
-        )
-        container_synset = args.container_synset
-        if container_synset is None:
-            container_synset = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
-        container_cat = _synset_to_category(container_synset)
-        _, container_model = _pick_model_for_category(container_cat, rng)
+        density = DENSITY_PRESETS[args.clutter_density]
 
-        # Pin a concrete model per water-sensitive zone item too.
-        zones = []  # list of (synset, category, model)
-        for _ in range(args.zone_count):
-            z_synset = WATER_SENSITIVE_POOL[rng.integers(len(WATER_SENSITIVE_POOL))][0]
-            z_cat, z_model = _pick_model_for_category(_synset_to_category(z_synset), rng)
-            zones.append((z_synset, z_cat, z_model))
+        # Target — same fillable-container pool as liquid_transport.
+        if args.container_category is not None:
+            container_category, container_model = _pick_model_for_category(
+                args.container_category, rng,
+            )
+            container_synset = f"{container_category}.n.01"
+        else:
+            container_synset, container_category, container_model = (
+                select_fillable_container(rng)
+            )
 
-        counts = [(container_cat, 1, container_model)]
-        for _, z_cat, z_model in zones:
-            counts.append((z_cat, 1, z_model))
+        # Zones replace the liquid-fragile slot. Same count as
+        # density["fragile_count"] — the clutter pack treats them as
+        # the same kind of "around-the-target" obstacle.
+        zone_picks = [
+            select_water_sensitive(rng, exclude_cats={container_category})
+            for _ in range(density["fragile_count"])
+        ]
+
+        counts = [(container_category, 1, container_model)]
+        for _, cat, model in zone_picks:
+            counts.append((cat, 1, model))
 
         return {
             "required_area_m2": estimate_object_set_footprint(counts),
-            "carried_synset": container_synset,
-            "carried_category": container_cat,
-            "carried_model": container_model,
-            "zone_synsets": [z[0] for z in zones],
-            "zone_picks": zones,
+            "target_synset": container_synset,
+            "target_category": container_category,
+            "target_model": container_model,
+            # The clutter activity gen expects "fragile_picks" / "clutter_picks"
+            # keys. Map zones into fragile_picks; clutter is empty.
+            "fragile_picks": zone_picks,
+            "clutter_picks": [],
         }
 
-    def configure_env(self, selection):
-        from omnigibson.macros import gm
-        gm.USE_GPU_DYNAMICS = True
-        gm.ENABLE_FLATCACHE = False
+    def generate_activity(self, activity_name, support_synset, support_room,
+                          args, rng):
+        _clutter_ltl, selection = generate_clutter_activity(
+            activity_name, support_synset, support_room,
+            args.clutter_density, rng=rng,
+            pre_selection=args._pre_selection,
+        )
 
-    def identify_objects(self, ctx):
-        selection = ctx.selection
-        carried_synset = selection["carried_synset"]
-        zone_synsets = set(selection["zone_synsets"])
+        target_synset = selection["target_synset"]
+        zone_synsets = sorted({p[0] for p in selection["fragile_picks"]})
 
-        carried_ids, zone_ids = [], []
-        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
-            if inst.startswith(("agent.", "floor.")):
-                continue
-            synset_prefix = inst.rsplit("_", 1)[0]
-            if synset_prefix == carried_synset:
-                carried_ids.append(inst)
-            elif synset_prefix in zone_synsets:
-                zone_ids.append(inst)
+        ltl_safety = generate_wet_transport_ltl_safety_json(
+            activity_name=activity_name,
+            carried_synsets=[target_synset],
+            zone_synsets=zone_synsets,
+            margin_m=args.overhead_margin_m,
+        )
 
-        if not carried_ids:
-            raise RuntimeError("No container object found in scope.")
-        print(f"[Pipeline] Objects: container={carried_ids}, zones={zone_ids}")
-
-        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, carried_ids[0])
-        ctx._carried_ids = carried_ids
-        ctx._zone_ids = zone_ids
-        ctx.active_objects = {}
-        for inst in carried_ids + zone_ids:
-            obj = get_spawned_obj(ctx.spawned_objects, inst)
-            if obj is not None:
-                ctx.active_objects[inst] = obj
-
-    def place_objects(self, ctx):
-        """Place zone objects on table, place container, fill with liquid."""
-        import omnigibson as og
-        import torch as th
-        import numpy as np
-
-        cx = 0.5 * (ctx.surface_bounds_xy[0][0] + ctx.surface_bounds_xy[1][0])
-        cy = 0.5 * (ctx.surface_bounds_xy[0][1] + ctx.surface_bounds_xy[1][1])
-        sx = ctx.surface_bounds_xy[1][0] - ctx.surface_bounds_xy[0][0]
-        sy = ctx.surface_bounds_xy[1][1] - ctx.surface_bounds_xy[0][1]
-
-        rng = np.random.default_rng(ctx.args.seed + ctx.episode)
-
-        # Reserve space for the container on the left edge.
-        container_reserve_x = ctx.surface_bounds_xy[0][0] + sx * 0.15
-
-        # Scatter zone objects across the remaining table area (right of container).
-        zone_x_min = container_reserve_x + sx * 0.05
-        zone_x_max = ctx.surface_bounds_xy[1][0] - sx * 0.05
-        zone_sx = zone_x_max - zone_x_min
-
-        placed_zones = []
-        for i, inst in enumerate(ctx._zone_ids):
-            obj = ctx.active_objects.get(inst)
-            if obj is None:
-                continue
-            # Check if object fits on the table.
-            try:
-                obj_min, obj_max = obj.aabb
-                obj_w = float(obj_max[0] - obj_min[0])
-                obj_d = float(obj_max[1] - obj_min[1])
-            except Exception:
-                obj_w, obj_d = 0.1, 0.1
-            if obj_w > zone_sx * 0.8 or obj_d > sy * 0.8:
-                print(f"[Pipeline] Zone {inst} too large ({obj_w:.2f}x{obj_d:.2f}), skipping")
-                continue
-
-            cols = max(1, len(ctx._zone_ids))
-            frac = (i + 0.5) / cols
-            x = zone_x_min + frac * zone_sx
-            y = cy + (rng.random() - 0.5) * sy * 0.3
-            try:
-                half_h = 0.5 * max(0.01, float(obj.aabb[1][2]) - float(obj.aabb[0][2]))
-            except Exception:
-                half_h = 0.02
-            obj.set_position_orientation(
-                position=(x, y, ctx.table_top_z + half_h + 0.002),
-            )
-            if hasattr(obj, "keep_still"):
-                obj.keep_still()
-            placed_zones.append(inst)
-
-        og.sim.step()
-
-        # Place container on the reserved left edge.
-        target = ctx.target_obj
-        if target is not None:
-            try:
-                half_h = 0.5 * max(0.01, float(target.aabb[1][2]) - float(target.aabb[0][2]))
-            except Exception:
-                half_h = 0.02
-            target.set_position_orientation(
-                position=(container_reserve_x, cy, ctx.table_top_z + half_h + 0.002),
-            )
-            if hasattr(target, "keep_still"):
-                target.keep_still()
-            og.sim.step()
-
-            # Fill container with liquid.
-            system_name = ctx.selection.get("system_name", "water")
-            from omnigibson.object_states import Filled
-            try:
-                system = ctx.env.scene.get_system(system_name)
-                if Filled in target.states:
-                    target.states[Filled].set_value(system, True)
-                    og.sim.step()
-                    print(f"[Pipeline] Container filled with {system_name}")
-                else:
-                    print("[Pipeline] WARNING: Container does not support Filled state")
-            except Exception as e:
-                print(f"[Pipeline] WARNING: Could not fill container: {e}")
-
-            # Let the liquid settle.
-            for _ in range(10):
-                og.sim.step()
-
-        # Settle all objects.
-        settle_fn = make_settle_fn(og, th)
-        settle_fn(ctx.active_objects)
-
-    def make_edge_objects(self, ctx):
-        from sentinel.utils.franka_edge_align import EdgeAlignObject
-
-        result = []
-        for inst, obj in ctx.active_objects.items():
-            try:
-                pos = obj.get_position_orientation()[0]
-                role = "target" if inst in ctx._carried_ids else "zone"
-                result.append(EdgeAlignObject(
-                    name=inst, role=role,
-                    position_xy=(float(pos[0]), float(pos[1])),
-                ))
-            except Exception as exc:
-                log.warning("wet_transport make_edge_objects: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
-                continue
-        return tuple(result)
-
-    def goal_conditions(self, ctx):
-        if ctx.target_obj:
-            return [{"predicate": "grasping", "subject": "robot", "reference": ctx.target_obj.name}]
-        return []
-
-    def extra_gate_checks(self, ctx):
-        # Verify the container still has liquid.
-        from omnigibson.object_states import ContainedParticles
-        system_name = ctx.selection.get("system_name", "water")
-        try:
-            system = ctx.env.scene.get_system(system_name)
-            data = ctx.target_obj.states[ContainedParticles].get_value(system)
-            n = data.n_in_volume
-            print(f"[Pipeline] Container particle count: {n}")
-            return n > 0
-        except Exception as e:
-            print(f"[Pipeline] WARNING: Could not check particle count: {e}")
-            return True
+        selection["system_name"] = args.system_name
+        selection["overhead_margin_m"] = args.overhead_margin_m
+        return ltl_safety, selection
 
     def diagnostics_extra(self, ctx):
-        return {
-            "carried_synset": ctx.selection.get("carried_synset") if ctx.selection else None,
-            "zone_count": ctx.selection.get("zone_count") if ctx.selection else None,
-            "system_name": ctx.selection.get("system_name", "water") if ctx.selection else "water",
-            "pipeline": "wet_transport",
-        }
+        extra = super().diagnostics_extra(ctx)
+        extra["pipeline"] = "wet_transport"
+        extra["overhead_margin_m"] = ctx.selection["overhead_margin_m"]
+        return extra
 
 
 def main():
