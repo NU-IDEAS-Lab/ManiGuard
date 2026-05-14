@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Repair/rebuild diagnostics.jsonl files in a benchmark directory
-to match the current SentinelEnv registry format.
+to match the current scene-registry format.
 
 Reads scene_ep1.json + existing diagnostics + BDDL problem files,
 then rebuilds active_object_summary with correct inst_id → scene_object_name mappings.

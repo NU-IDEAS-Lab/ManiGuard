@@ -8,12 +8,11 @@ Stage 1 of the teleop → SFT pipeline. For each step:
 action            : copied from the input HDF5 (7D Franka IK delta, unchanged)
 
 State layout matches IsaacLab-Stack-Cube convention so we can reuse the
-norm_stats / weight init from Pi0.5 ckpts trained on that dataset
-(see RLinf/rlinf/envs/isaaclab/tasks/stack_cube.py:_wrap_obs). Both finger
-qpos are kept separately, not averaged.
+norm_stats / weight init from Pi0.5 ckpts trained on that dataset. Both
+finger qpos are kept separately, not averaged.
 
 Output HDF5 is consumed by Stage 2 (tools/hdf5_to_lerobot.py), which writes
-a LeRobot v2.1 dataset ready for RLinf's OmniGibsonDataConfig SFT path.
+a LeRobot v2.1 dataset.
 
 Run once per teleop trajectory (one traj per process keeps Isaac Sim's
 scene-teardown quirks contained):
@@ -35,11 +34,8 @@ from pathlib import Path
 import torch as th
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RLINF_ROOT = REPO_ROOT / "RLinf"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-if str(RLINF_ROOT) not in sys.path:
-    sys.path.insert(0, str(RLINF_ROOT))
 
 import omnigibson as og
 from omnigibson.envs import DataPlaybackWrapper
@@ -51,7 +47,7 @@ from sentinel.utils.camera_setup import (
 
 
 def _quat2axisangle(quat: th.Tensor) -> th.Tensor:
-    """Convert (x, y, z, w) quaternion to axis-angle (3,). Matches LIBERO/RLinf convention."""
+    """Convert (x, y, z, w) quaternion to axis-angle (3,)."""
     quat = quat.to(th.float32).clone()
     quat = th.clamp(quat, -1.0, 1.0)
     w = quat[3]
@@ -107,8 +103,7 @@ class SentinelPlaybackWriter(DataPlaybackWrapper):
         robot = self.env.robots[0]
 
         # Resolve flat-dict keys once. DataPlaybackWrapper sets
-        # flatten_obs_space=True so obs uses "::"-separated flat keys, not
-        # nested dicts like RLinf's sentinel_env.
+        # flatten_obs_space=True so obs uses "::"-separated flat keys.
         if not getattr(self, "_keys_resolved", False):
             self._main_key = _find_main_key(obs)
             self._wrist_key = _find_wrist_key(obs, robot.name)

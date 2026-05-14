@@ -6,13 +6,13 @@ Uses openpi's own model loading and serving infrastructure.
 Usage:
     # DROID (CPU, for single-GPU machines)
     sudo CUDA_VISIBLE_DEVICES="" JAX_PLATFORMS=cpu \
-        RLinf/.venv/bin/python3 tools/serve_openpi_native.py --config pi05_droid
+        <path-to-openpi-venv>/bin/python3 tools/serve_openpi_native.py --config pi05_droid
 
     # DROID (GPU, needs separate GPU from sim)
-    sudo RLinf/.venv/bin/python3 tools/serve_openpi_native.py --config pi05_droid
+    sudo <path-to-openpi-venv>/bin/python3 tools/serve_openpi_native.py --config pi05_droid
 
     # Custom checkpoint path
-    sudo RLinf/.venv/bin/python3 tools/serve_openpi_native.py \
+    sudo <path-to-openpi-venv>/bin/python3 tools/serve_openpi_native.py \
         --config pi05_droid --checkpoint /path/to/checkpoint
 """
 from __future__ import annotations

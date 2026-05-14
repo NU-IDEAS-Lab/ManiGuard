@@ -26,7 +26,7 @@ if [[ -z "$CONFIG" ]]; then
     exit 1
 fi
 
-export PYTHONPATH="${REPO_ROOT}:${REPO_ROOT}/RLinf:${PYTHONPATH:-}"
+export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
 
 # Auto-detect python from behavior conda env.
 if [[ -n "${PYTHON_CMD:-}" ]]; then
