@@ -20,9 +20,9 @@ classifiers = [
 ]
 
 # Pure-Python runtime deps that sentinel imports directly.
-# Heavy simulator / model deps (omnigibson, bddl, rlinf, openpi, spot) are
-# installed out-of-band by behavior-1k/setup.sh and the submodules —
-# declaring them here would only cause version conflicts.
+# Heavy simulator / model deps (omnigibson, bddl, spot) are installed
+# out-of-band by behavior-1k/setup.sh — declaring them here would only
+# cause version conflicts.
 dependencies = [
     "numpy>=1.23",
     "torch>=2.0",
@@ -58,7 +58,6 @@ where = ["."]
 include = ["sentinel*"]
 exclude = [
     "behavior-1k*",
-    "RLinf*",
     "vla_models*",
     "tests*",
     "tools*",

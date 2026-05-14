@@ -1,0 +1,4750 @@
+{
+  "metadata": {
+    "source_csv": "docs/graspability_classified.csv",
+    "filter": "status=graspable AND table_obstacle in ['perfect', 'possible']",
+    "categories": 559,
+    "models": 1946,
+    "skipped_no_synset": []
+  },
+  "acetone_atomizer": {
+    "synset": "acetone__atomizer.n.01",
+    "models": [
+      "krtwsl"
+    ]
+  },
+  "air_freshener_atomizer": {
+    "synset": "air_freshener__atomizer.n.01",
+    "models": [
+      "vxtgpy"
+    ]
+  },
+  "alarm_clock": {
+    "synset": "alarm_clock.n.01",
+    "models": [
+      "vqwovi"
+    ]
+  },
+  "allen_wrench": {
+    "synset": "allen_wrench.n.01",
+    "models": [
+      "neqlcn"
+    ]
+  },
+  "allspice_shaker": {
+    "synset": "allspice__shaker.n.01",
+    "models": [
+      "cibgje"
+    ]
+  },
+  "alphabet_abacus": {
+    "synset": "alphabet_abacus.n.01",
+    "models": [
+      "wojwvu"
+    ]
+  },
+  "aluminum_foil": {
+    "synset": "aluminum_foil.n.01",
+    "models": [
+      "ebsqqe"
+    ]
+  },
+  "ammonia_water_atomizer": {
+    "synset": "ammonia_water__atomizer.n.01",
+    "models": [
+      "bnrlqd"
+    ]
+  },
+  "apple": {
+    "synset": "apple.n.01",
+    "models": [
+      "agveuv",
+      "bwteqh",
+      "dfgurb",
+      "netbsb",
+      "obixxh",
+      "omzprq",
+      "qrqzvs",
+      "zlxfxt"
+    ]
+  },
+  "apple_pie": {
+    "synset": "apple_pie.n.01",
+    "models": [
+      "ejrgdj",
+      "rpdhbr"
+    ]
+  },
+  "apricot": {
+    "synset": "apricot.n.02",
+    "models": [
+      "qmwmwm"
+    ]
+  },
+  "artichoke": {
+    "synset": "artichoke.n.02",
+    "models": [
+      "tfclmg"
+    ]
+  },
+  "ashtray": {
+    "synset": "ashtray.n.01",
+    "models": [
+      "nfuxzd"
+    ]
+  },
+  "avocado": {
+    "synset": "avocado.n.01",
+    "models": [
+      "arswzs"
+    ]
+  },
+  "baby_bottle": {
+    "synset": "bottle.n.03",
+    "models": [
+      "mzedhe"
+    ]
+  },
+  "bag_of_breadcrumbs": {
+    "synset": "bag__of__breadcrumbs.n.01",
+    "models": [
+      "nvhvxe"
+    ]
+  },
+  "bag_of_chips": {
+    "synset": "bag__of__chips.n.01",
+    "models": [
+      "bryahw",
+      "dwkdko",
+      "ennnjj",
+      "jphwer",
+      "uevvib",
+      "wnuoym"
+    ]
+  },
+  "bag_of_cookies": {
+    "synset": "bag__of__cookies.n.01",
+    "models": [
+      "bbyvsc",
+      "ikivgk",
+      "ksjtde",
+      "vafomx"
+    ]
+  },
+  "bag_of_cream_cheese": {
+    "synset": "bag__of__cream_cheese.n.01",
+    "models": [
+      "dxrsol"
+    ]
+  },
+  "bag_of_flour": {
+    "synset": "bag__of__flour.n.01",
+    "models": [
+      "fntqmd"
+    ]
+  },
+  "bag_of_ice_cream": {
+    "synset": "bag__of__ice_cream.n.01",
+    "models": [
+      "himfgn",
+      "jwalbo"
+    ]
+  },
+  "bag_of_jerky": {
+    "synset": "bag__of__jerky.n.01",
+    "models": [
+      "wblype"
+    ]
+  },
+  "bag_of_oranges": {
+    "synset": "bag__of__oranges.n.01",
+    "models": [
+      "vohgas"
+    ]
+  },
+  "bag_of_rice": {
+    "synset": "bag__of__rice.n.01",
+    "models": [
+      "eddcjz",
+      "feerye"
+    ]
+  },
+  "bag_of_snacks": {
+    "synset": "bag__of__snacks.n.01",
+    "models": [
+      "pkwgid"
+    ]
+  },
+  "bag_of_tea": {
+    "synset": "bag__of__tea.n.01",
+    "models": [
+      "jjweyi"
+    ]
+  },
+  "bagel": {
+    "synset": "bagel.n.01",
+    "models": [
+      "zlxkry"
+    ]
+  },
+  "baking_sheet": {
+    "synset": "cookie_sheet.n.01",
+    "models": [
+      "yhurut"
+    ]
+  },
+  "banana": {
+    "synset": "banana.n.02",
+    "models": [
+      "vvyyyv",
+      "znakxm"
+    ]
+  },
+  "bar_soap": {
+    "synset": "bar_soap.n.01",
+    "models": [
+      "feqemg",
+      "ofargb",
+      "ozifwa",
+      "utgixp"
+    ]
+  },
+  "barbecue_sauce_bottle": {
+    "synset": "barbecue_sauce__bottle.n.01",
+    "models": [
+      "gfxrnj"
+    ]
+  },
+  "baseball": {
+    "synset": "baseball.n.02",
+    "models": [
+      "zanmar"
+    ]
+  },
+  "baseball_cap": {
+    "synset": "baseball_cap.n.01",
+    "models": [
+      "ogptul"
+    ]
+  },
+  "basil_jar": {
+    "synset": "basil__jar.n.01",
+    "models": [
+      "swytaw"
+    ]
+  },
+  "battery": {
+    "synset": "battery.n.02",
+    "models": [
+      "dcjyzg"
+    ]
+  },
+  "beaker": {
+    "synset": "beaker.n.02",
+    "models": [
+      "dtjmai",
+      "effbnc",
+      "exzsal",
+      "fxrsyi",
+      "fyrkzs",
+      "jdijek",
+      "rhohgs",
+      "sfvswx",
+      "uobdoq",
+      "zycgen"
+    ]
+  },
+  "beef_broth_carton": {
+    "synset": "beef_broth__carton.n.01",
+    "models": [
+      "ecqxgd"
+    ]
+  },
+  "beefsteak_tomato": {
+    "synset": "beefsteak_tomato.n.01",
+    "models": [
+      "altlfz",
+      "eevvzv",
+      "ogpans",
+      "pnrdxh"
+    ]
+  },
+  "beer_glass": {
+    "synset": "beer_glass.n.01",
+    "models": [
+      "lymciz",
+      "mxsliu",
+      "rxscji"
+    ]
+  },
+  "beeswax_candle": {
+    "synset": "beeswax_candle.n.01",
+    "models": [
+      "nhdnje",
+      "nxewyk",
+      "oimgmh",
+      "ouzkdj",
+      "pfewit"
+    ]
+  },
+  "beet": {
+    "synset": "beet.n.02",
+    "models": [
+      "wantjv"
+    ]
+  },
+  "bell": {
+    "synset": "bell.n.01",
+    "models": [
+      "oshurh"
+    ]
+  },
+  "bell_pepper": {
+    "synset": "bell_pepper.n.02",
+    "models": [
+      "ggurxn",
+      "ihctxa",
+      "ukkycp",
+      "uqcenz",
+      "wszvwc"
+    ]
+  },
+  "biscuit": {
+    "synset": "biscuit.n.01",
+    "models": [
+      "ukcwqw"
+    ]
+  },
+  "blackboard_eraser": {
+    "synset": "blackboard_eraser.n.01",
+    "models": [
+      "oynrtw"
+    ]
+  },
+  "board_game": {
+    "synset": "board_game.n.01",
+    "models": [
+      "phwwnx",
+      "qdkyzl",
+      "qgvsnb",
+      "rgvkmy",
+      "twkglv",
+      "vbamua"
+    ]
+  },
+  "bottle_of_alfredo_sauce": {
+    "synset": "bottle__of__alfredo_sauce.n.01",
+    "models": [
+      "xwzqjr"
+    ]
+  },
+  "bottle_of_antihistamines": {
+    "synset": "bottle__of__antihistamines.n.01",
+    "models": [
+      "agavwx"
+    ]
+  },
+  "bottle_of_apple_juice": {
+    "synset": "bottle__of__apple_juice.n.01",
+    "models": [
+      "xvrbdy"
+    ]
+  },
+  "bottle_of_barbecue_sauce": {
+    "synset": "bottle__of__barbecue_sauce.n.01",
+    "models": [
+      "ikbsox",
+      "nkqvex",
+      "rzevkb"
+    ]
+  },
+  "bottle_of_beer": {
+    "synset": "bottle__of__beer.n.01",
+    "models": [
+      "crfcwo",
+      "dcwvkg",
+      "fgzjnb",
+      "gxxbhh",
+      "kqskmv",
+      "meqliv",
+      "nfzzqc",
+      "phdimo",
+      "qepxvl",
+      "rdnopv",
+      "saslsh",
+      "vhscym",
+      "zbsxro",
+      "zlmwyn"
+    ]
+  },
+  "bottle_of_black_pepper": {
+    "synset": "bottle__of__black_pepper.n.01",
+    "models": [
+      "ejtiig",
+      "honise",
+      "ydzzrv",
+      "zybfok"
+    ]
+  },
+  "bottle_of_carrot_juice": {
+    "synset": "bottle__of__carrot_juice.n.01",
+    "models": [
+      "jkuhio"
+    ]
+  },
+  "bottle_of_catsup": {
+    "synset": "bottle__of__catsup.n.01",
+    "models": [
+      "ahoiqe",
+      "bcqfxb",
+      "dmyfdf",
+      "hvxkso",
+      "ialodu"
+    ]
+  },
+  "bottle_of_champagne": {
+    "synset": "bottle__of__champagne.n.01",
+    "models": [
+      "mjpyvh",
+      "npsevx"
+    ]
+  },
+  "bottle_of_chili_pepper": {
+    "synset": "bottle__of__chili_pepper.n.01",
+    "models": [
+      "hjalqq"
+    ]
+  },
+  "bottle_of_chocolate_sauce": {
+    "synset": "bottle__of__chocolate_sauce.n.01",
+    "models": [
+      "tsyldw"
+    ]
+  },
+  "bottle_of_cocoa": {
+    "synset": "bottle__of__cocoa.n.01",
+    "models": [
+      "ganhpw"
+    ]
+  },
+  "bottle_of_coconut_milk": {
+    "synset": "bottle__of__coconut_milk.n.01",
+    "models": [
+      "idenxg"
+    ]
+  },
+  "bottle_of_coconut_oil": {
+    "synset": "bottle__of__coconut_oil.n.01",
+    "models": [
+      "rrwzkq"
+    ]
+  },
+  "bottle_of_coconut_water": {
+    "synset": "bottle__of__coconut_water.n.01",
+    "models": [
+      "lsixio"
+    ]
+  },
+  "bottle_of_cologne": {
+    "synset": "bottle__of__cologne.n.01",
+    "models": [
+      "lyipur"
+    ]
+  },
+  "bottle_of_cooking_oil": {
+    "synset": "bottle__of__cooking_oil.n.01",
+    "models": [
+      "ywrkyg"
+    ]
+  },
+  "bottle_of_cranberry_juice": {
+    "synset": "bottle__of__cranberry_juice.n.01",
+    "models": [
+      "heoxnw"
+    ]
+  },
+  "bottle_of_dish_soap": {
+    "synset": "bottle__of__dish_soap.n.01",
+    "models": [
+      "bnmixt"
+    ]
+  },
+  "bottle_of_essential_oil": {
+    "synset": "bottle__of__essential_oil.n.01",
+    "models": [
+      "eyyhld",
+      "wansva",
+      "xhoipk",
+      "xvqshn",
+      "yjxvpg"
+    ]
+  },
+  "bottle_of_face_cream": {
+    "synset": "bottle__of__face_cream.n.01",
+    "models": [
+      "dztaed"
+    ]
+  },
+  "bottle_of_fennel": {
+    "synset": "bottle__of__fennel.n.01",
+    "models": [
+      "ihlkfu"
+    ]
+  },
+  "bottle_of_frosting": {
+    "synset": "bottle__of__frosting.n.01",
+    "models": [
+      "eqdsmn"
+    ]
+  },
+  "bottle_of_fruit_punch": {
+    "synset": "bottle__of__fruit_punch.n.01",
+    "models": [
+      "azcigi",
+      "ykfnwi"
+    ]
+  },
+  "bottle_of_garlic_sauce": {
+    "synset": "bottle__of__garlic_sauce.n.01",
+    "models": [
+      "ucnmax"
+    ]
+  },
+  "bottle_of_gin": {
+    "synset": "bottle__of__gin.n.01",
+    "models": [
+      "qzgcdx"
+    ]
+  },
+  "bottle_of_ginger": {
+    "synset": "bottle__of__ginger.n.01",
+    "models": [
+      "drqhzo"
+    ]
+  },
+  "bottle_of_ginger_beer": {
+    "synset": "bottle__of__ginger_beer.n.01",
+    "models": [
+      "zkocwb"
+    ]
+  },
+  "bottle_of_glue": {
+    "synset": "bottle__of__glue.n.01",
+    "models": [
+      "evtytd"
+    ]
+  },
+  "bottle_of_ground_cloves": {
+    "synset": "bottle__of__ground_cloves.n.01",
+    "models": [
+      "vzamzb"
+    ]
+  },
+  "bottle_of_ground_mace": {
+    "synset": "bottle__of__ground_mace.n.01",
+    "models": [
+      "lgpxro"
+    ]
+  },
+  "bottle_of_ground_nutmeg": {
+    "synset": "bottle__of__ground_nutmeg.n.01",
+    "models": [
+      "qebruq"
+    ]
+  },
+  "bottle_of_hot_sauce": {
+    "synset": "bottle__of__hot_sauce.n.01",
+    "models": [
+      "zqhkzh"
+    ]
+  },
+  "bottle_of_lemon_sauce": {
+    "synset": "bottle__of__lemon_sauce.n.01",
+    "models": [
+      "iyijeb"
+    ]
+  },
+  "bottle_of_lotion": {
+    "synset": "bottle__of__lotion.n.01",
+    "models": [
+      "tkryrh"
+    ]
+  },
+  "bottle_of_maple_syrup": {
+    "synset": "bottle__of__maple_syrup.n.01",
+    "models": [
+      "qfgewi"
+    ]
+  },
+  "bottle_of_mayonnaise": {
+    "synset": "bottle__of__mayonnaise.n.01",
+    "models": [
+      "cirpak"
+    ]
+  },
+  "bottle_of_medicine": {
+    "synset": "bottle__of__medicine.n.01",
+    "models": [
+      "egondf",
+      "fmfwng",
+      "hvocpc",
+      "kasbsy",
+      "kqkwoq",
+      "qqsukh",
+      "syfpak",
+      "zfbnjh"
+    ]
+  },
+  "bottle_of_milk": {
+    "synset": "bottle__of__milk.n.01",
+    "models": [
+      "czblzn",
+      "ddvsgl",
+      "debqen",
+      "mrejrs",
+      "qsnnbp",
+      "utfsmp"
+    ]
+  },
+  "bottle_of_milkshake": {
+    "synset": "bottle__of__milkshake.n.01",
+    "models": [
+      "naxqya"
+    ]
+  },
+  "bottle_of_molasses": {
+    "synset": "bottle__of__molasses.n.01",
+    "models": [
+      "jvsjop"
+    ]
+  },
+  "bottle_of_mushroom_sauce": {
+    "synset": "bottle__of__mushroom_sauce.n.01",
+    "models": [
+      "xamfxi"
+    ]
+  },
+  "bottle_of_mustard": {
+    "synset": "bottle__of__mustard.n.01",
+    "models": [
+      "qbbqat",
+      "sjasxe"
+    ]
+  },
+  "bottle_of_mustard_seeds": {
+    "synset": "bottle__of__mustard_seeds.n.01",
+    "models": [
+      "grryaf"
+    ]
+  },
+  "bottle_of_oil": {
+    "synset": "bottle__of__oil.n.01",
+    "models": [
+      "kzvkyp"
+    ]
+  },
+  "bottle_of_olive_oil": {
+    "synset": "bottle__of__olive_oil.n.01",
+    "models": [
+      "cqycjk",
+      "ksxqkk",
+      "luikop",
+      "wztvie"
+    ]
+  },
+  "bottle_of_onion_powder": {
+    "synset": "bottle__of__onion_powder.n.01",
+    "models": [
+      "xruqod"
+    ]
+  },
+  "bottle_of_orange_juice": {
+    "synset": "bottle__of__orange_juice.n.01",
+    "models": [
+      "edltwh",
+      "rtqqor"
+    ]
+  },
+  "bottle_of_papaya_juice": {
+    "synset": "bottle__of__papaya_juice.n.01",
+    "models": [
+      "tcauim"
+    ]
+  },
+  "bottle_of_paprika": {
+    "synset": "bottle__of__paprika.n.01",
+    "models": [
+      "nrdgrp"
+    ]
+  },
+  "bottle_of_peanut_butter": {
+    "synset": "bottle__of__peanut_butter.n.01",
+    "models": [
+      "edcvwr"
+    ]
+  },
+  "bottle_of_perfume": {
+    "synset": "bottle__of__perfume.n.01",
+    "models": [
+      "ipurzb"
+    ]
+  },
+  "bottle_of_pesto": {
+    "synset": "bottle__of__pesto.n.01",
+    "models": [
+      "hyeetr"
+    ]
+  },
+  "bottle_of_pop": {
+    "synset": "bottle__of__pop.n.01",
+    "models": [
+      "bqretx",
+      "cmqubs",
+      "dlqmit",
+      "drqbiy",
+      "exapzb",
+      "ghxeqz",
+      "gkwdyt",
+      "haoywb",
+      "hjrwqb",
+      "iynssk",
+      "jnoksl",
+      "kviogj",
+      "mdznsn",
+      "mhzttm",
+      "msmlud",
+      "nyupqh",
+      "oeipjl",
+      "oghrnk",
+      "pfjzkn",
+      "pvabxf",
+      "pyrics",
+      "rhclfg",
+      "ribekf",
+      "sevoto",
+      "twtsry",
+      "ubazru",
+      "uwdeok",
+      "uwmchl",
+      "vfjhav",
+      "wmqhul",
+      "wrgmdt",
+      "wuuoes",
+      "xoldze",
+      "xvxcvv",
+      "zjbqvb",
+      "zxambx"
+    ]
+  },
+  "bottle_of_poppy_seeds": {
+    "synset": "bottle__of__poppy_seeds.n.01",
+    "models": [
+      "xdtrgi"
+    ]
+  },
+  "bottle_of_powder": {
+    "synset": "bottle__of__powder.n.01",
+    "models": [
+      "vfabau"
+    ]
+  },
+  "bottle_of_protein_powder": {
+    "synset": "bottle__of__protein_powder.n.01",
+    "models": [
+      "rbvrrp",
+      "ysgesq"
+    ]
+  },
+  "bottle_of_salsa": {
+    "synset": "bottle__of__salsa.n.01",
+    "models": [
+      "nafwlf"
+    ]
+  },
+  "bottle_of_seasoning": {
+    "synset": "bottle__of__seasoning.n.01",
+    "models": [
+      "vqwqqv"
+    ]
+  },
+  "bottle_of_sesame_seeds": {
+    "synset": "bottle__of__sesame_seeds.n.01",
+    "models": [
+      "lzndie"
+    ]
+  },
+  "bottle_of_skin_cream": {
+    "synset": "bottle__of__skin_cream.n.01",
+    "models": [
+      "ynwxtx"
+    ]
+  },
+  "bottle_of_soda": {
+    "synset": "bottle__of__soda.n.01",
+    "models": [
+      "eqyqlx"
+    ]
+  },
+  "bottle_of_soup": {
+    "synset": "bottle__of__soup.n.01",
+    "models": [
+      "maycxf",
+      "xctslq"
+    ]
+  },
+  "bottle_of_sour_cream": {
+    "synset": "bottle__of__sour_cream.n.01",
+    "models": [
+      "pmawft"
+    ]
+  },
+  "bottle_of_soy_milk": {
+    "synset": "bottle__of__soy_milk.n.01",
+    "models": [
+      "mcjlhs"
+    ]
+  },
+  "bottle_of_soy_sauce": {
+    "synset": "bottle__of__soy_sauce.n.01",
+    "models": [
+      "afxisg"
+    ]
+  },
+  "bottle_of_strawberry_juice": {
+    "synset": "bottle__of__strawberry_juice.n.01",
+    "models": [
+      "mlnuza"
+    ]
+  },
+  "bottle_of_sunscreen": {
+    "synset": "bottle__of__sunscreen.n.01",
+    "models": [
+      "prlrwi"
+    ]
+  },
+  "bottle_of_supplements": {
+    "synset": "bottle__of__supplements.n.01",
+    "models": [
+      "kgreql",
+      "oqakev"
+    ]
+  },
+  "bottle_of_tea": {
+    "synset": "bottle__of__tea.n.01",
+    "models": [
+      "iladfg",
+      "yatmrs"
+    ]
+  },
+  "bottle_of_tea_leaves": {
+    "synset": "bottle__of__tea_leaves.n.01",
+    "models": [
+      "pfbtus"
+    ]
+  },
+  "bottle_of_tequila": {
+    "synset": "bottle__of__tequila.n.01",
+    "models": [
+      "gbozpr"
+    ]
+  },
+  "bottle_of_tomato_juice": {
+    "synset": "bottle__of__tomato_juice.n.01",
+    "models": [
+      "csumos"
+    ]
+  },
+  "bottle_of_vinegar": {
+    "synset": "bottle__of__vinegar.n.01",
+    "models": [
+      "snzyfk"
+    ]
+  },
+  "bottle_of_vodka": {
+    "synset": "bottle__of__vodka.n.01",
+    "models": [
+      "nwegts"
+    ]
+  },
+  "bottle_of_water": {
+    "synset": "bottle__of__water.n.01",
+    "models": [
+      "atvnqy",
+      "cytqio",
+      "cyzaue",
+      "eeaimz",
+      "emquat",
+      "jmwngr",
+      "migvlt",
+      "rmtdxh",
+      "rrkhva",
+      "suytyi",
+      "sxffiv"
+    ]
+  },
+  "bottle_of_whiskey": {
+    "synset": "bottle__of__whiskey.n.01",
+    "models": [
+      "aipxlu",
+      "hejqyo",
+      "jfjclv",
+      "lzjuvy",
+      "mtwsme",
+      "pyfpss",
+      "tihatc",
+      "wfflbd",
+      "wmpcxu"
+    ]
+  },
+  "bottle_of_wine": {
+    "synset": "bottle__of__wine.n.01",
+    "models": [
+      "bmudli",
+      "cldder",
+      "fzuiwy",
+      "hnkiog",
+      "ivuvbv",
+      "jdqahn",
+      "klbwkf",
+      "lacaoa",
+      "nhmtvt",
+      "njoeiz",
+      "oldpru",
+      "oslewp",
+      "pgfplm",
+      "pzhwxn",
+      "qvsnjo",
+      "rztiuc",
+      "tisclo",
+      "uoykwx",
+      "vmdwln",
+      "wcokej",
+      "wzdrcl",
+      "xkjyby",
+      "xzipsi",
+      "ynfvhg"
+    ]
+  },
+  "bowl": {
+    "synset": "bowl.n.01",
+    "models": [
+      "byzaxy",
+      "ckxwea",
+      "cypjlv",
+      "dalyim",
+      "eawgwj",
+      "eipwho",
+      "fedafr",
+      "feuaak",
+      "fiarri",
+      "fwdfeg",
+      "haewxp",
+      "hpqjug",
+      "hynhgz",
+      "jblalf",
+      "jfvjep",
+      "jpvcjv",
+      "kasebx",
+      "kthvrl",
+      "lgaxzt",
+      "mspdar",
+      "nkkhbn",
+      "nmhxfz",
+      "oyidja",
+      "pihjqa",
+      "pyilfa",
+      "rbnyxi",
+      "rlwpcd",
+      "sqqahm",
+      "szgdpc",
+      "tvtive",
+      "wryghu",
+      "wtepsx",
+      "xpnlup",
+      "ycbbwl"
+    ]
+  },
+  "box_of_almond_milk": {
+    "synset": "box__of__almond_milk.n.01",
+    "models": [
+      "oiiqwq"
+    ]
+  },
+  "box_of_aluminium_foil": {
+    "synset": "box__of__aluminium_foil.n.01",
+    "models": [
+      "lhwgty"
+    ]
+  },
+  "box_of_apple_juice": {
+    "synset": "box__of__apple_juice.n.01",
+    "models": [
+      "pttzdw"
+    ]
+  },
+  "box_of_baking_mix": {
+    "synset": "box__of__baking_mix.n.01",
+    "models": [
+      "fmewsz",
+      "fnbgwd",
+      "lgusnr",
+      "ltccey",
+      "luwlfd",
+      "qkvqkm",
+      "uhvkxj",
+      "xcxrek"
+    ]
+  },
+  "box_of_baking_powder": {
+    "synset": "box__of__baking_powder.n.01",
+    "models": [
+      "vzgrlv",
+      "zevydc"
+    ]
+  },
+  "box_of_baking_soda": {
+    "synset": "box__of__baking_soda.n.01",
+    "models": [
+      "pskrgy"
+    ]
+  },
+  "box_of_barley": {
+    "synset": "box__of__barley.n.01",
+    "models": [
+      "lxpwnw"
+    ]
+  },
+  "box_of_brown_sugar": {
+    "synset": "box__of__brown_sugar.n.01",
+    "models": [
+      "kqyevo"
+    ]
+  },
+  "box_of_butter": {
+    "synset": "box__of__butter.n.01",
+    "models": [
+      "mfjuil",
+      "oixapu"
+    ]
+  },
+  "box_of_candy": {
+    "synset": "box__of__candy.n.01",
+    "models": [
+      "gvreky",
+      "jodwfv"
+    ]
+  },
+  "box_of_cane_sugar": {
+    "synset": "box__of__cane_sugar.n.01",
+    "models": [
+      "cqlofx",
+      "gpbobo",
+      "qvjiti",
+      "rvsivw"
+    ]
+  },
+  "box_of_cereal": {
+    "synset": "box__of__cereal.n.01",
+    "models": [
+      "dkhgxn",
+      "hcwbzw",
+      "hosfhj",
+      "ihedod",
+      "iucshm",
+      "pfwgkm",
+      "qirvmd",
+      "sgirte",
+      "surzft",
+      "tiykku",
+      "wdkcbu",
+      "wrlalk",
+      "ykuyqb",
+      "yorray"
+    ]
+  },
+  "box_of_chocolates": {
+    "synset": "box__of__chocolates.n.01",
+    "models": [
+      "bdvkbh"
+    ]
+  },
+  "box_of_coffee": {
+    "synset": "box__of__coffee.n.01",
+    "models": [
+      "cjtadw",
+      "mreyla"
+    ]
+  },
+  "box_of_cookies": {
+    "synset": "box__of__cookies.n.01",
+    "models": [
+      "apjokz",
+      "dlhqft",
+      "fsdjun",
+      "fzlaol",
+      "hdgsxz",
+      "jtalxs",
+      "levwda",
+      "lwhbid",
+      "nirfva",
+      "nnfisz",
+      "ohhshb",
+      "qkzrdd",
+      "sjcnoq",
+      "swilxz"
+    ]
+  },
+  "box_of_corn_flakes": {
+    "synset": "box__of__corn_flakes.n.01",
+    "models": [
+      "zbwzkq"
+    ]
+  },
+  "box_of_crackers": {
+    "synset": "box__of__crackers.n.01",
+    "models": [
+      "cmdigf"
+    ]
+  },
+  "box_of_cream": {
+    "synset": "box__of__cream.n.01",
+    "models": [
+      "njrpai"
+    ]
+  },
+  "box_of_flour": {
+    "synset": "box__of__flour.n.01",
+    "models": [
+      "ylezpk"
+    ]
+  },
+  "box_of_granola_bars": {
+    "synset": "box__of__granola_bars.n.01",
+    "models": [
+      "awombj",
+      "bqeeki",
+      "tqwhvz"
+    ]
+  },
+  "box_of_ice_cream": {
+    "synset": "box__of__ice_cream.n.01",
+    "models": [
+      "joizft"
+    ]
+  },
+  "box_of_lasagna": {
+    "synset": "box__of__lasagna.n.01",
+    "models": [
+      "oaonbr"
+    ]
+  },
+  "box_of_oatmeal": {
+    "synset": "box__of__oatmeal.n.01",
+    "models": [
+      "jtqeef",
+      "rabeel",
+      "zkggxm"
+    ]
+  },
+  "box_of_rice": {
+    "synset": "box__of__rice.n.01",
+    "models": [
+      "fvulow",
+      "pstqvm",
+      "yyheuw"
+    ]
+  },
+  "box_of_sanitary_napkins": {
+    "synset": "box__of__sanitary_napkin.n.01",
+    "models": [
+      "acaivd",
+      "arqcyu",
+      "cmnpuv",
+      "humkqw",
+      "mxdefq",
+      "skltgp",
+      "tkrzkb",
+      "ykpeja",
+      "zqinib"
+    ]
+  },
+  "box_of_shampoo": {
+    "synset": "box__of__shampoo.n.01",
+    "models": [
+      "bclpiq",
+      "jccyom",
+      "nijidu",
+      "tzghev"
+    ]
+  },
+  "box_of_takeout": {
+    "synset": "box__of__takeout.n.01",
+    "models": [
+      "bvcopi"
+    ]
+  },
+  "box_of_tissues": {
+    "synset": "box__of__tissue.n.01",
+    "models": [
+      "ntbrtz",
+      "uglbjc",
+      "xwstls",
+      "zutrxn"
+    ]
+  },
+  "box_of_vegetable_juice": {
+    "synset": "box__of__vegetable_juice.n.01",
+    "models": [
+      "jsnnlv",
+      "qgjdbn"
+    ]
+  },
+  "box_of_wagashi": {
+    "synset": "box__of__wagashi.n.01",
+    "models": [
+      "mlmrwy"
+    ]
+  },
+  "box_of_yogurt": {
+    "synset": "box__of__yogurt.n.01",
+    "models": [
+      "jkemqc",
+      "jtjcrx",
+      "znhjgm"
+    ]
+  },
+  "boxed_cake": {
+    "synset": "boxed__cake.n.01",
+    "models": [
+      "yjazet"
+    ]
+  },
+  "boxed_cpu_board": {
+    "synset": "boxed__cpu_board.n.01",
+    "models": [
+      "xlqvil"
+    ]
+  },
+  "boxed_ink_cartridge": {
+    "synset": "boxed__ink_cartridge.n.01",
+    "models": [
+      "ltblou",
+      "oepuip",
+      "oinelo"
+    ]
+  },
+  "bulldog_clip": {
+    "synset": "bulldog_clip.n.01",
+    "models": [
+      "cqxnkn"
+    ]
+  },
+  "bunch_of_bananas": {
+    "synset": "banana.n.02",
+    "models": [
+      "mxnwwk"
+    ]
+  },
+  "burrito": {
+    "synset": "burrito.n.01",
+    "models": [
+      "mqjwjq"
+    ]
+  },
+  "butter": {
+    "synset": "butter.n.01",
+    "models": [
+      "ovirmc"
+    ]
+  },
+  "butternut_squash": {
+    "synset": "butternut_squash.n.02",
+    "models": [
+      "swehmg",
+      "xfpdui"
+    ]
+  },
+  "calculator": {
+    "synset": "calculator.n.02",
+    "models": [
+      "kwmmty"
+    ]
+  },
+  "calendar": {
+    "synset": "calendar.n.01",
+    "models": [
+      "ydunsu"
+    ]
+  },
+  "caliper": {
+    "synset": "caliper.n.01",
+    "models": [
+      "sngjmj"
+    ]
+  },
+  "can": {
+    "synset": "can.n.01",
+    "models": [
+      "damllm",
+      "dhqrwr",
+      "moeqjz"
+    ]
+  },
+  "can_of_baking_mix": {
+    "synset": "can__of__baking_mix.n.01",
+    "models": [
+      "blrqqz",
+      "fpbxfp",
+      "ohtiap",
+      "orwvfx",
+      "rxorlp",
+      "xefopo"
+    ]
+  },
+  "can_of_bay_leaves": {
+    "synset": "can__of__bay_leaves.n.01",
+    "models": [
+      "ppwvjf"
+    ]
+  },
+  "can_of_beans": {
+    "synset": "can__of__beans.n.01",
+    "models": [
+      "kclbuu",
+      "ojqgjz"
+    ]
+  },
+  "can_of_coffee": {
+    "synset": "can__of__coffee.n.01",
+    "models": [
+      "poteji",
+      "zubwua"
+    ]
+  },
+  "can_of_corn": {
+    "synset": "can__of__corn.n.01",
+    "models": [
+      "alphlq",
+      "kwwlfn",
+      "pddtfk"
+    ]
+  },
+  "can_of_icetea": {
+    "synset": "can__of__icetea.n.01",
+    "models": [
+      "ifrjsc"
+    ]
+  },
+  "can_of_oatmeal": {
+    "synset": "can__of__oatmeal.n.01",
+    "models": [
+      "qyukhm"
+    ]
+  },
+  "can_of_sardines": {
+    "synset": "can__of__sardines.n.01",
+    "models": [
+      "dpgmry"
+    ]
+  },
+  "can_of_soda": {
+    "synset": "can__of__soda.n.01",
+    "models": [
+      "bfrzvk",
+      "evcxlr",
+      "frewxk",
+      "itolcg",
+      "lugwcz",
+      "opivig",
+      "ttxyui",
+      "wbrrad",
+      "xmjfcg"
+    ]
+  },
+  "can_of_tomato_paste": {
+    "synset": "can__of__tomato_paste.n.01",
+    "models": [
+      "sqqdzb"
+    ]
+  },
+  "can_of_tomatoes": {
+    "synset": "can__of__tomatoes.n.01",
+    "models": [
+      "ckdouu"
+    ]
+  },
+  "candle_holder": {
+    "synset": "candlestick.n.01",
+    "models": [
+      "nygnlp",
+      "svqdrl",
+      "szulaa",
+      "tnlkzg",
+      "wiufnv"
+    ]
+  },
+  "candy_cane": {
+    "synset": "candy_cane.n.01",
+    "models": [
+      "qfomjj"
+    ]
+  },
+  "canister": {
+    "synset": "canister.n.02",
+    "models": [
+      "xcppkc"
+    ]
+  },
+  "canned_food": {
+    "synset": "canned_food.n.01",
+    "models": [
+      "acgdtc",
+      "byakrm",
+      "cbmndg",
+      "foetdd",
+      "pkopdw",
+      "qhgdys",
+      "ycbspm",
+      "zfmfje"
+    ]
+  },
+  "canteen": {
+    "synset": "canteen.n.01",
+    "models": [
+      "ouhqnw"
+    ]
+  },
+  "cap": {
+    "synset": "cap.n.02",
+    "models": [
+      "arskxc",
+      "ciopwh",
+      "clhquh",
+      "dwpcld",
+      "eukcfr",
+      "ghwjwe",
+      "gmdwwe",
+      "gxkbcd",
+      "hbafeb",
+      "hkvuxj",
+      "iqeyba",
+      "jybxvq",
+      "mgirzi",
+      "ngionj",
+      "pwsngg",
+      "qcfsnv",
+      "qscujv",
+      "rgtedj",
+      "tpknvf",
+      "uxpeaz",
+      "vnpjfn",
+      "vsvwig",
+      "wwbayp",
+      "xeswtq",
+      "xxqyrt",
+      "ygsmgm",
+      "yqvild",
+      "ytjxqn"
+    ]
+  },
+  "carafe": {
+    "synset": "carafe.n.01",
+    "models": [
+      "hdbsog",
+      "ocjcgp"
+    ]
+  },
+  "cardstock": {
+    "synset": "card.n.04",
+    "models": [
+      "bihwte"
+    ]
+  },
+  "carrot": {
+    "synset": "carrot.n.03",
+    "models": [
+      "aucrah",
+      "nktmff",
+      "qhmmmx"
+    ]
+  },
+  "carton": {
+    "synset": "carton.n.02",
+    "models": [
+      "cdmmwy"
+    ]
+  },
+  "carton_of_soy_milk": {
+    "synset": "carton__of__soy_milk.n.01",
+    "models": [
+      "orgyvw"
+    ]
+  },
+  "carving_knife": {
+    "synset": "carving_knife.n.01",
+    "models": [
+      "alekva",
+      "awvoox",
+      "fqqbop",
+      "gixmnd",
+      "zaihmr"
+    ]
+  },
+  "cellulose_tape_dispenser": {
+    "synset": "cellulose_tape_dispenser.n.01",
+    "models": [
+      "fetnry",
+      "yyekns"
+    ]
+  },
+  "chalice": {
+    "synset": "goblet.n.01",
+    "models": [
+      "sfkezf"
+    ]
+  },
+  "charger": {
+    "synset": "charger.n.02",
+    "models": [
+      "bapkyh"
+    ]
+  },
+  "cheese_danish": {
+    "synset": "danish.n.02",
+    "models": [
+      "hkdtwp"
+    ]
+  },
+  "cheese_tart": {
+    "synset": "cheese_tart.n.01",
+    "models": [
+      "dxluyi"
+    ]
+  },
+  "cheesecake": {
+    "synset": "cheesecake.n.01",
+    "models": [
+      "epmobi"
+    ]
+  },
+  "chess_set": {
+    "synset": "chess_set.n.01",
+    "models": [
+      "nzgefv"
+    ]
+  },
+  "chia_seed_bag": {
+    "synset": "chia_seed__bag.n.01",
+    "models": [
+      "xkixrg"
+    ]
+  },
+  "chicken_broth_carton": {
+    "synset": "chicken_broth__carton.n.01",
+    "models": [
+      "ztripg"
+    ]
+  },
+  "chicken_soup_carton": {
+    "synset": "chicken_soup__carton.n.01",
+    "models": [
+      "ooyqcr"
+    ]
+  },
+  "china": {
+    "synset": "china.n.02",
+    "models": [
+      "gklybu",
+      "hacehh",
+      "jwxbpa",
+      "qhnpmc",
+      "qlxhhh"
+    ]
+  },
+  "chisel": {
+    "synset": "chisel.n.01",
+    "models": [
+      "tuqmpz"
+    ]
+  },
+  "chocolate_bar": {
+    "synset": "chocolate_bar.n.01",
+    "models": [
+      "amutpr",
+      "bcfudr",
+      "dxnisi",
+      "eqfznz",
+      "wkjiri"
+    ]
+  },
+  "chocolate_cake": {
+    "synset": "chocolate_cake.n.01",
+    "models": [
+      "mcjamb",
+      "wpeesw"
+    ]
+  },
+  "chocolate_chip_cookie": {
+    "synset": "chocolate_chip_cookie.n.01",
+    "models": [
+      "ggpang",
+      "oyhoth",
+      "xprsse"
+    ]
+  },
+  "chocolate_sauce_bottle": {
+    "synset": "chocolate_sauce__bottle.n.01",
+    "models": [
+      "yegrkf"
+    ]
+  },
+  "chopping_block": {
+    "synset": "chopping_block.n.01",
+    "models": [
+      "ekowsj"
+    ]
+  },
+  "chopping_board": {
+    "synset": "chopping_board.n.01",
+    "models": [
+      "afwefw",
+      "akgegh",
+      "ayegwd",
+      "cptayn",
+      "drjnag",
+      "gaxhrw",
+      "ktxcvz",
+      "mwmzzv",
+      "ozrzrr",
+      "psabiv",
+      "sygezm"
+    ]
+  },
+  "chopstick": {
+    "synset": "chopstick.n.01",
+    "models": [
+      "ahmhza",
+      "bcwuwv",
+      "bdvjuf",
+      "dgfsas",
+      "hljerm"
+    ]
+  },
+  "cigar": {
+    "synset": "cigar.n.01",
+    "models": [
+      "kslnuf"
+    ]
+  },
+  "cinnamon_shaker": {
+    "synset": "cinnamon__shaker.n.01",
+    "models": [
+      "oqacyi"
+    ]
+  },
+  "clamp": {
+    "synset": "clamp.n.01",
+    "models": [
+      "feswhy"
+    ]
+  },
+  "cleaver": {
+    "synset": "cleaver.n.01",
+    "models": [
+      "vpmydv"
+    ]
+  },
+  "clipboard": {
+    "synset": "clipboard.n.01",
+    "models": [
+      "envjqe",
+      "gmxyfo"
+    ]
+  },
+  "clipper": {
+    "synset": "clipper.n.04",
+    "models": [
+      "befwbq"
+    ]
+  },
+  "cloche": {
+    "synset": "cloche.n.01",
+    "models": [
+      "gkimtn",
+      "rnkvca"
+    ]
+  },
+  "club_sandwich": {
+    "synset": "club_sandwich.n.01",
+    "models": [
+      "ablfyd"
+    ]
+  },
+  "coaster": {
+    "synset": "coaster.n.03",
+    "models": [
+      "arjpcz",
+      "httqaj"
+    ]
+  },
+  "cocktail_glass": {
+    "synset": "goblet.n.01",
+    "models": [
+      "xevdnl"
+    ]
+  },
+  "colored_pencil": {
+    "synset": "pencil.n.01",
+    "models": [
+      "deuvcx",
+      "egvqng",
+      "jdqvdl",
+      "jnccuz",
+      "kadvlg",
+      "kgmapz",
+      "kjwoqm",
+      "nssris",
+      "qrxemk",
+      "qwficr",
+      "qxeydw",
+      "tzadtj",
+      "vdpmhz",
+      "vtbwvo",
+      "wifbfs",
+      "wmjjvo",
+      "zisrpq"
+    ]
+  },
+  "comb": {
+    "synset": "comb.n.01",
+    "models": [
+      "lqnwhb",
+      "nybyjz",
+      "yopqrq"
+    ]
+  },
+  "comic_book": {
+    "synset": "comic_book.n.01",
+    "models": [
+      "nekxsh",
+      "qkczyc",
+      "scycof",
+      "vzejnl",
+      "xmbxfm"
+    ]
+  },
+  "crayon": {
+    "synset": "crayon.n.01",
+    "models": [
+      "coapeh",
+      "csglmn",
+      "cvebde",
+      "diiinz",
+      "gfgsev",
+      "jfqetz",
+      "jqodxx",
+      "uqlfwf",
+      "uwmrwr",
+      "vdkdur",
+      "xmysum",
+      "zajomr"
+    ]
+  },
+  "cream_of_tartar_shaker": {
+    "synset": "cream_of_tartar__shaker.n.01",
+    "models": [
+      "busceb"
+    ]
+  },
+  "cream_pitcher": {
+    "synset": "cream_pitcher.n.02",
+    "models": [
+      "ompiss",
+      "wmkwhg"
+    ]
+  },
+  "credit_card": {
+    "synset": "credit_card.n.01",
+    "models": [
+      "dnweyo"
+    ]
+  },
+  "credit_card_terminal": {
+    "synset": "job-oriented_terminal.n.01",
+    "models": [
+      "bqpanz"
+    ]
+  },
+  "crock_pot": {
+    "synset": "crock_pot.n.01",
+    "models": [
+      "lspxjq"
+    ]
+  },
+  "croissant": {
+    "synset": "crescent_roll.n.01",
+    "models": [
+      "xxsanu"
+    ]
+  },
+  "cruet": {
+    "synset": "cruet.n.01",
+    "models": [
+      "njqmqv"
+    ]
+  },
+  "crystal": {
+    "synset": "crystal.n.03",
+    "models": [
+      "oarraa"
+    ]
+  },
+  "cucumber": {
+    "synset": "cucumber.n.02",
+    "models": [
+      "wcvwye"
+    ]
+  },
+  "cup_holder": {
+    "synset": "cup_holder.n.01",
+    "models": [
+      "wstfid"
+    ]
+  },
+  "cup_of_yogurt": {
+    "synset": "cup__of__yogurt.n.01",
+    "models": [
+      "kihdsj"
+    ]
+  },
+  "cupcake": {
+    "synset": "cupcake.n.01",
+    "models": [
+      "pfwrlq"
+    ]
+  },
+  "curry_powder_shaker": {
+    "synset": "curry_powder__shaker.n.01",
+    "models": [
+      "jmrugz"
+    ]
+  },
+  "cutting_board": {
+    "synset": "chopping_board.n.01",
+    "models": [
+      "aibvew",
+      "nsvnai",
+      "tcdrzs"
+    ]
+  },
+  "decanter": {
+    "synset": "carafe.n.01",
+    "models": [
+      "ofasfw"
+    ]
+  },
+  "decorative_sign": {
+    "synset": "decorative_sign.n.01",
+    "models": [
+      "rypeha"
+    ]
+  },
+  "dental_floss": {
+    "synset": "dental_floss.n.01",
+    "models": [
+      "aokqke"
+    ]
+  },
+  "deodorant_atomizer": {
+    "synset": "deodorant__atomizer.n.01",
+    "models": [
+      "utjfug"
+    ]
+  },
+  "deodorant_stick": {
+    "synset": "deodorant_stick.n.01",
+    "models": [
+      "albeyc"
+    ]
+  },
+  "desk_organizer": {
+    "synset": "magazine_rack.n.01",
+    "models": [
+      "yidrel"
+    ]
+  },
+  "desk_phone": {
+    "synset": "desk_phone.n.01",
+    "models": [
+      "gntohf",
+      "itqxky",
+      "kpxrpb"
+    ]
+  },
+  "dice": {
+    "synset": "die.n.01",
+    "models": [
+      "iswudu",
+      "jommvx",
+      "rcgtzz"
+    ]
+  },
+  "digital_camera": {
+    "synset": "digital_camera.n.01",
+    "models": [
+      "wbzzjl"
+    ]
+  },
+  "digital_scale": {
+    "synset": "scale.n.07",
+    "models": [
+      "ccphiu",
+      "hfetby",
+      "xwzzen"
+    ]
+  },
+  "digital_thermometer": {
+    "synset": "self-registering_thermometer.n.01",
+    "models": [
+      "bpnigg"
+    ]
+  },
+  "dip_candle": {
+    "synset": "dip.n.07",
+    "models": [
+      "gbaons",
+      "ghctun",
+      "mxjejs",
+      "poexjo"
+    ]
+  },
+  "doily": {
+    "synset": "doily.n.01",
+    "models": [
+      "exiixv"
+    ]
+  },
+  "doll": {
+    "synset": "doll.n.01",
+    "models": [
+      "fhdgrp"
+    ]
+  },
+  "dreidel": {
+    "synset": "dreidel.n.01",
+    "models": [
+      "smzktm",
+      "vsmlcg",
+      "zynift"
+    ]
+  },
+  "drip_pot": {
+    "synset": "drip_pot.n.01",
+    "models": [
+      "xmxvml"
+    ]
+  },
+  "duct_tape": {
+    "synset": "duct_tape.n.01",
+    "models": [
+      "htrage"
+    ]
+  },
+  "easter_egg": {
+    "synset": "easter_egg.n.01",
+    "models": [
+      "rxwfse"
+    ]
+  },
+  "echeveria_elegans": {
+    "synset": "echeveria_elegans.n.01",
+    "models": [
+      "eijdyn"
+    ]
+  },
+  "egg": {
+    "synset": "egg.n.02",
+    "models": [
+      "brkitw",
+      "qopwgx"
+    ]
+  },
+  "eggplant": {
+    "synset": "eggplant.n.01",
+    "models": [
+      "gfytkk",
+      "jniuxf",
+      "nzbcyp"
+    ]
+  },
+  "electric_hand_mixer": {
+    "synset": "electric_hand_mixer.n.01",
+    "models": [
+      "prewfi"
+    ]
+  },
+  "electric_kettle": {
+    "synset": "electric_kettle.n.01",
+    "models": [
+      "hkdsla"
+    ]
+  },
+  "first_aid_kit": {
+    "synset": "first-aid_kit.n.01",
+    "models": [
+      "flctdz"
+    ]
+  },
+  "flashlight": {
+    "synset": "flashlight.n.01",
+    "models": [
+      "jtrbkc"
+    ]
+  },
+  "flask_clamp": {
+    "synset": "clamp.n.01",
+    "models": [
+      "dyfksq",
+      "kfbwai"
+    ]
+  },
+  "flower": {
+    "synset": "flower.n.02",
+    "models": [
+      "chtieb",
+      "gsekal"
+    ]
+  },
+  "folder": {
+    "synset": "folder.n.02",
+    "models": [
+      "guhatz",
+      "inkwmw",
+      "lktggf",
+      "piezyg"
+    ]
+  },
+  "french_fry_holder": {
+    "synset": "french_fry_holder.n.01",
+    "models": [
+      "bvavlr"
+    ]
+  },
+  "fruitcake": {
+    "synset": "fruitcake.n.02",
+    "models": [
+      "kxckts",
+      "nmxadm"
+    ]
+  },
+  "frying_pan": {
+    "synset": "frying_pan.n.01",
+    "models": [
+      "jpzusm",
+      "sfbdjn"
+    ]
+  },
+  "funnel": {
+    "synset": "funnel.n.02",
+    "models": [
+      "jzqlrt",
+      "otpdyp"
+    ]
+  },
+  "game_console": {
+    "synset": "game_console.n.01",
+    "models": [
+      "anslwz"
+    ]
+  },
+  "gaming_controller": {
+    "synset": "gaming_controller.n.01",
+    "models": [
+      "yofqbq"
+    ]
+  },
+  "garlic": {
+    "synset": "whole_garlic.n.01",
+    "models": [
+      "nlclql",
+      "thigpl"
+    ]
+  },
+  "gift_box": {
+    "synset": "gift_box.n.01",
+    "models": [
+      "mfalrc",
+      "pnprrx",
+      "wpmksn"
+    ]
+  },
+  "ginger_shaker": {
+    "synset": "ginger__shaker.n.01",
+    "models": [
+      "adciyu"
+    ]
+  },
+  "gingerbread": {
+    "synset": "gingerbread.n.01",
+    "models": [
+      "hxkcxs"
+    ]
+  },
+  "glass_lantern": {
+    "synset": "glass_lantern.n.01",
+    "models": [
+      "fndlbf",
+      "onfjnh",
+      "otidux",
+      "wvmsse"
+    ]
+  },
+  "glaze_bottle": {
+    "synset": "glaze__bottle.n.01",
+    "models": [
+      "zdxagk"
+    ]
+  },
+  "globe": {
+    "synset": "globe.n.03",
+    "models": [
+      "fzadcx",
+      "xsmsyk",
+      "xtupuk"
+    ]
+  },
+  "glue_stick": {
+    "synset": "glue_stick.n.01",
+    "models": [
+      "sqzyci"
+    ]
+  },
+  "goblet": {
+    "synset": "goblet.n.01",
+    "models": [
+      "nawrfs"
+    ]
+  },
+  "gold_coin": {
+    "synset": "gold.n.01",
+    "models": [
+      "yudryg"
+    ]
+  },
+  "gourd": {
+    "synset": "gourd.n.02",
+    "models": [
+      "crpzoi",
+      "lnfbza",
+      "nylmku",
+      "qqguxm"
+    ]
+  },
+  "graduated_cylinder": {
+    "synset": "graduated_cylinder.n.01",
+    "models": [
+      "egpkea"
+    ]
+  },
+  "grapefruit": {
+    "synset": "grapefruit.n.02",
+    "models": [
+      "gsjmxa"
+    ]
+  },
+  "grater": {
+    "synset": "grater.n.01",
+    "models": [
+      "jlkowf"
+    ]
+  },
+  "gravy_boat": {
+    "synset": "gravy_boat.n.01",
+    "models": [
+      "arryyl"
+    ]
+  },
+  "griddle_pan": {
+    "synset": "griddle.n.01",
+    "models": [
+      "ryvqep"
+    ]
+  },
+  "ground_beef_package": {
+    "synset": "ground_beef__package.n.01",
+    "models": [
+      "lwsgzd"
+    ]
+  },
+  "hairbrush": {
+    "synset": "hairbrush.n.01",
+    "models": [
+      "bdylnb"
+    ]
+  },
+  "hamburger": {
+    "synset": "hamburger.n.01",
+    "models": [
+      "fyswch"
+    ]
+  },
+  "hammer": {
+    "synset": "hammer.n.02",
+    "models": [
+      "bbzlel",
+      "fcrlbo"
+    ]
+  },
+  "hard_boiled_egg": {
+    "synset": "hard-boiled_egg.n.01",
+    "models": [
+      "xzucin"
+    ]
+  },
+  "hard_drive": {
+    "synset": "disk_drive.n.01",
+    "models": [
+      "ijibkm",
+      "ubjbsm"
+    ]
+  },
+  "hardback": {
+    "synset": "hardback.n.01",
+    "models": [
+      "acaxtl",
+      "acbrnv",
+      "aceozs",
+      "acskbo",
+      "aesiym",
+      "aewljo",
+      "agbqsy",
+      "ajpulw",
+      "atxzzy",
+      "axvnml",
+      "bcmzwo",
+      "bgtbdp",
+      "bklqfz",
+      "bobmzf",
+      "bpgluc",
+      "bqvvvx",
+      "bqwpvd",
+      "bvqdte",
+      "byaghj",
+      "caclbu",
+      "catcrp",
+      "ccollh",
+      "chumjg",
+      "crlzzv",
+      "csgebz",
+      "csjnvj",
+      "cvotie",
+      "cwkwqk",
+      "dbmzmo",
+      "deroar",
+      "dichmv",
+      "dkspkn",
+      "dmqfqx",
+      "dwozht",
+      "dyqykd",
+      "dystbu",
+      "eaktib",
+      "eegpmu",
+      "egvwya",
+      "ekefru",
+      "emqjpl",
+      "eqeruw",
+      "eqhjud",
+      "esxakn",
+      "etodez",
+      "ewjgzf",
+      "ewktjc",
+      "eycrsb",
+      "fdpfan",
+      "fgyzry",
+      "fnruqu",
+      "fqnrwx",
+      "frymkm",
+      "gacoxw",
+      "gcytxe",
+      "gdaauh",
+      "gevalg",
+      "ggfkba",
+      "gophxm",
+      "gpefzh",
+      "grxiqn",
+      "grxvdw",
+      "gyfnow",
+      "gyixdh",
+      "gyjbgp",
+      "gyshpg",
+      "gznwgd",
+      "hbszjg",
+      "hccdxo",
+      "hcwuuq",
+      "hdczhd",
+      "hhbfwv",
+      "hitufw",
+      "hrxujh",
+      "hvllsq",
+      "hwhsfu",
+      "hxjtci",
+      "ihstiw",
+      "iklrpf",
+      "ildqmz",
+      "iobfrl",
+      "ipkwys",
+      "iqervp",
+      "isjnmo",
+      "isznan",
+      "itjgnt",
+      "itskbu",
+      "jaifmc",
+      "jcsevf",
+      "jemhbb",
+      "jeqtsl",
+      "jfnwwu",
+      "jikaee",
+      "jpgboz",
+      "jqddwn",
+      "jsbpva",
+      "jupphn",
+      "jyxmam",
+      "keailc",
+      "kerenw",
+      "klpwul",
+      "knmcwa",
+      "kpoyem",
+      "ktlyoa",
+      "kvaorj",
+      "kwkwiq",
+      "kyyluq",
+      "kzdjtz",
+      "lbjkhk",
+      "lebhqw",
+      "lekmfy",
+      "lfbzdu",
+      "lffzty",
+      "lixbdf",
+      "ljuqil",
+      "lktpjp",
+      "lmxzhj",
+      "loazgc",
+      "lpnxqn",
+      "lqdzfa",
+      "ltfqpb",
+      "lxbcpf",
+      "lzdite",
+      "mekfxk",
+      "mijfhq",
+      "mkfrad",
+      "mlxtxh",
+      "mmscwm",
+      "mpclle",
+      "mpqusy",
+      "mptjse",
+      "mrquvx",
+      "nathmv",
+      "nbuuwf",
+      "ndmbuu",
+      "ngesty",
+      "nhdqlm",
+      "nubbfj",
+      "numppv",
+      "ohcbwk",
+      "okcflv",
+      "onlare",
+      "onmmao",
+      "oonryj",
+      "oqemit",
+      "orkzoz",
+      "orxaxf",
+      "otvmvn",
+      "oxvgoe",
+      "pagmpi",
+      "pfvucb",
+      "piaesm",
+      "plimis",
+      "pmnfgl",
+      "pnjosu",
+      "poanfs",
+      "ppelap",
+      "prifte",
+      "pzjsfl",
+      "qbllsj",
+      "qdkajy",
+      "qhvvlh",
+      "qomarm",
+      "qompdt",
+      "qsssng",
+      "quiqrp",
+      "rbtywt",
+      "rdpznw",
+      "rdqqum",
+      "rgzvyu",
+      "ropdih",
+      "rpptjr",
+      "ruifbr",
+      "rwkajx",
+      "ryzohp",
+      "rzuzmj",
+      "sbrrwi",
+      "scdwke",
+      "sfrlsf",
+      "sinlfd",
+      "skqbff",
+      "slckfs",
+      "sndyvj",
+      "snfzce",
+      "sswztv",
+      "tfwohd",
+      "tgfofw",
+      "tlezqg",
+      "tmiacj",
+      "tmlwev",
+      "tqrqbu",
+      "trlvhd",
+      "tvmcgq",
+      "tvrnpi",
+      "tvydcv",
+      "tybynw",
+      "tyfzvl",
+      "ucicpd",
+      "udqhcl",
+      "ufgtdl",
+      "ujtvvt",
+      "umdcwo",
+      "umtflg",
+      "unpvyf",
+      "urfwur",
+      "uwaqwg",
+      "uzmhnf",
+      "vbofme",
+      "vdchph",
+      "vgsbfh",
+      "vjsenc",
+      "vsbhgn",
+      "vujkvf",
+      "vxjpqu",
+      "waxszs",
+      "wbprfv",
+      "wdnkpr",
+      "wehqno",
+      "wfjsog",
+      "winxhu",
+      "wiydxy",
+      "wudyye",
+      "wxcndu",
+      "xasgrq",
+      "xbpozs",
+      "xcxndi",
+      "xefjtm",
+      "xgxeev",
+      "xkjctf",
+      "xnxlqk",
+      "xoephz",
+      "xxnzwn",
+      "xxwigj",
+      "ycklwl",
+      "ydgedi",
+      "yjkktz",
+      "yljvbc",
+      "ymqzzc",
+      "yomcyv",
+      "zcnoxe",
+      "zcpgyx",
+      "zcyoll",
+      "zegvtj",
+      "zelcjs",
+      "zgeveh",
+      "ziyrti",
+      "zmjcet",
+      "znlewl",
+      "ztoris",
+      "zxjfcp",
+      "zzevep"
+    ]
+  },
+  "hat": {
+    "synset": "hat.n.01",
+    "models": [
+      "avvknr",
+      "ldxyyc",
+      "wkrzep",
+      "zymxgw"
+    ]
+  },
+  "head_cabbage": {
+    "synset": "head_cabbage.n.02",
+    "models": [
+      "tqohvs"
+    ]
+  },
+  "headset": {
+    "synset": "headset.n.01",
+    "models": [
+      "oytuam"
+    ]
+  },
+  "hingeless_jar": {
+    "synset": "hingeless_jar.n.01",
+    "models": [
+      "bqpmsv",
+      "hjrnct",
+      "lvuvbf",
+      "mefezc",
+      "qzwijs",
+      "waousd",
+      "wcqjew",
+      "zdeyzf"
+    ]
+  },
+  "holly_decoration": {
+    "synset": "holly.n.03",
+    "models": [
+      "shmkir"
+    ]
+  },
+  "honing_steel": {
+    "synset": "steel.n.03",
+    "models": [
+      "ugerym"
+    ]
+  },
+  "hot_sauce_bottle": {
+    "synset": "hot_sauce__bottle.n.01",
+    "models": [
+      "qvpthd"
+    ]
+  },
+  "hydrogen_peroxide_bottle": {
+    "synset": "hydrogen_peroxide__bottle.n.01",
+    "models": [
+      "luhnej"
+    ]
+  },
+  "ice_bucket": {
+    "synset": "bucket.n.01",
+    "models": [
+      "vlurir"
+    ]
+  },
+  "ice_tray": {
+    "synset": "icetray.n.02",
+    "models": [
+      "gewlsk"
+    ]
+  },
+  "inhaler": {
+    "synset": "inhaler.n.01",
+    "models": [
+      "iksfbo"
+    ]
+  },
+  "ink_bottle": {
+    "synset": "ink__bottle.n.01",
+    "models": [
+      "gcyvrx"
+    ]
+  },
+  "jar_of_cumin": {
+    "synset": "jar__of__cumin.n.01",
+    "models": [
+      "tsktnz"
+    ]
+  },
+  "jar_of_curry_powder": {
+    "synset": "jar__of__curry_powder.n.01",
+    "models": [
+      "ozhftu"
+    ]
+  },
+  "jar_of_dill_seed": {
+    "synset": "jar__of__dill_seed.n.01",
+    "models": [
+      "reavkt"
+    ]
+  },
+  "jar_of_grains": {
+    "synset": "jar__of__grains.n.01",
+    "models": [
+      "fyfahz",
+      "irqkdw",
+      "jbhdeu",
+      "lnxzuy",
+      "piemou",
+      "pluujx",
+      "uydvnv",
+      "vuolos",
+      "xebmcy",
+      "xrirkq",
+      "ykrdzg",
+      "zqoboc"
+    ]
+  },
+  "jar_of_honey": {
+    "synset": "jar__of__honey.n.01",
+    "models": [
+      "wdxfaq"
+    ]
+  },
+  "jar_of_jam": {
+    "synset": "jar__of__jam.n.01",
+    "models": [
+      "vxjbjf"
+    ]
+  },
+  "jar_of_jelly": {
+    "synset": "jar__of__jelly.n.01",
+    "models": [
+      "ytlmmb"
+    ]
+  },
+  "jar_of_mayonnaise": {
+    "synset": "jar__of__mayonnaise.n.01",
+    "models": [
+      "gjwjet",
+      "ktmjvg"
+    ]
+  },
+  "jar_of_orange_sauce": {
+    "synset": "jar__of__orange_sauce.n.01",
+    "models": [
+      "xfxfig"
+    ]
+  },
+  "jar_of_pepper": {
+    "synset": "jar__of__pepper.n.01",
+    "models": [
+      "nzcbda"
+    ]
+  },
+  "jar_of_puree": {
+    "synset": "jar__of__puree.n.01",
+    "models": [
+      "raagvm"
+    ]
+  },
+  "jar_of_spaghetti_sauce": {
+    "synset": "jar__of__spaghetti_sauce.n.01",
+    "models": [
+      "efrxze",
+      "exmsmm",
+      "fyocnu",
+      "xpasvb",
+      "yqnmoy",
+      "zahyds"
+    ]
+  },
+  "jar_of_strawberry_jam": {
+    "synset": "jar__of__strawberry_jam.n.01",
+    "models": [
+      "busiti"
+    ]
+  },
+  "jar_of_sugar": {
+    "synset": "jar__of__sugar.n.01",
+    "models": [
+      "bholak"
+    ]
+  },
+  "jar_of_tumeric": {
+    "synset": "jar__of__tumeric.n.01",
+    "models": [
+      "miivhi"
+    ]
+  },
+  "jar_of_vegetable": {
+    "synset": "jar__of__vegetable.n.01",
+    "models": [
+      "rdngsc"
+    ]
+  },
+  "jigger": {
+    "synset": "shot_glass.n.01",
+    "models": [
+      "aysfhf"
+    ]
+  },
+  "jigsaw_puzzle": {
+    "synset": "jigsaw_puzzle.n.01",
+    "models": [
+      "antykn"
+    ]
+  },
+  "jug": {
+    "synset": "pitcher.n.02",
+    "models": [
+      "gjgwvi",
+      "hjjeeh",
+      "llexze",
+      "pvxfot",
+      "quzmfw"
+    ]
+  },
+  "jug_of_milk": {
+    "synset": "jug__of__milk.n.01",
+    "models": [
+      "xbvdpc"
+    ]
+  },
+  "kettle": {
+    "synset": "kettle.n.01",
+    "models": [
+      "bzisss",
+      "vjbldp"
+    ]
+  },
+  "keyboard": {
+    "synset": "keyboard.n.01",
+    "models": [
+      "kzcreb",
+      "nddmmy",
+      "uwacaq"
+    ]
+  },
+  "keys": {
+    "synset": "key.n.01",
+    "models": [
+      "olymng"
+    ]
+  },
+  "kitchen_analog_scale": {
+    "synset": "scale.n.07",
+    "models": [
+      "lpjpez",
+      "tqvnpo",
+      "zpmpoq"
+    ]
+  },
+  "kiwi": {
+    "synset": "kiwi.n.03",
+    "models": [
+      "khupqq"
+    ]
+  },
+  "legal_document": {
+    "synset": "legal_document.n.01",
+    "models": [
+      "mougvz",
+      "qkrlsi"
+    ]
+  },
+  "lemon": {
+    "synset": "lemon.n.01",
+    "models": [
+      "asdada",
+      "bbvonm",
+      "bmvxas",
+      "dsacfa",
+      "gkrfha",
+      "hoghjl",
+      "kvgfdl",
+      "ovbcff",
+      "peqwoa",
+      "pffkae",
+      "pqweio",
+      "pwqedq",
+      "vuwehu"
+    ]
+  },
+  "lemon_pepper_seasoning_shaker": {
+    "synset": "lemon-pepper_seasoning__shaker.n.01",
+    "models": [
+      "ucwqcy"
+    ]
+  },
+  "lemonade_bottle": {
+    "synset": "lemonade__bottle.n.01",
+    "models": [
+      "yprkek"
+    ]
+  },
+  "letter": {
+    "synset": "letter.n.01",
+    "models": [
+      "bdlpry",
+      "bswqmq",
+      "csncjv",
+      "cvtjcy",
+      "dyvllf",
+      "esmoua",
+      "fnaqcr",
+      "igvnic",
+      "jafvfh",
+      "jgnowc",
+      "oheufk",
+      "pieqjf",
+      "pvuaxx",
+      "qhqhwk",
+      "qljxat",
+      "qrykxc",
+      "sjoqrj"
+    ]
+  },
+  "lid": {
+    "synset": "lid.n.02",
+    "models": [
+      "aybgkm",
+      "bemtjd",
+      "chwwdg",
+      "ckgilb",
+      "cofhlg",
+      "dadswa",
+      "dkncbi",
+      "egfobe",
+      "ejywmx",
+      "exiqxa",
+      "fnqhbz",
+      "gerjlh",
+      "haxrqc",
+      "iojcmf",
+      "jqvurl",
+      "jvqtqi",
+      "jvzjzp",
+      "lwyfab",
+      "mdowoz",
+      "muczdt",
+      "myrzac",
+      "ndafok",
+      "niarsj",
+      "obuzeh",
+      "pbmsji",
+      "picclm",
+      "ppkjuy",
+      "pwgbsb",
+      "qferch",
+      "qhlsdq",
+      "qkogll",
+      "qkpdih",
+      "sihkub",
+      "snklci",
+      "tnwisp",
+      "ugfmpq",
+      "utfcdx",
+      "uwzqlf",
+      "vkepll",
+      "wjrwer",
+      "wtjthb",
+      "wxdxss",
+      "xdvzpr",
+      "zkderg",
+      "zxlntj"
+    ]
+  },
+  "light_bulb": {
+    "synset": "light_bulb.n.01",
+    "models": [
+      "kfmkwd"
+    ]
+  },
+  "magazine": {
+    "synset": "magazine.n.02",
+    "models": [
+      "ajitiv",
+      "ehdwsd",
+      "kjfxxx",
+      "tfovwy",
+      "vvcrhu",
+      "ymfwaz",
+      "zfeoeu"
+    ]
+  },
+  "magnetic_stirrer": {
+    "synset": "stirrer.n.02",
+    "models": [
+      "xtamki"
+    ]
+  },
+  "magnifying_glass": {
+    "synset": "hand_glass.n.02",
+    "models": [
+      "clyiol"
+    ]
+  },
+  "mail": {
+    "synset": "mail.n.04",
+    "models": [
+      "azunex",
+      "gvivdi",
+      "mbbwhn",
+      "ojkepk",
+      "qpwlor"
+    ]
+  },
+  "mallet": {
+    "synset": "mallet.n.01",
+    "models": [
+      "wpswgw"
+    ]
+  },
+  "mango": {
+    "synset": "mango.n.02",
+    "models": [
+      "nwwjbw",
+      "phdamg",
+      "qqnarm",
+      "toddjy",
+      "xkvwti"
+    ]
+  },
+  "map": {
+    "synset": "map.n.01",
+    "models": [
+      "fdtxut",
+      "hsbtqi"
+    ]
+  },
+  "marigold": {
+    "synset": "marigold.n.01",
+    "models": [
+      "arvona",
+      "bioksr",
+      "fseapn",
+      "jmomsu",
+      "kzyxgd",
+      "nghkfn",
+      "rlapyi",
+      "ugezjo",
+      "xjqpmb",
+      "zdlpfb"
+    ]
+  },
+  "marker": {
+    "synset": "marker.n.03",
+    "models": [
+      "oyjbhy",
+      "qemval",
+      "rsxbso",
+      "slgheo",
+      "tcsmqv",
+      "vjjsul",
+      "vrjwkg",
+      "xakoic",
+      "zmimhb",
+      "zvvovh"
+    ]
+  },
+  "masking_tape": {
+    "synset": "masking_tape.n.01",
+    "models": [
+      "vpgzne"
+    ]
+  },
+  "match_box": {
+    "synset": "matchbox.n.01",
+    "models": [
+      "xpnfjz"
+    ]
+  },
+  "meat_thermometer": {
+    "synset": "meat_thermometer.n.01",
+    "models": [
+      "idugwc"
+    ]
+  },
+  "meatball": {
+    "synset": "meatball.n.01",
+    "models": [
+      "ctdwth"
+    ]
+  },
+  "menu": {
+    "synset": "menu.n.01",
+    "models": [
+      "keaqlh",
+      "ncfnii",
+      "qmypsm",
+      "tissfg",
+      "ugplzr",
+      "wqhybr"
+    ]
+  },
+  "microphone": {
+    "synset": "microphone.n.01",
+    "models": [
+      "eyleyk"
+    ]
+  },
+  "microscope": {
+    "synset": "compound_microscope.n.01",
+    "models": [
+      "ktzwez"
+    ]
+  },
+  "milk_carton": {
+    "synset": "milk__carton.n.01",
+    "models": [
+      "icvmix"
+    ]
+  },
+  "mixing_bowl": {
+    "synset": "mixing_bowl.n.01",
+    "models": [
+      "bsgybx",
+      "deudkt",
+      "xifive"
+    ]
+  },
+  "modem": {
+    "synset": "modem.n.01",
+    "models": [
+      "axqxsv"
+    ]
+  },
+  "money": {
+    "synset": "money.n.01",
+    "models": [
+      "atvcng",
+      "bhklvt",
+      "cgtmzo",
+      "eqwggh",
+      "mtenfi",
+      "tpeext",
+      "wfooon"
+    ]
+  },
+  "mouse": {
+    "synset": "mouse.n.04",
+    "models": [
+      "fjljxp",
+      "ihpnjx",
+      "oydobn",
+      "pljjtu",
+      "wwyopp"
+    ]
+  },
+  "mousepad": {
+    "synset": "mousepad.n.01",
+    "models": [
+      "mfrcto"
+    ]
+  },
+  "mousetrap": {
+    "synset": "mousetrap.n.01",
+    "models": [
+      "mwfwsv"
+    ]
+  },
+  "muffin": {
+    "synset": "muffin.n.01",
+    "models": [
+      "pxrntz"
+    ]
+  },
+  "mug": {
+    "synset": "mug.n.04",
+    "models": [
+      "ehnmxj",
+      "fapsrj",
+      "jgethp",
+      "lgxhsc",
+      "ntgftr",
+      "ppdqbj",
+      "ppzttc",
+      "waqrdy",
+      "ycbmug",
+      "yxaapv"
+    ]
+  },
+  "mushroom": {
+    "synset": "mushroom.n.05",
+    "models": [
+      "zlukhz"
+    ]
+  },
+  "mustard_bottle": {
+    "synset": "mustard__bottle.n.01",
+    "models": [
+      "lgxfyv"
+    ]
+  },
+  "mustard_seed_shaker": {
+    "synset": "mustard_seed__shaker.n.01",
+    "models": [
+      "apuolt"
+    ]
+  },
+  "nativity_figurine": {
+    "synset": "nativity_figurine.n.01",
+    "models": [
+      "iuislr"
+    ]
+  },
+  "nectarine": {
+    "synset": "nectarine.n.02",
+    "models": [
+      "frutec"
+    ]
+  },
+  "newspaper": {
+    "synset": "newspaper.n.03",
+    "models": [
+      "edarlp",
+      "ukamcl"
+    ]
+  },
+  "notebook": {
+    "synset": "notebook.n.01",
+    "models": [
+      "qwhiqc",
+      "rwhloa",
+      "sommfe",
+      "svisnb",
+      "tbzucx",
+      "tshsaq",
+      "ugpged",
+      "ukdkpe",
+      "umxsmd",
+      "vicgic",
+      "xdnswn",
+      "xhigou",
+      "xpqslr"
+    ]
+  },
+  "oil_bottle": {
+    "synset": "oil__bottle.n.01",
+    "models": [
+      "gcixra"
+    ]
+  },
+  "open_end_wrench": {
+    "synset": "open-end_wrench.n.01",
+    "models": [
+      "klnawb"
+    ]
+  },
+  "orange": {
+    "synset": "orange.n.01",
+    "models": [
+      "nlygru",
+      "ucstpm"
+    ]
+  },
+  "orange_juice_carton": {
+    "synset": "orange_juice__carton.n.01",
+    "models": [
+      "jjlfla"
+    ]
+  },
+  "outline_tray": {
+    "synset": "outline_tray.n.01",
+    "models": [
+      "mmegts"
+    ]
+  },
+  "outline_vase": {
+    "synset": "outline_vase.n.01",
+    "models": [
+      "pqsamn",
+      "szsudo",
+      "wmuysk"
+    ]
+  },
+  "pack_of_bread": {
+    "synset": "pack__of__bread.n.01",
+    "models": [
+      "fckfij",
+      "sfupqo",
+      "wjbnfu",
+      "yehtiv"
+    ]
+  },
+  "pack_of_chocolate_bar": {
+    "synset": "pack__of__chocolate_bar.n.01",
+    "models": [
+      "bxgewr",
+      "tidcst",
+      "wgrkhn"
+    ]
+  },
+  "pack_of_cigarettes": {
+    "synset": "pack__of__cigarettes.n.01",
+    "models": [
+      "ajphvf",
+      "cfmlhf",
+      "dthkix",
+      "ghbqav",
+      "gzxueq",
+      "hmhqkq",
+      "ipmejr",
+      "kienyo",
+      "ohpqua",
+      "ppbmak",
+      "qabdgg",
+      "qldhnm",
+      "rmrubd",
+      "tngixy",
+      "wjfbhw",
+      "wpmpcf"
+    ]
+  },
+  "pack_of_ground_beef": {
+    "synset": "pack__of__ground_beef.n.01",
+    "models": [
+      "ctmcjn"
+    ]
+  },
+  "pack_of_kielbasa": {
+    "synset": "pack__of__kielbasa.n.01",
+    "models": [
+      "bhkkiq",
+      "biokqz",
+      "bzlsuh",
+      "ckzejj",
+      "dgodnn",
+      "femhoz",
+      "fwqdoy",
+      "gmwwsh",
+      "herxxh",
+      "ktjjlo",
+      "lwrdjd",
+      "nhkuzn",
+      "nqtltw",
+      "qwdfea",
+      "rvhpal",
+      "twgpur"
+    ]
+  },
+  "pack_of_pasta": {
+    "synset": "pack__of__pasta.n.01",
+    "models": [
+      "gwqhko"
+    ]
+  },
+  "pack_of_protein_powder": {
+    "synset": "pack__of__protein_powder.n.01",
+    "models": [
+      "rikjwx",
+      "tpcsve"
+    ]
+  },
+  "package": {
+    "synset": "package.n.02",
+    "models": [
+      "mvvnqm"
+    ]
+  },
+  "paintbrush": {
+    "synset": "paintbrush.n.01",
+    "models": [
+      "gngyrk",
+      "tivzcl"
+    ]
+  },
+  "paper_bag": {
+    "synset": "sack.n.01",
+    "models": [
+      "bzsxgw",
+      "ruryqd"
+    ]
+  },
+  "paper_cup": {
+    "synset": "dixie_cup.n.01",
+    "models": [
+      "guobeq"
+    ]
+  },
+  "paper_sheet": {
+    "synset": "sheet.n.02",
+    "models": [
+      "afdjfk",
+      "uqbipw"
+    ]
+  },
+  "paper_towel_holder": {
+    "synset": "paper_towel_holder.n.01",
+    "models": [
+      "rntefx"
+    ]
+  },
+  "paperback_book": {
+    "synset": "paperback_book.n.01",
+    "models": [
+      "aubynm",
+      "bisnup",
+      "eqzjjk",
+      "fvzdec",
+      "hdhhqo",
+      "hrtflt",
+      "ixwtnb",
+      "jhaltj",
+      "ncjkcg",
+      "phsgun",
+      "vciijb",
+      "wfcxjv",
+      "xhibsy",
+      "xxknda",
+      "xzxgfw",
+      "ydarnr",
+      "yfhdvx",
+      "ysbzis",
+      "yxujzs"
+    ]
+  },
+  "paprika_shaker": {
+    "synset": "paprika__shaker.n.01",
+    "models": [
+      "nvpttt"
+    ]
+  },
+  "parer": {
+    "synset": "parer.n.02",
+    "models": [
+      "lwpdhi",
+      "zpkhwi"
+    ]
+  },
+  "parmesan_shaker": {
+    "synset": "parmesan__shaker.n.01",
+    "models": [
+      "kppzim"
+    ]
+  },
+  "pasta_server": {
+    "synset": "server.n.04",
+    "models": [
+      "lmilmj"
+    ]
+  },
+  "pastry_cutter": {
+    "synset": "pastry_cutter.n.01",
+    "models": [
+      "fconda"
+    ]
+  },
+  "peach": {
+    "synset": "peach.n.03",
+    "models": [
+      "wrutgk"
+    ]
+  },
+  "pen": {
+    "synset": "pen.n.01",
+    "models": [
+      "ubwjqa"
+    ]
+  },
+  "pencil": {
+    "synset": "pencil.n.01",
+    "models": [
+      "almpve",
+      "bfkwhb",
+      "boykzh",
+      "bsrfog",
+      "bzcuth",
+      "cexjew",
+      "cjvaxt",
+      "cxuaxg",
+      "dcqvto",
+      "ddjmwx",
+      "ddptpt",
+      "efaadr",
+      "faudjj",
+      "fgkyhk",
+      "fnlbpu",
+      "ftvtbb",
+      "fuiwrd",
+      "gbzzcg",
+      "gflxcq",
+      "ggxzdy",
+      "habhcf",
+      "heqkmr",
+      "hetnrn",
+      "hmawzy",
+      "hwkudt",
+      "ieescz",
+      "ieyqkf",
+      "ilaszu",
+      "iygidu",
+      "jgfsgv",
+      "jntybl",
+      "jvakba",
+      "kdpdvw",
+      "kfnckk",
+      "kxgcgy",
+      "lamaxq",
+      "lphubb",
+      "lruiot",
+      "lrwosa",
+      "lykqoh",
+      "mhzqwu",
+      "mvmxfo",
+      "pqydvm",
+      "qefchi",
+      "qhkqvt",
+      "qpcsjc",
+      "qrqzyq",
+      "qvypft",
+      "qznteb",
+      "rbkfxp",
+      "rwciyo",
+      "rzscao",
+      "scyvsz",
+      "tqrrbk",
+      "tyipwi",
+      "ueshkr",
+      "ugvzfa",
+      "vakowb",
+      "vedvit",
+      "vmrwlp",
+      "vpzhth",
+      "vvofwr",
+      "wvhqac",
+      "xdrqaq",
+      "xslrbt",
+      "xuanpj",
+      "zcapdd",
+      "zemxrz",
+      "zzzvln"
+    ]
+  },
+  "pencil_case": {
+    "synset": "pencil_box.n.01",
+    "models": [
+      "acikzo",
+      "cqxkgl",
+      "otcmih"
+    ]
+  },
+  "pencil_holder": {
+    "synset": "pencil_holder.n.01",
+    "models": [
+      "jkuiqg",
+      "jyetcl",
+      "mrrpay",
+      "nqiujp",
+      "taixcy"
+    ]
+  },
+  "pepper_grinder": {
+    "synset": "pepper_mill.n.01",
+    "models": [
+      "tfoogy"
+    ]
+  },
+  "pepper_shaker": {
+    "synset": "pepper__shaker.n.01",
+    "models": [
+      "stbqbt",
+      "tgcwtr",
+      "ykujyn"
+    ]
+  },
+  "pestle": {
+    "synset": "pestle.n.03",
+    "models": [
+      "wzbodb"
+    ]
+  },
+  "petri_dish": {
+    "synset": "petri_dish.n.01",
+    "models": [
+      "vbiqcq",
+      "xfqatj"
+    ]
+  },
+  "pewter_teapot": {
+    "synset": "pewter_teapot.n.01",
+    "models": [
+      "dwfdpi"
+    ]
+  },
+  "phonograph_record": {
+    "synset": "phonograph_record.n.01",
+    "models": [
+      "couvrd",
+      "ejxxmy",
+      "krnmnc",
+      "reunea",
+      "urcabe"
+    ]
+  },
+  "picture": {
+    "synset": "photograph.n.01",
+    "models": [
+      "abtgvz",
+      "bzmdxc",
+      "ggajdz",
+      "oshvew",
+      "ougrxx",
+      "qlsyco",
+      "uwlqdu"
+    ]
+  },
+  "picture_frame": {
+    "synset": "picture_frame.n.01",
+    "models": [
+      "brhofj",
+      "byaund",
+      "fgsgpu",
+      "guatvs",
+      "kncybf",
+      "lsqclh",
+      "lxpxcf",
+      "nrviiu",
+      "vmyqsm",
+      "yxmjdx"
+    ]
+  },
+  "pillar_candle": {
+    "synset": "pillar_candle.n.01",
+    "models": [
+      "bdahdx",
+      "bhaqam",
+      "cxswbc",
+      "omdnwg"
+    ]
+  },
+  "pine_cone": {
+    "synset": "pinecone.n.01",
+    "models": [
+      "bmvhss",
+      "fmskdx",
+      "pyxarv",
+      "vbqhas"
+    ]
+  },
+  "pineapple": {
+    "synset": "pineapple.n.02",
+    "models": [
+      "wfaybl"
+    ]
+  },
+  "pineapple_juice_carton": {
+    "synset": "pineapple_juice__carton.n.01",
+    "models": [
+      "barzwx"
+    ]
+  },
+  "ping_pong_ball": {
+    "synset": "ping_pong_ball.n.01",
+    "models": [
+      "eutewe",
+      "gsekwe",
+      "jrwhre"
+    ]
+  },
+  "ping_pong_paddle": {
+    "synset": "ping_pong_paddle.n.01",
+    "models": [
+      "xcyejf"
+    ]
+  },
+  "pitcher": {
+    "synset": "pitcher.n.02",
+    "models": [
+      "ankfvi",
+      "bbewjo",
+      "mbrlge",
+      "tsyims",
+      "tzbnmh"
+    ]
+  },
+  "pizza": {
+    "synset": "pizza.n.01",
+    "models": [
+      "vyfhkm"
+    ]
+  },
+  "plate": {
+    "synset": "plate.n.04",
+    "models": [
+      "dbprwc",
+      "dnqekb",
+      "eixyyn",
+      "eozsdg",
+      "fhdyrj",
+      "fkpaie",
+      "iawoof",
+      "ivbrtz",
+      "ivuveo",
+      "iwfvwf",
+      "kkjiko",
+      "kkmkbd",
+      "ksgizx",
+      "lixwwc",
+      "lkomhp",
+      "luhkiz",
+      "mtetqm",
+      "nbuspz",
+      "nhodax",
+      "nrjump",
+      "ntedfx",
+      "odmjdd",
+      "pjinwe",
+      "pkkgzc",
+      "qbxfmv",
+      "qtfzeq",
+      "qyuyjr",
+      "spppps",
+      "tgrsui",
+      "uakqei",
+      "ujodgo",
+      "vitdwc",
+      "vjqzwa",
+      "vtjwof",
+      "wgcgia",
+      "xfjmld",
+      "xtdcau",
+      "ypdfrp",
+      "zpddxu"
+    ]
+  },
+  "platter": {
+    "synset": "platter.n.01",
+    "models": [
+      "csanbr",
+      "ekjpdj",
+      "hnlivs",
+      "iadlti",
+      "ieoasd",
+      "kiiamx"
+    ]
+  },
+  "popcorn_bag": {
+    "synset": "popcorn__bag.n.01",
+    "models": [
+      "hdcpqg"
+    ]
+  },
+  "portable_game_console": {
+    "synset": "game_console.n.01",
+    "models": [
+      "muwcnf"
+    ]
+  },
+  "post_it": {
+    "synset": "post-it.n.01",
+    "models": [
+      "drlhqi",
+      "ooetjh",
+      "xakxes"
+    ]
+  },
+  "postcard": {
+    "synset": "postcard.n.01",
+    "models": [
+      "aujfqp"
+    ]
+  },
+  "pot_plant": {
+    "synset": "pot_plant.n.01",
+    "models": [
+      "aantth",
+      "azfbnd",
+      "cqqyzp",
+      "jatssq",
+      "jaunqh",
+      "jgkozi",
+      "kjnypo",
+      "kxmvco",
+      "mypsrd",
+      "nscddw",
+      "qenqqv",
+      "quaxmw",
+      "tbsjnw",
+      "uvbpsf",
+      "xyczqb",
+      "xzoovy",
+      "yvuagy"
+    ]
+  },
+  "potato": {
+    "synset": "potato.n.01",
+    "models": [
+      "bpwohr",
+      "ljfitc",
+      "lqjear",
+      "ngjeog",
+      "reczhi"
+    ]
+  },
+  "potato_masher": {
+    "synset": "masher.n.02",
+    "models": [
+      "qxfadi"
+    ]
+  },
+  "pottable_daffodil": {
+    "synset": "pottable__daffodil.n.01",
+    "models": [
+      "yuuyxp"
+    ]
+  },
+  "pottable_dahlia": {
+    "synset": "pottable__dahlia.n.01",
+    "models": [
+      "shchvh",
+      "wcgqlj"
+    ]
+  },
+  "pressure_cooker": {
+    "synset": "pressure_cooker.n.01",
+    "models": [
+      "otyngn"
+    ]
+  },
+  "pretzel": {
+    "synset": "pretzel.n.01",
+    "models": [
+      "rmutwn"
+    ]
+  },
+  "quartz": {
+    "synset": "quartz.n.02",
+    "models": [
+      "klgses",
+      "poplsu",
+      "tgqodl",
+      "vfuilh"
+    ]
+  },
+  "quiche": {
+    "synset": "quiche.n.02",
+    "models": [
+      "borxmv"
+    ]
+  },
+  "radio": {
+    "synset": "radio_receiver.n.01",
+    "models": [
+      "vgioak",
+      "wxnicr"
+    ]
+  },
+  "razor": {
+    "synset": "razor.n.01",
+    "models": [
+      "jocsgp"
+    ]
+  },
+  "reagent_bottle": {
+    "synset": "carboy.n.01",
+    "models": [
+      "uaijua"
+    ]
+  },
+  "receipt": {
+    "synset": "receipt.n.02",
+    "models": [
+      "hgnbjj",
+      "qfaleu",
+      "rzrhlo",
+      "xvfean",
+      "zsxylm"
+    ]
+  },
+  "rolling_pin": {
+    "synset": "rolling_pin.n.01",
+    "models": [
+      "mwrdae",
+      "smnklu"
+    ]
+  },
+  "rose": {
+    "synset": "rose.n.01",
+    "models": [
+      "hrwson"
+    ]
+  },
+  "rosemary_shaker": {
+    "synset": "rosemary__shaker.n.01",
+    "models": [
+      "iayqxs"
+    ]
+  },
+  "round_bottom_flask": {
+    "synset": "round-bottom_flask.n.01",
+    "models": [
+      "fjytro",
+      "hmzafz",
+      "injdmj",
+      "tqyiso"
+    ]
+  },
+  "router": {
+    "synset": "router.n.02",
+    "models": [
+      "tokdic"
+    ]
+  },
+  "rubber_eraser": {
+    "synset": "rubber_eraser.n.01",
+    "models": [
+      "cungod"
+    ]
+  },
+  "rubbing_alcohol_atomizer": {
+    "synset": "rubbing_alcohol__atomizer.n.01",
+    "models": [
+      "kbnobp"
+    ]
+  },
+  "ruler": {
+    "synset": "rule.n.12",
+    "models": [
+      "ckywbx",
+      "gajhql",
+      "rutqab",
+      "ujizkx",
+      "vmnaih"
+    ]
+  },
+  "rum_bottle": {
+    "synset": "rum__bottle.n.01",
+    "models": [
+      "ueagnt"
+    ]
+  },
+  "saffron_shaker": {
+    "synset": "saffron__shaker.n.01",
+    "models": [
+      "xrlamf"
+    ]
+  },
+  "sage_shaker": {
+    "synset": "sage__shaker.n.01",
+    "models": [
+      "eerlcy"
+    ]
+  },
+  "salsa_bottle": {
+    "synset": "salsa__bottle.n.01",
+    "models": [
+      "kydilb"
+    ]
+  },
+  "salt_bottle": {
+    "synset": "salt__bottle.n.01",
+    "models": [
+      "wdpcmk"
+    ]
+  },
+  "salt_shaker": {
+    "synset": "salt__shaker.n.01",
+    "models": [
+      "fonexa",
+      "iomwtn",
+      "qowouj"
+    ]
+  },
+  "saucepan": {
+    "synset": "saucepan.n.01",
+    "models": [
+      "fsinsu"
+    ]
+  },
+  "saucepot": {
+    "synset": "saucepot.n.01",
+    "models": [
+      "chjetk",
+      "kvgaar",
+      "obuxbe",
+      "pkfydm",
+      "tfzijn",
+      "urqzec",
+      "uvzmss",
+      "vqtkwq",
+      "wfryvm"
+    ]
+  },
+  "saucer": {
+    "synset": "saucer.n.02",
+    "models": [
+      "mgbeah",
+      "oxivmf",
+      "szzjzd",
+      "vghfkh"
+    ]
+  },
+  "scone": {
+    "synset": "scone.n.01",
+    "models": [
+      "gwdhyj"
+    ]
+  },
+  "scoop": {
+    "synset": "scoop.n.06",
+    "models": [
+      "oaghrf"
+    ]
+  },
+  "scraper": {
+    "synset": "scraper.n.01",
+    "models": [
+      "icqmje"
+    ]
+  },
+  "screwdriver": {
+    "synset": "screwdriver.n.01",
+    "models": [
+      "irtslw",
+      "uajlga"
+    ]
+  },
+  "scrub_brush": {
+    "synset": "scrub_brush.n.01",
+    "models": [
+      "hsejyi"
+    ]
+  },
+  "seashell": {
+    "synset": "seashell.n.01",
+    "models": [
+      "lbzsnp",
+      "nalnmu",
+      "nekgsq",
+      "snrgok"
+    ]
+  },
+  "sesame_seed_shaker": {
+    "synset": "sesame_seed__shaker.n.01",
+    "models": [
+      "txxyce"
+    ]
+  },
+  "set_triangle": {
+    "synset": "square.n.08",
+    "models": [
+      "swlgkg"
+    ]
+  },
+  "shaker": {
+    "synset": "shaker.n.03",
+    "models": [
+      "nbjgci"
+    ]
+  },
+  "shears": {
+    "synset": "shears.n.01",
+    "models": [
+      "iizidc"
+    ]
+  },
+  "shoe_box": {
+    "synset": "shoebox.n.02",
+    "models": [
+      "gvwcka",
+      "ioetqp",
+      "pitwey",
+      "towipq"
+    ]
+  },
+  "shortening_carton": {
+    "synset": "shortening__carton.n.01",
+    "models": [
+      "gswpdr"
+    ]
+  },
+  "sieve": {
+    "synset": "sieve.n.01",
+    "models": [
+      "ucrzlb"
+    ]
+  },
+  "skimmer": {
+    "synset": "skimmer.n.02",
+    "models": [
+      "wvmcce",
+      "xocqxg"
+    ]
+  },
+  "snow_globe": {
+    "synset": "snow_globe.n.01",
+    "models": [
+      "owteks"
+    ]
+  },
+  "soap_bottle": {
+    "synset": "soap__bottle.n.01",
+    "models": [
+      "hamffy"
+    ]
+  },
+  "soap_dish": {
+    "synset": "soap_dish.n.01",
+    "models": [
+      "gnndfy",
+      "ownvqj",
+      "slksbk"
+    ]
+  },
+  "soap_dispenser": {
+    "synset": "soap_dispenser.n.01",
+    "models": [
+      "cgxrwd",
+      "edinmg",
+      "ijxawq",
+      "jmulpc",
+      "sinntg",
+      "zwudcz"
+    ]
+  },
+  "soda_cup": {
+    "synset": "dixie_cup.n.01",
+    "models": [
+      "fsfsas",
+      "gnzegv",
+      "lpanoc",
+      "vicaqs"
+    ]
+  },
+  "soda_water_bottle": {
+    "synset": "soda_water__bottle.n.01",
+    "models": [
+      "upfssc"
+    ]
+  },
+  "softball": {
+    "synset": "softball.n.01",
+    "models": [
+      "erhbze"
+    ]
+  },
+  "soup_ladle": {
+    "synset": "soup_ladle.n.01",
+    "models": [
+      "cfzneb",
+      "gxsrhh",
+      "hgvzdm",
+      "rqnufc",
+      "tmdqpb"
+    ]
+  },
+  "soupspoon": {
+    "synset": "soupspoon.n.01",
+    "models": [
+      "wrctgd"
+    ]
+  },
+  "sourdough": {
+    "synset": "sour_bread.n.01",
+    "models": [
+      "mtvmux",
+      "srvbxf"
+    ]
+  },
+  "soy_sauce_bottle": {
+    "synset": "soy_sauce__bottle.n.01",
+    "models": [
+      "saujjl"
+    ]
+  },
+  "spatula": {
+    "synset": "spatula.n.01",
+    "models": [
+      "bqsefv",
+      "crkmux",
+      "hkvsep",
+      "iktnwh",
+      "jzaedf",
+      "ktkigm",
+      "pdqgzq",
+      "pxwpuw",
+      "ymvrct"
+    ]
+  },
+  "spirit_lamp": {
+    "synset": "spirit_lamp.n.01",
+    "models": [
+      "dnyzym"
+    ]
+  },
+  "sponge": {
+    "synset": "sponge.n.01",
+    "models": [
+      "aewrov",
+      "klwueh",
+      "qewotb"
+    ]
+  },
+  "spray_bottle": {
+    "synset": "atomizer.n.01",
+    "models": [
+      "asztxi",
+      "lwmelf",
+      "miqtui",
+      "wegawe"
+    ]
+  },
+  "spray_can": {
+    "synset": "aerosol.n.02",
+    "models": [
+      "bgalkx",
+      "buxqkr",
+      "tehmzy"
+    ]
+  },
+  "squeeze_bottle": {
+    "synset": "squeeze_bottle.n.01",
+    "models": [
+      "uzmhdn"
+    ]
+  },
+  "stapler": {
+    "synset": "stapler.n.01",
+    "models": [
+      "kgnsas"
+    ]
+  },
+  "statue": {
+    "synset": "statue.n.01",
+    "models": [
+      "cxsvwj",
+      "ihagjy",
+      "noykhv",
+      "oxgpfk",
+      "ponfvo",
+      "qbfkek",
+      "tuldri",
+      "wrtqik"
+    ]
+  },
+  "steamer_basket": {
+    "synset": "steamer.n.02",
+    "models": [
+      "lageli",
+      "qpzbqp"
+    ]
+  },
+  "sticky_note": {
+    "synset": "sticky_note.n.01",
+    "models": [
+      "tghqep"
+    ]
+  },
+  "stockpot": {
+    "synset": "stockpot.n.01",
+    "models": [
+      "dcleem",
+      "fuzmdd",
+      "grrcna",
+      "gxiqbw",
+      "lfnbhc",
+      "oshwps",
+      "yvhmex"
+    ]
+  },
+  "strawberry": {
+    "synset": "strawberry.n.01",
+    "models": [
+      "ntxofi"
+    ]
+  },
+  "sugar_cube": {
+    "synset": "lump_sugar.n.01",
+    "models": [
+      "xqhxqy"
+    ]
+  },
+  "sugar_syrup_bottle": {
+    "synset": "sugar_syrup__bottle.n.01",
+    "models": [
+      "kdlbbq"
+    ]
+  },
+  "sunflower": {
+    "synset": "sunflower.n.01",
+    "models": [
+      "dkajbh",
+      "hvpodm",
+      "itrbng",
+      "jsgdlc",
+      "mastuj",
+      "mdpoct",
+      "npxkrn",
+      "oaglch",
+      "ooefvj",
+      "oqcslb",
+      "pibfxd",
+      "psrfmx",
+      "rkwubf",
+      "urpskm",
+      "vkgdsl",
+      "wpzsyk",
+      "ysogni",
+      "zdmbjt"
+    ]
+  },
+  "sunflower_seed_bag": {
+    "synset": "sunflower_seed__bag.n.01",
+    "models": [
+      "dhwlaw"
+    ]
+  },
+  "sunglasses": {
+    "synset": "sunglasses.n.02",
+    "models": [
+      "gqawld",
+      "nxfifs",
+      "qiwncl"
+    ]
+  },
+  "sushi": {
+    "synset": "sushi.n.01",
+    "models": [
+      "akpnxn"
+    ]
+  },
+  "swiss_cheese": {
+    "synset": "swiss_cheese.n.01",
+    "models": [
+      "hwxeto"
+    ]
+  },
+  "syringe": {
+    "synset": "syringe.n.01",
+    "models": [
+      "gagwke"
+    ]
+  },
+  "table_knife": {
+    "synset": "table_knife.n.01",
+    "models": [
+      "eebpap",
+      "jxdfyy",
+      "lrdmpf"
+    ]
+  },
+  "tea_bag": {
+    "synset": "tea_bag.n.01",
+    "models": [
+      "kmvcrb"
+    ]
+  },
+  "teacup": {
+    "synset": "teacup.n.02",
+    "models": [
+      "cpozxi",
+      "oxfzfe",
+      "tfzfam",
+      "vckahe",
+      "wopjex",
+      "zdvgol"
+    ]
+  },
+  "teapot": {
+    "synset": "teapot.n.01",
+    "models": [
+      "foaehs",
+      "jlalfc",
+      "mvrhya"
+    ]
+  },
+  "teaspoon": {
+    "synset": "teaspoon.n.02",
+    "models": [
+      "bjzgmj",
+      "eilfij",
+      "fgeimy",
+      "mgdfcz",
+      "nxddfp",
+      "piqabk",
+      "prbhag",
+      "qdepdj",
+      "vgbcmo"
+    ]
+  },
+  "teddy_bear": {
+    "synset": "teddy.n.01",
+    "models": [
+      "dgagea",
+      "ecvxmu",
+      "faxvha",
+      "hqlobx",
+      "mvwvlv"
+    ]
+  },
+  "tennis_ball": {
+    "synset": "tennis_ball.n.01",
+    "models": [
+      "rgekxe"
+    ]
+  },
+  "test_tube": {
+    "synset": "test_tube.n.01",
+    "models": [
+      "apybok"
+    ]
+  },
+  "test_tube_clamp": {
+    "synset": "clamp.n.01",
+    "models": [
+      "zssaul"
+    ]
+  },
+  "test_tube_holder": {
+    "synset": "tongs.n.01",
+    "models": [
+      "twrtcq"
+    ]
+  },
+  "test_tube_rack": {
+    "synset": "test_tube_rack.n.01",
+    "models": [
+      "csvkvs",
+      "ertfpr"
+    ]
+  },
+  "thyme_shaker": {
+    "synset": "thyme__shaker.n.01",
+    "models": [
+      "kuuwti"
+    ]
+  },
+  "tiramisu": {
+    "synset": "tiramisu.n.01",
+    "models": [
+      "inoudh",
+      "pjchip"
+    ]
+  },
+  "tissue_dispenser": {
+    "synset": "tissue_dispenser.n.01",
+    "models": [
+      "frdbld",
+      "nflhrf",
+      "rkljcx",
+      "sqmqyj",
+      "xffebs",
+      "ypekre"
+    ]
+  },
+  "toaster": {
+    "synset": "toaster.n.02",
+    "models": [
+      "kjwqav"
+    ]
+  },
+  "toasting_fork": {
+    "synset": "toasting_fork.n.01",
+    "models": [
+      "aytnwm",
+      "osrfkc",
+      "vokznh"
+    ]
+  },
+  "tobacco_pipe": {
+    "synset": "pipe.n.01",
+    "models": [
+      "pznufl"
+    ]
+  },
+  "tofu": {
+    "synset": "tofu.n.02",
+    "models": [
+      "bklygk",
+      "tjgejo",
+      "uecgbv"
+    ]
+  },
+  "tomato_paste_can": {
+    "synset": "tomato_paste__can.n.01",
+    "models": [
+      "krarex"
+    ]
+  },
+  "toy_car": {
+    "synset": "toy_car.n.01",
+    "models": [
+      "ksijjl"
+    ]
+  },
+  "toy_dice": {
+    "synset": "toy_dice.n.01",
+    "models": [
+      "akguod",
+      "bjrxkj",
+      "cmqtch",
+      "dupdoy",
+      "eqwazv",
+      "gcevml",
+      "haqumx",
+      "hbkqqp",
+      "ievnsq",
+      "kmagva",
+      "krpdji",
+      "meyqyk",
+      "mqvaaa",
+      "nmhsvp",
+      "pzbapa",
+      "qtcfxi",
+      "rbzyrv",
+      "wyxlhc",
+      "xfqqhh",
+      "zublep"
+    ]
+  },
+  "toy_figure": {
+    "synset": "toy_figure.n.01",
+    "models": [
+      "acymin",
+      "aihmqy",
+      "cobfpg",
+      "cqeowc",
+      "dgphap",
+      "eulekw",
+      "fekpjq",
+      "fnueyn",
+      "gdekzd",
+      "gnofgv",
+      "gqspnb",
+      "grsmja",
+      "gyrsew",
+      "isdkwp",
+      "issvzv",
+      "jddrck",
+      "jwjrza",
+      "kitqln",
+      "krmxjk",
+      "lfxygp",
+      "nncqfn",
+      "orunry",
+      "psfkaj",
+      "rkqqay",
+      "tjchdg",
+      "tmbrrq",
+      "txgpxx",
+      "ukalmn",
+      "usnnxe",
+      "vcmcoi",
+      "wvpqbf",
+      "zltgeo",
+      "zuntus"
+    ]
+  },
+  "tray": {
+    "synset": "tray.n.01",
+    "models": [
+      "coqeme",
+      "glwebh",
+      "gsxbym",
+      "hbjdlb",
+      "hjxczh",
+      "hvlfig",
+      "incirm",
+      "jpcflq",
+      "mhhoga",
+      "mkdcha",
+      "spopfj",
+      "thkphg",
+      "vxbtax",
+      "wbwmcs",
+      "xzcnjq",
+      "zcmnji",
+      "zsddtq"
+    ]
+  },
+  "trowel": {
+    "synset": "trowel.n.01",
+    "models": [
+      "ematag"
+    ]
+  },
+  "tube_of_lotion": {
+    "synset": "tube__of__lotion.n.01",
+    "models": [
+      "ixfuxm"
+    ]
+  },
+  "tube_of_toothpaste": {
+    "synset": "tube__of__toothpaste.n.01",
+    "models": [
+      "vsclsj"
+    ]
+  },
+  "tupperware": {
+    "synset": "tupperware.n.01",
+    "models": [
+      "mkstwr"
+    ]
+  },
+  "utility_knife": {
+    "synset": "utility_knife.n.01",
+    "models": [
+      "kridpz"
+    ]
+  },
+  "vanilla_bottle": {
+    "synset": "vanilla__bottle.n.01",
+    "models": [
+      "drevku"
+    ]
+  },
+  "vase": {
+    "synset": "vase.n.01",
+    "models": [
+      "aegxpb",
+      "atgnsc",
+      "bcirge",
+      "bedkqu",
+      "cvyops",
+      "eqhgiy",
+      "gopbrh",
+      "hkwtnf",
+      "hliauj",
+      "htyvuz",
+      "icpews",
+      "ipbgrw",
+      "jdddsr",
+      "jpwsrp",
+      "kjeudr",
+      "mdmwcs",
+      "meetii",
+      "nodcpg",
+      "qebiei",
+      "rusmlm",
+      "rwotxo",
+      "saenda",
+      "stqkvx",
+      "wltgjn",
+      "xfduug",
+      "yfqgfd",
+      "ysdoep",
+      "zaziny",
+      "zwekzu"
+    ]
+  },
+  "vegetable_peeler": {
+    "synset": "peeler.n.03",
+    "models": [
+      "njgqao",
+      "wqtpjz"
+    ]
+  },
+  "vidalia_onion": {
+    "synset": "vidalia_onion.n.01",
+    "models": [
+      "buyxll",
+      "dejqhf",
+      "ldeuli"
+    ]
+  },
+  "video_game": {
+    "synset": "computer_game.n.01",
+    "models": [
+      "apjpos",
+      "ceaxsd",
+      "ckugyi",
+      "coiafo",
+      "lfdpse",
+      "ppnzqm",
+      "pujfzk",
+      "qsyyql",
+      "quzjuo",
+      "rzaxlj",
+      "veodkq",
+      "yyvkel"
+    ]
+  },
+  "vinegar_atomizer": {
+    "synset": "vinegar__atomizer.n.01",
+    "models": [
+      "kwcahz"
+    ]
+  },
+  "vinegar_bottle": {
+    "synset": "vinegar__bottle.n.01",
+    "models": [
+      "hbsbwt"
+    ]
+  },
+  "vodka_bottle": {
+    "synset": "vodka__bottle.n.01",
+    "models": [
+      "bojwlu"
+    ]
+  },
+  "waffle": {
+    "synset": "waffle.n.01",
+    "models": [
+      "gjwper"
+    ]
+  },
+  "wallet": {
+    "synset": "wallet.n.01",
+    "models": [
+      "lagjae"
+    ]
+  },
+  "watch": {
+    "synset": "watch.n.01",
+    "models": [
+      "ghobzn"
+    ]
+  },
+  "water_atomizer": {
+    "synset": "water__atomizer.n.01",
+    "models": [
+      "lfarai"
+    ]
+  },
+  "water_bottle": {
+    "synset": "water_bottle.n.01",
+    "models": [
+      "ackxiy"
+    ]
+  },
+  "water_glass": {
+    "synset": "water_glass.n.02",
+    "models": [
+      "cdteyb",
+      "edfzlt",
+      "elwfms",
+      "evaida",
+      "ewgotr",
+      "gypzlg",
+      "igyuko",
+      "imsnkt",
+      "kttdbu",
+      "ktuvuo",
+      "kuiiai",
+      "lvqgvn",
+      "nfoydb",
+      "onbiqg",
+      "ptciim",
+      "slscza",
+      "szjfpb",
+      "uwtdng",
+      "wvztiw",
+      "ybhepe",
+      "zbridw"
+    ]
+  },
+  "wax_paper": {
+    "synset": "wax_paper.n.01",
+    "models": [
+      "emhfwr"
+    ]
+  },
+  "webcam": {
+    "synset": "webcam.n.02",
+    "models": [
+      "fabztm"
+    ]
+  },
+  "whetstone": {
+    "synset": "whetstone.n.01",
+    "models": [
+      "husgdv"
+    ]
+  },
+  "whipped_cream_atomizer": {
+    "synset": "whipped_cream__atomizer.n.01",
+    "models": [
+      "bxouxf"
+    ]
+  },
+  "whisk": {
+    "synset": "whisk.n.01",
+    "models": [
+      "atmhne",
+      "ovaccb",
+      "oxsztz",
+      "xymjmp",
+      "zrvekf"
+    ]
+  },
+  "whiskey_bottle": {
+    "synset": "whiskey__bottle.n.01",
+    "models": [
+      "jpduev"
+    ]
+  },
+  "white_chocolate": {
+    "synset": "white_chocolate.n.01",
+    "models": [
+      "kddnhm"
+    ]
+  },
+  "white_sauce_bottle": {
+    "synset": "white_sauce__bottle.n.01",
+    "models": [
+      "gtwngf"
+    ]
+  },
+  "wicker_basket": {
+    "synset": "wicker_basket.n.01",
+    "models": [
+      "dgkhyn",
+      "drxfmr",
+      "tsjvyu",
+      "unasxd"
+    ]
+  },
+  "wine_bottle": {
+    "synset": "wine_bottle.n.01",
+    "models": [
+      "inkqch"
+    ]
+  },
+  "wine_sauce_bottle": {
+    "synset": "wine_sauce__bottle.n.01",
+    "models": [
+      "vqtevv"
+    ]
+  },
+  "wineglass": {
+    "synset": "wineglass.n.01",
+    "models": [
+      "aakcyj",
+      "akusda",
+      "bnored",
+      "bovcqx",
+      "euzudc",
+      "exasdr",
+      "ezsdil",
+      "ggbdlq",
+      "hxccge",
+      "kxovsj",
+      "oadvet",
+      "ovoceo",
+      "vxmzmq",
+      "yfzibn"
+    ]
+  },
+  "wire_cutter": {
+    "synset": "wire_cutter.n.01",
+    "models": [
+      "ugbval"
+    ]
+  },
+  "wok": {
+    "synset": "wok.n.01",
+    "models": [
+      "pobfpe"
+    ]
+  },
+  "wooden_spoon": {
+    "synset": "wooden_spoon.n.02",
+    "models": [
+      "aeubta",
+      "gpiftn"
+    ]
+  },
+  "wrapped_hamburger": {
+    "synset": "wrapped_hamburger.n.01",
+    "models": [
+      "rerdmy"
+    ]
+  },
+  "yeast_jar": {
+    "synset": "yeast__jar.n.01",
+    "models": [
+      "vmajcm"
+    ]
+  },
+  "yogurt_carton": {
+    "synset": "yogurt__carton.n.01",
+    "models": [
+      "ahbhsd"
+    ]
+  },
+  "zucchini": {
+    "synset": "zucchini.n.02",
+    "models": [
+      "ifvmal",
+      "udvfaz",
+      "yhhkxf"
+    ]
+  }
+}

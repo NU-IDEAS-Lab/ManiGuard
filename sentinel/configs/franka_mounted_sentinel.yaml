@@ -45,9 +45,9 @@ robots:
     exclude_sensor_names: null
     scale: 1.0
     self_collisions: true
-    action_normalize: true
+    action_normalize: false
     action_type: continuous
-    grasping_mode: physical
+    grasping_mode: assisted
     position: [0.0, 0.0, 0.0]
     orientation: [0.0, 0.0, 0.0, 1.0]
     sensor_config:
@@ -57,12 +57,10 @@ robots:
           image_width: 416
     controller_config:
       arm_0:
-        name: JointController
-        motor_type: position
-        command_input_limits: default
-        command_output_limits: default
-        use_delta_commands: false
-        use_impedances: false
+        name: InverseKinematicsController
+        mode: pose_absolute_ori
+        command_input_limits: null
+        command_output_limits: null
       gripper_0:
         name: MultiFingerGripperController
         mode: smooth

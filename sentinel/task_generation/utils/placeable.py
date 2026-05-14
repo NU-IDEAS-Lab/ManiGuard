@@ -146,6 +146,13 @@ def pick_scene_from_placeable(
             entry = dict(surface)
             entry["scene_model"] = sc["scene_model"]
             entry["room_instance"] = sc["room_instance"]
+            # Pass through the augmented per-instance scale + name so
+            # callers can size the world-frame pack region offline
+            # without reading ``support_obj.scale`` from a live env.
+            if "scale_xyz" in sc:
+                entry["scale_xyz"] = list(sc["scale_xyz"])
+            if "instance_name" in sc:
+                entry["instance_name"] = sc["instance_name"]
             eligible.append(entry)
 
     if not eligible:
@@ -162,3 +169,43 @@ def pick_scene_from_placeable(
             f"region area >= {required_area_m2:.3f} m²{suffix}."
         )
     return _choose_from(eligible, rng, weighted_by_area)
+
+
+def _scene_entry_for(surface_dict, scene_model):
+    """Return the ``by_model[*].scenes[]`` row matching surface + scene.
+
+    ``surface_dict`` is a row from ``list_eligible_surfaces`` (or the
+    flatter ``pick_*`` outputs); ``scene_model`` selects the scene.
+    Returns None if no row matches.
+    """
+    doc = load_placeable_surfaces()
+    by_model = doc.get("by_model") or {}
+    scenes = (by_model.get(surface_dict["category"]) or {}).get(
+        surface_dict["model"], {}
+    ).get("scenes") or []
+    for sc in scenes:
+        if sc.get("scene_model") == scene_model:
+            return sc
+    return None
+
+
+def applied_scale_for(category, model, scene_model):
+    """Look up the per-instance applied scale (3-vector) for a support.
+
+    Reads ``by_model[category][model].scenes[*]`` for the row whose
+    ``scene_model`` matches, returning its ``scale_xyz``. The
+    augmentation that fills these fields lives in
+    ``build_placeable_surface_scales.py``; if the entry is missing
+    (older catalog), this returns None and callers must fall back to
+    reading ``support_obj.scale`` at runtime.
+    """
+    doc = load_placeable_surfaces()
+    by_model = doc.get("by_model") or {}
+    scenes = (by_model.get(category) or {}).get(model, {}).get("scenes") or []
+    for sc in scenes:
+        if sc.get("scene_model") != scene_model:
+            continue
+        sx = sc.get("scale_xyz")
+        if sx is not None:
+            return tuple(float(v) for v in sx)
+    return None

@@ -13,11 +13,11 @@ Usage:
 
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    get_scope_obj,
-    iter_scope_objects,
+    get_spawned_obj,
+    iter_spawned_objects,
     make_settle_fn,
 )
-from sentinel.utils.bddl_generator import (
+from sentinel.utils.task_spec import (
     INVERT_CONTAINER_POOL,
     estimate_object_set_footprint,
     generate_empty_invert_activity,
@@ -41,12 +41,19 @@ class EmptyInvertPipeline(BasePipeline):
         return "auto_empty_invert_on"
 
     def select_objects(self, args, rng):
-        container = args.container_synset or \
+        from sentinel.utils.task_spec import (
+            _pick_model_for_category, _synset_to_category,
+        )
+        container_synset = args.container_synset or \
             INVERT_CONTAINER_POOL[rng.integers(len(INVERT_CONTAINER_POOL))][0]
-        synset_counts = [(container, 1)]
+        container_cat = _synset_to_category(container_synset)
+        _, container_model = _pick_model_for_category(container_cat, rng)
+        counts = [(container_cat, 1, container_model)]
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
-            "container_synset": container,
+            "required_area_m2": estimate_object_set_footprint(counts),
+            "container_synset": container_synset,
+            "container_category": container_cat,
+            "container_model": container_model,
         }
 
     def generate_activity(self, activity_name, support_synset, support_room,
@@ -59,7 +66,7 @@ class EmptyInvertPipeline(BasePipeline):
             rng=rng,
         )
 
-    def configure_task(self, cfg, selection):
+    def configure_env(self, selection):
         from omnigibson.macros import gm
         gm.USE_GPU_DYNAMICS = True
         gm.ENABLE_FLATCACHE = False
@@ -69,7 +76,7 @@ class EmptyInvertPipeline(BasePipeline):
         container_synset = selection["container_synset"]
 
         container_ids = []
-        for inst, obj in iter_scope_objects(ctx.env):
+        for inst, obj in iter_spawned_objects(ctx.spawned_objects):
             if inst.startswith(("agent.", "floor.")):
                 continue
             if inst.startswith(container_synset + "_"):
@@ -79,11 +86,11 @@ class EmptyInvertPipeline(BasePipeline):
             raise RuntimeError("No container found in scope.")
         print(f"[Pipeline] Objects: container={container_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, container_ids[0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, container_ids[0])
         ctx._container_ids = container_ids
         ctx.active_objects = {}
         for inst in container_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 

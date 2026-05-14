@@ -6,7 +6,15 @@
     "generated_at": "2026-04-14T00:44:31+00:00",
     "tool": "build_placeable_surfaces.py",
     "require_ready": true,
-    "complaints_file": "complaints.json"
+    "complaints_file": "complaints.json",
+    "augmented_with_scale": {
+      "tool": "build_placeable_surface_scales.py",
+      "scenes_dir": "behavior-1k/datasets/behavior-1k-assets/scenes",
+      "entries_total": 224,
+      "entries_filled": 224,
+      "missing_scene_files": [],
+      "missing_instances": []
+    }
   },
   "frame_convention": {
     "type": "object_local_top_plane_xy",
@@ -18,7 +26,7 @@
   "counts": {
     "categories": 13,
     "models": 145,
-    "surfaces": 165,
+    "surfaces": 166,
     "skipped_not_ready": 47
   },
   "skipped_not_ready": [
@@ -2425,14 +2433,33 @@
         -0.801784
       ],
       "xy_max": [
+        -0.009,
+        0.80629
+      ],
+      "top_plane_z_local": 0.014046,
+      "area_m2": 1.284,
+      "reachable_edge_labels": [
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "puapey",
+      "region_id": "region_01",
+      "xy_min": [
+        0.001,
+        -0.801784
+      ],
+      "xy_max": [
         0.808215,
         0.80629
       ],
       "top_plane_z_local": 0.014046,
-      "area_m2": 2.598084,
+      "area_m2": 1.298,
       "reachable_edge_labels": [
         "x_max",
-        "x_min",
         "y_max",
         "y_min"
       ]
@@ -3508,7 +3535,13 @@
           {
             "scene_model": "grocery_store_cafe",
             "room_instance": "bar_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "bar_cowjqr_0",
+            "scale_xyz": [
+              1.0000252723693848,
+              0.9999966621398926,
+              1.0000340938568115
+            ]
           }
         ]
       },
@@ -3526,7 +3559,13 @@
           {
             "scene_model": "house_double_floor_lower",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "bar_egwapq_0",
+            "scale_xyz": [
+              0.9999869465827942,
+              0.9999972581863403,
+              1.0000406503677368
+            ]
           }
         ]
       },
@@ -3544,7 +3583,13 @@
           {
             "scene_model": "restaurant_asian",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "bar_joihle_0",
+            "scale_xyz": [
+              1.0000653266906738,
+              0.9999995231628418,
+              0.999980628490448
+            ]
           }
         ]
       },
@@ -3562,7 +3607,13 @@
           {
             "scene_model": "restaurant_brunch",
             "room_instance": "bar_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "bar_jvkwcc_0",
+            "scale_xyz": [
+              0.9999293088912964,
+              0.9999783635139465,
+              0.9999604821205139
+            ]
           }
         ]
       },
@@ -3580,7 +3631,13 @@
           {
             "scene_model": "restaurant_asian",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "bar_ukorzz_0",
+            "scale_xyz": [
+              1.000000238418579,
+              1.0000005960464478,
+              0.9999996423721313
+            ]
           }
         ]
       }
@@ -3600,7 +3657,13 @@
           {
             "scene_model": "restaurant_cafeteria",
             "room_instance": "dining_room_0",
-            "instance_count": 14
+            "instance_count": 14,
+            "instance_name": "breakfast_table_bhszwe_0",
+            "scale_xyz": [
+              1.000049114227295,
+              0.9999991655349731,
+              1.000051736831665
+            ]
           }
         ]
       },
@@ -3618,7 +3681,13 @@
           {
             "scene_model": "Benevolence_2_int",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_bmnubh_0",
+            "scale_xyz": [
+              1.0773658752441406,
+              0.7550678849220276,
+              2.0056653022766113
+            ]
           }
         ]
       },
@@ -3636,7 +3705,13 @@
           {
             "scene_model": "hall_conference_large",
             "room_instance": "conference_hall_0",
-            "instance_count": 170
+            "instance_count": 170,
+            "instance_name": "breakfast_table_dcdtsr_0",
+            "scale_xyz": [
+              1.000042200088501,
+              0.9999819993972778,
+              0.9999441504478455
+            ]
           }
         ]
       },
@@ -3666,7 +3741,13 @@
           {
             "scene_model": "restaurant_brunch",
             "room_instance": "dining_room_0",
-            "instance_count": 8
+            "instance_count": 8,
+            "instance_name": "breakfast_table_hmzwxn_0",
+            "scale_xyz": [
+              0.9999727010726929,
+              0.9999986290931702,
+              1.0000572204589844
+            ]
           }
         ]
       },
@@ -3684,7 +3765,13 @@
           {
             "scene_model": "restaurant_asian",
             "room_instance": "dining_room_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "breakfast_table_iaritq_0",
+            "scale_xyz": [
+              0.9999992251396179,
+              1.0000107288360596,
+              0.9999988079071045
+            ]
           }
         ]
       },
@@ -3702,17 +3789,35 @@
           {
             "scene_model": "Benevolence_1_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_idnnmz_0",
+            "scale_xyz": [
+              1.439886212348938,
+              0.9523371458053589,
+              1.770556926727295
+            ]
           },
           {
             "scene_model": "Pomaria_0_garden",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_idnnmz_0",
+            "scale_xyz": [
+              1.4413195848464966,
+              1.4031665325164795,
+              1.6306889057159424
+            ]
           },
           {
             "scene_model": "Pomaria_0_int",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_idnnmz_0",
+            "scale_xyz": [
+              1.4413195848464966,
+              1.4031665325164795,
+              1.6306889057159424
+            ]
           }
         ]
       },
@@ -3730,7 +3835,13 @@
           {
             "scene_model": "restaurant_asian",
             "room_instance": "dining_room_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_jcqdlx_0",
+            "scale_xyz": [
+              1.0000025033950806,
+              0.9999951720237732,
+              0.9999990463256836
+            ]
           }
         ]
       },
@@ -3748,7 +3859,13 @@
           {
             "scene_model": "restaurant_cafeteria",
             "room_instance": "dining_room_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "breakfast_table_jruvif_0",
+            "scale_xyz": [
+              1.0000492334365845,
+              1.0,
+              1.0000234842300415
+            ]
           }
         ]
       },
@@ -3838,7 +3955,13 @@
           {
             "scene_model": "gates_bedroom",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_nvoqyl_0",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999998807907104,
+              0.9999656677246094
+            ]
           }
         ]
       },
@@ -3856,7 +3979,13 @@
           {
             "scene_model": "hall_conference_large",
             "room_instance": "conference_hall_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "breakfast_table_pdpkuw_0",
+            "scale_xyz": [
+              1.000042200088501,
+              0.999998152256012,
+              0.9999839067459106
+            ]
           }
         ]
       },
@@ -3886,7 +4015,13 @@
           {
             "scene_model": "restaurant_hotel",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_qjiray_0",
+            "scale_xyz": [
+              1.0000206232070923,
+              1.0,
+              1.0000615119934082
+            ]
           }
         ]
       },
@@ -3904,7 +4039,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_rhjoby_0",
+            "scale_xyz": [
+              0.9999933242797852,
+              0.9999943971633911,
+              0.9999465942382812
+            ]
           }
         ]
       },
@@ -3946,127 +4087,277 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.0423808097839355,
+              0.5933150053024292,
+              1.4337444305419922
+            ]
           },
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "living_room_1",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.443250060081482,
+              1.3453667163848877,
+              1.5360655784606934
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.0423808097839355,
+              0.5933150053024292,
+              1.4337444305419922
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "living_room_1",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.443250060081482,
+              1.3453667163848877,
+              1.5360655784606934
+            ]
           },
           {
             "scene_model": "Beechwood_1_int",
             "room_instance": "childs_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              0.8419461846351624,
+              0.3593564033508301,
+              1.0240436792373657
+            ]
           },
           {
             "scene_model": "Beechwood_1_int",
             "room_instance": "playroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.7737943530082703,
+              0.5130671262741089,
+              0.9830735921859741
+            ]
           },
           {
             "scene_model": "Ihlen_0_int",
             "room_instance": "storage_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3831398487091064,
+              2.573795795440674,
+              2.2529377937316895
+            ]
           },
           {
             "scene_model": "Ihlen_1_int",
             "room_instance": "bedroom_1",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.7617321014404297,
+              0.3593564033508301,
+              1.0240436792373657
+            ]
           },
           {
             "scene_model": "Merom_0_garden",
             "room_instance": "utility_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3449426889419556,
+              1.6934983730316162,
+              2.0480873584747314
+            ]
           },
           {
             "scene_model": "Merom_0_int",
             "room_instance": "utility_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3449426889419556,
+              1.6934983730316162,
+              2.0480873584747314
+            ]
           },
           {
             "scene_model": "Merom_1_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.8441194295883179,
+              1.2701447010040283,
+              1.638594627380371
+            ]
           },
           {
             "scene_model": "Pomaria_0_garden",
             "room_instance": "bedroom_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.9020565152168274,
+              0.7019596099853516,
+              1.4337444305419922
+            ]
           },
           {
             "scene_model": "Pomaria_0_int",
             "room_instance": "bedroom_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.9020565152168274,
+              0.7019596099853516,
+              1.4337444305419922
+            ]
           },
           {
             "scene_model": "Pomaria_2_int",
             "room_instance": "bathroom_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.7416283488273621,
+              0.9609642028808594,
+              1.3312151432037354
+            ]
           },
           {
             "scene_model": "Rs_garden",
             "room_instance": "living_room_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.5148195028305054,
+              0.8021438121795654,
+              1.5360655784606934
+            ]
           },
           {
             "scene_model": "Rs_int",
             "room_instance": "living_room_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.5148195028305054,
+              0.8021438121795654,
+              1.5360655784606934
+            ]
           },
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.1539567708969116,
+              1.0629075765609741,
+              1.638594627380371
+            ]
           },
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "living_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_3",
+            "scale_xyz": [
+              0.9822705388069153,
+              1.0195167064666748,
+              1.4747143983840942
+            ]
           },
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "living_room_2",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.262919306755066,
+              0.5264696478843689,
+              1.4337444305419922
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.1539567708969116,
+              1.0629075765609741,
+              1.638594627380371
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "living_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_3",
+            "scale_xyz": [
+              0.9822705388069153,
+              1.0195167064666748,
+              1.4747143983840942
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "living_room_2",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.262919306755066,
+              0.5264696478843689,
+              1.4337444305419922
+            ]
           },
           {
             "scene_model": "Wainscott_1_int",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_2",
+            "scale_xyz": [
+              1.062484622001648,
+              0.38440245389938354,
+              1.638594627380371
+            ]
           },
           {
             "scene_model": "Wainscott_1_int",
             "room_instance": "playroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3831398487091064,
+              0.7103362083435059,
+              2.2529377937316895
+            ]
           },
           {
             "scene_model": "Wainscott_1_int",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.1827051639556885,
+              1.4958105087280273,
+              1.5976245403289795
+            ]
           }
         ]
       },
@@ -4084,27 +4375,57 @@
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.2722396850585938,
+              1.1470935344696045,
+              1.7314584255218506
+            ]
           },
           {
             "scene_model": "Beechwood_1_int",
             "room_instance": "playroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.1884735822677612,
+              1.2476128339767456,
+              1.1543835401535034
+            ]
           },
           {
             "scene_model": "Ihlen_0_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.3893446922302246,
+              0.7200537323951721,
+              2.262526273727417
+            ]
           },
           {
             "scene_model": "Ihlen_1_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.5232030153274536,
+              1.666275978088379,
+              1.7776992321014404
+            ]
           },
           {
             "scene_model": "Pomaria_1_int",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.3223319053649902,
+              0.7033842206001282,
+              1.8239399194717407
+            ]
           }
         ]
       },
@@ -4122,7 +4443,13 @@
           {
             "scene_model": "restaurant_urban",
             "room_instance": "dining_room_0",
-            "instance_count": 24
+            "instance_count": 24,
+            "instance_name": "breakfast_table_wdbwhc_0",
+            "scale_xyz": [
+              0.9999952912330627,
+              0.9999791383743286,
+              1.0000520944595337
+            ]
           }
         ]
       },
@@ -4140,7 +4467,13 @@
           {
             "scene_model": "restaurant_hotel",
             "room_instance": "dining_room_0",
-            "instance_count": 10
+            "instance_count": 10,
+            "instance_name": "breakfast_table_wnrior_0",
+            "scale_xyz": [
+              0.9999779462814331,
+              0.9999701380729675,
+              1.0000630617141724
+            ]
           }
         ]
       },
@@ -4158,7 +4491,13 @@
           {
             "scene_model": "house_double_floor_lower",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_xftrki_0",
+            "scale_xyz": [
+              1.0000485181808472,
+              0.9999868273735046,
+              0.9999451637268066
+            ]
           }
         ]
       },
@@ -4176,7 +4515,13 @@
           {
             "scene_model": "restaurant_asian",
             "room_instance": "dining_room_0",
-            "instance_count": 6
+            "instance_count": 6,
+            "instance_name": "breakfast_table_yaanqr_0",
+            "scale_xyz": [
+              0.9999985694885254,
+              1.0000147819519043,
+              0.9999848008155823
+            ]
           }
         ]
       },
@@ -4194,7 +4539,13 @@
           {
             "scene_model": "office_large",
             "room_instance": "break_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_yclkbw_0",
+            "scale_xyz": [
+              0.9999556541442871,
+              1.0000017881393433,
+              0.9999918341636658
+            ]
           }
         ]
       },
@@ -4212,7 +4563,13 @@
           {
             "scene_model": "grocery_store_cafe",
             "room_instance": "grocery_store_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_ylykeh_0",
+            "scale_xyz": [
+              0.9999985694885254,
+              0.9999991655349731,
+              0.9999992847442627
+            ]
           }
         ]
       },
@@ -4230,7 +4587,13 @@
           {
             "scene_model": "Pomaria_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_ytelxk_0",
+            "scale_xyz": [
+              0.9999977350234985,
+              1.0,
+              0.9999995231628418
+            ]
           }
         ]
       },
@@ -4248,12 +4611,24 @@
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_zypvuv_0",
+            "scale_xyz": [
+              1.4880552291870117,
+              1.578094244003296,
+              1.8002424240112305
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "breakfast_table_zypvuv_0",
+            "scale_xyz": [
+              1.4880552291870117,
+              1.578094244003296,
+              1.8002424240112305
+            ]
           }
         ]
       }
@@ -4273,7 +4648,13 @@
           {
             "scene_model": "grocery_store_cafe",
             "room_instance": "grocery_store_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "checkout_counter_hhvxxr_0",
+            "scale_xyz": [
+              1.0000016689300537,
+              1.000004529953003,
+              0.9999827146530151
+            ]
           }
         ]
       },
@@ -4291,7 +4672,13 @@
           {
             "scene_model": "grocery_store_cafe",
             "room_instance": "grocery_store_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "checkout_counter_sckdal_0",
+            "scale_xyz": [
+              1.0000269412994385,
+              0.9999940395355225,
+              1.0000404119491577
+            ]
           }
         ]
       },
@@ -4309,7 +4696,13 @@
           {
             "scene_model": "grocery_store_convenience",
             "room_instance": "grocery_store_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "checkout_counter_umnoqh_0",
+            "scale_xyz": [
+              1.0000066757202148,
+              1.0000057220458984,
+              0.9999837279319763
+            ]
           }
         ]
       }
@@ -4341,52 +4734,112 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              2.7133326530456543,
+              1.3702144622802734,
+              2.1689140796661377
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              2.7133326530456543,
+              1.3702144622802734,
+              2.1689140796661377
+            ]
           },
           {
             "scene_model": "Merom_0_garden",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              1.14386785030365,
+              1.1972527503967285,
+              1.3975342512130737
+            ]
           },
           {
             "scene_model": "Merom_0_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              1.14386785030365,
+              1.1972527503967285,
+              1.3975342512130737
+            ]
           },
           {
             "scene_model": "Pomaria_1_int",
             "room_instance": "corridor_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              0.8246364593505859,
+              0.9312707185745239,
+              1.164463996887207
+            ]
           },
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_1",
+            "scale_xyz": [
+              1.3965035676956177,
+              1.516618013381958,
+              2.1834070682525635
+            ]
           },
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "living_room_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              0.6516749858856201,
+              0.6651552319526672,
+              1.164463996887207
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_1",
+            "scale_xyz": [
+              1.3965035676956177,
+              1.516618013381958,
+              2.1834070682525635
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "living_room_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              0.6516749858856201,
+              0.6651552319526672,
+              1.164463996887207
+            ]
           },
           {
             "scene_model": "Wainscott_1_int",
             "room_instance": "playroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              1.6758310794830322,
+              1.7161378860473633,
+              2.037886142730713
+            ]
           }
         ]
       },
@@ -4404,7 +4857,13 @@
           {
             "scene_model": "Pomaria_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_ejlbho_0",
+            "scale_xyz": [
+              0.9999939799308777,
+              0.9999885559082031,
+              0.9999449849128723
+            ]
           }
         ]
       },
@@ -4434,7 +4893,13 @@
           {
             "scene_model": "gates_bedroom",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_fhqimf_0",
+            "scale_xyz": [
+              1.0000200271606445,
+              0.9999722242355347,
+              1.0
+            ]
           }
         ]
       },
@@ -4452,32 +4917,68 @@
           {
             "scene_model": "Ihlen_0_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              0.9473989009857178,
+              1.0071531534194946,
+              0.8994969129562378
+            ]
           },
           {
             "scene_model": "Merom_1_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.1115257740020752,
+              0.9650216102600098,
+              0.9238142371177673
+            ]
           },
           {
             "scene_model": "Pomaria_0_garden",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.0612010955810547,
+              1.3317748308181763,
+              0.972449004650116
+            ]
           },
           {
             "scene_model": "Pomaria_0_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.0612010955810547,
+              1.3317748308181763,
+              0.972449004650116
+            ]
           },
           {
             "scene_model": "Rs_garden",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.1711909770965576,
+              1.0265920162200928,
+              0.9481316208839417
+            ]
           },
           {
             "scene_model": "Rs_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.1711909770965576,
+              1.0265920162200928,
+              0.9481316208839417
+            ]
           }
         ]
       },
@@ -4495,12 +4996,24 @@
           {
             "scene_model": "Ihlen_1_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_gcollb_0",
+            "scale_xyz": [
+              1.1087536811828613,
+              0.9079281687736511,
+              1.0915615558624268
+            ]
           },
           {
             "scene_model": "Pomaria_1_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_gcollb_0",
+            "scale_xyz": [
+              0.8913595676422119,
+              0.6960378289222717,
+              0.8128399848937988
+            ]
           }
         ]
       },
@@ -4518,7 +5031,13 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_hbgcej_0",
+            "scale_xyz": [
+              0.9999488592147827,
+              0.9999488592147827,
+              1.0000617504119873
+            ]
           }
         ]
       },
@@ -4548,7 +5067,13 @@
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_jkhlnp_0",
+            "scale_xyz": [
+              0.9999915361404419,
+              0.9999867677688599,
+              0.9999853372573853
+            ]
           }
         ]
       },
@@ -4566,7 +5091,13 @@
           {
             "scene_model": "house_double_floor_lower",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_koagbh_0",
+            "scale_xyz": [
+              0.9999982714653015,
+              1.0000159740447998,
+              1.000001311302185
+            ]
           }
         ]
       },
@@ -4584,7 +5115,13 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_lpwbgm_0",
+            "scale_xyz": [
+              0.9999767541885376,
+              1.0000507831573486,
+              1.0000574588775635
+            ]
           }
         ]
       },
@@ -4602,7 +5139,13 @@
           {
             "scene_model": "restaurant_hotel",
             "room_instance": "lobby_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_lyhpbr_0",
+            "scale_xyz": [
+              0.9999257922172546,
+              0.9999257922172546,
+              0.9999961256980896
+            ]
           }
         ]
       },
@@ -4632,7 +5175,13 @@
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "shared_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_mtchfd_0",
+            "scale_xyz": [
+              1.000037670135498,
+              1.000037431716919,
+              1.000018835067749
+            ]
           }
         ]
       },
@@ -4650,7 +5199,13 @@
           {
             "scene_model": "house_double_floor_upper",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_osroux_0",
+            "scale_xyz": [
+              1.0,
+              1.0000073909759521,
+              0.9999943971633911
+            ]
           }
         ]
       },
@@ -4668,7 +5223,13 @@
           {
             "scene_model": "Rs_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_puwazg_0",
+            "scale_xyz": [
+              0.9999840259552002,
+              0.9999683499336243,
+              1.000048041343689
+            ]
           }
         ]
       },
@@ -4686,32 +5247,68 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.4909361600875854,
+              1.372869610786438,
+              1.0021377801895142
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.4909361600875854,
+              1.372869610786438,
+              1.0021377801895142
+            ]
           },
           {
             "scene_model": "Ihlen_0_int",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              0.8830657601356506,
+              0.8967307209968567,
+              1.0021377801895142
+            ]
           },
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "living_room_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.2962523698806763,
+              1.1192314624786377,
+              0.9271358847618103
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "living_room_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.2962523698806763,
+              1.1192314624786377,
+              0.9271358847618103
+            ]
           },
           {
             "scene_model": "Wainscott_1_int",
             "room_instance": "bedroom_1",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.0397577285766602,
+              0.8580825924873352,
+              1.0021377801895142
+            ]
           }
         ]
       },
@@ -4729,7 +5326,13 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_qplrhv_0",
+            "scale_xyz": [
+              0.9999939799308777,
+              0.9999886751174927,
+              0.9999449849128723
+            ]
           }
         ]
       },
@@ -4747,7 +5350,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "living_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_qtwqqb_0",
+            "scale_xyz": [
+              1.0000237226486206,
+              1.0000253915786743,
+              0.9999806880950928
+            ]
           }
         ]
       },
@@ -4765,7 +5374,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_rlsebe_0",
+            "scale_xyz": [
+              1.0000269412994385,
+              1.000026822090149,
+              0.999855637550354
+            ]
           }
         ]
       },
@@ -4783,7 +5398,13 @@
           {
             "scene_model": "hotel_gym_spa",
             "room_instance": "spa_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_semdkc_0",
+            "scale_xyz": [
+              1.000025749206543,
+              1.000025749206543,
+              1.0001131296157837
+            ]
           }
         ]
       },
@@ -4813,7 +5434,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_wgtaip_0",
+            "scale_xyz": [
+              0.9999980330467224,
+              1.0000022649765015,
+              0.9999971985816956
+            ]
           }
         ]
       },
@@ -4831,7 +5458,13 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_wwgaym_0",
+            "scale_xyz": [
+              0.9999662041664124,
+              0.9999662041664124,
+              0.9999986290931702
+            ]
           }
         ]
       },
@@ -4861,7 +5494,13 @@
           {
             "scene_model": "office_bike",
             "room_instance": "break_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_wzyqgx_0",
+            "scale_xyz": [
+              0.9999703168869019,
+              0.9999778866767883,
+              0.9998790621757507
+            ]
           }
         ]
       },
@@ -4891,7 +5530,13 @@
           {
             "scene_model": "restaurant_hotel",
             "room_instance": "lobby_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "coffee_table_zehult_0",
+            "scale_xyz": [
+              1.0000163316726685,
+              1.0000249147415161,
+              0.9999876618385315
+            ]
           }
         ]
       },
@@ -4909,7 +5554,13 @@
           {
             "scene_model": "restaurant_brunch",
             "room_instance": "dining_room_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "coffee_table_zisekv_0",
+            "scale_xyz": [
+              1.0000298023223877,
+              0.9999764561653137,
+              1.000013828277588
+            ]
           }
         ]
       }
@@ -4929,7 +5580,13 @@
           {
             "scene_model": "restaurant_cafeteria",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_hmwzxn_0",
+            "scale_xyz": [
+              1.0000053644180298,
+              0.9999983310699463,
+              1.0000169277191162
+            ]
           }
         ]
       },
@@ -4947,12 +5604,24 @@
           {
             "scene_model": "restaurant_asian",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_nisnrl_0",
+            "scale_xyz": [
+              1.000044822692871,
+              1.0000184774398804,
+              0.9999951720237732
+            ]
           },
           {
             "scene_model": "restaurant_diner",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_nisnrl_0",
+            "scale_xyz": [
+              1.000044822692871,
+              1.0000184774398804,
+              0.9999951720237732
+            ]
           }
         ]
       },
@@ -4970,12 +5639,24 @@
           {
             "scene_model": "restaurant_asian",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_vxvtec_0",
+            "scale_xyz": [
+              0.9999405145645142,
+              1.0000137090682983,
+              1.000051498413086
+            ]
           },
           {
             "scene_model": "restaurant_diner",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_vxvtec_0",
+            "scale_xyz": [
+              0.9999405145645142,
+              1.0000137090682983,
+              1.000051498413086
+            ]
           }
         ]
       }
@@ -4995,12 +5676,24 @@
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "meeting_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "conference_table_fpkmyw_0",
+            "scale_xyz": [
+              1.0000029802322388,
+              1.0000085830688477,
+              0.9999430775642395
+            ]
           },
           {
             "scene_model": "office_cubicles_right",
             "room_instance": "meeting_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "conference_table_fpkmyw_0",
+            "scale_xyz": [
+              1.0000029802322388,
+              1.0000085830688477,
+              0.9999430775642395
+            ]
           }
         ]
       },
@@ -5018,7 +5711,13 @@
           {
             "scene_model": "office_vendor_machine",
             "room_instance": "meeting_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "conference_table_jxixdw_0",
+            "scale_xyz": [
+              1.0000239610671997,
+              1.0000050067901611,
+              1.0000663995742798
+            ]
           }
         ]
       },
@@ -5036,12 +5735,24 @@
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "meeting_room_2",
-            "instance_count": 6
+            "instance_count": 6,
+            "instance_name": "conference_table_qzmjrj_0",
+            "scale_xyz": [
+              2.374127149581909,
+              0.34098827838897705,
+              1.069928526878357
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "meeting_room_2",
-            "instance_count": 8
+            "instance_count": 8,
+            "instance_name": "conference_table_qzmjrj_0",
+            "scale_xyz": [
+              0.9999307990074158,
+              1.0000207424163818,
+              0.9999487996101379
+            ]
           }
         ]
       }
@@ -5075,7 +5786,13 @@
           {
             "scene_model": "office_cubicles_right",
             "room_instance": "copy_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_epaijd_0",
+            "scale_xyz": [
+              1.0000003576278687,
+              1.0000008344650269,
+              0.9999951720237732
+            ]
           }
         ]
       },
@@ -5093,7 +5810,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "utility_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_ikwqer_0",
+            "scale_xyz": [
+              1.000056266784668,
+              1.0000085830688477,
+              0.9999606609344482
+            ]
           }
         ]
       },
@@ -5111,12 +5834,24 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "kitchen_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "countertop_jveutp_0",
+            "scale_xyz": [
+              0.9246153235435486,
+              0.9246565103530884,
+              0.9979653358459473
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "kitchen_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "countertop_jveutp_0",
+            "scale_xyz": [
+              1.0000324249267578,
+              1.00003182888031,
+              0.9979653358459473
+            ]
           }
         ]
       },
@@ -5134,7 +5869,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_kelker_0",
+            "scale_xyz": [
+              0.9999452829360962,
+              1.0000067949295044,
+              1.0006266832351685
+            ]
           }
         ]
       },
@@ -5152,7 +5893,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_kelzer_0",
+            "scale_xyz": [
+              1.0000444650650024,
+              0.9999945759773254,
+              1.0007061958312988
+            ]
           }
         ]
       },
@@ -5170,7 +5917,13 @@
           {
             "scene_model": "grocery_store_half_stocked",
             "room_instance": "grocery_store_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_ncqmrq_0",
+            "scale_xyz": [
+              1.0000109672546387,
+              1.0000100135803223,
+              0.9994204044342041
+            ]
           }
         ]
       },
@@ -5188,32 +5941,68 @@
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_0",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
           },
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "private_office_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_1",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
           },
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "private_office_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_3",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
           },
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "private_office_3",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_2",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
           },
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "private_office_4",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_4",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
           },
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "private_office_5",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_5",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
           }
         ]
       },
@@ -5231,7 +6020,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "utility_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_sjxber_0",
+            "scale_xyz": [
+              1.0000237226486206,
+              1.000012755393982,
+              0.9999550580978394
+            ]
           }
         ]
       },
@@ -5249,132 +6044,288 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "kitchen_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.0687692165374756,
+              1.5421793460845947,
+              0.5826772451400757
+            ]
           },
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_5",
+            "scale_xyz": [
+              0.6670383810997009,
+              1.7092905044555664,
+              2.349606513977051
+            ]
           },
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "living_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_4",
+            "scale_xyz": [
+              0.5343846082687378,
+              1.9610828161239624,
+              0.8503937721252441
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "kitchen_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.0687692165374756,
+              1.5421793460845947,
+              0.5826772451400757
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "living_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_1",
+            "scale_xyz": [
+              0.5343846082687378,
+              1.9610828161239624,
+              0.8503937721252441
+            ]
           },
           {
             "scene_model": "Beechwood_1_int",
             "room_instance": "bathroom_1",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              2.743366003036499,
+              0.5368698835372925,
+              0.5826772451400757
+            ]
           },
           {
             "scene_model": "Beechwood_1_int",
             "room_instance": "childs_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_2",
+            "scale_xyz": [
+              0.5878769159317017,
+              2.1765551567077637,
+              0.8787401914596558
+            ]
           },
           {
             "scene_model": "Benevolence_1_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.8194376230239868,
+              2.264467239379883,
+              2.9354331493377686
+            ]
           },
           {
             "scene_model": "Benevolence_1_int",
             "room_instance": "kitchen_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "countertop_tpuwys_1",
+            "scale_xyz": [
+              1.1044906377792358,
+              1.278639316558838,
+              0.5858268141746521
+            ]
           },
           {
             "scene_model": "Benevolence_2_int",
             "room_instance": "bathroom_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.40980857610702515,
+              1.132184624671936,
+              1.1748032569885254
+            ]
           },
           {
             "scene_model": "Benevolence_2_int",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_1",
+            "scale_xyz": [
+              0.5428212881088257,
+              1.084802269935608,
+              1.4677165746688843
+            ]
           },
           {
             "scene_model": "Ihlen_0_int",
             "room_instance": "storage_room_1",
-            "instance_count": 5
+            "instance_count": 5,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.34195590019226074,
+              1.2490742206573486,
+              0.8787401914596558
+            ]
           },
           {
             "scene_model": "Ihlen_1_int",
             "room_instance": "dining_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_6",
+            "scale_xyz": [
+              0.765945315361023,
+              1.64947509765625,
+              25.23149871826172
+            ]
           },
           {
             "scene_model": "Ihlen_1_int",
             "room_instance": "kitchen_0",
-            "instance_count": 6
+            "instance_count": 6,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.6769111156463623,
+              0.4294763505458832,
+              0.5858268141746521
+            ]
           },
           {
             "scene_model": "Merom_0_garden",
             "room_instance": "playroom_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.9975060224533081,
+              2.645092725753784,
+              0.5858268141746521
+            ]
           },
           {
             "scene_model": "Merom_0_int",
             "room_instance": "playroom_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.9975060224533081,
+              2.645092725753784,
+              0.5858268141746521
+            ]
           },
           {
             "scene_model": "Pomaria_0_garden",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.1044906377792358,
+              1.6202036142349243,
+              0.5826772451400757
+            ]
           },
           {
             "scene_model": "Pomaria_0_int",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.1044906377792358,
+              1.6202036142349243,
+              0.5826772451400757
+            ]
           },
           {
             "scene_model": "Pomaria_1_int",
             "room_instance": "kitchen_0",
-            "instance_count": 6
+            "instance_count": 6,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.8194376230239868,
+              1.9813475608825684,
+              0.5574803352355957
+            ]
           },
           {
             "scene_model": "Pomaria_1_int",
             "room_instance": "pantry_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_6",
+            "scale_xyz": [
+              2.547347068786621,
+              0.6734369397163391,
+              0.5574803352355957
+            ]
           },
           {
             "scene_model": "Rs_garden",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.5878769159317017,
+              1.7666583061218262,
+              1.3196852207183838
+            ]
           },
           {
             "scene_model": "Rs_int",
             "room_instance": "kitchen_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.5878769159317017,
+              1.7666583061218262,
+              1.3196852207183838
+            ]
           },
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "kitchen_0",
-            "instance_count": 8
+            "instance_count": 8,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.3005094528198242,
+              0.6344737410545349,
+              0.5858268141746521
+            ]
           },
           {
             "scene_model": "Wainscott_0_int",
             "room_instance": "kitchen_0",
-            "instance_count": 8
+            "instance_count": 8,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.3005094528198242,
+              0.6344737410545349,
+              0.5858268141746521
+            ]
           },
           {
             "scene_model": "Wainscott_1_int",
             "room_instance": "bathroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              2.7255947589874268,
+              0.5758330821990967,
+              0.5574803352355957
+            ]
           },
           {
             "scene_model": "house_double_floor_lower",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.6670383810997009,
+              1.7092905044555664,
+              2.349606513977051
+            ]
           }
         ]
       },
@@ -5392,32 +6343,68 @@
           {
             "scene_model": "grocery_store_asian",
             "room_instance": "bathroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
           },
           {
             "scene_model": "hall_glass_ceiling",
             "room_instance": "bathroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
           },
           {
             "scene_model": "office_cubicles_left",
             "room_instance": "bathroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
           },
           {
             "scene_model": "office_cubicles_right",
             "room_instance": "bathroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
           },
           {
             "scene_model": "office_vendor_machine",
             "room_instance": "bathroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
           },
           {
             "scene_model": "restaurant_urban",
             "room_instance": "bathroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
           }
         ]
       }
@@ -5437,7 +6424,13 @@
           {
             "scene_model": "house_double_floor_upper",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_aduafr_0",
+            "scale_xyz": [
+              0.9999683499336243,
+              0.9999781847000122,
+              0.9999521970748901
+            ]
           }
         ]
       },
@@ -5455,7 +6448,13 @@
           {
             "scene_model": "school_computer_lab_and_infirmary",
             "room_instance": "infirmary_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_ccxuey_0",
+            "scale_xyz": [
+              0.9999425411224365,
+              1.0000076293945312,
+              1.0000168085098267
+            ]
           }
         ]
       },
@@ -5497,12 +6496,24 @@
           {
             "scene_model": "office_large",
             "room_instance": "private_office_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_ghtnfq_0",
+            "scale_xyz": [
+              1.0000020265579224,
+              1.000017523765564,
+              0.9999619126319885
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "private_office_4",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_ghtnfq_1",
+            "scale_xyz": [
+              1.0000020265579224,
+              1.000017523765564,
+              0.9999619126319885
+            ]
           }
         ]
       },
@@ -5520,7 +6531,13 @@
           {
             "scene_model": "house_double_floor_upper",
             "room_instance": "living_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_iotfzl_0",
+            "scale_xyz": [
+              0.999945342540741,
+              0.9999765753746033,
+              0.9999732971191406
+            ]
           }
         ]
       },
@@ -5538,7 +6555,13 @@
           {
             "scene_model": "school_computer_lab_and_infirmary",
             "room_instance": "computer_lab_0",
-            "instance_count": 21
+            "instance_count": 21,
+            "instance_name": "desk_juzwaf_0",
+            "scale_xyz": [
+              0.9999899864196777,
+              0.9999669790267944,
+              0.9999427795410156
+            ]
           }
         ]
       },
@@ -5556,22 +6579,46 @@
           {
             "scene_model": "office_cubicles_right",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_2",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
           },
           {
             "scene_model": "office_cubicles_right",
             "room_instance": "private_office_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_3",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
           },
           {
             "scene_model": "office_cubicles_right",
             "room_instance": "private_office_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_1",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
           },
           {
             "scene_model": "office_cubicles_right",
             "room_instance": "private_office_3",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_0",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
           }
         ]
       },
@@ -5589,7 +6636,13 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "childs_room_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_nbpuns_0",
+            "scale_xyz": [
+              1.0000795125961304,
+              0.9999760389328003,
+              0.999965488910675
+            ]
           }
         ]
       },
@@ -5607,7 +6660,13 @@
           {
             "scene_model": "school_geography",
             "room_instance": "classroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_obvwds_0",
+            "scale_xyz": [
+              0.9999810457229614,
+              1.0000314712524414,
+              0.9999629259109497
+            ]
           }
         ]
       },
@@ -5625,7 +6684,13 @@
           {
             "scene_model": "hotel_suite_large",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_ohjotf_0",
+            "scale_xyz": [
+              1.0000156164169312,
+              0.9999873638153076,
+              0.9999291896820068
+            ]
           }
         ]
       },
@@ -5643,7 +6708,13 @@
           {
             "scene_model": "office_large",
             "room_instance": "lobby_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_pfsjbc_0",
+            "scale_xyz": [
+              0.9999740719795227,
+              0.9999921917915344,
+              1.0000317096710205
+            ]
           }
         ]
       },
@@ -5661,7 +6732,13 @@
           {
             "scene_model": "office_large",
             "room_instance": "break_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_pniubv_0",
+            "scale_xyz": [
+              1.0000053644180298,
+              0.9999856352806091,
+              1.0
+            ]
           }
         ]
       },
@@ -5679,12 +6756,24 @@
           {
             "scene_model": "office_large",
             "room_instance": "shared_office_0",
-            "instance_count": 23
+            "instance_count": 23,
+            "instance_name": "desk_puapey_0",
+            "scale_xyz": [
+              0.9999691843986511,
+              1.000016450881958,
+              0.9999567270278931
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "shared_office_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_puapey_23",
+            "scale_xyz": [
+              0.9999691843986511,
+              1.000016450881958,
+              0.9999567270278931
+            ]
           }
         ]
       },
@@ -5702,17 +6791,35 @@
           {
             "scene_model": "office_large",
             "room_instance": "private_office_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_qpuflh_0",
+            "scale_xyz": [
+              0.9999963045120239,
+              0.9999893307685852,
+              1.0000228881835938
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "private_office_3",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_qpuflh_1",
+            "scale_xyz": [
+              0.9999963045120239,
+              0.9999893307685852,
+              1.0000228881835938
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "private_office_5",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_qpuflh_2",
+            "scale_xyz": [
+              0.9999963045120239,
+              0.9999893307685852,
+              1.0000228881835938
+            ]
           }
         ]
       },
@@ -5730,17 +6837,35 @@
           {
             "scene_model": "Beechwood_0_garden",
             "room_instance": "private_office_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "desk_rzyfxk_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000249147415161,
+              0.9999793171882629
+            ]
           },
           {
             "scene_model": "Beechwood_0_int",
             "room_instance": "private_office_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "desk_rzyfxk_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000249147415161,
+              0.9999793171882629
+            ]
           },
           {
             "scene_model": "school_geography",
             "room_instance": "classroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_rzyfxk_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000249147415161,
+              0.9999793171882629
+            ]
           }
         ]
       },
@@ -5770,7 +6895,13 @@
           {
             "scene_model": "hotel_suite_small",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_sjugsf_0",
+            "scale_xyz": [
+              0.9999764561653137,
+              0.9999892115592957,
+              1.0000078678131104
+            ]
           }
         ]
       },
@@ -5788,12 +6919,24 @@
           {
             "scene_model": "school_biology",
             "room_instance": "biology_lab_0",
-            "instance_count": 15
+            "instance_count": 15,
+            "instance_name": "desk_tmluxa_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000511407852173,
+              0.9999924302101135
+            ]
           },
           {
             "scene_model": "school_chemistry",
             "room_instance": "chemistry_lab_0",
-            "instance_count": 12
+            "instance_count": 12,
+            "instance_name": "desk_tmluxa_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000511407852173,
+              0.9999924302101135
+            ]
           }
         ]
       },
@@ -5823,7 +6966,13 @@
           {
             "scene_model": "house_double_floor_upper",
             "room_instance": "bedroom_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_uqcmzf_0",
+            "scale_xyz": [
+              1.0000251531600952,
+              1.0000274181365967,
+              0.9999312162399292
+            ]
           }
         ]
       },
@@ -5841,27 +6990,57 @@
           {
             "scene_model": "office_large",
             "room_instance": "conference_hall_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_0",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "phone_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_2",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "phone_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_3",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "phone_room_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_4",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "private_office_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_1",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
           }
         ]
       },
@@ -5891,7 +7070,13 @@
           {
             "scene_model": "gates_bedroom",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "desk_zlyqcq_0",
+            "scale_xyz": [
+              0.9999995231628418,
+              0.9999997615814209,
+              0.9999396204948425
+            ]
           }
         ]
       },
@@ -5909,7 +7094,13 @@
           {
             "scene_model": "school_geography",
             "room_instance": "classroom_0",
-            "instance_count": 25
+            "instance_count": 25,
+            "instance_name": "desk_ztsyqx_0",
+            "scale_xyz": [
+              1.0000070333480835,
+              0.9999686479568481,
+              1.0000101327896118
+            ]
           }
         ]
       }
@@ -5929,7 +7120,13 @@
           {
             "scene_model": "Merom_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "garden_coffee_table_skxdpc_0",
+            "scale_xyz": [
+              1.000000238418579,
+              1.0000003576278687,
+              0.9999484419822693
+            ]
           }
         ]
       }
@@ -5949,7 +7146,13 @@
           {
             "scene_model": "house_double_floor_upper",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "nightstand_aykehx_0",
+            "scale_xyz": [
+              1.0,
+              1.0,
+              0.9999998211860657
+            ]
           }
         ]
       },
@@ -6015,7 +7218,13 @@
           {
             "scene_model": "house_double_floor_upper",
             "room_instance": "bedroom_1",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "nightstand_roxnbe_0",
+            "scale_xyz": [
+              0.9999985098838806,
+              0.999971330165863,
+              0.9999985694885254
+            ]
           }
         ]
       },
@@ -6033,7 +7242,13 @@
           {
             "scene_model": "gates_bedroom",
             "room_instance": "bedroom_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "nightstand_uudzva_0",
+            "scale_xyz": [
+              1.0,
+              1.0000001192092896,
+              0.9999994039535522
+            ]
           }
         ]
       },
@@ -6051,7 +7266,13 @@
           {
             "scene_model": "house_double_floor_upper",
             "room_instance": "bedroom_2",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "nightstand_uzxrlg_0",
+            "scale_xyz": [
+              1.0000001192092896,
+              1.0000001192092896,
+              1.0000001192092896
+            ]
           }
         ]
       },
@@ -6069,12 +7290,24 @@
           {
             "scene_model": "house_single_floor",
             "room_instance": "bedroom_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "nightstand_wbxekb_0",
+            "scale_xyz": [
+              1.0000756978988647,
+              0.9999943971633911,
+              0.9999978542327881
+            ]
           },
           {
             "scene_model": "house_single_floor",
             "room_instance": "childs_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "nightstand_wbxekb_2",
+            "scale_xyz": [
+              1.0000756978988647,
+              0.6022898554801941,
+              0.9999978542327881
+            ]
           }
         ]
       }
@@ -6094,17 +7327,35 @@
           {
             "scene_model": "office_large",
             "room_instance": "meeting_room_3",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_aympln_3",
+            "scale_xyz": [
+              0.9999998211860657,
+              0.9999998211860657,
+              1.0000439882278442
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "meeting_room_4",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_aympln_2",
+            "scale_xyz": [
+              0.9999998211860657,
+              0.9999998211860657,
+              1.0000439882278442
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "shared_office_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "pedestal_table_aympln_0",
+            "scale_xyz": [
+              0.9999998211860657,
+              0.9999998211860657,
+              1.0000439882278442
+            ]
           }
         ]
       },
@@ -6122,7 +7373,13 @@
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_djflkd_0",
+            "scale_xyz": [
+              1.000049352645874,
+              0.9999499320983887,
+              1.0000227689743042
+            ]
           }
         ]
       },
@@ -6140,17 +7397,35 @@
           {
             "scene_model": "office_large",
             "room_instance": "break_room_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "pedestal_table_dmghrm_0",
+            "scale_xyz": [
+              0.9999656081199646,
+              0.999965488910675,
+              1.0000702142715454
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "meeting_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_dmghrm_1",
+            "scale_xyz": [
+              0.9999656081199646,
+              0.999965488910675,
+              1.0000702142715454
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "meeting_room_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_dmghrm_2",
+            "scale_xyz": [
+              0.9999656081199646,
+              0.999965488910675,
+              1.0000702142715454
+            ]
           }
         ]
       },
@@ -6168,7 +7443,13 @@
           {
             "scene_model": "office_large",
             "room_instance": "lobby_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "pedestal_table_gikdir_0",
+            "scale_xyz": [
+              1.0000277757644653,
+              0.9999454617500305,
+              1.000088095664978
+            ]
           }
         ]
       },
@@ -6186,7 +7467,13 @@
           {
             "scene_model": "Wainscott_0_garden",
             "room_instance": "garden_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "pedestal_table_ifmhpn_0",
+            "scale_xyz": [
+              1.0000327825546265,
+              1.0000040531158447,
+              0.9999744892120361
+            ]
           }
         ]
       },
@@ -6204,7 +7491,13 @@
           {
             "scene_model": "restaurant_hotel",
             "room_instance": "dining_room_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "pedestal_table_jdilum_0",
+            "scale_xyz": [
+              1.0,
+              1.0000327825546265,
+              0.9999707937240601
+            ]
           }
         ]
       },
@@ -6246,7 +7539,13 @@
           {
             "scene_model": "restaurant_diner",
             "room_instance": "dining_room_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "pedestal_table_nlfgwe_0",
+            "scale_xyz": [
+              0.9999760389328003,
+              0.9999751448631287,
+              0.999988853931427
+            ]
           }
         ]
       },
@@ -6264,7 +7563,13 @@
           {
             "scene_model": "Rs_garden",
             "room_instance": "garden_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_nyprvh_0",
+            "scale_xyz": [
+              1.0000497102737427,
+              0.9999367594718933,
+              0.9999476671218872
+            ]
           }
         ]
       },
@@ -6294,7 +7599,13 @@
           {
             "scene_model": "office_large",
             "room_instance": "private_office_0",
-            "instance_count": 3
+            "instance_count": 3,
+            "instance_name": "pedestal_table_pljlcn_0",
+            "scale_xyz": [
+              1.000077724456787,
+              1.000077724456787,
+              0.9999079704284668
+            ]
           }
         ]
       },
@@ -6336,12 +7647,24 @@
           {
             "scene_model": "office_large",
             "room_instance": "private_office_4",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "pedestal_table_ssnzie_0",
+            "scale_xyz": [
+              0.9999963045120239,
+              1.0000743865966797,
+              1.0000211000442505
+            ]
           },
           {
             "scene_model": "office_large",
             "room_instance": "shared_office_1",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_ssnzie_2",
+            "scale_xyz": [
+              0.9999963045120239,
+              1.0000743865966797,
+              1.0000211000442505
+            ]
           }
         ]
       },
@@ -6359,7 +7682,13 @@
           {
             "scene_model": "restaurant_urban",
             "room_instance": "dining_room_0",
-            "instance_count": 5
+            "instance_count": 5,
+            "instance_name": "pedestal_table_swgvxs_0",
+            "scale_xyz": [
+              1.0000258684158325,
+              1.000025749206543,
+              0.9999935626983643
+            ]
           }
         ]
       },
@@ -6377,7 +7706,13 @@
           {
             "scene_model": "grocery_store_convenience",
             "room_instance": "grocery_store_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "pedestal_table_tdpuit_0",
+            "scale_xyz": [
+              1.0000370740890503,
+              1.000038504600525,
+              0.9999342560768127
+            ]
           }
         ]
       },
@@ -6395,7 +7730,13 @@
           {
             "scene_model": "office_vendor_machine",
             "room_instance": "break_room_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "pedestal_table_wnqrci_0",
+            "scale_xyz": [
+              1.0000295639038086,
+              0.9999679923057556,
+              1.0000689029693604
+            ]
           }
         ]
       },
@@ -6413,7 +7754,13 @@
           {
             "scene_model": "grocery_store_convenience",
             "room_instance": "grocery_store_0",
-            "instance_count": 2
+            "instance_count": 2,
+            "instance_name": "pedestal_table_xcnvsy_0",
+            "scale_xyz": [
+              1.0000741481781006,
+              0.9999787211418152,
+              1.0000463724136353
+            ]
           }
         ]
       },
@@ -6431,7 +7778,13 @@
           {
             "scene_model": "grocery_store_cafe",
             "room_instance": "dining_room_0",
-            "instance_count": 4
+            "instance_count": 4,
+            "instance_name": "pedestal_table_xrrhik_0",
+            "scale_xyz": [
+              0.9999359250068665,
+              0.9999943971633911,
+              1.0000622272491455
+            ]
           }
         ]
       }
@@ -6451,7 +7804,13 @@
           {
             "scene_model": "grocery_store_convenience",
             "room_instance": "grocery_store_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "reception_desk_kjmhgc_0",
+            "scale_xyz": [
+              1.0000008344650269,
+              1.000014305114746,
+              1.0
+            ]
           }
         ]
       },
@@ -6469,7 +7828,13 @@
           {
             "scene_model": "restaurant_hotel",
             "room_instance": "lobby_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "reception_desk_ukonss_0",
+            "scale_xyz": [
+              0.9999263882637024,
+              1.0000030994415283,
+              0.9999935030937195
+            ]
           }
         ]
       },
@@ -6487,7 +7852,13 @@
           {
             "scene_model": "grocery_store_cafe",
             "room_instance": "grocery_store_0",
-            "instance_count": 1
+            "instance_count": 1,
+            "instance_name": "reception_desk_vxombm_0",
+            "scale_xyz": [
+              1.0000016689300537,
+              1.0000017881393433,
+              1.0
+            ]
           }
         ]
       }

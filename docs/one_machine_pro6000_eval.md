@@ -10,10 +10,7 @@ eval saves per-scene MP4 video.
 - Behavior env: `/workspace/miniconda3/bin/conda run -n behavior`
 - OpenPI venv: `/workspace/SENTINEL-Lite/openpi/.venv`
 - Vulkan ICD: `/etc/vulkan/icd.d/nvidia_icd.json`
-- Checkpoint:
-  `vla_models/pi05-sim-table-lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/5000`
-- Benchmark:
-  `datasets/final_unique_accepted-goal_region_sphere-full-perturbed_with_base-20260426/table`
+- Eval config: `configs/eval/sim_table_25k.yaml` (edit paths as needed)
 
 ## 1. Quick GPU/Vulkan Check
 
@@ -29,7 +26,8 @@ OmniGibson.
 
 ## 2. Start the Local Policy Server
 
-Run this in one shell and leave it running:
+Run this in one shell and leave it running. The checkpoint path and config name
+should match the `checkpoint` and `serve_config_name` fields in your eval YAML.
 
 ```bash
 cd /workspace/SENTINEL-Lite/openpi
@@ -40,7 +38,7 @@ CUDA_VISIBLE_DEVICES=0 \
   --port 8000 \
   policy:checkpoint \
   --policy.config pi05_clutter_libero_lora \
-  --policy.dir /workspace/SENTINEL-Lite/vla_models/pi05-sim-table-lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/5000
+  --policy.dir /workspace/SENTINEL-Lite/vla_models/pi05_sim_table_lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/25000
 ```
 
 Wait for:
@@ -65,45 +63,60 @@ OMNIGIBSON_HEADLESS=1 \
 VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json \
 CUDA_VISIBLE_DEVICES=0 \
 /workspace/miniconda3/bin/conda run -n behavior python -m sentinel.eval.benchmark \
-  --benchmark-root /workspace/SENTINEL-Lite/datasets/final_unique_accepted-goal_region_sphere-full-perturbed_with_base-20260426/table \
-  --host 127.0.0.1 --port 8000 \
-  --use-openpi-client \
-  --eval-profile pi05_sentinel_table \
+  --config configs/eval/sim_table_25k.yaml \
   --max-steps 100 \
   --max-scenes 1 \
   --headless \
-  --save-video \
-  --output-dir /workspace/SENTINEL-Lite/outputs/eval_pi05_sim_table_local_one_scene_100
+  --output-dir /workspace/SENTINEL-Lite/outputs/eval_smoke_one_scene
 ```
 
 Expected output files:
 
 ```text
-outputs/eval_pi05_sim_table_local_one_scene_100/results.jsonl
-outputs/eval_pi05_sim_table_local_one_scene_100/summary.json
-outputs/eval_pi05_sim_table_local_one_scene_100/<scene_name>.mp4
+outputs/eval_smoke_one_scene/eval_config.json
+outputs/eval_smoke_one_scene/results.jsonl
+outputs/eval_smoke_one_scene/summary.json
+outputs/eval_smoke_one_scene/<scene_name>.mp4
 ```
 
-The verified smoke run produced a 101-frame MP4 for:
+## 4. Run All Scenes (Per-Scene Isolation)
 
-```text
-task_0097/semantic/table__task_0097__semantic__instr_01.mp4
-```
-
-## 4. Run More Scenes
-
-After the one-scene smoke passes, remove `--max-scenes 1` or set a larger cap:
+OmniGibson segfaults on `og.clear()` between scenes, so the batch script runs
+one python process per scene:
 
 ```bash
-  --max-steps 500 \
-  --max-scenes 10 \
-  --save-video \
-  --output-dir /workspace/SENTINEL-Lite/outputs/eval_pi05_sim_table_local_10
+cd /workspace/SENTINEL-Lite
+
+PYTHONPATH=/workspace/SENTINEL-Lite/openpi/packages/openpi-client/src \
+OMNI_KIT_ACCEPT_EULA=YES \
+OMNIGIBSON_HEADLESS=1 \
+VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json \
+CUDA_VISIBLE_DEVICES=0 \
+bash scripts/run_benchmark_all_scenes.sh \
+  --config configs/eval/sim_table_25k.yaml \
+  --headless
 ```
 
-For a full table sweep, omit `--max-scenes`.
+Results append to `<output_dir>/results.jsonl` (output_dir is set in the YAML).
+CLI flags after `--config` override any YAML field for that run.
 
-## 5. Shutdown
+## 5. Custom Eval Configs
+
+Each experiment gets its own YAML. Copy and edit:
+
+```bash
+cp configs/eval/sim_table_25k.yaml configs/eval/my_experiment.yaml
+```
+
+Key fields:
+- `benchmark_root` — path to scene dataset
+- `scene_filter` — glob to select scenes (e.g. `"*/base"`)
+- `checkpoint` / `serve_config_name` — informational, match your server
+- `longfinger` — `true` for sim-table, `false` for sim2real mug-into-bowl
+- `max_steps` — rollout horizon per scene
+- `output_dir` — where results/videos go
+
+## 6. Shutdown
 
 Stop the policy server with `Ctrl-C`. Confirm GPU memory is released:
 
@@ -115,8 +128,8 @@ No output means no active compute process is holding VRAM.
 
 ## Notes and Gotchas
 
-- Use `127.0.0.1` for `--host` because server and eval client are on the same
-  machine.
+- Use `127.0.0.1` for `host` in the YAML because server and eval client are on
+  the same machine.
 - Keep `PYTHONPATH=/workspace/SENTINEL-Lite/openpi/packages/openpi-client/src`
   unless `openpi-client` has been installed into the `behavior` env.
 - The first policy call can be slow because JAX/XLA compiles and autotunes

@@ -204,5 +204,3 @@ def build_goal_checker(scene_info: dict) -> Optional[GoalChecker | GoalRegionChe
     return GoalChecker(raw_conditions=conditions)
 
 
-def build_success_checker(scene_info: dict) -> Optional[GoalChecker | GoalRegionChecker]:
-    return build_goal_checker(scene_info)

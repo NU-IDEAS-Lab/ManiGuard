@@ -244,27 +244,26 @@ Catalog of task families, their variants, object pools, and randomization capaci
 
 ### Object pools
 
-| Pool | Count | Objects |
-|---|---|---|
-| Lid-container pairs (food) | 20 | hingeless_jar×7, canister×2, crock_pot, dutch_oven, pressure_cooker, roasting_pan, steamer_basket, stockpot, tupperware |
-| Lid-container pairs (liquid) | 4 | teapot×2, kettle×2 |
-| LID_FOOD_POOL | 6 | apple, egg, lemon, orange, potato, pear |
+Pairs and per-container food lists are pre-computed JSON in
+`utils/lid_transport_pipeline/`:
 
-Pairs are pre-computed from asset attachment metadata (`lid_container_pairs.json`). Each lid has a verified Male attachment link matching the container's Female attachment link.
+- `lid_cap_container_pairs.json` — every (lid|cap, container) pair with
+  per-side status + verdict. Liquid mode draws uniformly from the kept
+  verdicts here.
+- `lid_transport_food_compat.json` — admitted pairs joined with per-container
+  food lists from `transfer_compatibility.json`. Food mode draws uniformly
+  by item, then by food category, then by food model.
+
+Each lid/cap has a verified Male attachment link matching the container's
+Female attachment link.
 
 ### Configuration axes
 
-| Axis | Options | Values |
-|---|---|---|
-| Lid mode | 2 | food, liquid |
-| Lid-container pair | 20 (food) / 4 (liquid) | from lid_container_pairs.json |
-| Food synset (food mode) | 6 | from LID_FOOD_POOL |
-
-### Randomization capacity
-
-- **Food mode:** 20 pairs × 6 food = **120 configurations**
-- **Liquid mode:** 4 pairs = **4 configurations**
-- **Total: 124 configurations**
+| Axis | Source |
+|---|---|
+| Lid mode | `--lid-mode {food,liquid}` |
+| (item, container) pair | `lid_cap_container_pairs.json` (liquid) / `lid_transport_food_compat.json` (food) |
+| Food (food mode) | per-container `foods` map in `lid_transport_food_compat.json` |
 
 ### LTL safety constraints
 

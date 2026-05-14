@@ -10,11 +10,6 @@ OmniGibson can be pinned as an upstream dependency; see
 
 Set ``SENTINEL_SKIP_OMNIGIBSON_PATCH=1`` to skip the patches entirely (e.g.
 for lightweight pure-Python consumers that don't need OmniGibson).
-
-Heavier opt-in side effects (RLinf patches, OpenPI TrainConfig registration)
-still live behind explicit submodule imports — ``sentinel.rlinf.patches`` and
-``sentinel.openpi``. RLinf-bound processes register those via
-``sentinel/_autoimport/sitecustomize.py`` at Python startup.
 """
 
 try:
@@ -29,13 +24,5 @@ except ImportError:
 from sentinel._omnigibson_patches import apply as _apply_omnigibson_patches
 
 _apply_omnigibson_patches()
-
-# Register sentinel task subclasses with ``REGISTERED_TASKS`` so yaml configs
-# can reference them by class name (e.g. ``type: SentinelGraspTask``). Only
-# runs when OmniGibson itself is importable.
-try:
-    import sentinel.tasks  # noqa: F401
-except ImportError:
-    pass
 
 del _apply_omnigibson_patches

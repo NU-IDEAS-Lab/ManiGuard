@@ -22,7 +22,7 @@ runner:
   task_type: embodied
   logger:
     log_path: "../results/sentinel_eval_openpi_pi05"
-    project_name: rlinf
+    project_name: sentinel
     experiment_name: "sentinel_eval_openpi_pi05"
     logger_backends: ["tensorboard"]
 

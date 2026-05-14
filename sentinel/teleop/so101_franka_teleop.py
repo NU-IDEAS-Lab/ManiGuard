@@ -216,6 +216,12 @@ def main():
                              "assisted for teleop demos when slip on thin/flat "
                              "objects is the bottleneck; physical preserves "
                              "real grasp dynamics for downstream training.")
+    parser.add_argument("--no-lid-snap", action="store_true",
+                        help="Disable the eager lid/cap → container "
+                             "snap-attach. By default, when an eligible "
+                             "pair is loaded, the lid auto-attaches when "
+                             "the lid is touching the container and the "
+                             "gripper has released it.")
     args = parser.parse_args()
 
     cfg = _build_from_snapshot(
@@ -244,6 +250,13 @@ def main():
               f"(only_successes={args.only_successes})")
 
     robot = env.robots[0]
+
+    # Lid-transport assist: discover any (lid|cap, container) pairs in the
+    # loaded scene and eagerly snap-attach when the operator places one
+    # within range and releases the gripper. No-op when no eligible pairs
+    # are loaded — safe to enable globally.
+    from sentinel.utils.lid_attach import LidSnapper
+    lid_snapper = None if args.no_lid_snap else LidSnapper(env)
 
     # Position the 3 external cameras (and viewer = opposite side) the same
     # way BasePipeline's run_ltl_rollout does, when a snapshot with a
@@ -380,6 +393,9 @@ def main():
                 gv = action[gripper_idx].tolist() if hasattr(action[gripper_idx], "tolist") else action[gripper_idx]
                 print(f"[Action] gripper -> {gv}")
             env.step(action)
+
+            if lid_snapper is not None:
+                lid_snapper.try_snap(robot=robot)
 
             if success_checker is not None:
                 auto_success, success_detail = success_checker.check(env)

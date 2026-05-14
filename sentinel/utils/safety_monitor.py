@@ -557,8 +557,9 @@ class TaskLTLMonitor:
     env : og.Environment
     activity_name : str
         BDDL activity name (matches the directory under ``activity_definitions/``).
-    scene_model : str
+    scene_model : str or None
         Scene model identifier (matches the directory under ``scenes/``).
+        ``None`` skips scene-level safety constraints (e.g. empty scenes).
     active_objects_by_inst : dict, optional
         ``{inst_id: obj}`` for objects actually placed in the scene.  If given,
         only these objects are monitored -- culled objects are ignored.
@@ -568,7 +569,7 @@ class TaskLTLMonitor:
         self,
         env,
         activity_name: str,
-        scene_model: str,
+        scene_model: Optional[str] = None,
         active_objects_by_inst: Optional[Dict] = None,
     ):
         self._env = env
@@ -580,7 +581,7 @@ class TaskLTLMonitor:
 
         # Load and merge task + scene safety definitions.
         task_data = _load_task_safety(activity_name)
-        scene_data = _load_scene_safety(scene_model)
+        scene_data = _load_scene_safety(scene_model) if scene_model else {}
         merged = _merge_safety_data(task_data, scene_data)
         merged = _auto_generate_scene_propositions(merged, self._resolver)
 

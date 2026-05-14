@@ -41,22 +41,33 @@ from sentinel.task_generation.pipeline_common import (
     make_settle_fn,
     object_aabb_dims,
     pipeline_exit,
-    refresh_activity_cache,
     robot_half_extent_xy,
     run_ltl_rollout,
 )
-from sentinel.utils.bddl_generator import (
-    CLUTTER_POOL,
+from sentinel.utils.goal_region import (
+    GoalRegionSpec,
+    build_goal_region_spec,
+    family_uses_goal_region,
+    spawn_goal_region_marker,
+)
+from sentinel.task_generation.transfer_scene_pipeline import build_transfer_objects
+from sentinel.task_generation.utils.stack_pipeline.select import select_stack_objects
+from sentinel.task_generation.utils.clutter_pipeline.select import (
+    select_target as select_clutter_target,
+    select_obstacle as select_table_obstacle,
+    select_fragile,
+    select_fillable_container,
+)
+from sentinel.task_generation.utils.liquid_transport.select import (
+    select_liquid_fragile,
+)
+from sentinel.utils.task_spec import (
     DENSITY_PRESETS,
-    FRAGILE_POOL,
+    LIQUID_PRESETS,
     STACK_HEIGHT_PRESETS,
-    STACK_ITEM_POOL,
-    STACK_TARGET_POOL,
-    TARGET_POOL,
-    TRANSFER_DEST_POOL,
-    TRANSFER_FOOD_POOL,
-    TRANSFER_SOURCE_POOL,
+    _pick_model_for_category,
     generate_clutter_activity as generate_activity,
+    generate_liquid_transport_ltl_safety_json,
     generate_stack_activity,
     generate_transfer_activity,
 )
@@ -64,7 +75,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
-_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 _PARK_POS = (100.0, 100.0, -100.0)
 
@@ -79,7 +90,8 @@ _MIN_SURFACE_AREA_M2 = 0.35
 
 def parse_args():
     p = argparse.ArgumentParser(description="Empty-scene task generation pipeline")
-    p.add_argument("--setup", required=True, choices=["clutter", "stack", "transfer"])
+    p.add_argument("--setup", required=True,
+                   choices=["clutter", "stack", "transfer", "liquid"])
     p.add_argument("--surface-category", default=None,
                    help="Surface category (random from pool if omitted)")
     p.add_argument("--surface-model", default=None,
@@ -104,14 +116,33 @@ def parse_args():
     p.add_argument("--pack-jitter-xy", type=float, default=None)
     p.add_argument("--pack-min-clearance", type=float, default=None)
     # Stack.
+    p.add_argument("--stack-mode", default="same",
+                   choices=["same", "flat", "receptacle"],
+                   help="Stack variant: same target/item, flat target, or "
+                        "concave receptacle target.")
     p.add_argument("--stack-height", default="medium", choices=list(STACK_HEIGHT_PRESETS))
-    p.add_argument("--target-synset", default=None)
-    p.add_argument("--stack-synset", default=None)
+    p.add_argument("--target-model", default=None,
+                   help="Override target model id; category resolved from the "
+                        "stack-mode's pool.")
+    p.add_argument("--stack-model", default=None,
+                   help="Override stack-item model id; category resolved from "
+                        "the stack-mode's pool (or target pool in same-mode).")
     # Transfer.
-    p.add_argument("--food-synset", default=None)
-    p.add_argument("--source-synset", default=None)
-    p.add_argument("--dest-synset", default=None)
+    p.add_argument("--food-model", default=None,
+                   help="Override food model id; category is inferred from compat matrix.")
+    p.add_argument("--source-model", default=None,
+                   help="Override source container model id.")
+    p.add_argument("--dest-model", default=None,
+                   help="Override destination container model id.")
     p.add_argument("--goal-predicate", default=None, choices=["inside", "ontop"])
+    # Liquid.
+    p.add_argument("--difficulty", default="medium", choices=list(LIQUID_PRESETS),
+                   help="Liquid difficulty (spill threshold and tilt limit only)")
+    p.add_argument("--container-category", default=None,
+                   help="Liquid setup: pin fillable container category "
+                        "(random from fillable_container_pool.json if omitted)")
+    p.add_argument("--system-name", default="water",
+                   help="Liquid particle system name")
     # Batch mode.
     p.add_argument("--batch-size", type=int, default=None,
                    help="Episodes per env load (default: all episodes in one batch)")
@@ -122,46 +153,17 @@ def parse_args():
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _synset_to_category(synset):
-    return synset.split(".")[0]
-
-
 def _resolve_synset(category):
-    try:
-        from omnigibson.utils.bddl_utils import OBJECT_TAXONOMY
-        return OBJECT_TAXONOMY.get_synset_from_category(category)
-    except Exception:
-        return f"{category}.n.01"
-
-
-def _pick_random_model(category, rng):
-    from omnigibson.utils.asset_utils import get_all_object_category_models
-    models = get_all_object_category_models(category)
-    if not models:
-        return None
-    return models[rng.integers(len(models))]
-
-
-def _pick_synset_with_model(pool, rng, exclude=None):
-    """Pick a (synset, ...) entry from *pool* whose category has models.
-
-    Shuffles the pool and returns the first entry with available assets.
-    Returns None if nothing in the pool is spawnable.
-    *exclude*: set of synsets to skip (e.g. to avoid duplicating the target).
-    """
-    from omnigibson.utils.asset_utils import get_all_object_category_models
-    exclude = exclude or set()
-    indices = list(range(len(pool)))
-    rng.shuffle(indices)
-    for i in indices:
-        entry = pool[i]
-        synset = entry[0]
-        if synset in exclude:
-            continue
-        cat = _synset_to_category(synset)
-        if get_all_object_category_models(cat):
-            return entry
-    return None
+    from omnigibson.utils.bddl_utils import OBJECT_TAXONOMY
+    synset = OBJECT_TAXONOMY.get_synset_from_category(category)
+    if synset is None:
+        raise RuntimeError(
+            f"_resolve_synset: BEHAVIOR taxonomy has no synset for "
+            f"category {category!r}. Surface picker handed a category "
+            "not registered in OBJECT_TAXONOMY — regenerate "
+            "placeable_surfaces_v1.json against the current taxonomy."
+        )
+    return synset
 
 
 def _pick_surface(rng, category=None, model=None, min_area=None):
@@ -190,9 +192,9 @@ def _pick_surface(rng, category=None, model=None, min_area=None):
     return pick, synset
 
 
-def _make_obj_cfg(name, category, model, position, fixed_base=False, bounding_box=None):
+def _make_obj_cfg(name, category, model, position, fixed_base=False):
     """Build a DatasetObject config dict for the env ``objects`` list."""
-    cfg = dict(
+    return dict(
         type="DatasetObject",
         name=name,
         category=category,
@@ -201,9 +203,6 @@ def _make_obj_cfg(name, category, model, position, fixed_base=False, bounding_bo
         position=list(position),
         orientation=[0.0, 0.0, 0.0, 1.0],
     )
-    if bounding_box is not None:
-        cfg["bounding_box"] = list(bounding_box)
-    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -221,145 +220,181 @@ def _build_clutter_objects(rng, density_key):
     cfgs, roles = [], {}
     idx = 0
 
-    # Target (1) — must have a model in the asset catalog.
-    entry = _pick_synset_with_model(TARGET_POOL, rng)
-    target_synset = entry[0] if entry else "coffee_cup.n.01"
-    cat = _synset_to_category(target_synset)
-    model = _pick_random_model(cat, rng)
-    if model:
-        name = f"target_{cat}_{idx}"
+    # Target (1) — from clutter_target_pool (graspable + suitable as target).
+    target_synset, target_cat, target_model = select_clutter_target(rng)
+    name = f"target_{target_cat}_{idx}"
+    cfgs.append(_make_obj_cfg(name, target_cat, target_model, position=(100 + idx, 100, -100)))
+    roles[name] = "target"
+    idx += 1
+
+    # Fragile — tall + tippable + graspable objects from fragile_pool.json.
+    fragile_picks = []
+    for _ in range(density["fragile_count"]):
+        synset, cat, model = select_fragile(rng, exclude_cats={target_cat})
+        name = f"fragile_{cat}_{idx}"
         cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-        roles[name] = "target"
+        roles[name] = "fragile"
+        fragile_picks.append((synset, cat, model))
         idx += 1
 
-    # Fragile.
-    fragile_synsets = []
-    for i in range(density["fragile_count"]):
-        entry = _pick_synset_with_model(FRAGILE_POOL, rng, exclude={target_synset})
-        if entry is None:
-            continue
-        synset = entry[0]
-        cat = _synset_to_category(synset)
-        model = _pick_random_model(cat, rng)
-        if model:
-            name = f"fragile_{cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = "fragile"
-            fragile_synsets.append(synset)
-            idx += 1
-
-    # Clutter.
-    for i in range(density["clutter_count"]):
-        entry = _pick_synset_with_model(CLUTTER_POOL, rng)
-        if entry is None:
-            continue
-        synset = entry[0]
-        cat = _synset_to_category(synset)
-        model = _pick_random_model(cat, rng)
-        if model:
-            name = f"clutter_{cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = "clutter"
-            idx += 1
+    # Clutter — from table_obstacle_pool (graspable + suitable as obstacle),
+    # excluding the target's category so we don't reuse the same model.
+    clutter_picks = []
+    for _ in range(density["clutter_count"]):
+        synset, cat, model = select_table_obstacle(rng, exclude_cats={target_cat})
+        name = f"clutter_{cat}_{idx}"
+        cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
+        roles[name] = "clutter"
+        clutter_picks.append((synset, cat, model))
+        idx += 1
 
     selection = {
         "target_synset": target_synset,
-        "fragile_synsets": fragile_synsets,
+        "target_category": target_cat,
+        "target_model": target_model,
+        "fragile_picks": fragile_picks,
+        "clutter_picks": clutter_picks,
     }
     return cfgs, roles, selection
 
 
-def _build_stack_objects(rng, stack_height_key, target_synset=None, stack_synset=None):
+def _build_liquid_objects(rng, density_key, container_category=None):
+    """Liquid-transport object cfgs: fillable container target + tippable
+    fragiles (from the GPU-dynamics-safe liquid pool) + table-obstacle
+    clutter.
+
+    Mirrors ``liquid_transport_pipeline.select_objects``: target picked
+    from ``fillable_container_pool.json``; fragiles from
+    ``liquid_fragile_pool.json`` (the clutter fragile pool minus
+    categories whose BEHAVIOR abilities would auto-init particle systems
+    under GPU dynamics); clutter from the shared ``table_obstacle_pool``.
+    """
+    density = DENSITY_PRESETS[density_key]
+    cfgs, roles = [], {}
+    idx = 0
+
+    if container_category is not None:
+        container_cat, container_model = _pick_model_for_category(
+            container_category, rng,
+        )
+        container_synset = f"{container_cat}.n.01"
+    else:
+        container_synset, container_cat, container_model = (
+            select_fillable_container(rng)
+        )
+    name = f"target_{container_cat}_{idx}"
+    cfgs.append(_make_obj_cfg(name, container_cat, container_model,
+                              position=(100 + idx, 100, -100)))
+    roles[name] = "target"
+    idx += 1
+
+    fragile_picks = []
+    for _ in range(density["fragile_count"]):
+        synset, cat, model = select_liquid_fragile(
+            rng, exclude_cats={container_cat},
+        )
+        name = f"fragile_{cat}_{idx}"
+        cfgs.append(_make_obj_cfg(name, cat, model,
+                                  position=(100 + idx, 100, -100)))
+        roles[name] = "fragile"
+        fragile_picks.append((synset, cat, model))
+        idx += 1
+
+    clutter_picks = []
+    for _ in range(density["clutter_count"]):
+        synset, cat, model = select_table_obstacle(
+            rng, exclude_cats={container_cat},
+        )
+        name = f"clutter_{cat}_{idx}"
+        cfgs.append(_make_obj_cfg(name, cat, model,
+                                  position=(100 + idx, 100, -100)))
+        roles[name] = "clutter"
+        clutter_picks.append((synset, cat, model))
+        idx += 1
+
+    selection = {
+        "target_synset": container_synset,
+        "target_category": container_cat,
+        "target_model": container_model,
+        "fragile_picks": fragile_picks,
+        "clutter_picks": clutter_picks,
+    }
+    return cfgs, roles, selection
+
+
+def _build_stack_objects(rng, stack_height_key, mode="same",
+                         target_model=None, stack_model=None):
+    """Build stack-task object cfgs using the verified shared selector.
+
+    Delegates target/stack-item selection to ``select_stack_objects`` so
+    empty-scene and in-scene pipelines pull from the same pools (verified
+    self-stack pool for ``same``, geometric compat matrices for ``flat`` /
+    ``receptacle``). The role labels (target / stack) and instance-name
+    layout are empty-scene-specific.
+    """
     preset = STACK_HEIGHT_PRESETS[stack_height_key]
     stack_above = preset["stack_above"]
 
-    if target_synset is None:
-        entry = _pick_synset_with_model(STACK_TARGET_POOL, rng)
-        target_synset = entry[0] if entry else "plate.n.04"
-    if stack_synset is None:
-        entry = _pick_synset_with_model(STACK_ITEM_POOL, rng)
-        stack_synset = entry[0] if entry else "plate.n.04"
+    sel = select_stack_objects(
+        mode, rng, target_model=target_model, stack_model=stack_model,
+    )
+    target_cat = sel["target_category"]
+    target_model = sel["target_model"]
+    stack_cat = sel["stack_category"]
+    stack_model = sel["stack_model"]
 
     cfgs, roles = [], {}
     idx = 0
 
-    cat = _synset_to_category(target_synset)
-    model = _pick_random_model(cat, rng)
-    if model:
-        name = f"target_{cat}_{idx}"
-        cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-        roles[name] = "target"
+    name = f"target_{target_cat}_{idx}"
+    cfgs.append(_make_obj_cfg(name, target_cat, target_model,
+                              position=(100 + idx, 100, -100)))
+    roles[name] = "target"
+    idx += 1
+
+    for _ in range(stack_above):
+        name = f"stack_{stack_cat}_{idx}"
+        cfgs.append(_make_obj_cfg(name, stack_cat, stack_model,
+                                  position=(100 + idx, 100, -100)))
+        roles[name] = "stack"
         idx += 1
 
-    stack_cat = _synset_to_category(stack_synset)
-    for i in range(stack_above):
-        model = _pick_random_model(stack_cat, rng)
-        if model:
-            name = f"stack_{stack_cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, stack_cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = "stack"
-            idx += 1
-
     selection = {
-        "target_synset": target_synset,
-        "stack_synset": stack_synset,
+        "mode": mode,
+        "target_synset": sel["target_synset"],
+        "target_category": target_cat,
+        "target_model": target_model,
+        "stack_synset": sel["stack_synset"],
+        "stack_category": stack_cat,
+        "stack_model": stack_model,
         "stack_above": stack_above,
     }
     return cfgs, roles, selection
 
 
-def _build_transfer_objects(rng, food_synset=None, source_synset=None,
-                            dest_synset=None, goal_predicate=None):
-    # Pick synsets that actually have models in the asset catalog.
-    if food_synset is None:
-        entry = _pick_synset_with_model(TRANSFER_FOOD_POOL, rng)
-        food_synset = entry[0] if entry else "cookie.n.01"
-    if source_synset is None:
-        entry = _pick_synset_with_model(TRANSFER_SOURCE_POOL, rng)
-        source_synset = entry[0] if entry else "plate.n.04"
-    if dest_synset is None:
-        entry = _pick_synset_with_model(TRANSFER_DEST_POOL, rng)
-        if entry:
-            dest_synset = entry[0]
-            if goal_predicate is None:
-                goal_predicate = entry[1]
-        else:
-            dest_synset = "bowl.n.01"
-    if goal_predicate is None:
-        goal_predicate = "inside"
-
-    cfgs, roles = [], {}
-    idx = 0
-    for synset, role in [(food_synset, "food"), (source_synset, "source"), (dest_synset, "dest")]:
-        cat = _synset_to_category(synset)
-        model = _pick_random_model(cat, rng)
-        if model:
-            name = f"{role}_{cat}_{idx}"
-            cfgs.append(_make_obj_cfg(name, cat, model, position=(100 + idx, 100, -100)))
-            roles[name] = role
-            idx += 1
-
-    selection = {
-        "food_synset": food_synset,
-        "source_synset": source_synset,
-        "dest_synset": dest_synset,
-        "goal_predicate": goal_predicate,
-    }
-    return cfgs, roles, selection
 
 
 # ---------------------------------------------------------------------------
 # BDDL generation (for LTL safety files — sampler is bypassed)
 # ---------------------------------------------------------------------------
 
-def _generate_bddl(args, activity_name, support_synset, rng, selection=None):
+def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection):
+    """Build (ltl_safety, selection) for this setup from a pre-built selection.
+
+    The ``selection`` dict comes from the per-setup ``_build_*_objects``
+    builder, which always pins concrete category + model for every spawned
+    object. No synset-only fallback path — if a builder ever stops
+    populating these fields, downstream activity gen will fail loudly
+    rather than silently re-pick.
+    """
     support_room = None  # No rooms in empty Scene.
     if args.setup == "clutter":
-        # Build pre_selection from the already-resolved synsets.
         pre = {
-            "target_synset": args.target_synset or (selection or {}).get("target_synset", "coffee_cup.n.01"),
-            "fragile_picks": (selection or {}).get("fragile_synsets", []),
-            "clutter_picks": [],
+            "target_synset": selection["target_synset"],
+            "target_category": selection["target_category"],
+            "target_model": selection["target_model"],
+            "fragile_picks": selection["fragile_picks"],
+            "clutter_picks": selection["clutter_picks"],
         }
         return generate_activity(
             activity_name, support_synset, support_room, args.clutter_density,
@@ -368,14 +403,54 @@ def _generate_bddl(args, activity_name, support_synset, rng, selection=None):
     elif args.setup == "stack":
         return generate_stack_activity(
             activity_name, support_synset, support_room, args.stack_height,
-            target_synset=args.target_synset, stack_synset=args.stack_synset, rng=rng,
+            target_synset=selection["target_synset"],
+            target_category=selection["target_category"],
+            target_model=selection["target_model"],
+            stack_synset=selection["stack_synset"],
+            stack_category=selection["stack_category"],
+            stack_model=selection["stack_model"],
+            mode=args.stack_mode,
         )
     elif args.setup == "transfer":
         return generate_transfer_activity(
             activity_name, support_synset, support_room,
-            food_synset=args.food_synset, source_synset=args.source_synset,
-            dest_synset=args.dest_synset, goal_predicate=args.goal_predicate, rng=rng,
+            food_category=selection["food_category"],
+            food_model=selection["food_model"],
+            source_category=selection["source_category"],
+            source_model=selection["source_model"],
+            dest_category=selection["dest_category"],
+            dest_model=selection["dest_model"],
+            goal_predicate=selection["goal_predicate"],
+            rng=rng,
         )
+    elif args.setup == "liquid":
+        # Same activity spawn-spec gen as clutter (fillable container as
+        # target, tippable bottles as fragiles, table-obstacle clutter),
+        # but with liquid-specific LTL safety constraints (spill / tilt
+        # / dropped container) layered on top — same composition the
+        # scene-based liquid_transport_pipeline uses.
+        _clutter_ltl, selection_out = generate_activity(
+            activity_name, support_synset, support_room,
+            args.clutter_density, rng=rng, pre_selection=selection,
+        )
+        preset = LIQUID_PRESETS[args.difficulty]
+        target_synset = selection_out["target_synset"]
+        fragile_synsets = sorted({
+            p[0] for p in selection_out.get("fragile_picks", [])
+        })
+        ltl_safety = generate_liquid_transport_ltl_safety_json(
+            activity_name=activity_name,
+            container_synsets=[target_synset],
+            fragile_synsets=fragile_synsets,
+            system_name=args.system_name,
+            spill_threshold=preset["spill_threshold"],
+            max_tilt_deg=preset["max_tilt_deg"],
+        )
+        selection_out["system_name"] = args.system_name
+        selection_out["difficulty"] = args.difficulty
+        selection_out["spill_threshold"] = preset["spill_threshold"]
+        selection_out["max_tilt_deg"] = preset["max_tilt_deg"]
+        return ltl_safety, selection_out
     raise ValueError(f"Unknown setup: {args.setup}")
 
 
@@ -387,7 +462,7 @@ def setup_run_dir(args):
     from sentinel.task_generation.pipeline_common import init_run_dir
     label = f"empty_{args.surface_category or 'random'}_{args.setup}"
     init_run_dir(args, label)
-    args.scene_model = f"empty_{args.surface_category or 'random'}"
+    args.scene_model = None
     sys.stdout.flush()
 
 
@@ -409,42 +484,39 @@ def run_dry_run(args):
         dry_cfgs, dry_roles, dry_sel = _build_clutter_objects(rng, args.clutter_density)
     elif args.setup == "stack":
         dry_cfgs, dry_roles, dry_sel = _build_stack_objects(
-            rng, args.stack_height,
-            target_synset=args.target_synset, stack_synset=args.stack_synset,
+            rng, args.stack_height, mode=args.stack_mode,
+            target_model=args.target_model, stack_model=args.stack_model,
         )
     elif args.setup == "transfer":
-        dry_cfgs, dry_roles, dry_sel = _build_transfer_objects(
-            rng, food_synset=args.food_synset, source_synset=args.source_synset,
-            dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+        dry_cfgs, dry_roles, dry_sel = build_transfer_objects(
+            rng,
+            food_model=args.food_model,
+            source_model=args.source_model,
+            dest_model=args.dest_model,
+            goal_predicate=args.goal_predicate,
+        )
+    elif args.setup == "liquid":
+        dry_cfgs, dry_roles, dry_sel = _build_liquid_objects(
+            rng, args.clutter_density,
+            container_category=args.container_category,
         )
     else:
-        dry_sel = {}
+        raise ValueError(f"Unknown setup: {args.setup}")
+    del dry_cfgs, dry_roles  # builders' cfgs/roles only relevant in run_sim
 
-    # Patch args with resolved synsets for BDDL gen.
-    if args.setup == "transfer":
-        args.food_synset = dry_sel.get("food_synset")
-        args.source_synset = dry_sel.get("source_synset")
-        args.dest_synset = dry_sel.get("dest_synset")
-        args.goal_predicate = dry_sel.get("goal_predicate")
-    elif args.setup == "stack":
-        args.target_synset = dry_sel.get("target_synset")
-        args.stack_synset = dry_sel.get("stack_synset")
-
-    bddl_text, ltl_safety, bddl_path, json_path, selection = _generate_bddl(
+    ltl_safety, selection = _generate_ltl_and_specs(
         args, activity_name, support_synset, rng, selection=dry_sel,
     )
     print(f"[Pipeline] Dry-run (empty scene, setup={args.setup}):")
-    print(f"  Surface:    {pick['category']} / {pick['model']}")
-    print(f"  BDDL:       {bddl_path}")
-    print(f"  ltl_safety: {json_path}")
-    print(f"  activity:   {activity_name}")
-    print(f"\nGenerated BDDL:\n{bddl_text}")
+    print(f"  Surface:     {pick['category']} / {pick['model']}")
+    print(f"  activity:    {activity_name}")
+    print(f"  spawn_specs: {selection['spawn_specs']}")
     print(f"\nLTL formula: {ltl_safety['combined_ltl']}")
 
     append_jsonl(args.debug_jsonl, {
         "event": "dry_run", "activity_name": activity_name,
         "setup": args.setup, "surface": f"{pick['category']}/{pick['model']}",
-        **({"selection": selection} if selection else {}),
+        "selection": selection,
     })
 
 
@@ -460,7 +532,7 @@ def _park_objects(objects_by_inst, og_mod):
 def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
                        surface_bounds_xy, table_top_z, floor_z,
                        obj_cfgs, roles, selection, activity_name, support_synset,
-                       surface_cat, surface_model):
+                       surface_cat, surface_model, ltl_safety=None):
     """Run a single episode (placement + rollout) on a live env.
 
     Objects are already in the scene (parked). This function unparks them,
@@ -482,50 +554,91 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
             objects_by_inst[name] = obj
             roles_by_inst[name] = roles[name]
 
+    # -- Wipe particles from any previous episode's fill (liquid only) -----
+    # Previous episode's container parks at z=-100 and releases its
+    # particles to the floor. They stay in the scene-global water
+    # system and physically interact with this episode's pack placements
+    # (particles below the surface push containers around mid-place).
+    # Remove and give the solver several steps to actually drop them
+    # before any object placement happens.
+    if args.setup == "liquid":
+        system_name = selection["system_name"]
+        system = env.scene.get_system(system_name)
+        if int(system.n_particles) > 0:
+            print(f"[Pipeline] Removing {int(system.n_particles)} stale "
+                  f"particles from previous episode")
+            system.remove_all_particles()
+            for _ in range(10):
+                og.sim.step()
+
     # -- Place objects on the surface --------------------------------------
-    if args.setup in ("clutter", "transfer"):
-        from sentinel.utils.clutter_pack_layout import (
-            ClutterObjectDescriptor, build_clutter_pack, apply_pack_transform,
-        )
+    if args.setup in ("clutter", "transfer", "liquid"):
+        # Switched from the ring-based ``build_clutter_pack`` to the
+        # offline maxrects solver. ``solve_pack`` supports 90° rotation
+        # of non-target rectangles, which is the differentiator: the
+        # ring packer keeps every object yaw-fixed and can run out of
+        # angular slots even with abundant surface area when one
+        # fragile's longer extent doesn't fit a free ring's chord.
+        # Maxrects accepts the rotated orientation and lays the object
+        # along the available free rect instead.
+        from sentinel.utils.maxrects_pack import PackInputDescriptor, solve_pack
 
         descriptors = []
+        target_inst_id = None
         for inst, obj in objects_by_inst.items():
             dims = object_aabb_dims(obj)
             if dims is None:
                 continue
             dx, dy, dz = dims
-            descriptors.append(ClutterObjectDescriptor(
-                instance_id=inst, role=roles_by_inst[inst],
-                half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
+            role = roles_by_inst[inst]
+            descriptors.append(PackInputDescriptor(
+                inst_id=inst, role=role,
+                extent_xy=(dx, dy),
+                bottom_offset_z=0.5 * max(dz, 0.01),
             ))
+            if role == "target" and target_inst_id is None:
+                target_inst_id = inst
 
         zone = compute_tabletop_zone(
             surface_bounds_xy=surface_bounds_xy, obstacle_bounds_xy=None,
-            edge_margin_m=0.04,
+            edge_margin_m=0.03,
         )
-        half_w = 0.5 * (zone.red_zone_bounds[1][0] - zone.red_zone_bounds[0][0])
-        half_h = 0.5 * (zone.red_zone_bounds[1][1] - zone.red_zone_bounds[0][1])
+        region_w = zone.red_zone_bounds[1][0] - zone.red_zone_bounds[0][0]
+        region_h = zone.red_zone_bounds[1][1] - zone.red_zone_bounds[0][1]
         cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
         cy = 0.5 * (surface_bounds_xy[0][1] + surface_bounds_xy[1][1])
-        pack_origin = (cx, cy, table_top_z)
 
-        bounds_local = ((-half_w, -half_h), (half_w, half_h))
-        pack_spec = None
-        for clearance in (0.025, 0.015, 0.008, 0.003):
-            try:
-                pack_spec = build_clutter_pack(
-                    table_obj_name="support_surface",
-                    descriptors=descriptors, seed=ep_seed,
-                    min_clearance=clearance,
-                    placement_bounds_local=bounds_local,
-                )
+        sol = None
+        for clearance in (0.015, 0.008, 0.003, 0.001):
+            candidate = solve_pack(
+                descriptors=descriptors,
+                region_bounds=((0.0, 0.0), (region_w, region_h)),
+                min_clearance=clearance,
+                target_inst_id=target_inst_id,
+            )
+            if not candidate.unplaced:
+                sol = candidate
                 break
-            except RuntimeError as e:
-                print(f"[Pipeline] Pack clearance={clearance:.3f}: {e}")
-        if pack_spec is None:
+            print(f"[Pipeline] Pack clearance={clearance:.3f}: "
+                  f"unplaced={candidate.unplaced}")
+        if sol is None:
             raise RuntimeError("Could not pack objects on surface at any clearance.")
-        apply_pack_transform(pack_spec, objects_by_inst, pack_origin, pack_yaw=0.0)
-        print(f"[Pipeline] Pack placed: {len(descriptors)} objects")
+
+        for p in sol.placements:
+            obj = objects_by_inst.get(p.inst_id)
+            if obj is None:
+                continue
+            # ``solve_pack`` returns region-centred (cx, cy); translate
+            # to world by adding the surface centre. p.yaw is 0 or π/2.
+            wx = cx + p.cx
+            wy = cy + p.cy
+            wz = table_top_z + p.cz
+            half_yaw = 0.5 * p.yaw
+            obj.set_position_orientation(
+                position=(wx, wy, wz),
+                orientation=(0.0, 0.0, math.sin(half_yaw), math.cos(half_yaw)),
+            )
+        print(f"[Pipeline] Pack placed: {len(sol.placements)} objects")
 
     elif args.setup == "stack":
         from sentinel.utils.clutter_pack_layout import (
@@ -562,33 +675,54 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
     # -- Transfer: teleport food onto source -------------------------------
     if args.setup == "transfer":
-        food_obj, source_obj = None, None
-        for name, role in roles_by_inst.items():
-            obj = objects_by_inst.get(name)
-            if obj is None:
-                continue
-            if role == "food" and food_obj is None:
-                food_obj = obj
-            elif role == "source" and source_obj is None:
-                source_obj = obj
+        from sentinel.task_generation.transfer_scene_pipeline import place_food_on_source
+        role_to_name = {r: n for n, r in roles_by_inst.items()}
+        food_obj = objects_by_inst.get(role_to_name.get("food"))
+        source_obj = objects_by_inst.get(role_to_name.get("source"))
         if food_obj and source_obj:
-            src_pos = source_obj.get_position_orientation()[0]
-            try:
-                src_top_z = float(source_obj.aabb[1][2])
-            except Exception:
-                src_top_z = float(src_pos[2]) + 0.03
-            try:
-                f_half_h = 0.5 * max(0.01, float(food_obj.aabb[1][2] - food_obj.aabb[0][2]))
-            except Exception:
-                f_half_h = 0.02
-            food_obj.set_position_orientation(
-                position=(float(src_pos[0]), float(src_pos[1]),
-                          src_top_z + f_half_h + 0.005),
+            place_food_on_source(env, food_obj, source_obj)
+
+    # -- Liquid: fill target container with the configured substance -------
+    # Mirrors ``liquid_transport_pipeline.place_objects``. The Filled
+    # state's set_value(system, True) call generates particles inside
+    # the container's fillable meta-link; no auto-init happens just
+    # from spawning since none of our fillable categories carry
+    # particleSource / particleApplier abilities (verified via
+    # build_fillable_pool's BEHAVIOR-ability filter).
+    if args.setup == "liquid":
+        from omnigibson.object_states import Filled
+        role_to_name = {r: n for n, r in roles_by_inst.items()}
+        target_obj = objects_by_inst[role_to_name["target"]]
+        if Filled not in target_obj.states:
+            raise RuntimeError(
+                f"empty_scene liquid: target {target_obj.name} "
+                f"({target_obj.category}) does not support Filled state — "
+                "fillable_container_pool.json admitted a category whose "
+                "taxonomy entry lacks 'fillable'/'openfillable'."
             )
-            if hasattr(food_obj, "keep_still"):
-                food_obj.keep_still()
+
+        # Snap the target to identity quat + zero velocity before fill so
+        # the volume-link AABB is gravity-aligned. Residual tilt from the
+        # pack settle lets particles drift over the rim on the first
+        # post-fill sim step — the "liquid spread on the table" symptom.
+        # (Stale particles were already cleared at the start of this
+        # episode, before the pack placed objects on the surface.)
+        tpos, _ = target_obj.get_position_orientation()
+        target_obj.set_position_orientation(
+            position=(float(tpos[0]), float(tpos[1]), float(tpos[2])),
+            orientation=(0.0, 0.0, 0.0, 1.0),
+        )
+        target_obj.keep_still()
+        og.sim.step()
+
+        target_obj.states[Filled].set_value(system, True)
+        print(f"[Pipeline] Container filled with {system_name}")
+
+        # Settle particles while pinning the container so its CoM shift
+        # from the new water mass can't tilt it back over the rim.
+        for _ in range(20):
+            target_obj.keep_still()
             og.sim.step()
-            print("[Pipeline] Food teleported onto source")
 
     # -- Robot placement ---------------------------------------------------
     zone = compute_tabletop_zone(
@@ -597,53 +731,49 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
     )
     pack_objects_world = []
     for inst, obj in objects_by_inst.items():
-        try:
-            pos = obj.get_position_orientation()[0]
-            pack_objects_world.append(EdgeAlignObject(
-                name=inst, role=roles_by_inst[inst],
-                position_xy=(float(pos[0]), float(pos[1])),
-            ))
-        except Exception as exc:
-            log.warning("empty_scene _run_episode_inner: pose read for %s failed: %s", getattr(obj, "name", obj), exc)
-            continue
-
-    edge_result = None
-    if pack_objects_world:
-        edge_result = place_franka_edge_aligned(EdgeAlignRequest(
-            table_aabb_xy=zone.surface_bounds,
-            pack_objects_world=tuple(pack_objects_world),
-            role_weights=DEFAULT_ROLE_WEIGHTS,
-            robot_half_extent_xy=robot_half_extent_xy(robot),
-            edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
-            scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
-                            0.15, -0.15, 0.20, -0.20),
+        pos = obj.get_position_orientation()[0]
+        pack_objects_world.append(EdgeAlignObject(
+            name=inst, role=roles_by_inst[inst],
+            position_xy=(float(pos[0]), float(pos[1])),
         ))
-        robot.set_position_orientation(
-            position=(edge_result.base_pose["position"][0],
-                      edge_result.base_pose["position"][1], floor_z),
-            orientation=edge_result.base_pose["orientation"],
+
+    if not pack_objects_world:
+        raise RuntimeError(
+            "empty_scene robot placement: no objects to align against. "
+            "Object builder must produce at least one task object."
         )
-        og.sim.step()
-        print(f"[Pipeline] Robot: edge={edge_result.edge_label}, "
-              f"gap={edge_result.gap_actual:.3f}")
-    else:
-        cx = 0.5 * (surface_bounds_xy[0][0] + surface_bounds_xy[1][0])
-        robot.set_position_orientation(
-            position=(cx, surface_bounds_xy[0][1] - 0.3, floor_z))
-        og.sim.step()
-        print("[Pipeline] Robot placed at fallback position")
+    edge_result = place_franka_edge_aligned(EdgeAlignRequest(
+        table_aabb_xy=zone.surface_bounds,
+        pack_objects_world=tuple(pack_objects_world),
+        role_weights=DEFAULT_ROLE_WEIGHTS,
+        robot_half_extent_xy=robot_half_extent_xy(robot),
+        edge_gap_m=args.mount_gap_m, edge_margin_m=0.05,
+        scan_offsets_m=(0.0, 0.05, -0.05, 0.10, -0.10,
+                        0.15, -0.15, 0.20, -0.20),
+    ))
+    robot.set_position_orientation(
+        position=(edge_result.base_pose["position"][0],
+                  edge_result.base_pose["position"][1], floor_z),
+        orientation=edge_result.base_pose["orientation"],
+    )
+    og.sim.step()
+    print(f"[Pipeline] Robot: edge={edge_result.edge_label}, "
+          f"gap={edge_result.gap_actual:.3f}")
 
     # -- Gate --------------------------------------------------------------
     target_obj = None
     for name, role in roles_by_inst.items():
         if role in ("target", "food"):
-            target_obj = objects_by_inst.get(name)
+            target_obj = objects_by_inst[name]
             break
-    if target_obj is None and objects_by_inst:
-        target_obj = next(iter(objects_by_inst.values()))
+    if target_obj is None:
+        raise RuntimeError(
+            "empty_scene gate: no object with role 'target' or 'food' — "
+            "every setup must spawn one of these."
+        )
 
     rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
-    tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]] if target_obj else rp
+    tp = [float(v) for v in target_obj.get_position_orientation()[0][:3]]
     target_dist = math.hypot(rp[0] - tp[0], rp[1] - tp[1])
     gate_pass = (
         all(math.isfinite(v) for v in rp + tp)
@@ -655,12 +785,80 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
     if args.strict_gate and not gate_pass:
         raise RuntimeError("Strict gate failed.")
 
+    # -- Goal region marker (clutter only) ---------------------------------
+    # Spawns a green sphere on the side of the pack the robot must move the
+    # target into. Mirrors BasePipeline._run_episode's goal-region step.
+    # Tracked on args._prev_goal_marker so we can park the previous
+    # episode's marker before spawning this one (mid-play remove_object
+    # trips OmniGibson's registry-staleness bug).
+    goal_region_payload = None
+    family = "table" if args.setup == "clutter" else None
+    if (gate_pass and target_obj is not None and family
+            and family_uses_goal_region(family)):
+        pack_names = tuple(obj.name for obj in objects_by_inst.values())
+        support_name = support_obj.name
+        ep_rng_goal = np.random.default_rng(
+            int(args.seed) + 13_000 * (ep + 1)
+        )
+        spec = build_goal_region_spec(
+            env=env,
+            diagnostics={
+                "pipeline": family,
+                "surface": support_name,
+                "selection": selection,
+                "support_selection": {
+                    "result_world_bounds_xy": surface_bounds_xy,
+                },
+            },
+            family=family,
+            target_name=target_obj.name,
+            support_name=support_name,
+            pack_object_names=pack_names,
+            rng=ep_rng_goal,
+        )
+        goal_region_payload = spec.to_json()
+        prev_marker = getattr(args, "_prev_goal_marker", None)
+        if prev_marker is not None:
+            # Park the previous episode's marker far below the floor
+            # and hide it. Mid-play env.scene.remove_object trips OG's
+            # registry-staleness bug — same reason BasePipeline parks
+            # rather than removing inter-episode markers.
+            prev_marker.set_position_orientation(
+                position=(100.0, 100.0, -10.0),
+                orientation=(0.0, 0.0, 0.0, 1.0),
+            )
+            prev_marker.visible = False
+        args._prev_goal_marker = spawn_goal_region_marker(
+            env, GoalRegionSpec.from_json(goal_region_payload),
+        )
+        og.sim.step()
+        print(f"[Pipeline] Goal region: "
+              f"{spec.shape}@({spec.center_world[0]:.2f},"
+              f"{spec.center_world[1]:.2f},{spec.center_world[2]:.2f})")
+
     # Save full Omniverse scene snapshot (same format BasePipeline uses):
     # objects_info.init_info + state.registry.object_registry, replayable by
     # og.sim.load() and by so101_franka_teleop's _build_from_snapshot.
+    #
+    # Strip parked (inactive-episode) task objects from the snapshot:
+    # they have no business in this episode's scene file and under GPU
+    # dynamics they can carry NaN poses that would crash the registry
+    # dump (RigidDynamicPrim's unit-quat assert). Same helper the
+    # scene-based BasePipeline uses.
     if gate_pass:
         scene_save = os.path.join(args.run_dir, f"scene_ep{ep + 1}.json")
-        og.sim.save(json_paths=[scene_save])
+        from sentinel.task_generation.pipeline_common import save_episode_scene
+        # Active = this episode's task objects + support + robot. Every
+        # other registered object is a parked task object from a
+        # different episode in the batch — strip it from the snapshot.
+        active_names = {obj.name for obj in objects_by_inst.values()}
+        active_names.add(support_obj.name)
+        active_names.add(robot.name)
+        parked_names = {
+            obj.name for obj in env.scene.objects
+            if obj.name not in active_names
+        }
+        save_episode_scene(og, env.scene, scene_save, parked_names)
         print(f"[Pipeline] Scene saved: {scene_save}")
 
     # -- LTL rollout -------------------------------------------------------
@@ -674,15 +872,21 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         support_obj=support_obj,
     )
 
-    append_jsonl(args.debug_jsonl, {
+    payload = {
         "episode": ep + 1, "setup": args.setup,
+        "scene_model": args.scene_model,
         "surface": f"{surface_cat}/{surface_model}",
         "activity_name": activity_name,
         "gate_pass": gate_pass,
         "ltl_violated": summary["violated"],
         "steps_executed": executed,
         "selection": selection,
-    })
+        "ltl_safety": ltl_safety,
+        "cameras": list(getattr(args, "_resolved_video_views", ())),
+    }
+    if goal_region_payload is not None:
+        payload["goal_region"] = copy.deepcopy(goal_region_payload)
+    append_jsonl(args.debug_jsonl, payload)
 
     # -- Park objects back -------------------------------------------------
     _park_objects(objects_by_inst, og)
@@ -695,9 +899,19 @@ def run_sim(args):
     import omnigibson as og
     from omnigibson.macros import gm
 
-    gm.USE_GPU_DYNAMICS = False
+    # Liquid setup needs GPU dynamics (water particles); other setups
+    # keep flatcache+CPU. See clutter vs liquid_transport split for why
+    # — under GPU dynamics, BEHAVIOR particle-modifier abilities on
+    # newly-added prims trigger an eager AABB-based init that races
+    # with physx pose-buffer setup; the liquid_fragile_pool excludes
+    # those categories explicitly.
+    gm.USE_GPU_DYNAMICS = (args.setup == "liquid")
     gm.ENABLE_OBJECT_STATES = True
-    gm.ENABLE_FLATCACHE = True
+    # Mirror BasePipeline._run_sim: disable BEHAVIOR transition rules so
+    # spawned containers (bottle_of_X, jar_of_X, …) don't auto-spawn
+    # their substances (sludge / liquid / etc.) and force GPU dynamics.
+    gm.ENABLE_TRANSITION_RULES = False
+    gm.ENABLE_FLATCACHE = (args.setup != "liquid")
 
     batch_size = args.batch_size or args.episodes
 
@@ -714,25 +928,36 @@ def run_sim(args):
                 obj_cfgs, roles, selection = _build_clutter_objects(rng, args.clutter_density)
             elif args.setup == "stack":
                 obj_cfgs, roles, selection = _build_stack_objects(
-                    rng, args.stack_height,
-                    target_synset=args.target_synset, stack_synset=args.stack_synset,
+                    rng, args.stack_height, mode=args.stack_mode,
+                    target_model=args.target_model, stack_model=args.stack_model,
                 )
             elif args.setup == "transfer":
-                obj_cfgs, roles, selection = _build_transfer_objects(
-                    rng, food_synset=args.food_synset, source_synset=args.source_synset,
-                    dest_synset=args.dest_synset, goal_predicate=args.goal_predicate,
+                obj_cfgs, roles, selection = build_transfer_objects(
+                    rng,
+                    food_model=args.food_model,
+                    source_model=args.source_model,
+                    dest_model=args.dest_model,
+                    goal_predicate=args.goal_predicate,
+                )
+            elif args.setup == "liquid":
+                obj_cfgs, roles, selection = _build_liquid_objects(
+                    rng, args.clutter_density,
+                    container_category=args.container_category,
                 )
             else:
                 raise ValueError(f"Unknown setup: {args.setup}")
             episode_data.append((obj_cfgs, roles, selection, ep_seed))
 
         # -- Compute max footprint across episodes -------------------------
-        from sentinel.utils.bddl_generator import _load_footprint_catalog, _median_footprint
+        # Every obj_cfg has both category and model pinned, so we use the
+        # exact per-model footprint from object_footprints.json. No median,
+        # no fallback — the catalog raises if anything is missing.
+        from sentinel.utils.task_spec import _load_footprint_catalog
         fp_catalog = _load_footprint_catalog()
         max_footprint = _MIN_SURFACE_AREA_M2
         for obj_cfgs, _, _, _ in episode_data:
             ep_fp = sum(
-                _median_footprint(fp_catalog, _resolve_synset(c["category"]))
+                fp_catalog[c["category"]][c["model"]]["footprint_m2"]
                 for c in obj_cfgs
             )
             max_footprint = max(max_footprint, ep_fp * 1.3)
@@ -857,30 +1082,11 @@ def run_sim(args):
             for idx, (obj_cfgs, roles, selection, ep_seed) in enumerate(episode_data):
                 ep = batch_start + idx
 
-                # Generate BDDL + LTL for this episode's synsets.
-                saved_args = copy.copy(args)
-                if args.setup == "transfer":
-                    args.food_synset = selection["food_synset"]
-                    args.source_synset = selection["source_synset"]
-                    args.dest_synset = selection["dest_synset"]
-                    args.goal_predicate = selection["goal_predicate"]
-                elif args.setup == "stack":
-                    args.target_synset = selection["target_synset"]
-                    args.stack_synset = selection["stack_synset"]
-
-                rng_bddl = np.random.default_rng(ep_seed)
-                _, _, bddl_path, _, _ = _generate_bddl(
-                    args, activity_name, support_synset, rng_bddl,
+                rng_ltl = np.random.default_rng(ep_seed)
+                ltl_safety, selection = _generate_ltl_and_specs(
+                    args, activity_name, support_synset, rng_ltl,
                     selection=selection,
                 )
-                refresh_activity_cache()
-
-                # Restore args.
-                for attr in ("food_synset", "source_synset", "dest_synset",
-                             "goal_predicate", "target_synset"):
-                    setattr(args, attr, getattr(saved_args, attr, None))
-                if hasattr(saved_args, "stack_synset"):
-                    args.stack_synset = saved_args.stack_synset
 
                 print(f"\n[Pipeline] Episode {ep + 1}/{args.episodes}")
                 sys.stdout.flush()
@@ -899,6 +1105,7 @@ def run_sim(args):
                         support_synset=support_synset,
                         surface_cat=surface_cat,
                         surface_model=surface_model,
+                        ltl_safety=ltl_safety,
                     )
                     print(f"[Pipeline] Episode {ep + 1} took {_time.time() - _t_ep_start:.1f}s")
                 except RuntimeError as e:

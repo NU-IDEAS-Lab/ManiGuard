@@ -1,0 +1,94 @@
+# yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
+
+site_name: SENTINEL-Lite
+site_description: LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K
+repo_name: NU-IDEAS-Lab/SENTINEL-Lite
+repo_url: https://github.com/NU-IDEAS-Lab/SENTINEL-Lite
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.tracking
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      primary: indigo
+      accent: indigo
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      primary: indigo
+      accent: indigo
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+
+# Files / globs to ignore when building.
+exclude_docs: |
+  graspability_classified.csv
+  graspability_classified.html
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+  - Architecture:
+      - Overview: architecture/overview.md
+  - Task Generation:
+      - Pipelines overview: pipelines/index.md
+      - Data flow: pipelines/data_flow.md
+      - Tabletop clutter: pipelines/clutter.md
+      - Stack retrieval: pipelines/stack.md
+      - Food transfer: pipelines/transfer.md
+      - Empty scene: pipelines/empty_scene.md
+      - Empty invert: pipelines/empty_invert.md
+      - Lid transport: pipelines/lid_transport.md
+      - Liquid transport: pipelines/liquid_transport.md
+      - Wet transport: pipelines/wet_transport.md
+  - Grasps:
+      - GraspGen pipeline: graspgen_pipeline.md
+  - RL Training:
+      - PPO grasp training: rl_training.md
+  - Teleop:
+      - Overview: teleop/index.md
+      - SO-101 ZMQ server: teleop/so101_server.md
+      - SO-101 → Franka: teleop/so101_franka.md
+      - GELLO → Franka: teleop/gello_franka.md
+      - GELLO calibration: teleop/gello_calibration.md
+      - GELLO grasp batch: teleop/gello_grasp_batch.md
+      - Playback: teleop/playback.md
+  - SFT:
+      - OpenPI sim teleop SFT: openpi_sim_teleop_sft.md
+      - OpenPI real teleop SFT: openpi_real_teleop_sft.md
+  - Evaluation:
+      - Single-machine (Pro 6000): one_machine_pro6000_eval.md
+      - Two-machine: two_machine_eval.md

@@ -110,6 +110,8 @@ def build_config(
     arm_controller: str = "joint",
     goal_region_spec: Optional[dict] = None,
     task_type: str = "PickAndLiftTask",
+    load_room_instances: Optional[list[str]] = None,
+    scene_model: Optional[str] = None,
 ) -> dict:
     """Assemble the OG Environment config dict for the grasp-reset setup.
 
@@ -155,6 +157,11 @@ def build_config(
         task_type: OG task registry name. Defaults to the legacy
             ``PickAndLiftTask``; v2 privileged state training passes
             ``PickAndLiftPrivilegedTask``.
+        load_room_instances: optional list of room instance names; when set
+            alongside a ``scene_file`` from an InteractiveTraversableScene,
+            limits scene loading to those rooms.
+        scene_model: BEHAVIOR-1K scene model name (e.g. ``Rs_int``). Required
+            together with ``load_room_instances`` to drive room-scoped loading.
     """
     if arm_controller not in ("joint", "osc"):
         raise ValueError(f"arm_controller must be 'joint' or 'osc', got {arm_controller!r}")
@@ -184,7 +191,15 @@ def build_config(
         scene_path = Path(scene_file)
         if arm_controller == "joint":
             scene_path = _patch_scene_for_joint_controller(scene_path)
-        scene_cfg = {"type": "Scene", "scene_file": str(scene_path)}
+        if load_room_instances and scene_model:
+            scene_cfg = {
+                "type": "InteractiveTraversableScene",
+                "scene_model": scene_model,
+                "scene_file": str(scene_path),
+                "load_room_instances": list(load_room_instances),
+            }
+        else:
+            scene_cfg = {"type": "Scene", "scene_file": str(scene_path)}
         robots_cfg: list = []
         objects_config: list = []
     else:
@@ -195,7 +210,7 @@ def build_config(
             obs_modalities=list(obs_modalities),
             action_type="continuous",
             action_normalize=True,
-            grasping_mode="physical",
+            grasping_mode="assisted",
             self_collisions=True,
             position=[0.0, 0.0, 0.0],
             orientation=[0.0, 0.0, 0.0, 1.0],

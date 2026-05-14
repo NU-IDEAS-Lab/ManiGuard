@@ -1,0 +1,1323 @@
+{
+  "metadata": {
+    "source_attachment_pairs": "behavior-1k/bddl3/bddl/generated_data/object_inventory.json",
+    "graspability_csv": "docs/graspability_classified.csv",
+    "complaints": "behavior-1k/bddl3/bddl/generated_data/complaints.json",
+    "lid_transport_no_grasp_ok": [
+      "hingeless_jar",
+      "kettle"
+    ],
+    "manual_status_marker": "manually_added",
+    "verdict_counts": {
+      "lid": {
+        "dropped_container_complaint": 2,
+        "kept_via_relax": 6,
+        "dropped_container_too_large": 1,
+        "dropped_item_not_ready": 9,
+        "kept": 11,
+        "dropped_item_no_grasp": 2,
+        "dropped_item_too_large": 2
+      },
+      "cap": {
+        "dropped_item_not_ready": 28,
+        "kept": 41,
+        "dropped_container_complaint": 10,
+        "dropped_container_no_grasp": 4
+      }
+    },
+    "totals": {
+      "lid": {
+        "item_models": 33,
+        "container_pairs": 33
+      },
+      "cap": {
+        "item_models": 45,
+        "container_pairs": 83
+      }
+    }
+  },
+  "lid": {
+    "bemtjd": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "canister",
+          "model": "gqwnfv",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "ckgilb": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "bqpmsv",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "kept_via_relax"
+        }
+      ]
+    },
+    "cofhlg": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "crock_pot",
+          "model": "xdahvv",
+          "status": "too_large",
+          "complaint_unresolved": false,
+          "verdict": "dropped_container_too_large"
+        }
+      ]
+    },
+    "fvebnu": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "ifgcmr",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "gerjlh": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "pressure_cooker",
+          "model": "otyngn",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "iojcmf": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "hjrnct",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "kept_via_relax"
+        }
+      ]
+    },
+    "jzwezh": {
+      "item_status": "no_grasp",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "storage_box",
+          "model": "izcglf",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_no_grasp"
+        }
+      ]
+    },
+    "kbuqww": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "gejwoi",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "kdswwr": {
+      "item_status": "too_large",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "toy_box",
+          "model": "qgfbdj",
+          "status": "too_large",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_too_large"
+        }
+      ]
+    },
+    "kgjkzr": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hamper",
+          "model": "stibna",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "lkaasa": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hamper",
+          "model": "otswdv",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "lryrtt": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "storage_box",
+          "model": "eicujj",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "mdowoz": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "storage_box",
+          "model": "aqdbdu",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "mlkmlk": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "toy_box",
+          "model": "aviadj",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "myrzac": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "can",
+          "model": "damllm",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "oawddr": {
+      "item_status": "too_large",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "compost_bin",
+          "model": "fvkdos",
+          "status": "too_large",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_too_large"
+        }
+      ]
+    },
+    "obuzeh": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "dutch_oven",
+          "model": "tyxwap",
+          "status": "too_large",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "pbmsji": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "stockpot",
+          "model": "oshwps",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "picclm": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "mefezc",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "kept_via_relax"
+        }
+      ]
+    },
+    "ppkjuy": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "steamer_basket",
+          "model": "lageli",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "pwgbsb": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "teapot",
+          "model": "jlalfc",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "qkpdih": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "storage_box",
+          "model": "bwbpvg",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "sihkub": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "wcqjew",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "snklci": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "canister",
+          "model": "xcppkc",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "swszeb": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "dog_food_can",
+          "model": "vxxcvg",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "tnwisp": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "teapot",
+          "model": "mvrhya",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "tzbbeo": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "cat_food_tin",
+          "model": "rclizj",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "ugfmpq": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "kettle",
+          "model": "bzisss",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "kept_via_relax"
+        }
+      ]
+    },
+    "wjrwer": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "tupperware",
+          "model": "mkstwr",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "wxdxss": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "lvuvbf",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "kept_via_relax"
+        }
+      ]
+    },
+    "xdyddo": {
+      "item_status": "no_grasp",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "trash_can",
+          "model": "wklill",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_no_grasp"
+        }
+      ]
+    },
+    "zjtjrn": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "roasting_pan",
+          "model": "nrecsa",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "zkderg": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "kettle",
+          "model": "vjbldp",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "kept_via_relax"
+        }
+      ]
+    }
+  },
+  "cap": {
+    "actmgl": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "jar_of_strawberry_jam",
+          "model": "busiti",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "amryfj": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "bottle_of_water",
+          "model": "qaceen",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "arskxc": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "bottle_of_whiskey",
+          "model": "lzjuvy",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "ceizxn": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "bottle_of_strawberry_juice",
+          "model": "mlnuza",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "ciopwh": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_kidney_beans",
+          "model": "kfzxah",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "clhquh": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_pepper_seasoning",
+          "model": "iuydyz",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "dduopd": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "pjaljg",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "dmzavi": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "pill_bottle",
+          "model": "wsasmm",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "dwpcld": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_clove",
+          "model": "dlvall",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "dropped_container_no_grasp"
+        }
+      ]
+    },
+    "eukcfr": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "oil_bottle",
+          "model": "gcixra",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "fomiem": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "cooking_oil_bottle",
+          "model": "cfdond",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "lemon_juice_bottle",
+          "model": "qsdqik",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "lime_juice_bottle",
+          "model": "bnekjp",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "oil_bottle",
+          "model": "yoxfyu",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "olive_oil_bottle",
+          "model": "zfvhus",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "sesame_oil_bottle",
+          "model": "bupgpj",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "vinegar_bottle",
+          "model": "ykysuc",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "ghwjwe": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "round_bottom_flask",
+          "model": "hmzafz",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "gmdwwe": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "bottle_of_water",
+          "model": "emquat",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "gxkbcd": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "bottle_of_vodka",
+          "model": "nwegts",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "hbafeb": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "cola_bottle",
+          "model": "oyqdtz",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "hkvuxj": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "soda_cup",
+          "model": "vicaqs",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "iizvmn": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "pill_bottle",
+          "model": "csvdbe",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "iqeyba": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "paper_cup",
+          "model": "guobeq",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "jybxvq": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_sesame_seed",
+          "model": "acsllv",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "kaolpg": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "coffee_maker",
+          "model": "fwlabx",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "mgirzi": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "chlorine_bottle",
+          "model": "uzkxtz",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "cleansing_bottle",
+          "model": "ovjhuf",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        },
+        {
+          "category": "detergent_bottle",
+          "model": "yufawg",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "disinfectant_bottle",
+          "model": "ifqdxn",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "fabric_softener_bottle",
+          "model": "uyixwc",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "dropped_container_no_grasp"
+        },
+        {
+          "category": "floor_wax_bottle",
+          "model": "fzhcdb",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "herbicide_bottle",
+          "model": "aeslmf",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "hydrogen_peroxide_bottle",
+          "model": "luhnej",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "liquid_soap_bottle",
+          "model": "hazvbh",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "dropped_container_no_grasp"
+        },
+        {
+          "category": "lubricant_bottle",
+          "model": "omknho",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "polish_bottle",
+          "model": "hldhxl",
+          "status": "no_grasp",
+          "complaint_unresolved": false,
+          "verdict": "dropped_container_no_grasp"
+        },
+        {
+          "category": "saddle_soap_bottle",
+          "model": "ugqdao",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "salt_bottle",
+          "model": "wdpcmk",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "shampoo_bottle",
+          "model": "tukaoq",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "soap_bottle",
+          "model": "hamffy",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "solvent_bottle",
+          "model": "nbctrk",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "toilet_soap_bottle",
+          "model": "iyrrna",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "vodka_bottle",
+          "model": "bojwlu",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "whiskey_bottle",
+          "model": "jpduev",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "ngionj": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "bird_feeder",
+          "model": "hvlkjx",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "nkjxbc": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "reagent_bottle",
+          "model": "tnjpsf",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "reagent_bottle",
+          "model": "trtrsl",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "reagent_bottle",
+          "model": "ukayce",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        },
+        {
+          "category": "reagent_bottle",
+          "model": "xstykf",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "owcsun": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "waousd",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "oyofsv": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "jdwvyt",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "qcfsnv": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_cumin",
+          "model": "bpxhso",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "qwrndi": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "jar_of_coffee",
+          "model": "bnrvcs",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "rgtedj": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "water_bottle",
+          "model": "ackxiy",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "rhoycw": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "canteen",
+          "model": "ouhqnw",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "sjsles": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "liquid_carton",
+          "model": "ykfkyq",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "tkwpyr": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "bottle_of_water",
+          "model": "lojipo",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "tpknvf": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "bottle_of_whiskey",
+          "model": "tihatc",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "uxpeaz": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "bottle_of_whiskey",
+          "model": "hejqyo",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "vnpjfn": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_chilli_powder",
+          "model": "mxhrcl",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "vsvwig": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "deodorant_stick",
+          "model": "albeyc",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "wwbayp": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_peppercorns",
+          "model": "gkakwk",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "xeswtq": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "bottle_of_whiskey",
+          "model": "pyfpss",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "xsxeij": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "liquid_carton",
+          "model": "rsvypp",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "xxqyrt": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "lemonade_bottle",
+          "model": "yprkek",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "soda_water_bottle",
+          "model": "upfssc",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "tomato_paste_can",
+          "model": "krarex",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "water_bottle",
+          "model": "lzdzkk",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "ygsmgm": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "beef_broth_carton",
+          "model": "ecqxgd",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "chicken_broth_carton",
+          "model": "ztripg",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "chicken_soup_carton",
+          "model": "ooyqcr",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "jug",
+          "model": "quzmfw",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "milk_carton",
+          "model": "icvmix",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "orange_juice_carton",
+          "model": "jjlfla",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "pineapple_juice_carton",
+          "model": "barzwx",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "shortening_carton",
+          "model": "gswpdr",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        },
+        {
+          "category": "yogurt_carton",
+          "model": "ahbhsd",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "yivige": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "jar_of_cocoa",
+          "model": "sjwgfn",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "yqvild": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_tumeric",
+          "model": "miivhi",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "kept"
+        }
+      ]
+    },
+    "ytjxqn": {
+      "item_status": "graspable",
+      "complaint_unresolved": false,
+      "containers": [
+        {
+          "category": "jar_of_cumin",
+          "model": "vyfehw",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_container_complaint"
+        }
+      ]
+    },
+    "zggjif": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "vxqpnm",
+          "status": "not_ready",
+          "complaint_unresolved": true,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    },
+    "zknitk": {
+      "item_status": "not_ready",
+      "complaint_unresolved": true,
+      "containers": [
+        {
+          "category": "hingeless_jar",
+          "model": "zdeyzf",
+          "status": "graspable",
+          "complaint_unresolved": false,
+          "verdict": "dropped_item_not_ready"
+        }
+      ]
+    }
+  }
+}

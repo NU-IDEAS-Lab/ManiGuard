@@ -50,15 +50,14 @@ def add_env_args(parser: argparse.ArgumentParser) -> None:
                    help="'joint' (default): JointController (position delta, "
                         "no Jacobian inversion). 'osc': OperationalSpace; "
                         "crashes with LinAlgError on kinematic singularity.")
+    g.add_argument("--max-steps", type=int, default=200,
+                   help="Episode length (task timeout in env steps).")
     g.add_argument("--diagnostics-file", type=Path, default=None,
                    help="Path to a benchmark task's diagnostics.jsonl. "
                         "When provided, the goal region from the benchmark "
                         "is used instead of the hardcoded goal_offset. "
                         "Also infers --scene-file from the sibling "
                         "scene_ep1.json if not explicitly set.")
-    g.add_argument("--task-max-steps", type=int, default=200,
-                   help="Task timeout in environment steps. Training defaults "
-                        "to 200; increase for long eval rollouts.")
 
 
 def add_training_args(parser: argparse.ArgumentParser) -> None:

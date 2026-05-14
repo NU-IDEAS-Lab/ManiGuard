@@ -22,11 +22,11 @@ import sys
 
 from sentinel.task_generation.pipeline_common import (
     BasePipeline,
-    get_scope_obj,
-    iter_scope_objects,
+    get_spawned_obj,
     make_settle_fn,
 )
-from sentinel.utils.bddl_generator import (
+from sentinel.task_generation.utils.stack_pipeline.select import select_stack_objects
+from sentinel.utils.task_spec import (
     STACK_HEIGHT_PRESETS,
     generate_stack_activity,
 )
@@ -39,24 +39,28 @@ log = logging.getLogger(__name__)
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-def _build_stack_descriptors(env, target_ids, stack_ids):
-    """Build StackObjectDescriptors from live env objects, ordered bottom-to-top."""
+def _build_stack_descriptors(spawned_objects, target_ids, stack_ids):
+    """Build StackObjectDescriptors from spawned objects, ordered bottom-to-top.
+
+    Uses ``native_bbox * scale`` (asset's authored upright extents) instead of
+    ``obj.aabb`` (current world AABB). The world AABB shrinks if the object
+    is currently tilted from spawning at z=10 with random orientation, which
+    would underestimate height and cause stack penetration once objects are
+    re-oriented upright by the layout transform.
+    """
     from sentinel.utils.clutter_pack_layout import StackObjectDescriptor
 
     descriptors = []
     for inst, role in ([(tid, "target") for tid in target_ids] +
                        [(sid, "stack") for sid in stack_ids]):
-        obj = get_scope_obj(env, inst)
+        obj = get_spawned_obj(spawned_objects, inst)
         if obj is None:
             continue
-        try:
-            aabb_min, aabb_max = obj.aabb
-            dx = max(0.01, float(aabb_max[0] - aabb_min[0]))
-            dy = max(0.01, float(aabb_max[1] - aabb_min[1]))
-            dz = max(0.01, float(aabb_max[2] - aabb_min[2]))
-        except Exception as exc:
-            log.warning("_build_stack_descriptors: aabb read for %s failed: %s", getattr(obj, "name", obj), exc)
-            continue
+        nbb = obj.native_bbox
+        scale = obj.scale
+        dx = max(0.01, float(nbb[0] * scale[0]))
+        dy = max(0.01, float(nbb[1] * scale[1]))
+        dz = max(0.01, float(nbb[2] * scale[2]))
         descriptors.append(StackObjectDescriptor(
             instance_id=inst, role=role,
             half_extent_xy=(0.5 * dx, 0.5 * dy), height=dz,
@@ -123,89 +127,50 @@ class _StackBase(BasePipeline):
         parser.add_argument("--stack-height", default="medium",
                             choices=list(STACK_HEIGHT_PRESETS),
                             help="Number of objects stacked on top of the target")
-        parser.add_argument("--target-synset", default=None,
-                            help="Override target (bottom) object synset")
-        parser.add_argument("--stack-synset", default=None,
-                            help="Override stack object synset")
+        parser.add_argument("--target-model", default=None,
+                            help="Override target (bottom) model id (e.g. qkjrwt). "
+                                 "Synset/category is inferred by scanning the "
+                                 "stack-mode's target pool.")
+        parser.add_argument("--stack-model", default=None,
+                            help="Override stack-item model id. Inferred from "
+                                 "the stack-item pool (or target pool in "
+                                 "--stack-mode same).")
 
     def select_objects(self, args, rng):
-        from sentinel.utils.bddl_generator import (
-            STACK_SAME_POOL, STACK_FLAT_TARGET_POOL, STACK_RECEPTACLE_TARGET_POOL,
-            STACK_ITEM_POOL
+        return select_stack_objects(
+            self._stack_mode, rng,
+            target_model=args.target_model,
+            stack_model=args.stack_model,
         )
-        mode = self._stack_mode
-
-        if mode == "same":
-            pool = STACK_SAME_POOL
-            target = args.target_synset or pool[rng.integers(len(pool))][0]
-            stack = target
-        elif mode == "flat":
-            target = args.target_synset or STACK_FLAT_TARGET_POOL[rng.integers(len(STACK_FLAT_TARGET_POOL))][0]
-            stack = args.stack_synset or STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
-        elif mode == "receptacle":
-            target = args.target_synset or STACK_RECEPTACLE_TARGET_POOL[rng.integers(len(STACK_RECEPTACLE_TARGET_POOL))][0]
-            stack = args.stack_synset or STACK_ITEM_POOL[rng.integers(len(STACK_ITEM_POOL))][0]
-        else:
-            return None
-
-        # Stack is vertical — footprint is just the larger of target vs stack item.
-        from sentinel.utils.bddl_generator import _load_footprint_catalog, _median_footprint
-        catalog = _load_footprint_catalog()
-        required = max(_median_footprint(catalog, target), _median_footprint(catalog, stack))
-        return {
-            "required_area_m2": required,
-            "target_synset": target,
-            "stack_synset": stack,
-        }
 
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
-        pre = getattr(args, "_pre_selection", None)
+        pre = getattr(args, "_pre_selection", None) or {}
         return generate_stack_activity(
             activity_name, support_synset, support_room, args.stack_height,
-            target_synset=pre["target_synset"] if pre else args.target_synset,
-            stack_synset=pre["stack_synset"] if pre else args.stack_synset,
+            target_synset=pre.get("target_synset"),
+            target_category=pre.get("target_category"),
+            target_model=pre.get("target_model") or args.target_model,
+            stack_synset=pre.get("stack_synset"),
+            stack_category=pre.get("stack_category"),
+            stack_model=pre.get("stack_model") or args.stack_model,
             mode=self._stack_mode,
-            rng=rng,
         )
 
-    def configure_task(self, cfg, selection):
-        if selection.get("sampling_whitelist"):
-            cfg["task"]["sampling_whitelist"] = selection["sampling_whitelist"]
-
     def identify_objects(self, ctx):
-        selection = ctx.selection
-        target_synset = selection["target_synset"]
-        stack_synset = selection["stack_synset"]
-        same_synset = target_synset == stack_synset
-
-        target_ids, stack_ids = [], []
-        for inst, obj in iter_scope_objects(ctx.env):
-            if inst.startswith(("agent.", "floor.")):
-                continue
-            if same_synset and inst.startswith(target_synset + "_"):
-                # Same synset for both: _1 is target, rest are stack.
-                if inst == f"{target_synset}_1":
-                    target_ids.append(inst)
-                else:
-                    stack_ids.append(inst)
-            elif inst.startswith(target_synset + "_"):
-                target_ids.append(inst)
-            elif inst.startswith(stack_synset + "_"):
-                stack_ids.append(inst)
-
-        stack_ids.sort(key=lambda s: int(s.rsplit("_", 1)[-1]))
+        target_ids = list(ctx.obj_sets.get("target", ()))
+        stack_ids = list(ctx.obj_sets.get("stack", ()))
 
         if not target_ids:
             raise RuntimeError("No target objects found in scope.")
         print(f"[Pipeline] Objects: target={target_ids}, stack={stack_ids}")
 
-        ctx.target_obj = get_scope_obj(ctx.env, target_ids[0])
+        ctx.target_obj = get_spawned_obj(ctx.spawned_objects, target_ids[0])
         ctx._target_ids = target_ids
         ctx._stack_ids = stack_ids
         ctx.active_objects = {}
         for inst in target_ids + stack_ids:
-            obj = get_scope_obj(ctx.env, inst)
+            obj = get_spawned_obj(ctx.spawned_objects, inst)
             if obj is not None:
                 ctx.active_objects[inst] = obj
 
@@ -216,7 +181,7 @@ class _StackBase(BasePipeline):
         )
 
         stack_descriptors = _build_stack_descriptors(
-            ctx.env, ctx._target_ids, ctx._stack_ids,
+            ctx.spawned_objects, ctx._target_ids, ctx._stack_ids,
         )
         if len(stack_descriptors) < 2:
             raise RuntimeError(f"Need at least 2 objects for a stack, "

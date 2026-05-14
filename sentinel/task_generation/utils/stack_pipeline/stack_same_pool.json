@@ -1,0 +1,9081 @@
+{
+  "air_filter": [
+    {
+      "model": "eguida",
+      "native_xy_bbox": [
+        0.1274,
+        0.1274
+      ]
+    }
+  ],
+  "air_freshener_atomizer": [
+    {
+      "model": "vxtgpy",
+      "native_xy_bbox": [
+        0.1478,
+        0.1951
+      ]
+    }
+  ],
+  "allspice_shaker": [
+    {
+      "model": "cibgje",
+      "native_xy_bbox": [
+        0.0674,
+        0.0673
+      ]
+    }
+  ],
+  "aluminum_foil": [
+    {
+      "model": "ebsqqe",
+      "native_xy_bbox": [
+        0.2674,
+        0.4003
+      ]
+    }
+  ],
+  "apple_pie": [
+    {
+      "model": "ejrgdj",
+      "native_xy_bbox": [
+        0.1745,
+        0.1709
+      ]
+    },
+    {
+      "model": "rpdhbr",
+      "native_xy_bbox": [
+        0.1734,
+        0.1705
+      ]
+    }
+  ],
+  "ashtray": [
+    {
+      "model": "nfuxzd",
+      "native_xy_bbox": [
+        0.0793,
+        0.1289
+      ]
+    }
+  ],
+  "bacon": [
+    {
+      "model": "eclhdh",
+      "native_xy_bbox": [
+        0.0336,
+        0.1062
+      ]
+    }
+  ],
+  "bag_of_cookies": [
+    {
+      "model": "ikivgk",
+      "native_xy_bbox": [
+        0.1018,
+        0.1464
+      ]
+    },
+    {
+      "model": "ksjtde",
+      "native_xy_bbox": [
+        0.2468,
+        0.1842
+      ]
+    }
+  ],
+  "bag_of_cream_cheese": [
+    {
+      "model": "dxrsol",
+      "native_xy_bbox": [
+        0.1459,
+        0.1013
+      ]
+    }
+  ],
+  "bag_of_ice_cream": [
+    {
+      "model": "himfgn",
+      "native_xy_bbox": [
+        0.0877,
+        0.1665
+      ]
+    }
+  ],
+  "bag_of_jerky": [
+    {
+      "model": "wblype",
+      "native_xy_bbox": [
+        0.1943,
+        0.1791
+      ]
+    }
+  ],
+  "bag_of_rice": [
+    {
+      "model": "eddcjz",
+      "native_xy_bbox": [
+        0.3175,
+        0.2986
+      ]
+    },
+    {
+      "model": "feerye",
+      "native_xy_bbox": [
+        0.1935,
+        0.1029
+      ]
+    }
+  ],
+  "bagel": [
+    {
+      "model": "zlxkry",
+      "native_xy_bbox": [
+        0.1564,
+        0.1354
+      ]
+    }
+  ],
+  "baking_sheet": [
+    {
+      "model": "yhurut",
+      "native_xy_bbox": [
+        0.2492,
+        0.4161
+      ]
+    }
+  ],
+  "banana": [
+    {
+      "model": "znakxm",
+      "native_xy_bbox": [
+        0.1797,
+        0.092
+      ]
+    }
+  ],
+  "bar_soap": [
+    {
+      "model": "ofargb",
+      "native_xy_bbox": [
+        0.1087,
+        0.086
+      ]
+    },
+    {
+      "model": "ozifwa",
+      "native_xy_bbox": [
+        0.0929,
+        0.0929
+      ]
+    },
+    {
+      "model": "utgixp",
+      "native_xy_bbox": [
+        0.0473,
+        0.0287
+      ]
+    }
+  ],
+  "basil": [
+    {
+      "model": "dkuhvb",
+      "native_xy_bbox": [
+        0.1197,
+        0.0867
+      ]
+    }
+  ],
+  "basil_jar": [
+    {
+      "model": "swytaw",
+      "native_xy_bbox": [
+        0.1548,
+        0.1279
+      ]
+    }
+  ],
+  "bay_leaf": [
+    {
+      "model": "rqtlsv",
+      "native_xy_bbox": [
+        0.0764,
+        0.0279
+      ]
+    }
+  ],
+  "beach_toy": [
+    {
+      "model": "kjoafi",
+      "native_xy_bbox": [
+        0.1876,
+        0.1514
+      ]
+    },
+    {
+      "model": "wonucj",
+      "native_xy_bbox": [
+        0.1502,
+        0.1689
+      ]
+    },
+    {
+      "model": "zsljeg",
+      "native_xy_bbox": [
+        0.4083,
+        0.141
+      ]
+    }
+  ],
+  "beaker": [
+    {
+      "model": "dtjmai",
+      "native_xy_bbox": [
+        0.0838,
+        0.0732
+      ]
+    },
+    {
+      "model": "effbnc",
+      "native_xy_bbox": [
+        0.1229,
+        0.1229
+      ]
+    },
+    {
+      "model": "exzsal",
+      "native_xy_bbox": [
+        0.0953,
+        0.0953
+      ]
+    },
+    {
+      "model": "fyrkzs",
+      "native_xy_bbox": [
+        0.0778,
+        0.0778
+      ]
+    },
+    {
+      "model": "jdijek",
+      "native_xy_bbox": [
+        0.0778,
+        0.0778
+      ]
+    },
+    {
+      "model": "rhohgs",
+      "native_xy_bbox": [
+        0.0778,
+        0.0778
+      ]
+    },
+    {
+      "model": "sfvswx",
+      "native_xy_bbox": [
+        0.1256,
+        0.1256
+      ]
+    },
+    {
+      "model": "uobdoq",
+      "native_xy_bbox": [
+        0.0778,
+        0.0778
+      ]
+    },
+    {
+      "model": "zycgen",
+      "native_xy_bbox": [
+        0.0778,
+        0.0778
+      ]
+    }
+  ],
+  "beer_glass": [
+    {
+      "model": "lymciz",
+      "native_xy_bbox": [
+        0.1056,
+        0.1056
+      ]
+    },
+    {
+      "model": "mxsliu",
+      "native_xy_bbox": [
+        0.0602,
+        0.0605
+      ]
+    },
+    {
+      "model": "rxscji",
+      "native_xy_bbox": [
+        0.0601,
+        0.0601
+      ]
+    }
+  ],
+  "bird_feed_bag": [
+    {
+      "model": "dpxnlc",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "bird_feeder": [
+    {
+      "model": "hvlkjx",
+      "native_xy_bbox": [
+        0.0939,
+        0.0612
+      ]
+    }
+  ],
+  "blackboard_eraser": [
+    {
+      "model": "oynrtw",
+      "native_xy_bbox": [
+        0.15,
+        0.05
+      ]
+    }
+  ],
+  "board_game": [
+    {
+      "model": "phwwnx",
+      "native_xy_bbox": [
+        0.1336,
+        0.0688
+      ]
+    },
+    {
+      "model": "qdkyzl",
+      "native_xy_bbox": [
+        0.1336,
+        0.1022
+      ]
+    },
+    {
+      "model": "qgvsnb",
+      "native_xy_bbox": [
+        0.1334,
+        0.255
+      ]
+    },
+    {
+      "model": "rgvkmy",
+      "native_xy_bbox": [
+        0.1336,
+        0.1017
+      ]
+    },
+    {
+      "model": "twkglv",
+      "native_xy_bbox": [
+        0.1335,
+        0.1012
+      ]
+    },
+    {
+      "model": "vbamua",
+      "native_xy_bbox": [
+        0.2867,
+        0.1372
+      ]
+    }
+  ],
+  "bottle_of_antihistamines": [
+    {
+      "model": "agavwx",
+      "native_xy_bbox": [
+        0.068,
+        0.0657
+      ]
+    }
+  ],
+  "bottle_of_black_pepper": [
+    {
+      "model": "ejtiig",
+      "native_xy_bbox": [
+        0.0627,
+        0.0601
+      ]
+    },
+    {
+      "model": "ydzzrv",
+      "native_xy_bbox": [
+        0.0617,
+        0.0603
+      ]
+    },
+    {
+      "model": "zybfok",
+      "native_xy_bbox": [
+        0.0609,
+        0.0614
+      ]
+    }
+  ],
+  "bottle_of_catsup": [
+    {
+      "model": "bcqfxb",
+      "native_xy_bbox": [
+        0.0688,
+        0.1148
+      ]
+    }
+  ],
+  "bottle_of_chili_pepper": [
+    {
+      "model": "hjalqq",
+      "native_xy_bbox": [
+        0.0598,
+        0.0598
+      ]
+    }
+  ],
+  "bottle_of_cocoa": [
+    {
+      "model": "ganhpw",
+      "native_xy_bbox": [
+        0.1097,
+        0.0975
+      ]
+    }
+  ],
+  "bottle_of_face_cream": [
+    {
+      "model": "dztaed",
+      "native_xy_bbox": [
+        0.0766,
+        0.0767
+      ]
+    }
+  ],
+  "bottle_of_fennel": [
+    {
+      "model": "ihlkfu",
+      "native_xy_bbox": [
+        0.06,
+        0.06
+      ]
+    }
+  ],
+  "bottle_of_ginger": [
+    {
+      "model": "drqhzo",
+      "native_xy_bbox": [
+        0.0661,
+        0.0662
+      ]
+    }
+  ],
+  "bottle_of_glue": [
+    {
+      "model": "evtytd",
+      "native_xy_bbox": [
+        0.1448,
+        0.0645
+      ]
+    }
+  ],
+  "bottle_of_ground_cloves": [
+    {
+      "model": "vzamzb",
+      "native_xy_bbox": [
+        0.06,
+        0.06
+      ]
+    }
+  ],
+  "bottle_of_ground_mace": [
+    {
+      "model": "lgpxro",
+      "native_xy_bbox": [
+        0.0599,
+        0.0599
+      ]
+    }
+  ],
+  "bottle_of_ground_nutmeg": [
+    {
+      "model": "qebruq",
+      "native_xy_bbox": [
+        0.0601,
+        0.0602
+      ]
+    }
+  ],
+  "bottle_of_lemon_sauce": [
+    {
+      "model": "iyijeb",
+      "native_xy_bbox": [
+        0.0853,
+        0.0853
+      ]
+    }
+  ],
+  "bottle_of_milk": [
+    {
+      "model": "ddvsgl",
+      "native_xy_bbox": [
+        0.1545,
+        0.0584
+      ]
+    },
+    {
+      "model": "debqen",
+      "native_xy_bbox": [
+        0.1963,
+        0.0913
+      ]
+    }
+  ],
+  "bottle_of_mustard_seeds": [
+    {
+      "model": "grryaf",
+      "native_xy_bbox": [
+        0.06,
+        0.06
+      ]
+    }
+  ],
+  "bottle_of_paprika": [
+    {
+      "model": "nrdgrp",
+      "native_xy_bbox": [
+        0.06,
+        0.06
+      ]
+    }
+  ],
+  "bottle_of_peanut_butter": [
+    {
+      "model": "edcvwr",
+      "native_xy_bbox": [
+        0.0792,
+        0.0792
+      ]
+    }
+  ],
+  "bottle_of_pesto": [
+    {
+      "model": "hyeetr",
+      "native_xy_bbox": [
+        0.0545,
+        0.057
+      ]
+    }
+  ],
+  "bottle_of_poppy_seeds": [
+    {
+      "model": "xdtrgi",
+      "native_xy_bbox": [
+        0.066,
+        0.066
+      ]
+    }
+  ],
+  "bottle_of_protein_powder": [
+    {
+      "model": "rbvrrp",
+      "native_xy_bbox": [
+        0.1492,
+        0.1492
+      ]
+    }
+  ],
+  "bottle_of_salsa": [
+    {
+      "model": "nafwlf",
+      "native_xy_bbox": [
+        0.0723,
+        0.0724
+      ]
+    }
+  ],
+  "bottle_of_seasoning": [
+    {
+      "model": "vqwqqv",
+      "native_xy_bbox": [
+        0.0601,
+        0.0602
+      ]
+    }
+  ],
+  "bottle_of_sesame_seeds": [
+    {
+      "model": "lzndie",
+      "native_xy_bbox": [
+        0.0602,
+        0.0601
+      ]
+    }
+  ],
+  "bottle_of_sour_cream": [
+    {
+      "model": "pmawft",
+      "native_xy_bbox": [
+        0.1399,
+        0.1364
+      ]
+    }
+  ],
+  "bottle_of_tea_leaves": [
+    {
+      "model": "pfbtus",
+      "native_xy_bbox": [
+        0.06,
+        0.06
+      ]
+    }
+  ],
+  "bottle_of_whiskey": [
+    {
+      "model": "tihatc",
+      "native_xy_bbox": [
+        0.0952,
+        0.0952
+      ]
+    }
+  ],
+  "bowl": [
+    {
+      "model": "byzaxy",
+      "native_xy_bbox": [
+        0.3062,
+        0.3062
+      ]
+    },
+    {
+      "model": "ckxwea",
+      "native_xy_bbox": [
+        0.4921,
+        0.4338
+      ]
+    },
+    {
+      "model": "cypjlv",
+      "native_xy_bbox": [
+        0.2474,
+        0.2474
+      ]
+    },
+    {
+      "model": "dalyim",
+      "native_xy_bbox": [
+        0.15,
+        0.15
+      ]
+    },
+    {
+      "model": "eawgwj",
+      "native_xy_bbox": [
+        0.1463,
+        0.1463
+      ]
+    },
+    {
+      "model": "eipwho",
+      "native_xy_bbox": [
+        0.1077,
+        0.1077
+      ]
+    },
+    {
+      "model": "fedafr",
+      "native_xy_bbox": [
+        0.2222,
+        0.2222
+      ]
+    },
+    {
+      "model": "feuaak",
+      "native_xy_bbox": [
+        0.1612,
+        0.2614
+      ]
+    },
+    {
+      "model": "fiarri",
+      "native_xy_bbox": [
+        0.1174,
+        0.1052
+      ]
+    },
+    {
+      "model": "fwdfeg",
+      "native_xy_bbox": [
+        0.15,
+        0.15
+      ]
+    },
+    {
+      "model": "haewxp",
+      "native_xy_bbox": [
+        0.3231,
+        0.3718
+      ]
+    },
+    {
+      "model": "hpqjug",
+      "native_xy_bbox": [
+        0.1619,
+        0.1619
+      ]
+    },
+    {
+      "model": "hynhgz",
+      "native_xy_bbox": [
+        0.1922,
+        0.1922
+      ]
+    },
+    {
+      "model": "jblalf",
+      "native_xy_bbox": [
+        0.1693,
+        0.1693
+      ]
+    },
+    {
+      "model": "jfvjep",
+      "native_xy_bbox": [
+        0.1484,
+        0.1484
+      ]
+    },
+    {
+      "model": "jpvcjv",
+      "native_xy_bbox": [
+        0.1985,
+        0.1986
+      ]
+    },
+    {
+      "model": "kasebx",
+      "native_xy_bbox": [
+        0.1434,
+        0.1434
+      ]
+    },
+    {
+      "model": "lgaxzt",
+      "native_xy_bbox": [
+        0.4388,
+        0.4388
+      ]
+    },
+    {
+      "model": "mspdar",
+      "native_xy_bbox": [
+        0.1174,
+        0.1045
+      ]
+    },
+    {
+      "model": "nkkhbn",
+      "native_xy_bbox": [
+        0.1986,
+        0.2015
+      ]
+    },
+    {
+      "model": "nmhxfz",
+      "native_xy_bbox": [
+        0.1981,
+        0.1981
+      ]
+    },
+    {
+      "model": "oyidja",
+      "native_xy_bbox": [
+        0.15,
+        0.15
+      ]
+    },
+    {
+      "model": "pihjqa",
+      "native_xy_bbox": [
+        0.254,
+        0.254
+      ]
+    },
+    {
+      "model": "pyilfa",
+      "native_xy_bbox": [
+        0.1105,
+        0.1105
+      ]
+    },
+    {
+      "model": "rbnyxi",
+      "native_xy_bbox": [
+        0.1823,
+        0.2758
+      ]
+    },
+    {
+      "model": "rlwpcd",
+      "native_xy_bbox": [
+        0.1155,
+        0.105
+      ]
+    },
+    {
+      "model": "sqqahm",
+      "native_xy_bbox": [
+        0.1303,
+        0.128
+      ]
+    },
+    {
+      "model": "szgdpc",
+      "native_xy_bbox": [
+        0.1569,
+        0.1569
+      ]
+    },
+    {
+      "model": "tvtive",
+      "native_xy_bbox": [
+        0.1878,
+        0.1878
+      ]
+    },
+    {
+      "model": "wryghu",
+      "native_xy_bbox": [
+        0.1296,
+        0.1296
+      ]
+    },
+    {
+      "model": "wtepsx",
+      "native_xy_bbox": [
+        0.169,
+        0.169
+      ]
+    },
+    {
+      "model": "xpnlup",
+      "native_xy_bbox": [
+        0.15,
+        0.15
+      ]
+    },
+    {
+      "model": "ycbbwl",
+      "native_xy_bbox": [
+        0.1611,
+        0.1614
+      ]
+    }
+  ],
+  "box_of_baking_mix": [
+    {
+      "model": "fmewsz",
+      "native_xy_bbox": [
+        0.05,
+        0.115
+      ]
+    },
+    {
+      "model": "luwlfd",
+      "native_xy_bbox": [
+        0.05,
+        0.115
+      ]
+    },
+    {
+      "model": "qkvqkm",
+      "native_xy_bbox": [
+        0.05,
+        0.115
+      ]
+    }
+  ],
+  "box_of_baking_powder": [
+    {
+      "model": "vzgrlv",
+      "native_xy_bbox": [
+        0.0841,
+        0.139
+      ]
+    }
+  ],
+  "box_of_baking_soda": [
+    {
+      "model": "pskrgy",
+      "native_xy_bbox": [
+        0.0474,
+        0.0779
+      ]
+    }
+  ],
+  "box_of_candy": [
+    {
+      "model": "gvreky",
+      "native_xy_bbox": [
+        0.0765,
+        0.1348
+      ]
+    }
+  ],
+  "box_of_cane_sugar": [
+    {
+      "model": "cqlofx",
+      "native_xy_bbox": [
+        0.0537,
+        0.1242
+      ]
+    },
+    {
+      "model": "gpbobo",
+      "native_xy_bbox": [
+        0.0829,
+        0.1228
+      ]
+    }
+  ],
+  "box_of_cereal": [
+    {
+      "model": "ihedod",
+      "native_xy_bbox": [
+        0.06,
+        0.105
+      ]
+    },
+    {
+      "model": "pfwgkm",
+      "native_xy_bbox": [
+        0.035,
+        0.1
+      ]
+    }
+  ],
+  "box_of_champagne": [
+    {
+      "model": "rjsibn",
+      "native_xy_bbox": [
+        0.0963,
+        0.1122
+      ]
+    }
+  ],
+  "box_of_chocolates": [
+    {
+      "model": "bdvkbh",
+      "native_xy_bbox": [
+        0.1937,
+        0.3
+      ]
+    }
+  ],
+  "box_of_coffee": [
+    {
+      "model": "cjtadw",
+      "native_xy_bbox": [
+        0.0848,
+        0.1392
+      ]
+    },
+    {
+      "model": "mreyla",
+      "native_xy_bbox": [
+        0.0545,
+        0.2066
+      ]
+    }
+  ],
+  "box_of_cookies": [
+    {
+      "model": "apjokz",
+      "native_xy_bbox": [
+        0.094,
+        0.1487
+      ]
+    },
+    {
+      "model": "dlhqft",
+      "native_xy_bbox": [
+        0.0927,
+        0.2659
+      ]
+    },
+    {
+      "model": "fsdjun",
+      "native_xy_bbox": [
+        0.1132,
+        0.1555
+      ]
+    },
+    {
+      "model": "fzlaol",
+      "native_xy_bbox": [
+        0.2833,
+        0.2833
+      ]
+    },
+    {
+      "model": "hdgsxz",
+      "native_xy_bbox": [
+        0.2053,
+        0.2053
+      ]
+    },
+    {
+      "model": "jtalxs",
+      "native_xy_bbox": [
+        0.2047,
+        0.2047
+      ]
+    },
+    {
+      "model": "levwda",
+      "native_xy_bbox": [
+        0.2529,
+        0.2011
+      ]
+    },
+    {
+      "model": "lwhbid",
+      "native_xy_bbox": [
+        0.1131,
+        0.0885
+      ]
+    },
+    {
+      "model": "nirfva",
+      "native_xy_bbox": [
+        0.2058,
+        0.1888
+      ]
+    },
+    {
+      "model": "nnfisz",
+      "native_xy_bbox": [
+        0.2113,
+        0.1888
+      ]
+    },
+    {
+      "model": "ohhshb",
+      "native_xy_bbox": [
+        0.2834,
+        0.2834
+      ]
+    },
+    {
+      "model": "sjcnoq",
+      "native_xy_bbox": [
+        0.2235,
+        0.1888
+      ]
+    },
+    {
+      "model": "swilxz",
+      "native_xy_bbox": [
+        0.1588,
+        0.167
+      ]
+    }
+  ],
+  "box_of_corn_flakes": [
+    {
+      "model": "zbwzkq",
+      "native_xy_bbox": [
+        0.338,
+        0.2418
+      ]
+    }
+  ],
+  "box_of_crackers": [
+    {
+      "model": "cmdigf",
+      "native_xy_bbox": [
+        0.0638,
+        0.146
+      ]
+    }
+  ],
+  "box_of_flour": [
+    {
+      "model": "ylezpk",
+      "native_xy_bbox": [
+        0.0885,
+        0.1556
+      ]
+    }
+  ],
+  "box_of_granola_bars": [
+    {
+      "model": "awombj",
+      "native_xy_bbox": [
+        0.035,
+        0.15
+      ]
+    }
+  ],
+  "box_of_ice_cream": [
+    {
+      "model": "joizft",
+      "native_xy_bbox": [
+        0.1652,
+        0.2438
+      ]
+    }
+  ],
+  "box_of_oatmeal": [
+    {
+      "model": "zkggxm",
+      "native_xy_bbox": [
+        0.1275,
+        0.2732
+      ]
+    }
+  ],
+  "box_of_rice": [
+    {
+      "model": "fvulow",
+      "native_xy_bbox": [
+        0.0527,
+        0.1486
+      ]
+    },
+    {
+      "model": "pstqvm",
+      "native_xy_bbox": [
+        0.0533,
+        0.142
+      ]
+    },
+    {
+      "model": "yyheuw",
+      "native_xy_bbox": [
+        0.0489,
+        0.1493
+      ]
+    }
+  ],
+  "box_of_rum": [
+    {
+      "model": "lnjbjj",
+      "native_xy_bbox": [
+        0.1075,
+        0.1041
+      ]
+    },
+    {
+      "model": "lvruzr",
+      "native_xy_bbox": [
+        0.1056,
+        0.2084
+      ]
+    },
+    {
+      "model": "tumgbj",
+      "native_xy_bbox": [
+        0.1091,
+        0.1648
+      ]
+    },
+    {
+      "model": "xlhqjr",
+      "native_xy_bbox": [
+        0.1075,
+        0.1041
+      ]
+    }
+  ],
+  "box_of_sake": [
+    {
+      "model": "rczpdw",
+      "native_xy_bbox": [
+        0.1205,
+        0.12
+      ]
+    }
+  ],
+  "box_of_sanitary_napkins": [
+    {
+      "model": "acaivd",
+      "native_xy_bbox": [
+        0.0695,
+        0.0958
+      ]
+    },
+    {
+      "model": "arqcyu",
+      "native_xy_bbox": [
+        0.0695,
+        0.1031
+      ]
+    },
+    {
+      "model": "cmnpuv",
+      "native_xy_bbox": [
+        0.0602,
+        0.0777
+      ]
+    },
+    {
+      "model": "humkqw",
+      "native_xy_bbox": [
+        0.0695,
+        0.0958
+      ]
+    },
+    {
+      "model": "mxdefq",
+      "native_xy_bbox": [
+        0.0602,
+        0.0777
+      ]
+    },
+    {
+      "model": "ykpeja",
+      "native_xy_bbox": [
+        0.0695,
+        0.0975
+      ]
+    }
+  ],
+  "box_of_shampoo": [
+    {
+      "model": "jccyom",
+      "native_xy_bbox": [
+        0.0558,
+        0.0931
+      ]
+    },
+    {
+      "model": "nijidu",
+      "native_xy_bbox": [
+        0.0556,
+        0.0915
+      ]
+    }
+  ],
+  "box_of_takeout": [
+    {
+      "model": "bvcopi",
+      "native_xy_bbox": [
+        0.2147,
+        0.2098
+      ]
+    }
+  ],
+  "box_of_tissues": [
+    {
+      "model": "ntbrtz",
+      "native_xy_bbox": [
+        0.1069,
+        0.1266
+      ]
+    },
+    {
+      "model": "uglbjc",
+      "native_xy_bbox": [
+        0.1069,
+        0.127
+      ]
+    },
+    {
+      "model": "xwstls",
+      "native_xy_bbox": [
+        0.1069,
+        0.1266
+      ]
+    },
+    {
+      "model": "zutrxn",
+      "native_xy_bbox": [
+        0.1069,
+        0.127
+      ]
+    }
+  ],
+  "box_of_vegetable_juice": [
+    {
+      "model": "qgjdbn",
+      "native_xy_bbox": [
+        0.0462,
+        0.0743
+      ]
+    }
+  ],
+  "box_of_wagashi": [
+    {
+      "model": "mlmrwy",
+      "native_xy_bbox": [
+        0.2048,
+        0.2048
+      ]
+    }
+  ],
+  "box_of_whiskey": [
+    {
+      "model": "noptlp",
+      "native_xy_bbox": [
+        0.0702,
+        0.1926
+      ]
+    }
+  ],
+  "box_of_yogurt": [
+    {
+      "model": "jkemqc",
+      "native_xy_bbox": [
+        0.0643,
+        0.0645
+      ]
+    },
+    {
+      "model": "jtjcrx",
+      "native_xy_bbox": [
+        0.1588,
+        0.167
+      ]
+    },
+    {
+      "model": "znhjgm",
+      "native_xy_bbox": [
+        0.0645,
+        0.0641
+      ]
+    }
+  ],
+  "boxed_cake": [
+    {
+      "model": "yjazet",
+      "native_xy_bbox": [
+        0.1672,
+        0.1672
+      ]
+    }
+  ],
+  "boxed_ink_cartridge": [
+    {
+      "model": "ltblou",
+      "native_xy_bbox": [
+        0.1324,
+        0.0958
+      ]
+    },
+    {
+      "model": "oepuip",
+      "native_xy_bbox": [
+        0.112,
+        0.1092
+      ]
+    }
+  ],
+  "boxers": [
+    {
+      "model": "uwzqxm",
+      "native_xy_bbox": [
+        0.2426,
+        0.3673
+      ]
+    }
+  ],
+  "bratwurst": [
+    {
+      "model": "pqfrrn",
+      "native_xy_bbox": [
+        0.2296,
+        0.114
+      ]
+    },
+    {
+      "model": "wuyflp",
+      "native_xy_bbox": [
+        0.2438,
+        0.1185
+      ]
+    }
+  ],
+  "bread_slice": [
+    {
+      "model": "pfggnm",
+      "native_xy_bbox": [
+        0.1489,
+        0.1479
+      ]
+    },
+    {
+      "model": "yedlgq",
+      "native_xy_bbox": [
+        0.1326,
+        0.1342
+      ]
+    }
+  ],
+  "bucket": [
+    {
+      "model": "lsmlzi",
+      "native_xy_bbox": [
+        0.2468,
+        0.3
+      ]
+    },
+    {
+      "model": "wlilma",
+      "native_xy_bbox": [
+        0.2493,
+        0.3
+      ]
+    }
+  ],
+  "bucket_of_paint": [
+    {
+      "model": "gjjugj",
+      "native_xy_bbox": [
+        0.1592,
+        0.1504
+      ]
+    },
+    {
+      "model": "mxyrzd",
+      "native_xy_bbox": [
+        0.1582,
+        0.1493
+      ]
+    },
+    {
+      "model": "ycnaho",
+      "native_xy_bbox": [
+        0.1651,
+        0.1724
+      ]
+    }
+  ],
+  "burlap_bag": [
+    {
+      "model": "hlqrxm",
+      "native_xy_bbox": [
+        0.2732,
+        0.3672
+      ]
+    }
+  ],
+  "butter": [
+    {
+      "model": "ovirmc",
+      "native_xy_bbox": [
+        0.0283,
+        0.05
+      ]
+    }
+  ],
+  "cabinet_base": [
+    {
+      "model": "dcmhhh",
+      "native_xy_bbox": [
+        0.2529,
+        0.2639
+      ]
+    }
+  ],
+  "calculator": [
+    {
+      "model": "kwmmty",
+      "native_xy_bbox": [
+        0.15,
+        0.1176
+      ]
+    }
+  ],
+  "can": [
+    {
+      "model": "damllm",
+      "native_xy_bbox": [
+        0.2755,
+        0.2768
+      ]
+    },
+    {
+      "model": "dhqrwr",
+      "native_xy_bbox": [
+        0.1261,
+        0.1261
+      ]
+    },
+    {
+      "model": "moeqjz",
+      "native_xy_bbox": [
+        0.1108,
+        0.1108
+      ]
+    }
+  ],
+  "can_of_baking_mix": [
+    {
+      "model": "blrqqz",
+      "native_xy_bbox": [
+        0.094,
+        0.094
+      ]
+    },
+    {
+      "model": "fpbxfp",
+      "native_xy_bbox": [
+        0.0941,
+        0.0943
+      ]
+    },
+    {
+      "model": "orwvfx",
+      "native_xy_bbox": [
+        0.1035,
+        0.1035
+      ]
+    },
+    {
+      "model": "rxorlp",
+      "native_xy_bbox": [
+        0.1035,
+        0.1035
+      ]
+    },
+    {
+      "model": "xefopo",
+      "native_xy_bbox": [
+        0.1035,
+        0.1035
+      ]
+    }
+  ],
+  "can_of_bay_leaves": [
+    {
+      "model": "ppwvjf",
+      "native_xy_bbox": [
+        0.0625,
+        0.0612
+      ]
+    }
+  ],
+  "can_of_beans": [
+    {
+      "model": "kclbuu",
+      "native_xy_bbox": [
+        0.0805,
+        0.0826
+      ]
+    },
+    {
+      "model": "ojqgjz",
+      "native_xy_bbox": [
+        0.0805,
+        0.0826
+      ]
+    }
+  ],
+  "can_of_coffee": [
+    {
+      "model": "zubwua",
+      "native_xy_bbox": [
+        0.0922,
+        0.0922
+      ]
+    }
+  ],
+  "can_of_corn": [
+    {
+      "model": "alphlq",
+      "native_xy_bbox": [
+        0.1014,
+        0.1014
+      ]
+    },
+    {
+      "model": "kwwlfn",
+      "native_xy_bbox": [
+        0.0922,
+        0.0922
+      ]
+    },
+    {
+      "model": "pddtfk",
+      "native_xy_bbox": [
+        0.086,
+        0.086
+      ]
+    }
+  ],
+  "can_of_sardines": [
+    {
+      "model": "dpgmry",
+      "native_xy_bbox": [
+        0.0848,
+        0.0848
+      ]
+    }
+  ],
+  "can_of_soda": [
+    {
+      "model": "bfrzvk",
+      "native_xy_bbox": [
+        0.0656,
+        0.07
+      ]
+    },
+    {
+      "model": "itolcg",
+      "native_xy_bbox": [
+        0.0753,
+        0.0753
+      ]
+    },
+    {
+      "model": "opivig",
+      "native_xy_bbox": [
+        0.0632,
+        0.0632
+      ]
+    }
+  ],
+  "candle_holder": [
+    {
+      "model": "nygnlp",
+      "native_xy_bbox": [
+        0.0929,
+        0.0929
+      ]
+    },
+    {
+      "model": "svqdrl",
+      "native_xy_bbox": [
+        0.1357,
+        0.1356
+      ]
+    },
+    {
+      "model": "szulaa",
+      "native_xy_bbox": [
+        0.1329,
+        0.133
+      ]
+    }
+  ],
+  "canister": [
+    {
+      "model": "xcppkc",
+      "native_xy_bbox": [
+        0.1772,
+        0.1319
+      ]
+    }
+  ],
+  "canned_food": [
+    {
+      "model": "byakrm",
+      "native_xy_bbox": [
+        0.0578,
+        0.0578
+      ]
+    },
+    {
+      "model": "cbmndg",
+      "native_xy_bbox": [
+        0.1,
+        0.0993
+      ]
+    },
+    {
+      "model": "foetdd",
+      "native_xy_bbox": [
+        0.062,
+        0.062
+      ]
+    },
+    {
+      "model": "pkopdw",
+      "native_xy_bbox": [
+        0.11,
+        0.0998
+      ]
+    }
+  ],
+  "cap": [
+    {
+      "model": "ciopwh",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "clhquh",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "dwpcld",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "eukcfr",
+      "native_xy_bbox": [
+        0.0137,
+        0.0137
+      ]
+    },
+    {
+      "model": "gxkbcd",
+      "native_xy_bbox": [
+        0.0304,
+        0.0304
+      ]
+    },
+    {
+      "model": "hbafeb",
+      "native_xy_bbox": [
+        0.0329,
+        0.0329
+      ]
+    },
+    {
+      "model": "iqeyba",
+      "native_xy_bbox": [
+        0.0772,
+        0.0734
+      ]
+    },
+    {
+      "model": "jybxvq",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "mgirzi",
+      "native_xy_bbox": [
+        0.0333,
+        0.0333
+      ]
+    },
+    {
+      "model": "pwsngg",
+      "native_xy_bbox": [
+        0.051,
+        0.0504
+      ]
+    },
+    {
+      "model": "qcfsnv",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "qscujv",
+      "native_xy_bbox": [
+        0.0507,
+        0.0509
+      ]
+    },
+    {
+      "model": "vnpjfn",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "wwbayp",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "xxqyrt",
+      "native_xy_bbox": [
+        0.0523,
+        0.0523
+      ]
+    },
+    {
+      "model": "ygsmgm",
+      "native_xy_bbox": [
+        0.0459,
+        0.046
+      ]
+    },
+    {
+      "model": "yqvild",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    },
+    {
+      "model": "ytjxqn",
+      "native_xy_bbox": [
+        0.0758,
+        0.0758
+      ]
+    }
+  ],
+  "cardstock": [
+    {
+      "model": "bihwte",
+      "native_xy_bbox": [
+        0.2161,
+        0.2795
+      ]
+    }
+  ],
+  "ceramic_tile": [
+    {
+      "model": "bpaedx",
+      "native_xy_bbox": [
+        0.1517,
+        0.1394
+      ]
+    },
+    {
+      "model": "cgsele",
+      "native_xy_bbox": [
+        0.1803,
+        0.1848
+      ]
+    },
+    {
+      "model": "vyjdcl",
+      "native_xy_bbox": [
+        0.1803,
+        0.1848
+      ]
+    },
+    {
+      "model": "xncyem",
+      "native_xy_bbox": [
+        0.1803,
+        0.1848
+      ]
+    }
+  ],
+  "chalice": [
+    {
+      "model": "sfkezf",
+      "native_xy_bbox": [
+        0.1201,
+        0.1201
+      ]
+    }
+  ],
+  "cheese_danish": [
+    {
+      "model": "hkdtwp",
+      "native_xy_bbox": [
+        0.0944,
+        0.1523
+      ]
+    }
+  ],
+  "cheese_tart": [
+    {
+      "model": "dxluyi",
+      "native_xy_bbox": [
+        0.2209,
+        0.2371
+      ]
+    }
+  ],
+  "cheesecake": [
+    {
+      "model": "epmobi",
+      "native_xy_bbox": [
+        0.1166,
+        0.0769
+      ]
+    }
+  ],
+  "chess_set": [
+    {
+      "model": "nzgefv",
+      "native_xy_bbox": [
+        0.2775,
+        0.2775
+      ]
+    }
+  ],
+  "chia_seed_bag": [
+    {
+      "model": "xkixrg",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "chicken_breast": [
+    {
+      "model": "iuuyre",
+      "native_xy_bbox": [
+        0.2715,
+        0.2098
+      ]
+    }
+  ],
+  "china": [
+    {
+      "model": "gklybu",
+      "native_xy_bbox": [
+        0.3699,
+        0.275
+      ]
+    },
+    {
+      "model": "hacehh",
+      "native_xy_bbox": [
+        0.4956,
+        0.4956
+      ]
+    },
+    {
+      "model": "jwxbpa",
+      "native_xy_bbox": [
+        0.4958,
+        0.4958
+      ]
+    },
+    {
+      "model": "qhnpmc",
+      "native_xy_bbox": [
+        0.3699,
+        0.275
+      ]
+    },
+    {
+      "model": "qlxhhh",
+      "native_xy_bbox": [
+        0.37,
+        0.2751
+      ]
+    }
+  ],
+  "chocolate_bar": [
+    {
+      "model": "amutpr",
+      "native_xy_bbox": [
+        0.1783,
+        0.11
+      ]
+    },
+    {
+      "model": "bcfudr",
+      "native_xy_bbox": [
+        0.1783,
+        0.11
+      ]
+    },
+    {
+      "model": "dxnisi",
+      "native_xy_bbox": [
+        0.2,
+        0.104
+      ]
+    },
+    {
+      "model": "eqfznz",
+      "native_xy_bbox": [
+        0.1783,
+        0.11
+      ]
+    },
+    {
+      "model": "wkjiri",
+      "native_xy_bbox": [
+        0.1783,
+        0.11
+      ]
+    }
+  ],
+  "chocolate_chip_cookie": [
+    {
+      "model": "ggpang",
+      "native_xy_bbox": [
+        0.1527,
+        0.1454
+      ]
+    },
+    {
+      "model": "oyhoth",
+      "native_xy_bbox": [
+        0.1043,
+        0.1045
+      ]
+    },
+    {
+      "model": "xprsse",
+      "native_xy_bbox": [
+        0.1038,
+        0.1036
+      ]
+    }
+  ],
+  "chopped_lettuce": [
+    {
+      "model": "amarhu",
+      "native_xy_bbox": [
+        0.1645,
+        0.1206
+      ]
+    },
+    {
+      "model": "bbyzry",
+      "native_xy_bbox": [
+        0.17,
+        0.1717
+      ]
+    },
+    {
+      "model": "bcxcij",
+      "native_xy_bbox": [
+        0.1648,
+        0.1342
+      ]
+    },
+    {
+      "model": "bqqmxy",
+      "native_xy_bbox": [
+        0.1724,
+        0.0939
+      ]
+    }
+  ],
+  "chopping_block": [
+    {
+      "model": "ekowsj",
+      "native_xy_bbox": [
+        0.3039,
+        0.2685
+      ]
+    }
+  ],
+  "chopping_board": [
+    {
+      "model": "afwefw",
+      "native_xy_bbox": [
+        0.2494,
+        0.3741
+      ]
+    },
+    {
+      "model": "akgegh",
+      "native_xy_bbox": [
+        0.2367,
+        0.3061
+      ]
+    },
+    {
+      "model": "ayegwd",
+      "native_xy_bbox": [
+        0.1641,
+        0.3061
+      ]
+    },
+    {
+      "model": "cptayn",
+      "native_xy_bbox": [
+        0.2,
+        0.3
+      ]
+    },
+    {
+      "model": "drjnag",
+      "native_xy_bbox": [
+        0.2527,
+        0.2816
+      ]
+    },
+    {
+      "model": "gaxhrw",
+      "native_xy_bbox": [
+        0.2,
+        0.3
+      ]
+    },
+    {
+      "model": "ktxcvz",
+      "native_xy_bbox": [
+        0.1957,
+        0.3061
+      ]
+    },
+    {
+      "model": "mwmzzv",
+      "native_xy_bbox": [
+        0.1957,
+        0.3061
+      ]
+    },
+    {
+      "model": "ozrzrr",
+      "native_xy_bbox": [
+        0.2681,
+        0.3594
+      ]
+    },
+    {
+      "model": "psabiv",
+      "native_xy_bbox": [
+        0.29,
+        0.4
+      ]
+    },
+    {
+      "model": "sygezm",
+      "native_xy_bbox": [
+        0.221,
+        0.3306
+      ]
+    }
+  ],
+  "chorizo": [
+    {
+      "model": "kfeuep",
+      "native_xy_bbox": [
+        0.0857,
+        0.2321
+      ]
+    }
+  ],
+  "christmas_stocking": [
+    {
+      "model": "imdhfp",
+      "native_xy_bbox": [
+        0.2771,
+        0.2118
+      ]
+    }
+  ],
+  "cinnamon_stick": [
+    {
+      "model": "qxpzdm",
+      "native_xy_bbox": [
+        0.0212,
+        0.1611
+      ]
+    }
+  ],
+  "clamp": [
+    {
+      "model": "feswhy",
+      "native_xy_bbox": [
+        0.2577,
+        0.1097
+      ]
+    }
+  ],
+  "classroom_mock_up": [
+    {
+      "model": "tpfmpb",
+      "native_xy_bbox": [
+        0.2221,
+        0.2223
+      ]
+    }
+  ],
+  "clipboard": [
+    {
+      "model": "envjqe",
+      "native_xy_bbox": [
+        0.323,
+        0.2323
+      ]
+    },
+    {
+      "model": "gmxyfo",
+      "native_xy_bbox": [
+        0.3233,
+        0.2326
+      ]
+    }
+  ],
+  "cloche": [
+    {
+      "model": "gkimtn",
+      "native_xy_bbox": [
+        0.3015,
+        0.3015
+      ]
+    },
+    {
+      "model": "rnkvca",
+      "native_xy_bbox": [
+        0.2642,
+        0.2642
+      ]
+    }
+  ],
+  "club_sandwich": [
+    {
+      "model": "ablfyd",
+      "native_xy_bbox": [
+        0.2118,
+        0.2007
+      ]
+    }
+  ],
+  "coaster": [
+    {
+      "model": "arjpcz",
+      "native_xy_bbox": [
+        0.1036,
+        0.1036
+      ]
+    }
+  ],
+  "cocktail_glass": [
+    {
+      "model": "xevdnl",
+      "native_xy_bbox": [
+        0.1268,
+        0.1287
+      ]
+    }
+  ],
+  "comic_book": [
+    {
+      "model": "nekxsh",
+      "native_xy_bbox": [
+        0.1939,
+        0.1304
+      ]
+    },
+    {
+      "model": "qkczyc",
+      "native_xy_bbox": [
+        0.1939,
+        0.1304
+      ]
+    },
+    {
+      "model": "scycof",
+      "native_xy_bbox": [
+        0.1939,
+        0.1304
+      ]
+    },
+    {
+      "model": "vzejnl",
+      "native_xy_bbox": [
+        0.1939,
+        0.1304
+      ]
+    },
+    {
+      "model": "xmbxfm",
+      "native_xy_bbox": [
+        0.1955,
+        0.1327
+      ]
+    }
+  ],
+  "crab": [
+    {
+      "model": "tjkiva",
+      "native_xy_bbox": [
+        0.154,
+        0.1384
+      ]
+    }
+  ],
+  "cream_pitcher": [
+    {
+      "model": "ompiss",
+      "native_xy_bbox": [
+        0.0434,
+        0.07
+      ]
+    },
+    {
+      "model": "wmkwhg",
+      "native_xy_bbox": [
+        0.2813,
+        0.2
+      ]
+    }
+  ],
+  "crock_pot": [
+    {
+      "model": "lspxjq",
+      "native_xy_bbox": [
+        0.3599,
+        0.4304
+      ]
+    }
+  ],
+  "cutting_board": [
+    {
+      "model": "aibvew",
+      "native_xy_bbox": [
+        0.2304,
+        0.1648
+      ]
+    },
+    {
+      "model": "nsvnai",
+      "native_xy_bbox": [
+        0.3633,
+        0.244
+      ]
+    },
+    {
+      "model": "tcdrzs",
+      "native_xy_bbox": [
+        0.4,
+        0.28
+      ]
+    }
+  ],
+  "desk_organizer": [
+    {
+      "model": "yidrel",
+      "native_xy_bbox": [
+        0.2002,
+        0.2791
+      ]
+    }
+  ],
+  "digital_scale": [
+    {
+      "model": "ccphiu",
+      "native_xy_bbox": [
+        0.25,
+        0.2291
+      ]
+    },
+    {
+      "model": "hfetby",
+      "native_xy_bbox": [
+        0.2547,
+        0.2704
+      ]
+    },
+    {
+      "model": "xwzzen",
+      "native_xy_bbox": [
+        0.34,
+        0.3426
+      ]
+    }
+  ],
+  "doily": [
+    {
+      "model": "exiixv",
+      "native_xy_bbox": [
+        0.1452,
+        0.1461
+      ]
+    }
+  ],
+  "downlight": [
+    {
+      "model": "foxnlo",
+      "native_xy_bbox": [
+        0.228,
+        0.228
+      ]
+    },
+    {
+      "model": "ggwgmo",
+      "native_xy_bbox": [
+        0.22,
+        0.22
+      ]
+    },
+    {
+      "model": "vlplia",
+      "native_xy_bbox": [
+        0.0913,
+        0.0913
+      ]
+    },
+    {
+      "model": "vqlqsa",
+      "native_xy_bbox": [
+        0.22,
+        0.22
+      ]
+    }
+  ],
+  "dried_apricot": [
+    {
+      "model": "fasedf",
+      "native_xy_bbox": [
+        0.0398,
+        0.0529
+      ]
+    }
+  ],
+  "drip_pot": [
+    {
+      "model": "xmxvml",
+      "native_xy_bbox": [
+        0.1292,
+        0.1375
+      ]
+    }
+  ],
+  "duct_tape": [
+    {
+      "model": "htrage",
+      "native_xy_bbox": [
+        0.1422,
+        0.1284
+      ]
+    }
+  ],
+  "dustpan": [
+    {
+      "model": "espzwv",
+      "native_xy_bbox": [
+        0.2945,
+        0.144
+      ]
+    }
+  ],
+  "electric_hand_mixer": [
+    {
+      "model": "prewfi",
+      "native_xy_bbox": [
+        0.1906,
+        0.2934
+      ]
+    }
+  ],
+  "first_aid_kit": [
+    {
+      "model": "flctdz",
+      "native_xy_bbox": [
+        0.1616,
+        0.1996
+      ]
+    }
+  ],
+  "flashlight": [
+    {
+      "model": "jtrbkc",
+      "native_xy_bbox": [
+        0.2368,
+        0.0539
+      ]
+    }
+  ],
+  "flour_sack": [
+    {
+      "model": "zhsjcs",
+      "native_xy_bbox": [
+        0.2706,
+        0.3672
+      ]
+    }
+  ],
+  "folder": [
+    {
+      "model": "guhatz",
+      "native_xy_bbox": [
+        0.2859,
+        0.2024
+      ]
+    },
+    {
+      "model": "inkwmw",
+      "native_xy_bbox": [
+        0.376,
+        0.2021
+      ]
+    },
+    {
+      "model": "lktggf",
+      "native_xy_bbox": [
+        0.2114,
+        0.1642
+      ]
+    },
+    {
+      "model": "piezyg",
+      "native_xy_bbox": [
+        0.2373,
+        0.2242
+      ]
+    }
+  ],
+  "french_toast": [
+    {
+      "model": "jfgasl",
+      "native_xy_bbox": [
+        0.1789,
+        0.1512
+      ]
+    }
+  ],
+  "fruitcake": [
+    {
+      "model": "kxckts",
+      "native_xy_bbox": [
+        0.2268,
+        0.2268
+      ]
+    },
+    {
+      "model": "nmxadm",
+      "native_xy_bbox": [
+        0.1389,
+        0.0888
+      ]
+    }
+  ],
+  "frying_pan": [
+    {
+      "model": "jpzusm",
+      "native_xy_bbox": [
+        0.465,
+        0.2861
+      ]
+    },
+    {
+      "model": "sfbdjn",
+      "native_xy_bbox": [
+        0.4872,
+        0.2543
+      ]
+    }
+  ],
+  "fuel_can": [
+    {
+      "model": "bfaqfe",
+      "native_xy_bbox": [
+        0.2299,
+        0.1073
+      ]
+    }
+  ],
+  "game_console": [
+    {
+      "model": "anslwz",
+      "native_xy_bbox": [
+        0.3009,
+        0.275
+      ]
+    }
+  ],
+  "gaming_controller": [
+    {
+      "model": "yofqbq",
+      "native_xy_bbox": [
+        0.1205,
+        0.1784
+      ]
+    }
+  ],
+  "gift_box": [
+    {
+      "model": "wpmksn",
+      "native_xy_bbox": [
+        0.18,
+        0.18
+      ]
+    }
+  ],
+  "ginger_shaker": [
+    {
+      "model": "adciyu",
+      "native_xy_bbox": [
+        0.0674,
+        0.0673
+      ]
+    }
+  ],
+  "gingerbread": [
+    {
+      "model": "hxkcxs",
+      "native_xy_bbox": [
+        0.1631,
+        0.13
+      ]
+    }
+  ],
+  "glass_lantern": [
+    {
+      "model": "fndlbf",
+      "native_xy_bbox": [
+        0.2076,
+        0.193
+      ]
+    },
+    {
+      "model": "wvmsse",
+      "native_xy_bbox": [
+        0.2197,
+        0.2172
+      ]
+    }
+  ],
+  "glue_stick": [
+    {
+      "model": "sqzyci",
+      "native_xy_bbox": [
+        0.0948,
+        0.0192
+      ]
+    }
+  ],
+  "goalkeeper_gloves": [
+    {
+      "model": "nfcatk",
+      "native_xy_bbox": [
+        0.2415,
+        0.1205
+      ]
+    }
+  ],
+  "gooseneck_microphone": [
+    {
+      "model": "uusnbr",
+      "native_xy_bbox": [
+        0.2997,
+        0.1518
+      ]
+    }
+  ],
+  "granulated_sugar_sack": [
+    {
+      "model": "oywwzz",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "grated_cheese_sack": [
+    {
+      "model": "fxnjfr",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "grater": [
+    {
+      "model": "jlkowf",
+      "native_xy_bbox": [
+        0.1096,
+        0.0889
+      ]
+    }
+  ],
+  "green_onion_stalk": [
+    {
+      "model": "ldaffa",
+      "native_xy_bbox": [
+        0.2348,
+        0.0617
+      ]
+    },
+    {
+      "model": "lgsfgs",
+      "native_xy_bbox": [
+        0.2192,
+        0.0455
+      ]
+    }
+  ],
+  "griddle_pan": [
+    {
+      "model": "ryvqep",
+      "native_xy_bbox": [
+        0.3277,
+        0.1584
+      ]
+    }
+  ],
+  "ground_beef_package": [
+    {
+      "model": "lwsgzd",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "half_apple_pie": [
+    {
+      "model": "grcock",
+      "native_xy_bbox": [
+        0.0897,
+        0.1707
+      ]
+    },
+    {
+      "model": "pwfqwa",
+      "native_xy_bbox": [
+        0.0852,
+        0.1661
+      ]
+    }
+  ],
+  "half_arugula": [
+    {
+      "model": "hovvwk",
+      "native_xy_bbox": [
+        0.0968,
+        0.1001
+      ]
+    }
+  ],
+  "half_bagel": [
+    {
+      "model": "hsvakn",
+      "native_xy_bbox": [
+        0.1339,
+        0.0884
+      ]
+    }
+  ],
+  "half_brisket": [
+    {
+      "model": "rhapap",
+      "native_xy_bbox": [
+        0.0595,
+        0.0461
+      ]
+    }
+  ],
+  "half_burrito": [
+    {
+      "model": "wesaqr",
+      "native_xy_bbox": [
+        0.0669,
+        0.1016
+      ]
+    }
+  ],
+  "half_cardstock": [
+    {
+      "model": "bdwvvq",
+      "native_xy_bbox": [
+        0.216,
+        0.1397
+      ]
+    },
+    {
+      "model": "gnazgm",
+      "native_xy_bbox": [
+        0.216,
+        0.1398
+      ]
+    }
+  ],
+  "half_cheesecake": [
+    {
+      "model": "tjmyvz",
+      "native_xy_bbox": [
+        0.0411,
+        0.1166
+      ]
+    }
+  ],
+  "half_chocolate_chip_cookie": [
+    {
+      "model": "nvtssz",
+      "native_xy_bbox": [
+        0.1038,
+        0.0518
+      ]
+    }
+  ],
+  "half_club_sandwich": [
+    {
+      "model": "qkhepd",
+      "native_xy_bbox": [
+        0.1153,
+        0.2006
+      ]
+    }
+  ],
+  "half_crab": [
+    {
+      "model": "cwmejr",
+      "native_xy_bbox": [
+        0.0384,
+        0.103
+      ]
+    }
+  ],
+  "half_feta": [
+    {
+      "model": "lgoiop",
+      "native_xy_bbox": [
+        0.1764,
+        0.1088
+      ]
+    },
+    {
+      "model": "wvcjbm",
+      "native_xy_bbox": [
+        0.1797,
+        0.1093
+      ]
+    }
+  ],
+  "half_fillet": [
+    {
+      "model": "cyvqdj",
+      "native_xy_bbox": [
+        0.0993,
+        0.0723
+      ]
+    },
+    {
+      "model": "gpkgzv",
+      "native_xy_bbox": [
+        0.0919,
+        0.0776
+      ]
+    }
+  ],
+  "half_french_toast": [
+    {
+      "model": "enjjdg",
+      "native_xy_bbox": [
+        0.0756,
+        0.1782
+      ]
+    },
+    {
+      "model": "rqsxvo",
+      "native_xy_bbox": [
+        0.0756,
+        0.1788
+      ]
+    }
+  ],
+  "half_gingerbread": [
+    {
+      "model": "ststrq",
+      "native_xy_bbox": [
+        0.161,
+        0.0669
+      ]
+    }
+  ],
+  "half_granola_bar": [
+    {
+      "model": "xsprnc",
+      "native_xy_bbox": [
+        0.0525,
+        0.0529
+      ]
+    }
+  ],
+  "half_kale": [
+    {
+      "model": "fbthmv",
+      "native_xy_bbox": [
+        0.058,
+        0.0538
+      ]
+    }
+  ],
+  "half_leaf": [
+    {
+      "model": "yievsk",
+      "native_xy_bbox": [
+        0.0423,
+        0.1299
+      ]
+    }
+  ],
+  "half_lettuce": [
+    {
+      "model": "kdpjuz",
+      "native_xy_bbox": [
+        0.1235,
+        0.1909
+      ]
+    },
+    {
+      "model": "onrtmg",
+      "native_xy_bbox": [
+        0.1237,
+        0.1876
+      ]
+    }
+  ],
+  "half_lobster": [
+    {
+      "model": "mdxjdk",
+      "native_xy_bbox": [
+        0.3615,
+        0.2679
+      ]
+    }
+  ],
+  "half_mango": [
+    {
+      "model": "jywliv",
+      "native_xy_bbox": [
+        0.1185,
+        0.1024
+      ]
+    }
+  ],
+  "half_marshmallow": [
+    {
+      "model": "pdyexe",
+      "native_xy_bbox": [
+        0.0613,
+        0.0624
+      ]
+    }
+  ],
+  "half_meat_loaf": [
+    {
+      "model": "rdxyfn",
+      "native_xy_bbox": [
+        0.1278,
+        0.136
+      ]
+    }
+  ],
+  "half_omelet": [
+    {
+      "model": "eokxzc",
+      "native_xy_bbox": [
+        0.2142,
+        0.1063
+      ]
+    },
+    {
+      "model": "kkctir",
+      "native_xy_bbox": [
+        0.2183,
+        0.1063
+      ]
+    }
+  ],
+  "half_oyster": [
+    {
+      "model": "dakxdo",
+      "native_xy_bbox": [
+        0.1098,
+        0.0724
+      ]
+    }
+  ],
+  "half_peppermint_candy": [
+    {
+      "model": "vbqbxd",
+      "native_xy_bbox": [
+        0.0784,
+        0.052
+      ]
+    }
+  ],
+  "half_pizza": [
+    {
+      "model": "frlqiv",
+      "native_xy_bbox": [
+        0.469,
+        0.2381
+      ]
+    },
+    {
+      "model": "jghsom",
+      "native_xy_bbox": [
+        0.4725,
+        0.2516
+      ]
+    }
+  ],
+  "half_pork_chop": [
+    {
+      "model": "iyrjhs",
+      "native_xy_bbox": [
+        0.0732,
+        0.123
+      ]
+    }
+  ],
+  "half_quail_breast": [
+    {
+      "model": "wphkwq",
+      "native_xy_bbox": [
+        0.0792,
+        0.0913
+      ]
+    }
+  ],
+  "half_snapper": [
+    {
+      "model": "rjsbgp",
+      "native_xy_bbox": [
+        0.1427,
+        0.2473
+      ]
+    }
+  ],
+  "half_steak": [
+    {
+      "model": "rltaoi",
+      "native_xy_bbox": [
+        0.111,
+        0.1249
+      ]
+    },
+    {
+      "model": "zphtsi",
+      "native_xy_bbox": [
+        0.0944,
+        0.1302
+      ]
+    }
+  ],
+  "half_tuna": [
+    {
+      "model": "ntvqrf",
+      "native_xy_bbox": [
+        0.3427,
+        0.4812
+      ]
+    },
+    {
+      "model": "vnzgtg",
+      "native_xy_bbox": [
+        0.4058,
+        0.409
+      ]
+    }
+  ],
+  "half_veal": [
+    {
+      "model": "gopovb",
+      "native_xy_bbox": [
+        0.127,
+        0.1426
+      ]
+    },
+    {
+      "model": "pznmyp",
+      "native_xy_bbox": [
+        0.1272,
+        0.1393
+      ]
+    }
+  ],
+  "half_waffle": [
+    {
+      "model": "vpimsk",
+      "native_xy_bbox": [
+        0.142,
+        0.2833
+      ]
+    },
+    {
+      "model": "vufawe",
+      "native_xy_bbox": [
+        0.142,
+        0.2833
+      ]
+    }
+  ],
+  "half_wrapping_paper": [
+    {
+      "model": "mntitw",
+      "native_xy_bbox": [
+        0.2383,
+        0.1963
+      ]
+    },
+    {
+      "model": "pjcxni",
+      "native_xy_bbox": [
+        0.2383,
+        0.1963
+      ]
+    }
+  ],
+  "hamburger_bun": [
+    {
+      "model": "fqxumh",
+      "native_xy_bbox": [
+        0.0866,
+        0.0849
+      ]
+    },
+    {
+      "model": "jeygaq",
+      "native_xy_bbox": [
+        0.0893,
+        0.0897
+      ]
+    }
+  ],
+  "hamper": [
+    {
+      "model": "djrdum",
+      "native_xy_bbox": [
+        0.2086,
+        0.2878
+      ]
+    },
+    {
+      "model": "hlgjme",
+      "native_xy_bbox": [
+        0.2775,
+        0.4165
+      ]
+    },
+    {
+      "model": "pqzyxx",
+      "native_xy_bbox": [
+        0.2908,
+        0.4138
+      ]
+    },
+    {
+      "model": "sijioo",
+      "native_xy_bbox": [
+        0.2603,
+        0.2604
+      ]
+    },
+    {
+      "model": "xhdtjn",
+      "native_xy_bbox": [
+        0.4364,
+        0.4364
+      ]
+    }
+  ],
+  "hanger": [
+    {
+      "model": "agrpio",
+      "native_xy_bbox": [
+        0.2324,
+        0.4262
+      ]
+    },
+    {
+      "model": "anobre",
+      "native_xy_bbox": [
+        0.2295,
+        0.4356
+      ]
+    },
+    {
+      "model": "lymqks",
+      "native_xy_bbox": [
+        0.2606,
+        0.4708
+      ]
+    },
+    {
+      "model": "nadesv",
+      "native_xy_bbox": [
+        0.2572,
+        0.4351
+      ]
+    },
+    {
+      "model": "nagryh",
+      "native_xy_bbox": [
+        0.2347,
+        0.4373
+      ]
+    }
+  ],
+  "hard_drive": [
+    {
+      "model": "ijibkm",
+      "native_xy_bbox": [
+        0.1169,
+        0.0816
+      ]
+    },
+    {
+      "model": "ubjbsm",
+      "native_xy_bbox": [
+        0.1168,
+        0.0816
+      ]
+    }
+  ],
+  "hardback": [
+    {
+      "model": "acaxtl",
+      "native_xy_bbox": [
+        0.1961,
+        0.1418
+      ]
+    },
+    {
+      "model": "acbrnv",
+      "native_xy_bbox": [
+        0.2227,
+        0.1715
+      ]
+    },
+    {
+      "model": "aceozs",
+      "native_xy_bbox": [
+        0.198,
+        0.1492
+      ]
+    },
+    {
+      "model": "acskbo",
+      "native_xy_bbox": [
+        0.2375,
+        0.2011
+      ]
+    },
+    {
+      "model": "aesiym",
+      "native_xy_bbox": [
+        0.205,
+        0.243
+      ]
+    },
+    {
+      "model": "aewljo",
+      "native_xy_bbox": [
+        0.3658,
+        0.2164
+      ]
+    },
+    {
+      "model": "agbqsy",
+      "native_xy_bbox": [
+        0.2132,
+        0.1685
+      ]
+    },
+    {
+      "model": "ajpulw",
+      "native_xy_bbox": [
+        0.2594,
+        0.1601
+      ]
+    },
+    {
+      "model": "atxzzy",
+      "native_xy_bbox": [
+        0.1512,
+        0.11
+      ]
+    },
+    {
+      "model": "axvnml",
+      "native_xy_bbox": [
+        0.2692,
+        0.2016
+      ]
+    },
+    {
+      "model": "bcmzwo",
+      "native_xy_bbox": [
+        0.2943,
+        0.2295
+      ]
+    },
+    {
+      "model": "bgtbdp",
+      "native_xy_bbox": [
+        0.3089,
+        0.1481
+      ]
+    },
+    {
+      "model": "bklqfz",
+      "native_xy_bbox": [
+        0.2256,
+        0.1425
+      ]
+    },
+    {
+      "model": "bobmzf",
+      "native_xy_bbox": [
+        0.3654,
+        0.2133
+      ]
+    },
+    {
+      "model": "bpgluc",
+      "native_xy_bbox": [
+        0.2187,
+        0.1439
+      ]
+    },
+    {
+      "model": "bqvvvx",
+      "native_xy_bbox": [
+        0.2318,
+        0.1693
+      ]
+    },
+    {
+      "model": "bqwpvd",
+      "native_xy_bbox": [
+        0.2117,
+        0.1284
+      ]
+    },
+    {
+      "model": "bvqdte",
+      "native_xy_bbox": [
+        0.2637,
+        0.1668
+      ]
+    },
+    {
+      "model": "byaghj",
+      "native_xy_bbox": [
+        0.2863,
+        0.1818
+      ]
+    },
+    {
+      "model": "caclbu",
+      "native_xy_bbox": [
+        0.2227,
+        0.1715
+      ]
+    },
+    {
+      "model": "catcrp",
+      "native_xy_bbox": [
+        0.2235,
+        0.152
+      ]
+    },
+    {
+      "model": "ccollh",
+      "native_xy_bbox": [
+        0.2168,
+        0.1426
+      ]
+    },
+    {
+      "model": "chumjg",
+      "native_xy_bbox": [
+        0.2637,
+        0.1411
+      ]
+    },
+    {
+      "model": "crlzzv",
+      "native_xy_bbox": [
+        0.2947,
+        0.2165
+      ]
+    },
+    {
+      "model": "csgebz",
+      "native_xy_bbox": [
+        0.1541,
+        0.1227
+      ]
+    },
+    {
+      "model": "csjnvj",
+      "native_xy_bbox": [
+        0.2497,
+        0.1591
+      ]
+    },
+    {
+      "model": "cvotie",
+      "native_xy_bbox": [
+        0.3674,
+        0.2151
+      ]
+    },
+    {
+      "model": "cwkwqk",
+      "native_xy_bbox": [
+        0.2839,
+        0.2316
+      ]
+    },
+    {
+      "model": "dbmzmo",
+      "native_xy_bbox": [
+        0.3191,
+        0.2515
+      ]
+    },
+    {
+      "model": "deroar",
+      "native_xy_bbox": [
+        0.2354,
+        0.196
+      ]
+    },
+    {
+      "model": "dichmv",
+      "native_xy_bbox": [
+        0.1713,
+        0.167
+      ]
+    },
+    {
+      "model": "dkspkn",
+      "native_xy_bbox": [
+        0.2391,
+        0.2545
+      ]
+    },
+    {
+      "model": "dmqfqx",
+      "native_xy_bbox": [
+        0.1923,
+        0.1343
+      ]
+    },
+    {
+      "model": "dwozht",
+      "native_xy_bbox": [
+        0.2025,
+        0.1478
+      ]
+    },
+    {
+      "model": "dyqykd",
+      "native_xy_bbox": [
+        0.2268,
+        0.1537
+      ]
+    },
+    {
+      "model": "dystbu",
+      "native_xy_bbox": [
+        0.2478,
+        0.1518
+      ]
+    },
+    {
+      "model": "eaktib",
+      "native_xy_bbox": [
+        0.2651,
+        0.1607
+      ]
+    },
+    {
+      "model": "eegpmu",
+      "native_xy_bbox": [
+        0.2346,
+        0.1977
+      ]
+    },
+    {
+      "model": "egvwya",
+      "native_xy_bbox": [
+        0.1534,
+        0.1215
+      ]
+    },
+    {
+      "model": "ekefru",
+      "native_xy_bbox": [
+        0.2505,
+        0.1754
+      ]
+    },
+    {
+      "model": "emqjpl",
+      "native_xy_bbox": [
+        0.192,
+        0.1365
+      ]
+    },
+    {
+      "model": "eqeruw",
+      "native_xy_bbox": [
+        0.2186,
+        0.1655
+      ]
+    },
+    {
+      "model": "eqhjud",
+      "native_xy_bbox": [
+        0.2999,
+        0.242
+      ]
+    },
+    {
+      "model": "esxakn",
+      "native_xy_bbox": [
+        0.215,
+        0.1274
+      ]
+    },
+    {
+      "model": "etodez",
+      "native_xy_bbox": [
+        0.2461,
+        0.164
+      ]
+    },
+    {
+      "model": "ewjgzf",
+      "native_xy_bbox": [
+        0.2286,
+        0.1977
+      ]
+    },
+    {
+      "model": "ewktjc",
+      "native_xy_bbox": [
+        0.1391,
+        0.1208
+      ]
+    },
+    {
+      "model": "eycrsb",
+      "native_xy_bbox": [
+        0.2182,
+        0.1609
+      ]
+    },
+    {
+      "model": "fdpfan",
+      "native_xy_bbox": [
+        0.2189,
+        0.1439
+      ]
+    },
+    {
+      "model": "fgyzry",
+      "native_xy_bbox": [
+        0.3673,
+        0.215
+      ]
+    },
+    {
+      "model": "fnruqu",
+      "native_xy_bbox": [
+        0.1953,
+        0.141
+      ]
+    },
+    {
+      "model": "fqnrwx",
+      "native_xy_bbox": [
+        0.2297,
+        0.167
+      ]
+    },
+    {
+      "model": "frymkm",
+      "native_xy_bbox": [
+        0.3673,
+        0.2149
+      ]
+    },
+    {
+      "model": "gacoxw",
+      "native_xy_bbox": [
+        0.2708,
+        0.244
+      ]
+    },
+    {
+      "model": "gcytxe",
+      "native_xy_bbox": [
+        0.3954,
+        0.2662
+      ]
+    },
+    {
+      "model": "gdaauh",
+      "native_xy_bbox": [
+        0.2773,
+        0.2093
+      ]
+    },
+    {
+      "model": "gevalg",
+      "native_xy_bbox": [
+        0.3665,
+        0.2712
+      ]
+    },
+    {
+      "model": "ggfkba",
+      "native_xy_bbox": [
+        0.2408,
+        0.1924
+      ]
+    },
+    {
+      "model": "gophxm",
+      "native_xy_bbox": [
+        0.306,
+        0.2497
+      ]
+    },
+    {
+      "model": "gpefzh",
+      "native_xy_bbox": [
+        0.153,
+        0.121
+      ]
+    },
+    {
+      "model": "grxiqn",
+      "native_xy_bbox": [
+        0.2081,
+        0.1649
+      ]
+    },
+    {
+      "model": "grxvdw",
+      "native_xy_bbox": [
+        0.235,
+        0.2
+      ]
+    },
+    {
+      "model": "gyfnow",
+      "native_xy_bbox": [
+        0.1894,
+        0.1403
+      ]
+    },
+    {
+      "model": "gyixdh",
+      "native_xy_bbox": [
+        0.2179,
+        0.1591
+      ]
+    },
+    {
+      "model": "gyjbgp",
+      "native_xy_bbox": [
+        0.2088,
+        0.1454
+      ]
+    },
+    {
+      "model": "gyshpg",
+      "native_xy_bbox": [
+        0.2264,
+        0.1665
+      ]
+    },
+    {
+      "model": "gznwgd",
+      "native_xy_bbox": [
+        0.3463,
+        0.3402
+      ]
+    },
+    {
+      "model": "hbszjg",
+      "native_xy_bbox": [
+        0.2101,
+        0.1756
+      ]
+    },
+    {
+      "model": "hccdxo",
+      "native_xy_bbox": [
+        0.2365,
+        0.1973
+      ]
+    },
+    {
+      "model": "hcwuuq",
+      "native_xy_bbox": [
+        0.2488,
+        0.1768
+      ]
+    },
+    {
+      "model": "hdczhd",
+      "native_xy_bbox": [
+        0.2331,
+        0.1695
+      ]
+    },
+    {
+      "model": "hhbfwv",
+      "native_xy_bbox": [
+        0.2322,
+        0.144
+      ]
+    },
+    {
+      "model": "hitufw",
+      "native_xy_bbox": [
+        0.216,
+        0.1246
+      ]
+    },
+    {
+      "model": "hrxujh",
+      "native_xy_bbox": [
+        0.1819,
+        0.1285
+      ]
+    },
+    {
+      "model": "hvllsq",
+      "native_xy_bbox": [
+        0.2919,
+        0.1497
+      ]
+    },
+    {
+      "model": "hwhsfu",
+      "native_xy_bbox": [
+        0.2143,
+        0.193
+      ]
+    },
+    {
+      "model": "hxjtci",
+      "native_xy_bbox": [
+        0.2802,
+        0.2133
+      ]
+    },
+    {
+      "model": "ihstiw",
+      "native_xy_bbox": [
+        0.2608,
+        0.1715
+      ]
+    },
+    {
+      "model": "iklrpf",
+      "native_xy_bbox": [
+        0.2722,
+        0.1713
+      ]
+    },
+    {
+      "model": "ildqmz",
+      "native_xy_bbox": [
+        0.2431,
+        0.2053
+      ]
+    },
+    {
+      "model": "iobfrl",
+      "native_xy_bbox": [
+        0.2681,
+        0.1522
+      ]
+    },
+    {
+      "model": "ipkwys",
+      "native_xy_bbox": [
+        0.1413,
+        0.1236
+      ]
+    },
+    {
+      "model": "iqervp",
+      "native_xy_bbox": [
+        0.1888,
+        0.1333
+      ]
+    },
+    {
+      "model": "isjnmo",
+      "native_xy_bbox": [
+        0.2713,
+        0.2001
+      ]
+    },
+    {
+      "model": "isznan",
+      "native_xy_bbox": [
+        0.2157,
+        0.1685
+      ]
+    },
+    {
+      "model": "itjgnt",
+      "native_xy_bbox": [
+        0.3954,
+        0.2663
+      ]
+    },
+    {
+      "model": "itskbu",
+      "native_xy_bbox": [
+        0.3883,
+        0.3402
+      ]
+    },
+    {
+      "model": "jaifmc",
+      "native_xy_bbox": [
+        0.3953,
+        0.2662
+      ]
+    },
+    {
+      "model": "jcsevf",
+      "native_xy_bbox": [
+        0.3954,
+        0.2662
+      ]
+    },
+    {
+      "model": "jemhbb",
+      "native_xy_bbox": [
+        0.209,
+        0.1657
+      ]
+    },
+    {
+      "model": "jeqtsl",
+      "native_xy_bbox": [
+        0.1469,
+        0.0954
+      ]
+    },
+    {
+      "model": "jfnwwu",
+      "native_xy_bbox": [
+        0.2214,
+        0.1411
+      ]
+    },
+    {
+      "model": "jikaee",
+      "native_xy_bbox": [
+        0.2149,
+        0.1522
+      ]
+    },
+    {
+      "model": "jpgboz",
+      "native_xy_bbox": [
+        0.358,
+        0.2747
+      ]
+    },
+    {
+      "model": "jqddwn",
+      "native_xy_bbox": [
+        0.2332,
+        0.1824
+      ]
+    },
+    {
+      "model": "jsbpva",
+      "native_xy_bbox": [
+        0.3086,
+        0.2293
+      ]
+    },
+    {
+      "model": "jupphn",
+      "native_xy_bbox": [
+        0.3092,
+        0.2094
+      ]
+    },
+    {
+      "model": "jyxmam",
+      "native_xy_bbox": [
+        0.2557,
+        0.1883
+      ]
+    },
+    {
+      "model": "keailc",
+      "native_xy_bbox": [
+        0.3686,
+        0.2173
+      ]
+    },
+    {
+      "model": "kerenw",
+      "native_xy_bbox": [
+        0.2181,
+        0.1831
+      ]
+    },
+    {
+      "model": "klpwul",
+      "native_xy_bbox": [
+        0.1705,
+        0.1304
+      ]
+    },
+    {
+      "model": "knmcwa",
+      "native_xy_bbox": [
+        0.2075,
+        0.1348
+      ]
+    },
+    {
+      "model": "kpoyem",
+      "native_xy_bbox": [
+        0.2158,
+        0.1685
+      ]
+    },
+    {
+      "model": "ktlyoa",
+      "native_xy_bbox": [
+        0.2685,
+        0.1971
+      ]
+    },
+    {
+      "model": "kvaorj",
+      "native_xy_bbox": [
+        0.3151,
+        0.1864
+      ]
+    },
+    {
+      "model": "kwkwiq",
+      "native_xy_bbox": [
+        0.2713,
+        0.2001
+      ]
+    },
+    {
+      "model": "kyyluq",
+      "native_xy_bbox": [
+        0.2254,
+        0.167
+      ]
+    },
+    {
+      "model": "kzdjtz",
+      "native_xy_bbox": [
+        0.1332,
+        0.0969
+      ]
+    },
+    {
+      "model": "lbjkhk",
+      "native_xy_bbox": [
+        0.285,
+        0.1829
+      ]
+    },
+    {
+      "model": "lebhqw",
+      "native_xy_bbox": [
+        0.2186,
+        0.1792
+      ]
+    },
+    {
+      "model": "lekmfy",
+      "native_xy_bbox": [
+        0.1906,
+        0.1358
+      ]
+    },
+    {
+      "model": "lfbzdu",
+      "native_xy_bbox": [
+        0.2674,
+        0.1956
+      ]
+    },
+    {
+      "model": "lffzty",
+      "native_xy_bbox": [
+        0.187,
+        0.1428
+      ]
+    },
+    {
+      "model": "lixbdf",
+      "native_xy_bbox": [
+        0.2617,
+        0.1821
+      ]
+    },
+    {
+      "model": "ljuqil",
+      "native_xy_bbox": [
+        0.216,
+        0.1247
+      ]
+    },
+    {
+      "model": "lktpjp",
+      "native_xy_bbox": [
+        0.2284,
+        0.1977
+      ]
+    },
+    {
+      "model": "lmxzhj",
+      "native_xy_bbox": [
+        0.3047,
+        0.2646
+      ]
+    },
+    {
+      "model": "loazgc",
+      "native_xy_bbox": [
+        0.2865,
+        0.1625
+      ]
+    },
+    {
+      "model": "lpnxqn",
+      "native_xy_bbox": [
+        0.3964,
+        0.2678
+      ]
+    },
+    {
+      "model": "lqdzfa",
+      "native_xy_bbox": [
+        0.2527,
+        0.2111
+      ]
+    },
+    {
+      "model": "ltfqpb",
+      "native_xy_bbox": [
+        0.2124,
+        0.1281
+      ]
+    },
+    {
+      "model": "lxbcpf",
+      "native_xy_bbox": [
+        0.3494,
+        0.2257
+      ]
+    },
+    {
+      "model": "lzdite",
+      "native_xy_bbox": [
+        0.2451,
+        0.2156
+      ]
+    },
+    {
+      "model": "mekfxk",
+      "native_xy_bbox": [
+        0.2207,
+        0.1452
+      ]
+    },
+    {
+      "model": "mijfhq",
+      "native_xy_bbox": [
+        0.2528,
+        0.2108
+      ]
+    },
+    {
+      "model": "mkfrad",
+      "native_xy_bbox": [
+        0.2601,
+        0.1734
+      ]
+    },
+    {
+      "model": "mlxtxh",
+      "native_xy_bbox": [
+        0.2589,
+        0.1891
+      ]
+    },
+    {
+      "model": "mmscwm",
+      "native_xy_bbox": [
+        0.2469,
+        0.2168
+      ]
+    },
+    {
+      "model": "mpclle",
+      "native_xy_bbox": [
+        0.2666,
+        0.1713
+      ]
+    },
+    {
+      "model": "mpqusy",
+      "native_xy_bbox": [
+        0.2569,
+        0.2172
+      ]
+    },
+    {
+      "model": "mptjse",
+      "native_xy_bbox": [
+        0.2093,
+        0.1663
+      ]
+    },
+    {
+      "model": "mrquvx",
+      "native_xy_bbox": [
+        0.2236,
+        0.1746
+      ]
+    },
+    {
+      "model": "nathmv",
+      "native_xy_bbox": [
+        0.2637,
+        0.1668
+      ]
+    },
+    {
+      "model": "nbuuwf",
+      "native_xy_bbox": [
+        0.209,
+        0.1658
+      ]
+    },
+    {
+      "model": "ndmbuu",
+      "native_xy_bbox": [
+        0.2354,
+        0.1959
+      ]
+    },
+    {
+      "model": "ngesty",
+      "native_xy_bbox": [
+        0.2562,
+        0.1926
+      ]
+    },
+    {
+      "model": "nhdqlm",
+      "native_xy_bbox": [
+        0.2377,
+        0.167
+      ]
+    },
+    {
+      "model": "nubbfj",
+      "native_xy_bbox": [
+        0.2393,
+        0.146
+      ]
+    },
+    {
+      "model": "numppv",
+      "native_xy_bbox": [
+        0.2488,
+        0.2111
+      ]
+    },
+    {
+      "model": "ohcbwk",
+      "native_xy_bbox": [
+        0.3964,
+        0.2679
+      ]
+    },
+    {
+      "model": "okcflv",
+      "native_xy_bbox": [
+        0.2553,
+        0.1948
+      ]
+    },
+    {
+      "model": "onlare",
+      "native_xy_bbox": [
+        0.2354,
+        0.196
+      ]
+    },
+    {
+      "model": "onmmao",
+      "native_xy_bbox": [
+        0.2594,
+        0.19
+      ]
+    },
+    {
+      "model": "oonryj",
+      "native_xy_bbox": [
+        0.1888,
+        0.1333
+      ]
+    },
+    {
+      "model": "oqemit",
+      "native_xy_bbox": [
+        0.3964,
+        0.2678
+      ]
+    },
+    {
+      "model": "orkzoz",
+      "native_xy_bbox": [
+        0.2036,
+        0.1647
+      ]
+    },
+    {
+      "model": "orxaxf",
+      "native_xy_bbox": [
+        0.2306,
+        0.1746
+      ]
+    },
+    {
+      "model": "otvmvn",
+      "native_xy_bbox": [
+        0.1325,
+        0.096
+      ]
+    },
+    {
+      "model": "oxvgoe",
+      "native_xy_bbox": [
+        0.2168,
+        0.1426
+      ]
+    },
+    {
+      "model": "pagmpi",
+      "native_xy_bbox": [
+        0.1954,
+        0.1411
+      ]
+    },
+    {
+      "model": "pfvucb",
+      "native_xy_bbox": [
+        0.2432,
+        0.1775
+      ]
+    },
+    {
+      "model": "piaesm",
+      "native_xy_bbox": [
+        0.1991,
+        0.1519
+      ]
+    },
+    {
+      "model": "plimis",
+      "native_xy_bbox": [
+        0.1819,
+        0.1284
+      ]
+    },
+    {
+      "model": "pmnfgl",
+      "native_xy_bbox": [
+        0.2455,
+        0.1912
+      ]
+    },
+    {
+      "model": "pnjosu",
+      "native_xy_bbox": [
+        0.2879,
+        0.1565
+      ]
+    },
+    {
+      "model": "poanfs",
+      "native_xy_bbox": [
+        0.3047,
+        0.2646
+      ]
+    },
+    {
+      "model": "ppelap",
+      "native_xy_bbox": [
+        0.1298,
+        0.1605
+      ]
+    },
+    {
+      "model": "prifte",
+      "native_xy_bbox": [
+        0.2559,
+        0.2131
+      ]
+    },
+    {
+      "model": "pzjsfl",
+      "native_xy_bbox": [
+        0.2705,
+        0.1646
+      ]
+    },
+    {
+      "model": "qbllsj",
+      "native_xy_bbox": [
+        0.2863,
+        0.1623
+      ]
+    },
+    {
+      "model": "qdkajy",
+      "native_xy_bbox": [
+        0.2094,
+        0.1377
+      ]
+    },
+    {
+      "model": "qhvvlh",
+      "native_xy_bbox": [
+        0.3207,
+        0.2536
+      ]
+    },
+    {
+      "model": "qomarm",
+      "native_xy_bbox": [
+        0.1841,
+        0.1524
+      ]
+    },
+    {
+      "model": "qompdt",
+      "native_xy_bbox": [
+        0.1522,
+        0.1202
+      ]
+    },
+    {
+      "model": "qsssng",
+      "native_xy_bbox": [
+        0.1959,
+        0.141
+      ]
+    },
+    {
+      "model": "quiqrp",
+      "native_xy_bbox": [
+        0.3384,
+        0.2848
+      ]
+    },
+    {
+      "model": "rbtywt",
+      "native_xy_bbox": [
+        0.197,
+        0.152
+      ]
+    },
+    {
+      "model": "rdpznw",
+      "native_xy_bbox": [
+        0.2033,
+        0.1468
+      ]
+    },
+    {
+      "model": "rdqqum",
+      "native_xy_bbox": [
+        0.2408,
+        0.1924
+      ]
+    },
+    {
+      "model": "rgzvyu",
+      "native_xy_bbox": [
+        0.1812,
+        0.1417
+      ]
+    },
+    {
+      "model": "ropdih",
+      "native_xy_bbox": [
+        0.2232,
+        0.17
+      ]
+    },
+    {
+      "model": "rpptjr",
+      "native_xy_bbox": [
+        0.3675,
+        0.2153
+      ]
+    },
+    {
+      "model": "ruifbr",
+      "native_xy_bbox": [
+        0.1808,
+        0.141
+      ]
+    },
+    {
+      "model": "rwkajx",
+      "native_xy_bbox": [
+        0.2227,
+        0.1715
+      ]
+    },
+    {
+      "model": "ryzohp",
+      "native_xy_bbox": [
+        0.2878,
+        0.1407
+      ]
+    },
+    {
+      "model": "rzuzmj",
+      "native_xy_bbox": [
+        0.2162,
+        0.1498
+      ]
+    },
+    {
+      "model": "sbrrwi",
+      "native_xy_bbox": [
+        0.2096,
+        0.1599
+      ]
+    },
+    {
+      "model": "scdwke",
+      "native_xy_bbox": [
+        0.2616,
+        0.211
+      ]
+    },
+    {
+      "model": "sfrlsf",
+      "native_xy_bbox": [
+        0.2746,
+        0.1806
+      ]
+    },
+    {
+      "model": "sinlfd",
+      "native_xy_bbox": [
+        0.2562,
+        0.1926
+      ]
+    },
+    {
+      "model": "skqbff",
+      "native_xy_bbox": [
+        0.2995,
+        0.1689
+      ]
+    },
+    {
+      "model": "slckfs",
+      "native_xy_bbox": [
+        0.2208,
+        0.1665
+      ]
+    },
+    {
+      "model": "sndyvj",
+      "native_xy_bbox": [
+        0.192,
+        0.1365
+      ]
+    },
+    {
+      "model": "snfzce",
+      "native_xy_bbox": [
+        0.2004,
+        0.1791
+      ]
+    },
+    {
+      "model": "sswztv",
+      "native_xy_bbox": [
+        0.2534,
+        0.1738
+      ]
+    },
+    {
+      "model": "tfwohd",
+      "native_xy_bbox": [
+        0.234,
+        0.1774
+      ]
+    },
+    {
+      "model": "tgfofw",
+      "native_xy_bbox": [
+        0.2286,
+        0.1977
+      ]
+    },
+    {
+      "model": "tlezqg",
+      "native_xy_bbox": [
+        0.2232,
+        0.17
+      ]
+    },
+    {
+      "model": "tmiacj",
+      "native_xy_bbox": [
+        0.2082,
+        0.1649
+      ]
+    },
+    {
+      "model": "tmlwev",
+      "native_xy_bbox": [
+        0.1493,
+        0.0963
+      ]
+    },
+    {
+      "model": "tqrqbu",
+      "native_xy_bbox": [
+        0.2279,
+        0.1938
+      ]
+    },
+    {
+      "model": "trlvhd",
+      "native_xy_bbox": [
+        0.2579,
+        0.2154
+      ]
+    },
+    {
+      "model": "tvmcgq",
+      "native_xy_bbox": [
+        0.2169,
+        0.161
+      ]
+    },
+    {
+      "model": "tvrnpi",
+      "native_xy_bbox": [
+        0.214,
+        0.1627
+      ]
+    },
+    {
+      "model": "tvydcv",
+      "native_xy_bbox": [
+        0.358,
+        0.2747
+      ]
+    },
+    {
+      "model": "tybynw",
+      "native_xy_bbox": [
+        0.205,
+        0.243
+      ]
+    },
+    {
+      "model": "tyfzvl",
+      "native_xy_bbox": [
+        0.235,
+        0.1462
+      ]
+    },
+    {
+      "model": "ucicpd",
+      "native_xy_bbox": [
+        0.2676,
+        0.1993
+      ]
+    },
+    {
+      "model": "udqhcl",
+      "native_xy_bbox": [
+        0.2188,
+        0.1439
+      ]
+    },
+    {
+      "model": "ufgtdl",
+      "native_xy_bbox": [
+        0.2354,
+        0.196
+      ]
+    },
+    {
+      "model": "ujtvvt",
+      "native_xy_bbox": [
+        0.3954,
+        0.2662
+      ]
+    },
+    {
+      "model": "umdcwo",
+      "native_xy_bbox": [
+        0.2685,
+        0.154
+      ]
+    },
+    {
+      "model": "umtflg",
+      "native_xy_bbox": [
+        0.2354,
+        0.196
+      ]
+    },
+    {
+      "model": "unpvyf",
+      "native_xy_bbox": [
+        0.1482,
+        0.0945
+      ]
+    },
+    {
+      "model": "urfwur",
+      "native_xy_bbox": [
+        0.1819,
+        0.1285
+      ]
+    },
+    {
+      "model": "uwaqwg",
+      "native_xy_bbox": [
+        0.2454,
+        0.1572
+      ]
+    },
+    {
+      "model": "uzmhnf",
+      "native_xy_bbox": [
+        0.2488,
+        0.2178
+      ]
+    },
+    {
+      "model": "vbofme",
+      "native_xy_bbox": [
+        0.228,
+        0.1817
+      ]
+    },
+    {
+      "model": "vdchph",
+      "native_xy_bbox": [
+        0.3189,
+        0.2139
+      ]
+    },
+    {
+      "model": "vgsbfh",
+      "native_xy_bbox": [
+        0.235,
+        0.2
+      ]
+    },
+    {
+      "model": "vjsenc",
+      "native_xy_bbox": [
+        0.2431,
+        0.2053
+      ]
+    },
+    {
+      "model": "vsbhgn",
+      "native_xy_bbox": [
+        0.2625,
+        0.2139
+      ]
+    },
+    {
+      "model": "vujkvf",
+      "native_xy_bbox": [
+        0.2611,
+        0.1768
+      ]
+    },
+    {
+      "model": "vxjpqu",
+      "native_xy_bbox": [
+        0.331,
+        0.1766
+      ]
+    },
+    {
+      "model": "waxszs",
+      "native_xy_bbox": [
+        0.2232,
+        0.1746
+      ]
+    },
+    {
+      "model": "wbprfv",
+      "native_xy_bbox": [
+        0.1815,
+        0.1698
+      ]
+    },
+    {
+      "model": "wdnkpr",
+      "native_xy_bbox": [
+        0.1998,
+        0.1581
+      ]
+    },
+    {
+      "model": "wehqno",
+      "native_xy_bbox": [
+        0.3654,
+        0.2133
+      ]
+    },
+    {
+      "model": "wfjsog",
+      "native_xy_bbox": [
+        0.196,
+        0.141
+      ]
+    },
+    {
+      "model": "winxhu",
+      "native_xy_bbox": [
+        0.2059,
+        0.1354
+      ]
+    },
+    {
+      "model": "wiydxy",
+      "native_xy_bbox": [
+        0.1333,
+        0.0969
+      ]
+    },
+    {
+      "model": "wudyye",
+      "native_xy_bbox": [
+        0.2487,
+        0.2111
+      ]
+    },
+    {
+      "model": "wxcndu",
+      "native_xy_bbox": [
+        0.2559,
+        0.1875
+      ]
+    },
+    {
+      "model": "xasgrq",
+      "native_xy_bbox": [
+        0.1705,
+        0.1304
+      ]
+    },
+    {
+      "model": "xbpozs",
+      "native_xy_bbox": [
+        0.1713,
+        0.167
+      ]
+    },
+    {
+      "model": "xcxndi",
+      "native_xy_bbox": [
+        0.2668,
+        0.197
+      ]
+    },
+    {
+      "model": "xefjtm",
+      "native_xy_bbox": [
+        0.2354,
+        0.196
+      ]
+    },
+    {
+      "model": "xgxeev",
+      "native_xy_bbox": [
+        0.2318,
+        0.1547
+      ]
+    },
+    {
+      "model": "xkjctf",
+      "native_xy_bbox": [
+        0.1875,
+        0.1535
+      ]
+    },
+    {
+      "model": "xnxlqk",
+      "native_xy_bbox": [
+        0.1807,
+        0.1414
+      ]
+    },
+    {
+      "model": "xoephz",
+      "native_xy_bbox": [
+        0.1564,
+        0.1256
+      ]
+    },
+    {
+      "model": "xxnzwn",
+      "native_xy_bbox": [
+        0.1888,
+        0.1333
+      ]
+    },
+    {
+      "model": "xxwigj",
+      "native_xy_bbox": [
+        0.2226,
+        0.1685
+      ]
+    },
+    {
+      "model": "ycklwl",
+      "native_xy_bbox": [
+        0.1841,
+        0.1524
+      ]
+    },
+    {
+      "model": "ydgedi",
+      "native_xy_bbox": [
+        0.277,
+        0.1318
+      ]
+    },
+    {
+      "model": "yjkktz",
+      "native_xy_bbox": [
+        0.2447,
+        0.1941
+      ]
+    },
+    {
+      "model": "yljvbc",
+      "native_xy_bbox": [
+        0.2286,
+        0.1977
+      ]
+    },
+    {
+      "model": "ymqzzc",
+      "native_xy_bbox": [
+        0.1857,
+        0.141
+      ]
+    },
+    {
+      "model": "yomcyv",
+      "native_xy_bbox": [
+        0.1988,
+        0.2156
+      ]
+    },
+    {
+      "model": "zcnoxe",
+      "native_xy_bbox": [
+        0.1902,
+        0.167
+      ]
+    },
+    {
+      "model": "zcpgyx",
+      "native_xy_bbox": [
+        0.229,
+        0.2016
+      ]
+    },
+    {
+      "model": "zcyoll",
+      "native_xy_bbox": [
+        0.209,
+        0.1658
+      ]
+    },
+    {
+      "model": "zegvtj",
+      "native_xy_bbox": [
+        0.3673,
+        0.2144
+      ]
+    },
+    {
+      "model": "zelcjs",
+      "native_xy_bbox": [
+        0.2354,
+        0.196
+      ]
+    },
+    {
+      "model": "zgeveh",
+      "native_xy_bbox": [
+        0.268,
+        0.1609
+      ]
+    },
+    {
+      "model": "ziyrti",
+      "native_xy_bbox": [
+        0.2292,
+        0.1643
+      ]
+    },
+    {
+      "model": "zmjcet",
+      "native_xy_bbox": [
+        0.2283,
+        0.14
+      ]
+    },
+    {
+      "model": "znlewl",
+      "native_xy_bbox": [
+        0.3665,
+        0.2712
+      ]
+    },
+    {
+      "model": "ztoris",
+      "native_xy_bbox": [
+        0.3225,
+        0.2408
+      ]
+    },
+    {
+      "model": "zxjfcp",
+      "native_xy_bbox": [
+        0.2548,
+        0.2024
+      ]
+    },
+    {
+      "model": "zzevep",
+      "native_xy_bbox": [
+        0.2001,
+        0.1628
+      ]
+    }
+  ],
+  "hat": [
+    {
+      "model": "ldxyyc",
+      "native_xy_bbox": [
+        0.3747,
+        0.3313
+      ]
+    },
+    {
+      "model": "wkrzep",
+      "native_xy_bbox": [
+        0.412,
+        0.382
+      ]
+    }
+  ],
+  "heap_of_raisins": [
+    {
+      "model": "gihwbe",
+      "native_xy_bbox": [
+        0.0797,
+        0.0794
+      ]
+    }
+  ],
+  "hingeless_jar": [
+    {
+      "model": "qzwijs",
+      "native_xy_bbox": [
+        0.1825,
+        0.1825
+      ]
+    },
+    {
+      "model": "waousd",
+      "native_xy_bbox": [
+        0.0754,
+        0.0754
+      ]
+    },
+    {
+      "model": "wcqjew",
+      "native_xy_bbox": [
+        0.1569,
+        0.1569
+      ]
+    },
+    {
+      "model": "zdeyzf",
+      "native_xy_bbox": [
+        0.0601,
+        0.0601
+      ]
+    }
+  ],
+  "hook": [
+    {
+      "model": "yfikis",
+      "native_xy_bbox": [
+        0.044,
+        0.0658
+      ]
+    }
+  ],
+  "hose": [
+    {
+      "model": "qxgbfv",
+      "native_xy_bbox": [
+        0.3821,
+        0.4608
+      ]
+    }
+  ],
+  "ice_bucket": [
+    {
+      "model": "vlurir",
+      "native_xy_bbox": [
+        0.3381,
+        0.4113
+      ]
+    }
+  ],
+  "ice_cube": [
+    {
+      "model": "czbfpm",
+      "native_xy_bbox": [
+        0.0223,
+        0.0218
+      ]
+    }
+  ],
+  "ice_tray": [
+    {
+      "model": "gewlsk",
+      "native_xy_bbox": [
+        0.1182,
+        0.3196
+      ]
+    }
+  ],
+  "ink_bottle": [
+    {
+      "model": "gcyvrx",
+      "native_xy_bbox": [
+        0.065,
+        0.0899
+      ]
+    }
+  ],
+  "jar_of_cumin": [
+    {
+      "model": "tsktnz",
+      "native_xy_bbox": [
+        0.06,
+        0.06
+      ]
+    }
+  ],
+  "jar_of_curry_powder": [
+    {
+      "model": "ozhftu",
+      "native_xy_bbox": [
+        0.06,
+        0.0599
+      ]
+    }
+  ],
+  "jar_of_dill_seed": [
+    {
+      "model": "reavkt",
+      "native_xy_bbox": [
+        0.0624,
+        0.0615
+      ]
+    }
+  ],
+  "jar_of_grains": [
+    {
+      "model": "fyfahz",
+      "native_xy_bbox": [
+        0.2182,
+        0.22
+      ]
+    },
+    {
+      "model": "irqkdw",
+      "native_xy_bbox": [
+        0.2177,
+        0.22
+      ]
+    },
+    {
+      "model": "uydvnv",
+      "native_xy_bbox": [
+        0.2185,
+        0.22
+      ]
+    }
+  ],
+  "jar_of_honey": [
+    {
+      "model": "wdxfaq",
+      "native_xy_bbox": [
+        0.1913,
+        0.2146
+      ]
+    }
+  ],
+  "jar_of_jelly": [
+    {
+      "model": "ytlmmb",
+      "native_xy_bbox": [
+        0.1277,
+        0.0958
+      ]
+    }
+  ],
+  "jar_of_mayonnaise": [
+    {
+      "model": "gjwjet",
+      "native_xy_bbox": [
+        0.0562,
+        0.0621
+      ]
+    }
+  ],
+  "jar_of_spaghetti_sauce": [
+    {
+      "model": "efrxze",
+      "native_xy_bbox": [
+        0.0862,
+        0.0893
+      ]
+    },
+    {
+      "model": "fyocnu",
+      "native_xy_bbox": [
+        0.0853,
+        0.0853
+      ]
+    },
+    {
+      "model": "yqnmoy",
+      "native_xy_bbox": [
+        0.0859,
+        0.0853
+      ]
+    }
+  ],
+  "jar_of_strawberry_jam": [
+    {
+      "model": "busiti",
+      "native_xy_bbox": [
+        0.1353,
+        0.1353
+      ]
+    }
+  ],
+  "jar_of_tumeric": [
+    {
+      "model": "miivhi",
+      "native_xy_bbox": [
+        0.0932,
+        0.0932
+      ]
+    }
+  ],
+  "jigsaw_puzzle": [
+    {
+      "model": "antykn",
+      "native_xy_bbox": [
+        0.1947,
+        0.1458
+      ]
+    }
+  ],
+  "jigsaw_puzzle_piece": [
+    {
+      "model": "jcafwy",
+      "native_xy_bbox": [
+        0.0338,
+        0.0272
+      ]
+    },
+    {
+      "model": "moneds",
+      "native_xy_bbox": [
+        0.0419,
+        0.0259
+      ]
+    },
+    {
+      "model": "ppikln",
+      "native_xy_bbox": [
+        0.0328,
+        0.0249
+      ]
+    }
+  ],
+  "jug": [
+    {
+      "model": "gjgwvi",
+      "native_xy_bbox": [
+        0.1385,
+        0.1933
+      ]
+    },
+    {
+      "model": "hjjeeh",
+      "native_xy_bbox": [
+        0.1765,
+        0.2174
+      ]
+    },
+    {
+      "model": "llexze",
+      "native_xy_bbox": [
+        0.1903,
+        0.227
+      ]
+    },
+    {
+      "model": "pvxfot",
+      "native_xy_bbox": [
+        0.1781,
+        0.2243
+      ]
+    }
+  ],
+  "keyboard": [
+    {
+      "model": "kzcreb",
+      "native_xy_bbox": [
+        0.149,
+        0.4299
+      ]
+    },
+    {
+      "model": "nddmmy",
+      "native_xy_bbox": [
+        0.1422,
+        0.3395
+      ]
+    },
+    {
+      "model": "uwacaq",
+      "native_xy_bbox": [
+        0.1815,
+        0.4773
+      ]
+    }
+  ],
+  "kitchen_analog_scale": [
+    {
+      "model": "tqvnpo",
+      "native_xy_bbox": [
+        0.3213,
+        0.3213
+      ]
+    }
+  ],
+  "legal_document": [
+    {
+      "model": "mougvz",
+      "native_xy_bbox": [
+        0.3488,
+        0.2467
+      ]
+    },
+    {
+      "model": "qkrlsi",
+      "native_xy_bbox": [
+        0.3452,
+        0.2417
+      ]
+    }
+  ],
+  "letter": [
+    {
+      "model": "bdlpry",
+      "native_xy_bbox": [
+        0.2198,
+        0.3146
+      ]
+    },
+    {
+      "model": "bswqmq",
+      "native_xy_bbox": [
+        0.2175,
+        0.3073
+      ]
+    },
+    {
+      "model": "csncjv",
+      "native_xy_bbox": [
+        0.2291,
+        0.3189
+      ]
+    },
+    {
+      "model": "cvtjcy",
+      "native_xy_bbox": [
+        0.2205,
+        0.3082
+      ]
+    },
+    {
+      "model": "dyvllf",
+      "native_xy_bbox": [
+        0.2175,
+        0.3162
+      ]
+    },
+    {
+      "model": "esmoua",
+      "native_xy_bbox": [
+        0.2197,
+        0.3155
+      ]
+    },
+    {
+      "model": "fnaqcr",
+      "native_xy_bbox": [
+        0.2197,
+        0.3158
+      ]
+    },
+    {
+      "model": "igvnic",
+      "native_xy_bbox": [
+        0.2186,
+        0.3158
+      ]
+    },
+    {
+      "model": "jafvfh",
+      "native_xy_bbox": [
+        0.2197,
+        0.3138
+      ]
+    },
+    {
+      "model": "jgnowc",
+      "native_xy_bbox": [
+        0.2214,
+        0.3142
+      ]
+    },
+    {
+      "model": "oheufk",
+      "native_xy_bbox": [
+        0.2197,
+        0.3149
+      ]
+    },
+    {
+      "model": "pieqjf",
+      "native_xy_bbox": [
+        0.2197,
+        0.3158
+      ]
+    },
+    {
+      "model": "pvuaxx",
+      "native_xy_bbox": [
+        0.2227,
+        0.3221
+      ]
+    },
+    {
+      "model": "qhqhwk",
+      "native_xy_bbox": [
+        0.2197,
+        0.3105
+      ]
+    },
+    {
+      "model": "qljxat",
+      "native_xy_bbox": [
+        0.2197,
+        0.3158
+      ]
+    },
+    {
+      "model": "qrykxc",
+      "native_xy_bbox": [
+        0.2197,
+        0.3122
+      ]
+    }
+  ],
+  "lettuce": [
+    {
+      "model": "jnagox",
+      "native_xy_bbox": [
+        0.2469,
+        0.1909
+      ]
+    }
+  ],
+  "license_plate": [
+    {
+      "model": "hjdaqn",
+      "native_xy_bbox": [
+        0.3078,
+        0.1555
+      ]
+    },
+    {
+      "model": "naclac",
+      "native_xy_bbox": [
+        0.3078,
+        0.1555
+      ]
+    },
+    {
+      "model": "nuqnlr",
+      "native_xy_bbox": [
+        0.3078,
+        0.1555
+      ]
+    },
+    {
+      "model": "nwfbxn",
+      "native_xy_bbox": [
+        0.3078,
+        0.1555
+      ]
+    },
+    {
+      "model": "yepdrj",
+      "native_xy_bbox": [
+        0.3078,
+        0.1555
+      ]
+    }
+  ],
+  "lid": [
+    {
+      "model": "aybgkm",
+      "native_xy_bbox": [
+        0.1118,
+        0.1118
+      ]
+    },
+    {
+      "model": "bemtjd",
+      "native_xy_bbox": [
+        0.1787,
+        0.1787
+      ]
+    },
+    {
+      "model": "chwwdg",
+      "native_xy_bbox": [
+        0.1254,
+        0.1254
+      ]
+    },
+    {
+      "model": "cofhlg",
+      "native_xy_bbox": [
+        0.3969,
+        0.3969
+      ]
+    },
+    {
+      "model": "dadswa",
+      "native_xy_bbox": [
+        0.1875,
+        0.1875
+      ]
+    },
+    {
+      "model": "dkncbi",
+      "native_xy_bbox": [
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "model": "egfobe",
+      "native_xy_bbox": [
+        0.2432,
+        0.2432
+      ]
+    },
+    {
+      "model": "ejywmx",
+      "native_xy_bbox": [
+        0.2811,
+        0.2825
+      ]
+    },
+    {
+      "model": "exiqxa",
+      "native_xy_bbox": [
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "model": "fnqhbz",
+      "native_xy_bbox": [
+        0.2,
+        0.1826
+      ]
+    },
+    {
+      "model": "gerjlh",
+      "native_xy_bbox": [
+        0.2957,
+        0.2957
+      ]
+    },
+    {
+      "model": "haxrqc",
+      "native_xy_bbox": [
+        0.1148,
+        0.2
+      ]
+    },
+    {
+      "model": "iojcmf",
+      "native_xy_bbox": [
+        0.0923,
+        0.0923
+      ]
+    },
+    {
+      "model": "jvzjzp",
+      "native_xy_bbox": [
+        0.1189,
+        0.12
+      ]
+    },
+    {
+      "model": "mdowoz",
+      "native_xy_bbox": [
+        0.2217,
+        0.2217
+      ]
+    },
+    {
+      "model": "muczdt",
+      "native_xy_bbox": [
+        0.1941,
+        0.2
+      ]
+    },
+    {
+      "model": "myrzac",
+      "native_xy_bbox": [
+        0.266,
+        0.2659
+      ]
+    },
+    {
+      "model": "ndafok",
+      "native_xy_bbox": [
+        0.3167,
+        0.3183
+      ]
+    },
+    {
+      "model": "niarsj",
+      "native_xy_bbox": [
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "model": "obuzeh",
+      "native_xy_bbox": [
+        0.4533,
+        0.4533
+      ]
+    },
+    {
+      "model": "pbmsji",
+      "native_xy_bbox": [
+        0.3388,
+        0.3388
+      ]
+    },
+    {
+      "model": "picclm",
+      "native_xy_bbox": [
+        0.1645,
+        0.1645
+      ]
+    },
+    {
+      "model": "ppkjuy",
+      "native_xy_bbox": [
+        0.2319,
+        0.2319
+      ]
+    },
+    {
+      "model": "qferch",
+      "native_xy_bbox": [
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "model": "qkpdih",
+      "native_xy_bbox": [
+        0.2396,
+        0.2556
+      ]
+    },
+    {
+      "model": "sihkub",
+      "native_xy_bbox": [
+        0.1186,
+        0.1186
+      ]
+    },
+    {
+      "model": "snklci",
+      "native_xy_bbox": [
+        0.1787,
+        0.1334
+      ]
+    },
+    {
+      "model": "ugfmpq",
+      "native_xy_bbox": [
+        0.0886,
+        0.0886
+      ]
+    },
+    {
+      "model": "uwzqlf",
+      "native_xy_bbox": [
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "model": "vkepll",
+      "native_xy_bbox": [
+        0.1344,
+        0.1344
+      ]
+    },
+    {
+      "model": "wjrwer",
+      "native_xy_bbox": [
+        0.2006,
+        0.2006
+      ]
+    },
+    {
+      "model": "wtjthb",
+      "native_xy_bbox": [
+        0.288,
+        0.288
+      ]
+    },
+    {
+      "model": "wxdxss",
+      "native_xy_bbox": [
+        0.1423,
+        0.1423
+      ]
+    },
+    {
+      "model": "xdvzpr",
+      "native_xy_bbox": [
+        0.2791,
+        0.2791
+      ]
+    },
+    {
+      "model": "zxlntj",
+      "native_xy_bbox": [
+        0.3302,
+        0.3302
+      ]
+    }
+  ],
+  "loudspeaker": [
+    {
+      "model": "avtlcj",
+      "native_xy_bbox": [
+        0.175,
+        0.08
+      ]
+    },
+    {
+      "model": "bmpdyv",
+      "native_xy_bbox": [
+        0.1229,
+        0.175
+      ]
+    }
+  ],
+  "magazine": [
+    {
+      "model": "ajitiv",
+      "native_xy_bbox": [
+        0.2167,
+        0.1582
+      ]
+    },
+    {
+      "model": "ehdwsd",
+      "native_xy_bbox": [
+        0.2702,
+        0.21
+      ]
+    },
+    {
+      "model": "kjfxxx",
+      "native_xy_bbox": [
+        0.2794,
+        0.2137
+      ]
+    },
+    {
+      "model": "tfovwy",
+      "native_xy_bbox": [
+        0.2179,
+        0.1597
+      ]
+    },
+    {
+      "model": "vvcrhu",
+      "native_xy_bbox": [
+        0.2794,
+        0.2137
+      ]
+    },
+    {
+      "model": "ymfwaz",
+      "native_xy_bbox": [
+        0.2186,
+        0.1606
+      ]
+    },
+    {
+      "model": "zfeoeu",
+      "native_xy_bbox": [
+        0.311,
+        0.2277
+      ]
+    }
+  ],
+  "magnetic_stirrer": [
+    {
+      "model": "xtamki",
+      "native_xy_bbox": [
+        0.1883,
+        0.1664
+      ]
+    }
+  ],
+  "magnifying_glass": [
+    {
+      "model": "clyiol",
+      "native_xy_bbox": [
+        0.2271,
+        0.1026
+      ]
+    }
+  ],
+  "mail": [
+    {
+      "model": "azunex",
+      "native_xy_bbox": [
+        0.1299,
+        0.1999
+      ]
+    },
+    {
+      "model": "gvivdi",
+      "native_xy_bbox": [
+        0.1405,
+        0.2751
+      ]
+    },
+    {
+      "model": "mbbwhn",
+      "native_xy_bbox": [
+        0.1311,
+        0.2707
+      ]
+    },
+    {
+      "model": "ojkepk",
+      "native_xy_bbox": [
+        0.1325,
+        0.1909
+      ]
+    },
+    {
+      "model": "qpwlor",
+      "native_xy_bbox": [
+        0.1325,
+        0.1909
+      ]
+    }
+  ],
+  "map": [
+    {
+      "model": "fdtxut",
+      "native_xy_bbox": [
+        0.1955,
+        0.2383
+      ]
+    }
+  ],
+  "masking_tape": [
+    {
+      "model": "vpgzne",
+      "native_xy_bbox": [
+        0.0501,
+        0.05
+      ]
+    }
+  ],
+  "match_box": [
+    {
+      "model": "xpnfjz",
+      "native_xy_bbox": [
+        0.1048,
+        0.05
+      ]
+    }
+  ],
+  "meat_loaf": [
+    {
+      "model": "qdzskd",
+      "native_xy_bbox": [
+        0.2472,
+        0.1349
+      ]
+    }
+  ],
+  "menu": [
+    {
+      "model": "keaqlh",
+      "native_xy_bbox": [
+        0.3175,
+        0.2357
+      ]
+    },
+    {
+      "model": "qmypsm",
+      "native_xy_bbox": [
+        0.315,
+        0.2223
+      ]
+    },
+    {
+      "model": "ugplzr",
+      "native_xy_bbox": [
+        0.2007,
+        0.0958
+      ]
+    },
+    {
+      "model": "wqhybr",
+      "native_xy_bbox": [
+        0.2667,
+        0.181
+      ]
+    }
+  ],
+  "mixing_bowl": [
+    {
+      "model": "bsgybx",
+      "native_xy_bbox": [
+        0.2394,
+        0.2117
+      ]
+    },
+    {
+      "model": "deudkt",
+      "native_xy_bbox": [
+        0.2626,
+        0.2322
+      ]
+    },
+    {
+      "model": "xifive",
+      "native_xy_bbox": [
+        0.2905,
+        0.2569
+      ]
+    }
+  ],
+  "money": [
+    {
+      "model": "atvcng",
+      "native_xy_bbox": [
+        0.0661,
+        0.1563
+      ]
+    },
+    {
+      "model": "mtenfi",
+      "native_xy_bbox": [
+        0.066,
+        0.1563
+      ]
+    }
+  ],
+  "mouse": [
+    {
+      "model": "pljjtu",
+      "native_xy_bbox": [
+        0.1193,
+        0.0663
+      ]
+    }
+  ],
+  "mousepad": [
+    {
+      "model": "mfrcto",
+      "native_xy_bbox": [
+        0.3117,
+        0.2241
+      ]
+    }
+  ],
+  "mousetrap": [
+    {
+      "model": "mwfwsv",
+      "native_xy_bbox": [
+        0.1082,
+        0.05
+      ]
+    }
+  ],
+  "mug": [
+    {
+      "model": "ehnmxj",
+      "native_xy_bbox": [
+        0.0867,
+        0.1132
+      ]
+    },
+    {
+      "model": "fapsrj",
+      "native_xy_bbox": [
+        0.0867,
+        0.1132
+      ]
+    },
+    {
+      "model": "jgethp",
+      "native_xy_bbox": [
+        0.1127,
+        0.1368
+      ]
+    },
+    {
+      "model": "ntgftr",
+      "native_xy_bbox": [
+        0.1057,
+        0.1438
+      ]
+    },
+    {
+      "model": "ppdqbj",
+      "native_xy_bbox": [
+        0.0878,
+        0.1293
+      ]
+    },
+    {
+      "model": "ppzttc",
+      "native_xy_bbox": [
+        0.081,
+        0.1091
+      ]
+    },
+    {
+      "model": "ycbmug",
+      "native_xy_bbox": [
+        0.0931,
+        0.117
+      ]
+    }
+  ],
+  "mulch_bag": [
+    {
+      "model": "zsrpiu",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "mustard_seed_shaker": [
+    {
+      "model": "apuolt",
+      "native_xy_bbox": [
+        0.0674,
+        0.0673
+      ]
+    }
+  ],
+  "name_tag": [
+    {
+      "model": "xmncvq",
+      "native_xy_bbox": [
+        0.1479,
+        0.08
+      ]
+    }
+  ],
+  "newspaper": [
+    {
+      "model": "edarlp",
+      "native_xy_bbox": [
+        0.4133,
+        0.3058
+      ]
+    },
+    {
+      "model": "ukamcl",
+      "native_xy_bbox": [
+        0.2893,
+        0.3906
+      ]
+    }
+  ],
+  "notebook": [
+    {
+      "model": "qwhiqc",
+      "native_xy_bbox": [
+        0.2134,
+        0.1352
+      ]
+    },
+    {
+      "model": "rwhloa",
+      "native_xy_bbox": [
+        0.308,
+        0.2313
+      ]
+    },
+    {
+      "model": "sommfe",
+      "native_xy_bbox": [
+        0.2056,
+        0.2402
+      ]
+    },
+    {
+      "model": "svisnb",
+      "native_xy_bbox": [
+        0.1932,
+        0.1451
+      ]
+    },
+    {
+      "model": "tbzucx",
+      "native_xy_bbox": [
+        0.291,
+        0.2202
+      ]
+    },
+    {
+      "model": "tshsaq",
+      "native_xy_bbox": [
+        0.2001,
+        0.3066
+      ]
+    },
+    {
+      "model": "ugpged",
+      "native_xy_bbox": [
+        0.308,
+        0.2313
+      ]
+    },
+    {
+      "model": "ukdkpe",
+      "native_xy_bbox": [
+        0.3081,
+        0.2313
+      ]
+    },
+    {
+      "model": "umxsmd",
+      "native_xy_bbox": [
+        0.0681,
+        0.11
+      ]
+    },
+    {
+      "model": "vicgic",
+      "native_xy_bbox": [
+        0.308,
+        0.2313
+      ]
+    },
+    {
+      "model": "xdnswn",
+      "native_xy_bbox": [
+        0.2092,
+        0.1644
+      ]
+    },
+    {
+      "model": "xhigou",
+      "native_xy_bbox": [
+        0.1345,
+        0.1546
+      ]
+    },
+    {
+      "model": "xpqslr",
+      "native_xy_bbox": [
+        0.308,
+        0.2313
+      ]
+    }
+  ],
+  "omelet": [
+    {
+      "model": "bnetuu",
+      "native_xy_bbox": [
+        0.2183,
+        0.2126
+      ]
+    }
+  ],
+  "ottoman": [
+    {
+      "model": "miftfy",
+      "native_xy_bbox": [
+        0.4019,
+        0.4064
+      ]
+    }
+  ],
+  "outline_tray": [
+    {
+      "model": "mmegts",
+      "native_xy_bbox": [
+        0.1251,
+        0.2762
+      ]
+    }
+  ],
+  "outline_vase": [
+    {
+      "model": "pqsamn",
+      "native_xy_bbox": [
+        0.1924,
+        0.1924
+      ]
+    }
+  ],
+  "pack_of_chocolate_bar": [
+    {
+      "model": "bxgewr",
+      "native_xy_bbox": [
+        0.0998,
+        0.0479
+      ]
+    },
+    {
+      "model": "tidcst",
+      "native_xy_bbox": [
+        0.0977,
+        0.0481
+      ]
+    }
+  ],
+  "pack_of_cigarettes": [
+    {
+      "model": "ajphvf",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "cfmlhf",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "dthkix",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "ghbqav",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "gzxueq",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "hmhqkq",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "ipmejr",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "ohpqua",
+      "native_xy_bbox": [
+        0.1252,
+        0.0554
+      ]
+    },
+    {
+      "model": "ppbmak",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "qabdgg",
+      "native_xy_bbox": [
+        0.1252,
+        0.0554
+      ]
+    },
+    {
+      "model": "qldhnm",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    },
+    {
+      "model": "rmrubd",
+      "native_xy_bbox": [
+        0.1252,
+        0.0554
+      ]
+    },
+    {
+      "model": "tngixy",
+      "native_xy_bbox": [
+        0.1252,
+        0.0554
+      ]
+    },
+    {
+      "model": "wpmpcf",
+      "native_xy_bbox": [
+        0.1101,
+        0.0546
+      ]
+    }
+  ],
+  "pack_of_ground_beef": [
+    {
+      "model": "ctmcjn",
+      "native_xy_bbox": [
+        0.2313,
+        0.164
+      ]
+    }
+  ],
+  "pack_of_kielbasa": [
+    {
+      "model": "qwdfea",
+      "native_xy_bbox": [
+        0.1547,
+        0.0749
+      ]
+    },
+    {
+      "model": "rvhpal",
+      "native_xy_bbox": [
+        0.2572,
+        0.0581
+      ]
+    }
+  ],
+  "pack_of_pasta": [
+    {
+      "model": "gwqhko",
+      "native_xy_bbox": [
+        0.08,
+        0.2378
+      ]
+    }
+  ],
+  "pack_of_protein_powder": [
+    {
+      "model": "rikjwx",
+      "native_xy_bbox": [
+        0.1597,
+        0.1079
+      ]
+    },
+    {
+      "model": "tpcsve",
+      "native_xy_bbox": [
+        0.1599,
+        0.1076
+      ]
+    }
+  ],
+  "package": [
+    {
+      "model": "mvvnqm",
+      "native_xy_bbox": [
+        0.201,
+        0.3006
+      ]
+    }
+  ],
+  "paint_roller": [
+    {
+      "model": "jcqwrt",
+      "native_xy_bbox": [
+        0.4146,
+        0.2574
+      ]
+    }
+  ],
+  "paintbrush": [
+    {
+      "model": "tivzcl",
+      "native_xy_bbox": [
+        0.2185,
+        0.0627
+      ]
+    }
+  ],
+  "paper_bag": [
+    {
+      "model": "bzsxgw",
+      "native_xy_bbox": [
+        0.1013,
+        0.15
+      ]
+    },
+    {
+      "model": "ruryqd",
+      "native_xy_bbox": [
+        0.1154,
+        0.2019
+      ]
+    }
+  ],
+  "paper_cup": [
+    {
+      "model": "guobeq",
+      "native_xy_bbox": [
+        0.0741,
+        0.0704
+      ]
+    }
+  ],
+  "paper_liners": [
+    {
+      "model": "yvuilk",
+      "native_xy_bbox": [
+        0.0806,
+        0.0806
+      ]
+    }
+  ],
+  "paper_sheet": [
+    {
+      "model": "afdjfk",
+      "native_xy_bbox": [
+        0.2179,
+        0.2791
+      ]
+    },
+    {
+      "model": "uqbipw",
+      "native_xy_bbox": [
+        0.21,
+        0.29
+      ]
+    }
+  ],
+  "paperback_book": [
+    {
+      "model": "aubynm",
+      "native_xy_bbox": [
+        0.2926,
+        0.2244
+      ]
+    },
+    {
+      "model": "bisnup",
+      "native_xy_bbox": [
+        0.3049,
+        0.2195
+      ]
+    },
+    {
+      "model": "eqzjjk",
+      "native_xy_bbox": [
+        0.3055,
+        0.2196
+      ]
+    },
+    {
+      "model": "fvzdec",
+      "native_xy_bbox": [
+        0.307,
+        0.2222
+      ]
+    },
+    {
+      "model": "hdhhqo",
+      "native_xy_bbox": [
+        0.2219,
+        0.167
+      ]
+    },
+    {
+      "model": "hrtflt",
+      "native_xy_bbox": [
+        0.309,
+        0.2248
+      ]
+    },
+    {
+      "model": "ixwtnb",
+      "native_xy_bbox": [
+        0.3073,
+        0.2225
+      ]
+    },
+    {
+      "model": "jhaltj",
+      "native_xy_bbox": [
+        0.3049,
+        0.2195
+      ]
+    },
+    {
+      "model": "ncjkcg",
+      "native_xy_bbox": [
+        0.3073,
+        0.2225
+      ]
+    },
+    {
+      "model": "phsgun",
+      "native_xy_bbox": [
+        0.3049,
+        0.2195
+      ]
+    },
+    {
+      "model": "vciijb",
+      "native_xy_bbox": [
+        0.3052,
+        0.2195
+      ]
+    },
+    {
+      "model": "wfcxjv",
+      "native_xy_bbox": [
+        0.2892,
+        0.2199
+      ]
+    },
+    {
+      "model": "xhibsy",
+      "native_xy_bbox": [
+        0.242,
+        0.1756
+      ]
+    },
+    {
+      "model": "xxknda",
+      "native_xy_bbox": [
+        0.2092,
+        0.1657
+      ]
+    },
+    {
+      "model": "xzxgfw",
+      "native_xy_bbox": [
+        0.2767,
+        0.1595
+      ]
+    },
+    {
+      "model": "ydarnr",
+      "native_xy_bbox": [
+        0.2378,
+        0.1806
+      ]
+    },
+    {
+      "model": "yfhdvx",
+      "native_xy_bbox": [
+        0.3073,
+        0.2225
+      ]
+    },
+    {
+      "model": "ysbzis",
+      "native_xy_bbox": [
+        0.2582,
+        0.219
+      ]
+    },
+    {
+      "model": "yxujzs",
+      "native_xy_bbox": [
+        0.2523,
+        0.1853
+      ]
+    }
+  ],
+  "parer": [
+    {
+      "model": "lwpdhi",
+      "native_xy_bbox": [
+        0.2684,
+        0.0312
+      ]
+    }
+  ],
+  "parsnip": [
+    {
+      "model": "jidpjl",
+      "native_xy_bbox": [
+        0.0493,
+        0.2459
+      ]
+    }
+  ],
+  "paving_stone": [
+    {
+      "model": "yencys",
+      "native_xy_bbox": [
+        0.1948,
+        0.152
+      ]
+    }
+  ],
+  "pencil_holder": [
+    {
+      "model": "jkuiqg",
+      "native_xy_bbox": [
+        0.0651,
+        0.0776
+      ]
+    },
+    {
+      "model": "mrrpay",
+      "native_xy_bbox": [
+        0.0665,
+        0.0787
+      ]
+    },
+    {
+      "model": "nqiujp",
+      "native_xy_bbox": [
+        0.2334,
+        0.4838
+      ]
+    }
+  ],
+  "pennant": [
+    {
+      "model": "tfnwti",
+      "native_xy_bbox": [
+        0.2459,
+        0.1862
+      ]
+    }
+  ],
+  "pepper_shaker": [
+    {
+      "model": "tgcwtr",
+      "native_xy_bbox": [
+        0.0673,
+        0.0674
+      ]
+    },
+    {
+      "model": "ykujyn",
+      "native_xy_bbox": [
+        0.0673,
+        0.0674
+      ]
+    }
+  ],
+  "petfood_bag": [
+    {
+      "model": "fhfqys",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "petri_dish": [
+    {
+      "model": "vbiqcq",
+      "native_xy_bbox": [
+        0.1009,
+        0.1009
+      ]
+    },
+    {
+      "model": "xfqatj",
+      "native_xy_bbox": [
+        0.0718,
+        0.0718
+      ]
+    }
+  ],
+  "pewter_teapot": [
+    {
+      "model": "dwfdpi",
+      "native_xy_bbox": [
+        0.2973,
+        0.22
+      ]
+    }
+  ],
+  "phonograph_record": [
+    {
+      "model": "couvrd",
+      "native_xy_bbox": [
+        0.3557,
+        0.3557
+      ]
+    },
+    {
+      "model": "ejxxmy",
+      "native_xy_bbox": [
+        0.3557,
+        0.3557
+      ]
+    },
+    {
+      "model": "krnmnc",
+      "native_xy_bbox": [
+        0.3557,
+        0.3557
+      ]
+    },
+    {
+      "model": "reunea",
+      "native_xy_bbox": [
+        0.3557,
+        0.3557
+      ]
+    },
+    {
+      "model": "urcabe",
+      "native_xy_bbox": [
+        0.3557,
+        0.3557
+      ]
+    }
+  ],
+  "picture": [
+    {
+      "model": "abtgvz",
+      "native_xy_bbox": [
+        0.0879,
+        0.0958
+      ]
+    },
+    {
+      "model": "bzmdxc",
+      "native_xy_bbox": [
+        0.072,
+        0.0612
+      ]
+    },
+    {
+      "model": "ggajdz",
+      "native_xy_bbox": [
+        0.2573,
+        0.2133
+      ]
+    },
+    {
+      "model": "oshvew",
+      "native_xy_bbox": [
+        0.3692,
+        0.2823
+      ]
+    },
+    {
+      "model": "ougrxx",
+      "native_xy_bbox": [
+        0.2519,
+        0.2106
+      ]
+    },
+    {
+      "model": "qlsyco",
+      "native_xy_bbox": [
+        0.2799,
+        0.2184
+      ]
+    },
+    {
+      "model": "uwlqdu",
+      "native_xy_bbox": [
+        0.3643,
+        0.2733
+      ]
+    }
+  ],
+  "picture_frame": [
+    {
+      "model": "guatvs",
+      "native_xy_bbox": [
+        0.0723,
+        0.126
+      ]
+    }
+  ],
+  "pillow": [
+    {
+      "model": "eynvbz",
+      "native_xy_bbox": [
+        0.4467,
+        0.453
+      ]
+    },
+    {
+      "model": "fxeiee",
+      "native_xy_bbox": [
+        0.3141,
+        0.3217
+      ]
+    },
+    {
+      "model": "ozlnml",
+      "native_xy_bbox": [
+        0.4417,
+        0.4651
+      ]
+    },
+    {
+      "model": "pdkrer",
+      "native_xy_bbox": [
+        0.3145,
+        0.3914
+      ]
+    },
+    {
+      "model": "sjeori",
+      "native_xy_bbox": [
+        0.2675,
+        0.4723
+      ]
+    },
+    {
+      "model": "tepkbl",
+      "native_xy_bbox": [
+        0.2572,
+        0.2572
+      ]
+    },
+    {
+      "model": "wirpqe",
+      "native_xy_bbox": [
+        0.2953,
+        0.4403
+      ]
+    }
+  ],
+  "ping_pong_table": [
+    {
+      "model": "herems",
+      "native_xy_bbox": [
+        0.3051,
+        0.1793
+      ]
+    }
+  ],
+  "pitcher": [
+    {
+      "model": "tsyims",
+      "native_xy_bbox": [
+        0.2628,
+        0.2152
+      ]
+    },
+    {
+      "model": "tzbnmh",
+      "native_xy_bbox": [
+        0.2628,
+        0.2152
+      ]
+    }
+  ],
+  "pizza": [
+    {
+      "model": "vyfhkm",
+      "native_xy_bbox": [
+        0.4725,
+        0.4703
+      ]
+    }
+  ],
+  "plate": [
+    {
+      "model": "dbprwc",
+      "native_xy_bbox": [
+        0.2178,
+        0.2178
+      ]
+    },
+    {
+      "model": "dnqekb",
+      "native_xy_bbox": [
+        0.33,
+        0.33
+      ]
+    },
+    {
+      "model": "eixyyn",
+      "native_xy_bbox": [
+        0.1623,
+        0.1621
+      ]
+    },
+    {
+      "model": "eozsdg",
+      "native_xy_bbox": [
+        0.33,
+        0.33
+      ]
+    },
+    {
+      "model": "fhdyrj",
+      "native_xy_bbox": [
+        0.3318,
+        0.3318
+      ]
+    },
+    {
+      "model": "fkpaie",
+      "native_xy_bbox": [
+        0.2971,
+        0.2973
+      ]
+    },
+    {
+      "model": "iawoof",
+      "native_xy_bbox": [
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "model": "ivbrtz",
+      "native_xy_bbox": [
+        0.3785,
+        0.3785
+      ]
+    },
+    {
+      "model": "ivuveo",
+      "native_xy_bbox": [
+        0.2665,
+        0.2665
+      ]
+    },
+    {
+      "model": "iwfvwf",
+      "native_xy_bbox": [
+        0.2985,
+        0.2986
+      ]
+    },
+    {
+      "model": "kkjiko",
+      "native_xy_bbox": [
+        0.24,
+        0.24
+      ]
+    },
+    {
+      "model": "kkmkbd",
+      "native_xy_bbox": [
+        0.3119,
+        0.3119
+      ]
+    },
+    {
+      "model": "ksgizx",
+      "native_xy_bbox": [
+        0.2649,
+        0.2649
+      ]
+    },
+    {
+      "model": "lixwwc",
+      "native_xy_bbox": [
+        0.1156,
+        0.1156
+      ]
+    },
+    {
+      "model": "lkomhp",
+      "native_xy_bbox": [
+        0.1692,
+        0.1759
+      ]
+    },
+    {
+      "model": "luhkiz",
+      "native_xy_bbox": [
+        0.241,
+        0.241
+      ]
+    },
+    {
+      "model": "mtetqm",
+      "native_xy_bbox": [
+        0.2142,
+        0.2194
+      ]
+    },
+    {
+      "model": "nbuspz",
+      "native_xy_bbox": [
+        0.2897,
+        0.2897
+      ]
+    },
+    {
+      "model": "nhodax",
+      "native_xy_bbox": [
+        0.2646,
+        0.2646
+      ]
+    },
+    {
+      "model": "nrjump",
+      "native_xy_bbox": [
+        0.1693,
+        0.1693
+      ]
+    },
+    {
+      "model": "ntedfx",
+      "native_xy_bbox": [
+        0.2381,
+        0.2381
+      ]
+    },
+    {
+      "model": "odmjdd",
+      "native_xy_bbox": [
+        0.2268,
+        0.2307
+      ]
+    },
+    {
+      "model": "pjinwe",
+      "native_xy_bbox": [
+        0.4218,
+        0.422
+      ]
+    },
+    {
+      "model": "pkkgzc",
+      "native_xy_bbox": [
+        0.2591,
+        0.2591
+      ]
+    },
+    {
+      "model": "qbxfmv",
+      "native_xy_bbox": [
+        0.2624,
+        0.2624
+      ]
+    },
+    {
+      "model": "qtfzeq",
+      "native_xy_bbox": [
+        0.2458,
+        0.2459
+      ]
+    },
+    {
+      "model": "qyuyjr",
+      "native_xy_bbox": [
+        0.2974,
+        0.2962
+      ]
+    },
+    {
+      "model": "spppps",
+      "native_xy_bbox": [
+        0.2618,
+        0.2618
+      ]
+    },
+    {
+      "model": "tgrsui",
+      "native_xy_bbox": [
+        0.1803,
+        0.1771
+      ]
+    },
+    {
+      "model": "uakqei",
+      "native_xy_bbox": [
+        0.1598,
+        0.1591
+      ]
+    },
+    {
+      "model": "ujodgo",
+      "native_xy_bbox": [
+        0.2836,
+        0.2836
+      ]
+    },
+    {
+      "model": "vitdwc",
+      "native_xy_bbox": [
+        0.1173,
+        0.1173
+      ]
+    },
+    {
+      "model": "vjqzwa",
+      "native_xy_bbox": [
+        0.1991,
+        0.1992
+      ]
+    },
+    {
+      "model": "vtjwof",
+      "native_xy_bbox": [
+        0.2298,
+        0.2299
+      ]
+    },
+    {
+      "model": "wgcgia",
+      "native_xy_bbox": [
+        0.2654,
+        0.2655
+      ]
+    },
+    {
+      "model": "xfjmld",
+      "native_xy_bbox": [
+        0.3105,
+        0.3105
+      ]
+    },
+    {
+      "model": "xtdcau",
+      "native_xy_bbox": [
+        0.1521,
+        0.1522
+      ]
+    },
+    {
+      "model": "ypdfrp",
+      "native_xy_bbox": [
+        0.1823,
+        0.1823
+      ]
+    },
+    {
+      "model": "zpddxu",
+      "native_xy_bbox": [
+        0.226,
+        0.226
+      ]
+    }
+  ],
+  "platter": [
+    {
+      "model": "csanbr",
+      "native_xy_bbox": [
+        0.2173,
+        0.3448
+      ]
+    },
+    {
+      "model": "ekjpdj",
+      "native_xy_bbox": [
+        0.0972,
+        0.3403
+      ]
+    },
+    {
+      "model": "hnlivs",
+      "native_xy_bbox": [
+        0.1587,
+        0.3403
+      ]
+    },
+    {
+      "model": "iadlti",
+      "native_xy_bbox": [
+        0.2595,
+        0.2616
+      ]
+    },
+    {
+      "model": "ieoasd",
+      "native_xy_bbox": [
+        0.119,
+        0.2552
+      ]
+    },
+    {
+      "model": "kiiamx",
+      "native_xy_bbox": [
+        0.1384,
+        0.3403
+      ]
+    }
+  ],
+  "pop_case": [
+    {
+      "model": "qcfxec",
+      "native_xy_bbox": [
+        0.2158,
+        0.3247
+      ]
+    },
+    {
+      "model": "qwtbon",
+      "native_xy_bbox": [
+        0.1299,
+        0.3937
+      ]
+    },
+    {
+      "model": "rzhvvk",
+      "native_xy_bbox": [
+        0.1962,
+        0.2952
+      ]
+    },
+    {
+      "model": "unmexe",
+      "native_xy_bbox": [
+        0.1784,
+        0.2683
+      ]
+    },
+    {
+      "model": "zfyatg",
+      "native_xy_bbox": [
+        0.1474,
+        0.2233
+      ]
+    },
+    {
+      "model": "zxguap",
+      "native_xy_bbox": [
+        0.1299,
+        0.3937
+      ]
+    }
+  ],
+  "popcorn_bag": [
+    {
+      "model": "hdcpqg",
+      "native_xy_bbox": [
+        0.2706,
+        0.3672
+      ]
+    }
+  ],
+  "pork_chop": [
+    {
+      "model": "bdwvkg",
+      "native_xy_bbox": [
+        0.1467,
+        0.1227
+      ]
+    }
+  ],
+  "portable_game_console": [
+    {
+      "model": "muwcnf",
+      "native_xy_bbox": [
+        0.0846,
+        0.0957
+      ]
+    }
+  ],
+  "post_it": [
+    {
+      "model": "drlhqi",
+      "native_xy_bbox": [
+        0.0765,
+        0.0765
+      ]
+    },
+    {
+      "model": "ooetjh",
+      "native_xy_bbox": [
+        0.075,
+        0.075
+      ]
+    },
+    {
+      "model": "xakxes",
+      "native_xy_bbox": [
+        0.075,
+        0.075
+      ]
+    }
+  ],
+  "postcard": [
+    {
+      "model": "aujfqp",
+      "native_xy_bbox": [
+        0.1603,
+        0.1192
+      ]
+    }
+  ],
+  "potato_masher": [
+    {
+      "model": "qxfadi",
+      "native_xy_bbox": [
+        0.3575,
+        0.0678
+      ]
+    }
+  ],
+  "pressure_cooker": [
+    {
+      "model": "otyngn",
+      "native_xy_bbox": [
+        0.3909,
+        0.3935
+      ]
+    }
+  ],
+  "pretzel": [
+    {
+      "model": "rmutwn",
+      "native_xy_bbox": [
+        0.1956,
+        0.2413
+      ]
+    }
+  ],
+  "price_tag": [
+    {
+      "model": "uijuyh",
+      "native_xy_bbox": [
+        0.0602,
+        0.0901
+      ]
+    }
+  ],
+  "quiche": [
+    {
+      "model": "borxmv",
+      "native_xy_bbox": [
+        0.2198,
+        0.2197
+      ]
+    }
+  ],
+  "receipt": [
+    {
+      "model": "hgnbjj",
+      "native_xy_bbox": [
+        0.1272,
+        0.05
+      ]
+    },
+    {
+      "model": "qfaleu",
+      "native_xy_bbox": [
+        0.1961,
+        0.0975
+      ]
+    },
+    {
+      "model": "rzrhlo",
+      "native_xy_bbox": [
+        0.1999,
+        0.1046
+      ]
+    },
+    {
+      "model": "xvfean",
+      "native_xy_bbox": [
+        0.1278,
+        0.0519
+      ]
+    },
+    {
+      "model": "zsxylm",
+      "native_xy_bbox": [
+        0.1961,
+        0.0971
+      ]
+    }
+  ],
+  "ripsaw": [
+    {
+      "model": "laysom",
+      "native_xy_bbox": [
+        0.3446,
+        0.0823
+      ]
+    }
+  ],
+  "room_ventilator": [
+    {
+      "model": "pbceln",
+      "native_xy_bbox": [
+        0.4208,
+        0.4318
+      ]
+    },
+    {
+      "model": "yvpfsq",
+      "native_xy_bbox": [
+        0.2047,
+        0.2047
+      ]
+    }
+  ],
+  "rosemary_shaker": [
+    {
+      "model": "iayqxs",
+      "native_xy_bbox": [
+        0.0673,
+        0.0674
+      ]
+    }
+  ],
+  "rubber_eraser": [
+    {
+      "model": "cungod",
+      "native_xy_bbox": [
+        0.05,
+        0.0214
+      ]
+    }
+  ],
+  "rubber_glove": [
+    {
+      "model": "feadfc",
+      "native_xy_bbox": [
+        0.1641,
+        0.097
+      ]
+    },
+    {
+      "model": "hsaxtc",
+      "native_xy_bbox": [
+        0.2163,
+        0.1207
+      ]
+    }
+  ],
+  "sandal": [
+    {
+      "model": "txkidl",
+      "native_xy_bbox": [
+        0.2372,
+        0.0897
+      ]
+    }
+  ],
+  "sanitary_napkin": [
+    {
+      "model": "axqfpb",
+      "native_xy_bbox": [
+        0.0678,
+        0.2022
+      ]
+    }
+  ],
+  "saucepan": [
+    {
+      "model": "fsinsu",
+      "native_xy_bbox": [
+        0.2998,
+        0.1809
+      ]
+    }
+  ],
+  "saucepot": [
+    {
+      "model": "chjetk",
+      "native_xy_bbox": [
+        0.2887,
+        0.3454
+      ]
+    },
+    {
+      "model": "kvgaar",
+      "native_xy_bbox": [
+        0.4521,
+        0.2213
+      ]
+    },
+    {
+      "model": "pkfydm",
+      "native_xy_bbox": [
+        0.4126,
+        0.199
+      ]
+    },
+    {
+      "model": "tfzijn",
+      "native_xy_bbox": [
+        0.2594,
+        0.4157
+      ]
+    },
+    {
+      "model": "urqzec",
+      "native_xy_bbox": [
+        0.4325,
+        0.2086
+      ]
+    },
+    {
+      "model": "uvzmss",
+      "native_xy_bbox": [
+        0.2226,
+        0.2998
+      ]
+    },
+    {
+      "model": "vqtkwq",
+      "native_xy_bbox": [
+        0.2872,
+        0.393
+      ]
+    },
+    {
+      "model": "wfryvm",
+      "native_xy_bbox": [
+        0.2932,
+        0.4004
+      ]
+    }
+  ],
+  "saucer": [
+    {
+      "model": "mgbeah",
+      "native_xy_bbox": [
+        0.1568,
+        0.1568
+      ]
+    },
+    {
+      "model": "oxivmf",
+      "native_xy_bbox": [
+        0.2674,
+        0.2674
+      ]
+    },
+    {
+      "model": "szzjzd",
+      "native_xy_bbox": [
+        0.1086,
+        0.1086
+      ]
+    },
+    {
+      "model": "vghfkh",
+      "native_xy_bbox": [
+        0.1443,
+        0.1442
+      ]
+    }
+  ],
+  "scanner": [
+    {
+      "model": "juzkjp",
+      "native_xy_bbox": [
+        0.31,
+        0.2182
+      ]
+    }
+  ],
+  "scrub_brush": [
+    {
+      "model": "hsejyi",
+      "native_xy_bbox": [
+        0.127,
+        0.0361
+      ]
+    }
+  ],
+  "seashell": [
+    {
+      "model": "lbzsnp",
+      "native_xy_bbox": [
+        0.0362,
+        0.0368
+      ]
+    },
+    {
+      "model": "nekgsq",
+      "native_xy_bbox": [
+        0.1066,
+        0.1136
+      ]
+    }
+  ],
+  "set_triangle": [
+    {
+      "model": "swlgkg",
+      "native_xy_bbox": [
+        0.1172,
+        0.1172
+      ]
+    }
+  ],
+  "shears": [
+    {
+      "model": "iizidc",
+      "native_xy_bbox": [
+        0.1275,
+        0.049
+      ]
+    }
+  ],
+  "shelf": [
+    {
+      "model": "cyckht",
+      "native_xy_bbox": [
+        0.1853,
+        0.2858
+      ]
+    },
+    {
+      "model": "hrfwyd",
+      "native_xy_bbox": [
+        0.1827,
+        0.2666
+      ]
+    }
+  ],
+  "shoe_box": [
+    {
+      "model": "gvwcka",
+      "native_xy_bbox": [
+        0.2681,
+        0.1406
+      ]
+    },
+    {
+      "model": "ioetqp",
+      "native_xy_bbox": [
+        0.4169,
+        0.2853
+      ]
+    },
+    {
+      "model": "pitwey",
+      "native_xy_bbox": [
+        0.3062,
+        0.2458
+      ]
+    },
+    {
+      "model": "towipq",
+      "native_xy_bbox": [
+        0.2824,
+        0.2205
+      ]
+    }
+  ],
+  "shopping_basket": [
+    {
+      "model": "vsxhsv",
+      "native_xy_bbox": [
+        0.3689,
+        0.238
+      ]
+    }
+  ],
+  "shrimp": [
+    {
+      "model": "mnpgev",
+      "native_xy_bbox": [
+        0.0538,
+        0.0659
+      ]
+    }
+  ],
+  "sieve": [
+    {
+      "model": "ucrzlb",
+      "native_xy_bbox": [
+        0.0845,
+        0.328
+      ]
+    }
+  ],
+  "skimmer": [
+    {
+      "model": "wvmcce",
+      "native_xy_bbox": [
+        0.3996,
+        0.111
+      ]
+    }
+  ],
+  "sliced_melon": [
+    {
+      "model": "quxcke",
+      "native_xy_bbox": [
+        0.3582,
+        0.1573
+      ]
+    }
+  ],
+  "sliced_roast_beef": [
+    {
+      "model": "cpdfcf",
+      "native_xy_bbox": [
+        0.2813,
+        0.1194
+      ]
+    }
+  ],
+  "sliced_tomato": [
+    {
+      "model": "bgcdjr",
+      "native_xy_bbox": [
+        0.0663,
+        0.0753
+      ]
+    }
+  ],
+  "sliced_watermelon": [
+    {
+      "model": "zgmaqe",
+      "native_xy_bbox": [
+        0.2,
+        0.085
+      ]
+    }
+  ],
+  "snapper": [
+    {
+      "model": "vfncga",
+      "native_xy_bbox": [
+        0.1513,
+        0.4504
+      ]
+    }
+  ],
+  "soap_dish": [
+    {
+      "model": "ownvqj",
+      "native_xy_bbox": [
+        0.1806,
+        0.1343
+      ]
+    },
+    {
+      "model": "slksbk",
+      "native_xy_bbox": [
+        0.0806,
+        0.1533
+      ]
+    }
+  ],
+  "soap_dispenser": [
+    {
+      "model": "sinntg",
+      "native_xy_bbox": [
+        0.14,
+        0.069
+      ]
+    }
+  ],
+  "soda_cup": [
+    {
+      "model": "gnzegv",
+      "native_xy_bbox": [
+        0.0821,
+        0.0821
+      ]
+    },
+    {
+      "model": "lpanoc",
+      "native_xy_bbox": [
+        0.0922,
+        0.0922
+      ]
+    }
+  ],
+  "soil_bag": [
+    {
+      "model": "gzcqwx",
+      "native_xy_bbox": [
+        0.2706,
+        0.3672
+      ]
+    }
+  ],
+  "sound_system": [
+    {
+      "model": "hftvcq",
+      "native_xy_bbox": [
+        0.2701,
+        0.285
+      ]
+    }
+  ],
+  "soup_ladle": [
+    {
+      "model": "cfzneb",
+      "native_xy_bbox": [
+        0.339,
+        0.1005
+      ]
+    },
+    {
+      "model": "rqnufc",
+      "native_xy_bbox": [
+        0.3257,
+        0.0961
+      ]
+    }
+  ],
+  "spinach": [
+    {
+      "model": "nshkpm",
+      "native_xy_bbox": [
+        0.0319,
+        0.0889
+      ]
+    }
+  ],
+  "sponge": [
+    {
+      "model": "aewrov",
+      "native_xy_bbox": [
+        0.105,
+        0.07
+      ]
+    },
+    {
+      "model": "klwueh",
+      "native_xy_bbox": [
+        0.105,
+        0.07
+      ]
+    },
+    {
+      "model": "qewotb",
+      "native_xy_bbox": [
+        0.105,
+        0.07
+      ]
+    }
+  ],
+  "squeegee": [
+    {
+      "model": "hgeqlw",
+      "native_xy_bbox": [
+        0.237,
+        0.2501
+      ]
+    }
+  ],
+  "standing_loudspeaker": [
+    {
+      "model": "lgkhqt",
+      "native_xy_bbox": [
+        0.1236,
+        0.3251
+      ]
+    }
+  ],
+  "steak": [
+    {
+      "model": "cuowqg",
+      "native_xy_bbox": [
+        0.2564,
+        0.3163
+      ]
+    },
+    {
+      "model": "hnifkz",
+      "native_xy_bbox": [
+        0.2995,
+        0.4411
+      ]
+    },
+    {
+      "model": "lcebsq",
+      "native_xy_bbox": [
+        0.1292,
+        0.2507
+      ]
+    },
+    {
+      "model": "ppykkp",
+      "native_xy_bbox": [
+        0.1304,
+        0.1945
+      ]
+    }
+  ],
+  "steamer_basket": [
+    {
+      "model": "lageli",
+      "native_xy_bbox": [
+        0.234,
+        0.234
+      ]
+    },
+    {
+      "model": "qpzbqp",
+      "native_xy_bbox": [
+        0.1507,
+        0.1542
+      ]
+    }
+  ],
+  "steel_wool": [
+    {
+      "model": "egeolq",
+      "native_xy_bbox": [
+        0.3109,
+        0.0867
+      ]
+    }
+  ],
+  "sticker": [
+    {
+      "model": "wshged",
+      "native_xy_bbox": [
+        0.1079,
+        0.1079
+      ]
+    }
+  ],
+  "sticky_note": [
+    {
+      "model": "tghqep",
+      "native_xy_bbox": [
+        0.055,
+        0.055
+      ]
+    }
+  ],
+  "stockpot": [
+    {
+      "model": "dcleem",
+      "native_xy_bbox": [
+        0.3009,
+        0.4122
+      ]
+    },
+    {
+      "model": "fuzmdd",
+      "native_xy_bbox": [
+        0.1921,
+        0.2779
+      ]
+    },
+    {
+      "model": "grrcna",
+      "native_xy_bbox": [
+        0.2932,
+        0.4004
+      ]
+    },
+    {
+      "model": "gxiqbw",
+      "native_xy_bbox": [
+        0.2918,
+        0.3727
+      ]
+    },
+    {
+      "model": "lfnbhc",
+      "native_xy_bbox": [
+        0.3441,
+        0.4516
+      ]
+    },
+    {
+      "model": "oshwps",
+      "native_xy_bbox": [
+        0.3532,
+        0.447
+      ]
+    },
+    {
+      "model": "yvhmex",
+      "native_xy_bbox": [
+        0.2656,
+        0.3542
+      ]
+    }
+  ],
+  "storage_box": [
+    {
+      "model": "aqdbdu",
+      "native_xy_bbox": [
+        0.2037,
+        0.2037
+      ]
+    },
+    {
+      "model": "bwbpvg",
+      "native_xy_bbox": [
+        0.2352,
+        0.2508
+      ]
+    },
+    {
+      "model": "eicujj",
+      "native_xy_bbox": [
+        0.2904,
+        0.3114
+      ]
+    }
+  ],
+  "straw": [
+    {
+      "model": "qcqvjt",
+      "native_xy_bbox": [
+        0.1778,
+        0.0604
+      ]
+    }
+  ],
+  "sugar_cookie": [
+    {
+      "model": "cgkiti",
+      "native_xy_bbox": [
+        0.0729,
+        0.0766
+      ]
+    },
+    {
+      "model": "hlyeaq",
+      "native_xy_bbox": [
+        0.073,
+        0.0767
+      ]
+    }
+  ],
+  "sunflower_seed_bag": [
+    {
+      "model": "dhwlaw",
+      "native_xy_bbox": [
+        0.2698,
+        0.3672
+      ]
+    }
+  ],
+  "sunglasses": [
+    {
+      "model": "gqawld",
+      "native_xy_bbox": [
+        0.1411,
+        0.1399
+      ]
+    }
+  ],
+  "swiss_cheese": [
+    {
+      "model": "hwxeto",
+      "native_xy_bbox": [
+        0.1228,
+        0.0989
+      ]
+    }
+  ],
+  "table_knife": [
+    {
+      "model": "eebpap",
+      "native_xy_bbox": [
+        0.2655,
+        0.0281
+      ]
+    },
+    {
+      "model": "jxdfyy",
+      "native_xy_bbox": [
+        0.2424,
+        0.0219
+      ]
+    },
+    {
+      "model": "lrdmpf",
+      "native_xy_bbox": [
+        0.1372,
+        0.0149
+      ]
+    }
+  ],
+  "taboret": [
+    {
+      "model": "bciekv",
+      "native_xy_bbox": [
+        0.3408,
+        0.3408
+      ]
+    }
+  ],
+  "tag": [
+    {
+      "model": "bxailw",
+      "native_xy_bbox": [
+        0.1522,
+        0.0588
+      ]
+    },
+    {
+      "model": "ohegnp",
+      "native_xy_bbox": [
+        0.1415,
+        0.0487
+      ]
+    }
+  ],
+  "teacup": [
+    {
+      "model": "cpozxi",
+      "native_xy_bbox": [
+        0.0867,
+        0.0869
+      ]
+    },
+    {
+      "model": "oxfzfe",
+      "native_xy_bbox": [
+        0.1299,
+        0.0943
+      ]
+    },
+    {
+      "model": "vckahe",
+      "native_xy_bbox": [
+        0.0915,
+        0.0734
+      ]
+    },
+    {
+      "model": "wopjex",
+      "native_xy_bbox": [
+        0.1146,
+        0.0885
+      ]
+    },
+    {
+      "model": "zdvgol",
+      "native_xy_bbox": [
+        0.0748,
+        0.0748
+      ]
+    }
+  ],
+  "teapot": [
+    {
+      "model": "jlalfc",
+      "native_xy_bbox": [
+        0.29,
+        0.1653
+      ]
+    },
+    {
+      "model": "mvrhya",
+      "native_xy_bbox": [
+        0.2346,
+        0.146
+      ]
+    }
+  ],
+  "teaspoon": [
+    {
+      "model": "bjzgmj",
+      "native_xy_bbox": [
+        0.2504,
+        0.055
+      ]
+    },
+    {
+      "model": "nxddfp",
+      "native_xy_bbox": [
+        0.13,
+        0.0292
+      ]
+    },
+    {
+      "model": "piqabk",
+      "native_xy_bbox": [
+        0.1472,
+        0.0315
+      ]
+    }
+  ],
+  "thermostat": [
+    {
+      "model": "jophec",
+      "native_xy_bbox": [
+        0.0971,
+        0.1474
+      ]
+    }
+  ],
+  "tile": [
+    {
+      "model": "kuombe",
+      "native_xy_bbox": [
+        0.0901,
+        0.3
+      ]
+    }
+  ],
+  "tiramisu": [
+    {
+      "model": "inoudh",
+      "native_xy_bbox": [
+        0.0961,
+        0.0721
+      ]
+    }
+  ],
+  "tissue_dispenser": [
+    {
+      "model": "nflhrf",
+      "native_xy_bbox": [
+        0.117,
+        0.1143
+      ]
+    },
+    {
+      "model": "rkljcx",
+      "native_xy_bbox": [
+        0.3043,
+        0.2081
+      ]
+    },
+    {
+      "model": "xffebs",
+      "native_xy_bbox": [
+        0.2117,
+        0.1547
+      ]
+    }
+  ],
+  "toaster": [
+    {
+      "model": "kjwqav",
+      "native_xy_bbox": [
+        0.2845,
+        0.1461
+      ]
+    }
+  ],
+  "tofu": [
+    {
+      "model": "uecgbv",
+      "native_xy_bbox": [
+        0.0256,
+        0.0257
+      ]
+    }
+  ],
+  "toilet_paper": [
+    {
+      "model": "phrpmu",
+      "native_xy_bbox": [
+        0.0936,
+        0.0919
+      ]
+    },
+    {
+      "model": "vbomsx",
+      "native_xy_bbox": [
+        0.1017,
+        0.074
+      ]
+    }
+  ],
+  "toilet_paper_holder": [
+    {
+      "model": "rdfixx",
+      "native_xy_bbox": [
+        0.1733,
+        0.1553
+      ]
+    },
+    {
+      "model": "xkaybg",
+      "native_xy_bbox": [
+        0.0632,
+        0.1384
+      ]
+    }
+  ],
+  "toy_box": [
+    {
+      "model": "kvithq",
+      "native_xy_bbox": [
+        0.1175,
+        0.1259
+      ]
+    },
+    {
+      "model": "uvhflb",
+      "native_xy_bbox": [
+        0.0993,
+        0.145
+      ]
+    }
+  ],
+  "toy_dice": [
+    {
+      "model": "akguod",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "bjrxkj",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "cmqtch",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "eqwazv",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "ievnsq",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "kmagva",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "krpdji",
+      "native_xy_bbox": [
+        0.0414,
+        0.0415
+      ]
+    },
+    {
+      "model": "mqvaaa",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "rbzyrv",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    },
+    {
+      "model": "wyxlhc",
+      "native_xy_bbox": [
+        0.0414,
+        0.0414
+      ]
+    }
+  ],
+  "toy_figure": [
+    {
+      "model": "eulekw",
+      "native_xy_bbox": [
+        0.3383,
+        0.2547
+      ]
+    },
+    {
+      "model": "fnueyn",
+      "native_xy_bbox": [
+        0.0958,
+        0.1455
+      ]
+    },
+    {
+      "model": "gqspnb",
+      "native_xy_bbox": [
+        0.15,
+        0.1081
+      ]
+    },
+    {
+      "model": "krmxjk",
+      "native_xy_bbox": [
+        0.1498,
+        0.1365
+      ]
+    },
+    {
+      "model": "tjchdg",
+      "native_xy_bbox": [
+        0.1507,
+        0.1479
+      ]
+    }
+  ],
+  "trash_can": [
+    {
+      "model": "wkxtxh",
+      "native_xy_bbox": [
+        0.2302,
+        0.2301
+      ]
+    }
+  ],
+  "tray": [
+    {
+      "model": "coqeme",
+      "native_xy_bbox": [
+        0.1419,
+        0.2224
+      ]
+    },
+    {
+      "model": "glwebh",
+      "native_xy_bbox": [
+        0.2065,
+        0.166
+      ]
+    },
+    {
+      "model": "gsxbym",
+      "native_xy_bbox": [
+        0.3062,
+        0.4373
+      ]
+    },
+    {
+      "model": "hbjdlb",
+      "native_xy_bbox": [
+        0.1767,
+        0.3902
+      ]
+    },
+    {
+      "model": "hjxczh",
+      "native_xy_bbox": [
+        0.2,
+        0.35
+      ]
+    },
+    {
+      "model": "hvlfig",
+      "native_xy_bbox": [
+        0.2725,
+        0.4367
+      ]
+    },
+    {
+      "model": "incirm",
+      "native_xy_bbox": [
+        0.2755,
+        0.4953
+      ]
+    },
+    {
+      "model": "jpcflq",
+      "native_xy_bbox": [
+        0.166,
+        0.302
+      ]
+    },
+    {
+      "model": "mhhoga",
+      "native_xy_bbox": [
+        0.3107,
+        0.4618
+      ]
+    },
+    {
+      "model": "mkdcha",
+      "native_xy_bbox": [
+        0.4356,
+        0.1425
+      ]
+    },
+    {
+      "model": "spopfj",
+      "native_xy_bbox": [
+        0.2443,
+        0.3246
+      ]
+    },
+    {
+      "model": "thkphg",
+      "native_xy_bbox": [
+        0.4052,
+        0.2703
+      ]
+    },
+    {
+      "model": "vxbtax",
+      "native_xy_bbox": [
+        0.3266,
+        0.477
+      ]
+    },
+    {
+      "model": "wbwmcs",
+      "native_xy_bbox": [
+        0.1881,
+        0.2703
+      ]
+    },
+    {
+      "model": "xzcnjq",
+      "native_xy_bbox": [
+        0.2305,
+        0.3458
+      ]
+    },
+    {
+      "model": "zcmnji",
+      "native_xy_bbox": [
+        0.33,
+        0.33
+      ]
+    },
+    {
+      "model": "zsddtq",
+      "native_xy_bbox": [
+        0.2669,
+        0.2669
+      ]
+    }
+  ],
+  "tupperware": [
+    {
+      "model": "mkstwr",
+      "native_xy_bbox": [
+        0.2189,
+        0.2189
+      ]
+    }
+  ],
+  "utility_knife": [
+    {
+      "model": "kridpz",
+      "native_xy_bbox": [
+        0.2585,
+        0.0452
+      ]
+    }
+  ],
+  "valentine_wreath": [
+    {
+      "model": "xpbsof",
+      "native_xy_bbox": [
+        0.2016,
+        0.2411
+      ]
+    }
+  ],
+  "vase": [
+    {
+      "model": "aegxpb",
+      "native_xy_bbox": [
+        0.1794,
+        0.1793
+      ]
+    },
+    {
+      "model": "eqhgiy",
+      "native_xy_bbox": [
+        0.2073,
+        0.2068
+      ]
+    },
+    {
+      "model": "gopbrh",
+      "native_xy_bbox": [
+        0.0952,
+        0.0952
+      ]
+    },
+    {
+      "model": "hkwtnf",
+      "native_xy_bbox": [
+        0.1509,
+        0.1509
+      ]
+    },
+    {
+      "model": "hliauj",
+      "native_xy_bbox": [
+        0.2384,
+        0.2384
+      ]
+    },
+    {
+      "model": "jdddsr",
+      "native_xy_bbox": [
+        0.2138,
+        0.2138
+      ]
+    },
+    {
+      "model": "jpwsrp",
+      "native_xy_bbox": [
+        0.1735,
+        0.1709
+      ]
+    },
+    {
+      "model": "nodcpg",
+      "native_xy_bbox": [
+        0.0859,
+        0.0859
+      ]
+    },
+    {
+      "model": "qebiei",
+      "native_xy_bbox": [
+        0.0873,
+        0.0873
+      ]
+    },
+    {
+      "model": "rusmlm",
+      "native_xy_bbox": [
+        0.0965,
+        0.0965
+      ]
+    },
+    {
+      "model": "rwotxo",
+      "native_xy_bbox": [
+        0.1747,
+        0.1747
+      ]
+    },
+    {
+      "model": "wltgjn",
+      "native_xy_bbox": [
+        0.1184,
+        0.0738
+      ]
+    },
+    {
+      "model": "xfduug",
+      "native_xy_bbox": [
+        0.0948,
+        0.0948
+      ]
+    },
+    {
+      "model": "yfqgfd",
+      "native_xy_bbox": [
+        0.1008,
+        0.1008
+      ]
+    },
+    {
+      "model": "ysdoep",
+      "native_xy_bbox": [
+        0.1104,
+        0.1104
+      ]
+    },
+    {
+      "model": "zaziny",
+      "native_xy_bbox": [
+        0.0961,
+        0.0998
+      ]
+    },
+    {
+      "model": "zwekzu",
+      "native_xy_bbox": [
+        0.0936,
+        0.0936
+      ]
+    }
+  ],
+  "vegetable_peeler": [
+    {
+      "model": "njgqao",
+      "native_xy_bbox": [
+        0.1811,
+        0.0839
+      ]
+    }
+  ],
+  "video_game": [
+    {
+      "model": "apjpos",
+      "native_xy_bbox": [
+        0.0856,
+        0.0613
+      ]
+    },
+    {
+      "model": "ckugyi",
+      "native_xy_bbox": [
+        0.0604,
+        0.0663
+      ]
+    },
+    {
+      "model": "coiafo",
+      "native_xy_bbox": [
+        0.0585,
+        0.0643
+      ]
+    },
+    {
+      "model": "lfdpse",
+      "native_xy_bbox": [
+        0.0606,
+        0.0666
+      ]
+    },
+    {
+      "model": "pujfzk",
+      "native_xy_bbox": [
+        0.0629,
+        0.0691
+      ]
+    },
+    {
+      "model": "quzjuo",
+      "native_xy_bbox": [
+        0.0593,
+        0.0653
+      ]
+    },
+    {
+      "model": "yyvkel",
+      "native_xy_bbox": [
+        0.0846,
+        0.0606
+      ]
+    }
+  ],
+  "wafer": [
+    {
+      "model": "ramcrb",
+      "native_xy_bbox": [
+        0.0335,
+        0.1991
+      ]
+    }
+  ],
+  "waffle": [
+    {
+      "model": "gjwper",
+      "native_xy_bbox": [
+        0.2841,
+        0.2833
+      ]
+    }
+  ],
+  "wall_mounted_loudspeaker": [
+    {
+      "model": "wxkuww",
+      "native_xy_bbox": [
+        0.1463,
+        0.1375
+      ]
+    }
+  ],
+  "wall_socket": [
+    {
+      "model": "ilzahp",
+      "native_xy_bbox": [
+        0.2194,
+        0.0819
+      ]
+    },
+    {
+      "model": "neqiyu",
+      "native_xy_bbox": [
+        0.0865,
+        0.0572
+      ]
+    },
+    {
+      "model": "nujxel",
+      "native_xy_bbox": [
+        0.0862,
+        0.0862
+      ]
+    },
+    {
+      "model": "plssag",
+      "native_xy_bbox": [
+        0.0862,
+        0.0862
+      ]
+    }
+  ],
+  "wallet": [
+    {
+      "model": "lagjae",
+      "native_xy_bbox": [
+        0.1287,
+        0.0886
+      ]
+    }
+  ],
+  "walnut_meat": [
+    {
+      "model": "orjven",
+      "native_xy_bbox": [
+        0.042,
+        0.0448
+      ]
+    }
+  ],
+  "water_glass": [
+    {
+      "model": "cdteyb",
+      "native_xy_bbox": [
+        0.1861,
+        0.1861
+      ]
+    },
+    {
+      "model": "edfzlt",
+      "native_xy_bbox": [
+        0.0956,
+        0.0956
+      ]
+    },
+    {
+      "model": "elwfms",
+      "native_xy_bbox": [
+        0.0902,
+        0.0902
+      ]
+    },
+    {
+      "model": "ewgotr",
+      "native_xy_bbox": [
+        0.0789,
+        0.0789
+      ]
+    },
+    {
+      "model": "gypzlg",
+      "native_xy_bbox": [
+        0.0948,
+        0.0948
+      ]
+    },
+    {
+      "model": "imsnkt",
+      "native_xy_bbox": [
+        0.0858,
+        0.0858
+      ]
+    },
+    {
+      "model": "kttdbu",
+      "native_xy_bbox": [
+        0.1626,
+        0.1626
+      ]
+    },
+    {
+      "model": "ktuvuo",
+      "native_xy_bbox": [
+        0.079,
+        0.079
+      ]
+    },
+    {
+      "model": "kuiiai",
+      "native_xy_bbox": [
+        0.1024,
+        0.1024
+      ]
+    },
+    {
+      "model": "nfoydb",
+      "native_xy_bbox": [
+        0.09,
+        0.09
+      ]
+    },
+    {
+      "model": "onbiqg",
+      "native_xy_bbox": [
+        0.0856,
+        0.0856
+      ]
+    },
+    {
+      "model": "ptciim",
+      "native_xy_bbox": [
+        0.0843,
+        0.0843
+      ]
+    },
+    {
+      "model": "slscza",
+      "native_xy_bbox": [
+        0.0772,
+        0.0772
+      ]
+    },
+    {
+      "model": "szjfpb",
+      "native_xy_bbox": [
+        0.0549,
+        0.055
+      ]
+    },
+    {
+      "model": "uwtdng",
+      "native_xy_bbox": [
+        0.0556,
+        0.0556
+      ]
+    },
+    {
+      "model": "ybhepe",
+      "native_xy_bbox": [
+        0.0417,
+        0.0417
+      ]
+    },
+    {
+      "model": "zbridw",
+      "native_xy_bbox": [
+        0.0799,
+        0.0795
+      ]
+    }
+  ],
+  "wax_paper": [
+    {
+      "model": "emhfwr",
+      "native_xy_bbox": [
+        0.2952,
+        0.2101
+      ]
+    }
+  ],
+  "white_chocolate": [
+    {
+      "model": "kddnhm",
+      "native_xy_bbox": [
+        0.0867,
+        0.1666
+      ]
+    }
+  ],
+  "white_rice_sack": [
+    {
+      "model": "xiwkwz",
+      "native_xy_bbox": [
+        0.2706,
+        0.3672
+      ]
+    }
+  ],
+  "wicker_basket": [
+    {
+      "model": "dgkhyn",
+      "native_xy_bbox": [
+        0.2583,
+        0.4121
+      ]
+    },
+    {
+      "model": "tsjvyu",
+      "native_xy_bbox": [
+        0.3937,
+        0.4141
+      ]
+    },
+    {
+      "model": "unasxd",
+      "native_xy_bbox": [
+        0.2583,
+        0.4121
+      ]
+    }
+  ],
+  "wineglass": [
+    {
+      "model": "bnored",
+      "native_xy_bbox": [
+        0.1539,
+        0.1535
+      ]
+    },
+    {
+      "model": "euzudc",
+      "native_xy_bbox": [
+        0.0968,
+        0.0968
+      ]
+    },
+    {
+      "model": "ezsdil",
+      "native_xy_bbox": [
+        0.113,
+        0.1129
+      ]
+    },
+    {
+      "model": "ggbdlq",
+      "native_xy_bbox": [
+        0.1259,
+        0.1259
+      ]
+    },
+    {
+      "model": "hxccge",
+      "native_xy_bbox": [
+        0.0843,
+        0.0841
+      ]
+    },
+    {
+      "model": "kxovsj",
+      "native_xy_bbox": [
+        0.1168,
+        0.1167
+      ]
+    },
+    {
+      "model": "yfzibn",
+      "native_xy_bbox": [
+        0.0555,
+        0.0556
+      ]
+    }
+  ],
+  "wire_cutter": [
+    {
+      "model": "ugbval",
+      "native_xy_bbox": [
+        0.1901,
+        0.0684
+      ]
+    }
+  ],
+  "wok": [
+    {
+      "model": "pobfpe",
+      "native_xy_bbox": [
+        0.3655,
+        0.2187
+      ]
+    }
+  ],
+  "wooden_spoon": [
+    {
+      "model": "gpiftn",
+      "native_xy_bbox": [
+        0.1879,
+        0.0366
+      ]
+    }
+  ],
+  "work_helmet": [
+    {
+      "model": "goovzq",
+      "native_xy_bbox": [
+        0.2548,
+        0.1931
+      ]
+    }
+  ],
+  "wreath": [
+    {
+      "model": "rkrxno",
+      "native_xy_bbox": [
+        0.2002,
+        0.1978
+      ]
+    }
+  ]
+}

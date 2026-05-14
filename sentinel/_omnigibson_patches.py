@@ -426,6 +426,141 @@ def _register_bddl_predicates() -> None:
     register_sentinel_predicates()
 
 
+def _patch_create_joint_skip_render() -> None:
+    """Skip ``og.sim.render()`` inside ``create_joint`` when all four
+    local-pose args are provided by the caller.
+
+    Root cause of the AG-induced ``AttributeError: 'NoneType' object has
+    no attribute 'view'`` crash:
+
+    ``omnigibson/utils/usd_utils.py:create_joint`` calls ``og.sim.render()``
+    after defining the joint to "auto-fill the local pose before
+    overwriting it". When this runs inside a physics callback (the AG fire
+    path: ``_handle_assisted_grasping → _establish_grasp_rigid →
+    create_joint``), the render dispatches timeline events that invalidate
+    the robot's articulation handles
+    (``ArticulationView._is_initialized = False`` via
+    ``_invalidate_physics_handle_callback``). Immediately after the joint
+    is created, ``_establish_grasp_rigid`` calls
+    ``self.get_joint_positions()`` which now returns ``None`` because the
+    view was de-initialised → AttributeError → simulator segfault.
+
+    The render is a no-op for any caller (AG included) that already
+    provides explicit ``joint_frame_*`` arguments, because those values
+    immediately overwrite whatever the render auto-filled. So we wrap
+    ``create_joint`` and skip the render in that case. When some pose
+    args are omitted (e.g. legacy callers relying on the default), we
+    fall back to the original behaviour.
+
+    Upstream OG already flags this as fragile (see the in-source comment
+    on the offending line about ``multi_gpu``); this patch makes the
+    same protection apply on single-GPU as well.
+    """
+    import omnigibson.utils.usd_utils as usd_utils
+
+    orig_create_joint = usd_utils.create_joint
+
+    def create_joint_safe(
+        prim_path,
+        joint_type,
+        body0=None,
+        body1=None,
+        enabled=True,
+        exclude_from_articulation=False,
+        joint_frame_in_parent_frame_pos=None,
+        joint_frame_in_parent_frame_quat=None,
+        joint_frame_in_child_frame_pos=None,
+        joint_frame_in_child_frame_quat=None,
+        break_force=None,
+        break_torque=None,
+    ):
+        all_poses_provided = (
+            joint_frame_in_parent_frame_pos is not None
+            and joint_frame_in_parent_frame_quat is not None
+            and joint_frame_in_child_frame_pos is not None
+            and joint_frame_in_child_frame_quat is not None
+        )
+        if not all_poses_provided:
+            return orig_create_joint(
+                prim_path=prim_path,
+                joint_type=joint_type,
+                body0=body0,
+                body1=body1,
+                enabled=enabled,
+                exclude_from_articulation=exclude_from_articulation,
+                joint_frame_in_parent_frame_pos=joint_frame_in_parent_frame_pos,
+                joint_frame_in_parent_frame_quat=joint_frame_in_parent_frame_quat,
+                joint_frame_in_child_frame_pos=joint_frame_in_child_frame_pos,
+                joint_frame_in_child_frame_quat=joint_frame_in_child_frame_quat,
+                break_force=break_force,
+                break_torque=break_torque,
+            )
+
+        # Inlined replacement of the original body, omitting the render()
+        # call that invalidates articulation handles when invoked inside
+        # a physics callback. Layout mirrors the upstream function so this
+        # remains a faithful drop-in.
+        import omnigibson as og
+        import omnigibson.lazy as lazy
+        from omnigibson.utils.constants import JointType
+        assert JointType.is_valid(joint_type=joint_type), (
+            f"Invalid joint specified for creation: {joint_type}"
+        )
+        assert body0 is not None or body1 is not None, (
+            "At least either body0 or body1 must be specified when creating a joint!"
+        )
+
+        joint = getattr(lazy.pxr.UsdPhysics, joint_type).Define(og.sim.stage, prim_path)
+        if body0 is not None:
+            assert lazy.isaacsim.core.utils.prims.is_prim_path_valid(body0), (
+                f"Invalid body0 path specified: {body0}"
+            )
+            joint.GetBody0Rel().SetTargets([lazy.pxr.Sdf.Path(body0)])
+        if body1 is not None:
+            assert lazy.isaacsim.core.utils.prims.is_prim_path_valid(body1), (
+                f"Invalid body1 path specified: {body1}"
+            )
+            joint.GetBody1Rel().SetTargets([lazy.pxr.Sdf.Path(body1)])
+
+        joint_prim = lazy.isaacsim.core.utils.prims.get_prim_at_path(prim_path)
+        lazy.pxr.PhysxSchema.PhysxJointAPI.Apply(joint_prim)
+
+        # Skip og.sim.render() — caller's explicit values overwrite
+        # everything it would auto-fill, and the render invalidates
+        # articulation handles when called inside a physics callback.
+
+        joint_prim.GetAttribute("physics:localPos0").Set(
+            lazy.pxr.Gf.Vec3f(*joint_frame_in_parent_frame_pos.tolist())
+        )
+        joint_prim.GetAttribute("physics:localRot0").Set(
+            lazy.pxr.Gf.Quatf(*joint_frame_in_parent_frame_quat[[3, 0, 1, 2]].tolist())
+        )
+        joint_prim.GetAttribute("physics:localPos1").Set(
+            lazy.pxr.Gf.Vec3f(*joint_frame_in_child_frame_pos.tolist())
+        )
+        joint_prim.GetAttribute("physics:localRot1").Set(
+            lazy.pxr.Gf.Quatf(*joint_frame_in_child_frame_quat[[3, 0, 1, 2]].tolist())
+        )
+
+        if break_force is not None:
+            joint_prim.GetAttribute("physics:breakForce").Set(break_force)
+        if break_torque is not None:
+            joint_prim.GetAttribute("physics:breakTorque").Set(break_torque)
+        joint_prim.GetAttribute("physics:jointEnabled").Set(enabled)
+        joint_prim.GetAttribute("physics:excludeFromArticulation").Set(exclude_from_articulation)
+
+        return joint_prim
+
+    usd_utils.create_joint = create_joint_safe
+
+    # ``manipulation_robot.py`` does ``from omnigibson.utils.usd_utils
+    # import create_joint`` at module load, so it captures the unpatched
+    # reference if it's imported before this patch runs. Force-import and
+    # rebind so the AG fire path always uses the safe version.
+    import omnigibson.robots.manipulation_robot as manip
+    manip.create_joint = create_joint_safe
+
+
 def _apply_eager_patches() -> None:
     global _EAGER_APPLIED
     if _EAGER_APPLIED:
@@ -436,7 +571,9 @@ def _apply_eager_patches() -> None:
     _patch_sampling_utils()
     _patch_robot_state_compat()
     _patch_scene_file_reset_compat()
-    _patch_franka_longfinger()
+    _patch_create_joint_skip_render()
+    if not os.environ.get("SENTINEL_SKIP_LONGFINGER"):
+        _patch_franka_longfinger()
     _register_bddl_predicates()
     _EAGER_APPLIED = True
 

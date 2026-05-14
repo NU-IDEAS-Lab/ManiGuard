@@ -63,7 +63,7 @@ def _default_activity_root() -> Path:
 DEFAULT_ACTIVITY_ROOT = _default_activity_root()
 
 try:
-    from sentinel.utils.bddl_generator import _pick_model_for_synset, _synset_to_category, get_lid_container_pairs
+    from sentinel.utils.task_spec import _pick_model_for_synset, _synset_to_category, get_lid_container_pairs
 except Exception:  # pragma: no cover - import path depends on repo state
     _pick_model_for_synset = None
     _synset_to_category = None

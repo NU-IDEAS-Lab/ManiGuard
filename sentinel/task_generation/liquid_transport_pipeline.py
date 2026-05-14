@@ -4,10 +4,13 @@ Extends the tabletop clutter pipeline: places a liquid-filled container
 on a table with fragile/clutter obstacles, then runs LTL-monitored
 rollouts that track spill, tilt, and obstacle safety.
 
-The target is always a liquid-filled container from LIQUID_CONTAINER_POOL.
-Fragile and clutter obstacles are selected from the standard clutter pools,
-controlled by --clutter-density.  The --difficulty flag only controls
-the liquid-specific spill threshold and tilt limit.
+The target is a graspable + fillable container drawn from
+``fillable_container_pool.json`` (115 categories, 365 models — every
+``status=graspable`` model whose BEHAVIOR taxonomy entry has the
+``fillable`` / ``openfillable`` ability). Fragiles use the clutter
+pipeline's ``fragile_pool.json``; clutter uses ``table_obstacle_pool``.
+The ``--difficulty`` flag only controls the liquid-specific spill
+threshold and tilt limit.
 
 Usage:
     python -m sentinel.task_generation.liquid_transport_pipeline \
@@ -20,15 +23,11 @@ Usage:
         --scene-model Rs_int --dry-run
 """
 
-import os
-
 from sentinel.task_generation.clutter_scene_pipeline import ClutterPipeline
-from sentinel.utils.bddl_generator import (
-    LIQUID_CONTAINER_POOL,
+from sentinel.utils.task_spec import (
     LIQUID_PRESETS,
     generate_clutter_activity,
     generate_liquid_transport_ltl_safety_json,
-    write_activity_files,
 )
 
 
@@ -37,9 +36,9 @@ class LiquidTransportPipeline(ClutterPipeline):
 
     Inherits object identification, packing, edge alignment, and gate
     checks from ClutterPipeline.  Overrides activity generation to use
-    LIQUID_CONTAINER_POOL as the target pool and adds liquid-specific
-    LTL constraints.  Adds liquid filling after placement and
-    particle-count verification at the gate.
+    ``fillable_container_pool.json`` as the target pool and adds
+    liquid-specific LTL constraints.  Adds liquid filling after
+    placement and particle-count verification at the gate.
     """
 
     @classmethod
@@ -50,8 +49,9 @@ class LiquidTransportPipeline(ClutterPipeline):
             help="Liquid difficulty (spill threshold and tilt limit only)",
         )
         parser.add_argument(
-            "--container-synset", default=None,
-            help="Specific container synset (random if omitted)",
+            "--container-category", default=None,
+            help="Specific container category (random from "
+                 "fillable_container_pool.json if omitted)",
         )
         parser.add_argument(
             "--system-name", default="water",
@@ -65,50 +65,69 @@ class LiquidTransportPipeline(ClutterPipeline):
         return "liquid_transport"
 
     def select_objects(self, args, rng):
-        # Override clutter's select_objects to use LIQUID_CONTAINER_POOL as target.
-        from sentinel.utils.bddl_generator import (
-            FRAGILE_POOL, CLUTTER_POOL, DENSITY_PRESETS,
-            estimate_object_set_footprint,
+        from sentinel.utils.task_spec import (
+            DENSITY_PRESETS, estimate_object_set_footprint,
+            _pick_model_for_category,
         )
-        density = DENSITY_PRESETS[args.clutter_density]
-        container = args.container_synset
-        if container is None:
-            container = LIQUID_CONTAINER_POOL[rng.integers(len(LIQUID_CONTAINER_POOL))][0]
+        from sentinel.task_generation.utils.clutter_pipeline.select import (
+            select_fillable_container, select_obstacle,
+        )
+        from sentinel.task_generation.utils.liquid_transport.select import (
+            select_liquid_fragile,
+        )
 
-        fragile_pool = [s for s in FRAGILE_POOL if s[0] != container] or list(FRAGILE_POOL)
-        fragile_picks = [fragile_pool[rng.integers(len(fragile_pool))][0]
+        density = DENSITY_PRESETS[args.clutter_density]
+
+        # Target — graspable + fillable container. ``--container-category``
+        # pins the category; the model is then sampled uniformly from
+        # that category's graspable+fillable models in the catalog.
+        if args.container_category is not None:
+            container_category = args.container_category
+            container_category, container_model = _pick_model_for_category(
+                container_category, rng,
+            )
+            container_synset = f"{container_category}.n.01"
+        else:
+            container_synset, container_category, container_model = (
+                select_fillable_container(rng)
+            )
+
+        # Fragile — liquid-transport-specific pool that excludes
+        # particle-modifier categories (which crash under GPU dynamics —
+        # see ``utils/liquid_transport/build_liquid_fragile_pool.py``).
+        # Clutter still uses the shared table_obstacle pool.
+        fragile_picks = [select_liquid_fragile(rng, exclude_cats={container_category})
                          for _ in range(density["fragile_count"])]
-        clutter_picks = [CLUTTER_POOL[rng.integers(len(CLUTTER_POOL))][0]
+        clutter_picks = [select_obstacle(rng, exclude_cats={container_category})
                          for _ in range(density["clutter_count"])]
 
-        synset_counts = [(container, 1)]
-        for s in set(fragile_picks):
-            synset_counts.append((s, fragile_picks.count(s)))
-        for s in set(clutter_picks):
-            synset_counts.append((s, clutter_picks.count(s)))
+        counts = [(container_category, 1, container_model)]
+        for _, cat, model in fragile_picks:
+            counts.append((cat, 1, model))
+        for _, cat, model in clutter_picks:
+            counts.append((cat, 1, model))
 
         return {
-            "required_area_m2": estimate_object_set_footprint(synset_counts),
-            "target_synset": container,
+            "required_area_m2": estimate_object_set_footprint(counts),
+            "target_synset": container_synset,
+            "target_category": container_category,
+            "target_model": container_model,
             "fragile_picks": fragile_picks,
             "clutter_picks": clutter_picks,
         }
 
     def generate_activity(self, activity_name, support_synset, support_room,
                           args, rng):
-        import bddl
+        _clutter_ltl, selection = generate_clutter_activity(
+            activity_name, support_synset, support_room,
+            args.clutter_density, rng=rng,
+            pre_selection=args._pre_selection,
+        )
 
-        bddl_text, _clutter_ltl, bddl_path, json_path, selection = \
-            generate_clutter_activity(
-                activity_name, support_synset, support_room,
-                args.clutter_density, rng=rng,
-                pre_selection=args._pre_selection,
-            )
-
-        # Replace clutter LTL with liquid-specific LTL.
         preset = LIQUID_PRESETS[args.difficulty]
         target_synset = selection["target_synset"]
-        fragile_synsets = sorted(set(selection.get("fragile_picks", [])))
+        # fragile_picks is a list of [synset, cat, model] triples.
+        fragile_synsets = sorted({p[0] for p in selection.get("fragile_picks", [])})
 
         ltl_safety = generate_liquid_transport_ltl_safety_json(
             activity_name=activity_name,
@@ -119,79 +138,107 @@ class LiquidTransportPipeline(ClutterPipeline):
             max_tilt_deg=preset["max_tilt_deg"],
         )
 
-        # Overwrite the LTL file.
-        activity_dir = os.path.join(
-            os.path.dirname(bddl.__file__), "activity_definitions", activity_name,
-        )
-        _, json_path = write_activity_files(activity_dir, bddl_text, ltl_safety)
-
         selection["system_name"] = args.system_name
         selection["difficulty"] = args.difficulty
         selection["spill_threshold"] = preset["spill_threshold"]
         selection["max_tilt_deg"] = preset["max_tilt_deg"]
 
-        return bddl_text, ltl_safety, bddl_path, json_path, selection
+        return ltl_safety, selection
 
-    def configure_task(self, cfg, selection):
+    def configure_env(self, selection):
         from omnigibson.macros import gm
         gm.USE_GPU_DYNAMICS = True
         gm.ENABLE_FLATCACHE = False
 
     def place_objects(self, ctx):
-        """Pack objects via clutter logic, then fill the target container."""
+        """Wipe stale particles, pack objects, then fill the target.
+
+        Order matters:
+          1. Wipe particles from the previous episode's fill BEFORE the
+             clutter pack runs. The water system is scene-global, so
+             once the previous episode's container parks at z=-100 its
+             particles release to the floor and stay in the system —
+             where they physically interact with this episode's pack
+             placements (containers landing on stale water get pushed
+             around mid-place) and accumulate until one ends up in a
+             degenerate pose that crashes
+             ``MicroParticleSystem._dump_state`` at save time.
+          2. Pack via the clutter logic (super()).
+          3. Snap the target to identity quat + zero velocity right
+             before ``Filled.set_value``. The volume-link AABB sampler
+             is gravity-aware; residual tilt from the pack settle lets
+             particles drift over the rim on the first post-fill step
+             (the "liquid spread on the table" symptom).
+          4. ``keep_still`` the container every post-fill step so the
+             new water mass can't tilt it back over the rim.
+
+        Identity quat assumes BEHAVIOR's authored upright is +Z, which
+        holds for every category in ``fillable_container_pool.json``
+        (graspable+fillable containers — cups, bowls, bottles, jars, …).
+        """
+        from omnigibson.object_states import Filled
+        system_name = ctx.selection["system_name"]
+        system = ctx.env.scene.get_system(system_name)
+
+        # 1. Wipe stale particles before the pack runs.
+        if int(system.n_particles) > 0:
+            print(f"[Pipeline] Removing {int(system.n_particles)} stale "
+                  f"particles from previous episode")
+            system.remove_all_particles()
+            for _ in range(10):
+                ctx.og.sim.step()
+
+        # 2. Pack (clutter layout).
         super().place_objects(ctx)
 
-        system_name = ctx.selection.get("system_name", "water")
-        from omnigibson.object_states import Filled
-        try:
-            system = ctx.env.scene.get_system(system_name)
-            if ctx.target_obj is not None and Filled in ctx.target_obj.states:
-                ctx.target_obj.states[Filled].set_value(system, True)
-                ctx.og.sim.step()
-                print(f"[Pipeline] Container filled with {system_name}")
-            else:
-                print("[Pipeline] WARNING: Container does not support Filled state")
-        except Exception as e:
-            print(f"[Pipeline] WARNING: Could not fill container: {e}")
+        target = ctx.target_obj
+        if target is None:
+            raise RuntimeError(
+                "liquid_transport place_objects: ctx.target_obj is None — "
+                "identify_objects must populate it before fill."
+            )
+        if Filled not in target.states:
+            raise RuntimeError(
+                f"liquid_transport: target {target.name} "
+                f"({target.category}) does not support Filled state — "
+                "fillable_container_pool.json admitted a category whose "
+                "taxonomy entry lacks 'fillable'/'openfillable'."
+            )
 
-        for _ in range(10):
+        # 3. Snap to canonical upright before fill.
+        pos, _ = target.get_position_orientation()
+        target.set_position_orientation(
+            position=(float(pos[0]), float(pos[1]), float(pos[2])),
+            orientation=(0.0, 0.0, 0.0, 1.0),
+        )
+        target.keep_still()
+        ctx.og.sim.step()
+
+        target.states[Filled].set_value(system, True)
+        print(f"[Pipeline] Container filled with {system_name}")
+
+        # 4. Settle particles while pinning the container.
+        for _ in range(20):
+            target.keep_still()
             ctx.og.sim.step()
 
     def extra_gate_checks(self, ctx):
         if not super().extra_gate_checks(ctx):
             return False
         from omnigibson.object_states import ContainedParticles
-        system_name = ctx.selection.get("system_name", "water")
-        try:
-            system = ctx.env.scene.get_system(system_name)
-            data = ctx.target_obj.states[ContainedParticles].get_value(system)
-            n = data.n_in_volume
-            print(f"[Pipeline] Container particle count: {n}")
-            return n > 0
-        except Exception as e:
-            print(f"[Pipeline] WARNING: Could not check particle count: {e}")
-            return True
+        system_name = ctx.selection["system_name"]
+        system = ctx.env.scene.get_system(system_name)
+        data = ctx.target_obj.states[ContainedParticles].get_value(system)
+        n = data.n_in_volume
+        print(f"[Pipeline] Container particle count: {n}")
+        return n > 0
 
     def diagnostics_extra(self, ctx):
         extra = super().diagnostics_extra(ctx)
-        extra["difficulty"] = getattr(ctx.args, "difficulty", "medium")
-        extra["system_name"] = ctx.selection.get("system_name", "water") if ctx.selection else "water"
+        extra["difficulty"] = ctx.args.difficulty
+        extra["system_name"] = ctx.selection["system_name"]
         extra["pipeline"] = "liquid_transport"
-        # GPU dynamics can leave Tensor values in diagnostics; ensure JSON safety.
-        return _json_safe(extra)
-
-
-def _json_safe(obj):
-    """Recursively convert Tensors/ndarrays to plain Python types."""
-    if isinstance(obj, dict):
-        return {k: _json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_json_safe(v) for v in obj]
-    if hasattr(obj, "item"):
-        return obj.item()
-    if hasattr(obj, "tolist"):
-        return obj.tolist()
-    return obj
+        return extra
 
 
 def main():
