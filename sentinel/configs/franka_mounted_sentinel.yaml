@@ -47,7 +47,7 @@ robots:
     self_collisions: true
     action_normalize: false
     action_type: continuous
-    grasping_mode: physical
+    grasping_mode: assisted
     position: [0.0, 0.0, 0.0]
     orientation: [0.0, 0.0, 0.0, 1.0]
     sensor_config:

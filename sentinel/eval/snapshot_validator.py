@@ -67,9 +67,10 @@ DEFAULT_VALIDATOR_ROBOT_CFG = {
     "exclude_sensor_names": None,
     "scale": 1.0,
     "self_collisions": True,
-    "action_normalize": True,
+    # Locked conventions across all sentinel pipelines:
+    "action_normalize": False,
+    "grasping_mode": "assisted",
     "action_type": "continuous",
-    "grasping_mode": "physical",
     "position": [0.0, 0.0, 0.0],
     "orientation": [0.0, 0.0, 0.0, 1.0],
     "controller_config": {

@@ -99,7 +99,95 @@ def extract_scene_robot_setup(scene_info: dict[str, Any], robot_name: str = "age
     return None
 
 
-def _build_runtime_robot_cfg(scene_robot_setup: dict[str, Any] | None) -> dict[str, Any]:
+_OSC_RAW_LIMITS = (
+    [-0.2, -0.2, -0.2, -0.5, -0.5, -0.5],
+    [0.2, 0.2, 0.2, 0.5, 0.5, 0.5],
+)
+
+
+def _gripper_cfg_default() -> dict[str, Any]:
+    return {
+        "name": "MultiFingerGripperController",
+        "mode": "smooth",
+        "command_input_limits": "default",
+        "command_output_limits": "default",
+    }
+
+
+CONTROLLER_PRESETS: dict[str, dict[str, dict[str, Any]]] = {
+    # Joint-space, absolute-position commands. Default for teleop replay,
+    # validation, and any pipeline that drives the arm via q_target.
+    "joint_position": {
+        "arm_0": {
+            "name": "JointController",
+            "motor_type": "position",
+            "command_input_limits": "default",
+            "command_output_limits": "default",
+            "use_delta_commands": False,
+            "use_impedances": False,
+        },
+        "gripper_0": _gripper_cfg_default(),
+    },
+    # Joint-space, absolute position, with impedance control (mass-matrix
+    # joint efforts) for accurate tracking during cuRobo Phase A replays.
+    "joint_position_impedance": {
+        "arm_0": {
+            "name": "JointController",
+            "motor_type": "position",
+            "command_input_limits": "default",
+            "command_output_limits": "default",
+            "use_delta_commands": False,
+            "use_impedances": True,
+        },
+        "gripper_0": _gripper_cfg_default(),
+    },
+    # Operational-space (pose-delta-ori) control in raw meters/radians.
+    # action_normalize=False is REQUIRED so command_input matches
+    # command_output. Used by pnp Phase B replay and by VLA policies that
+    # emit raw 6-D EEF deltas (e.g. OpenPI pi0.5).
+    "osc": {
+        "arm_0": {
+            "name": "OperationalSpaceController",
+            "command_input_limits": _OSC_RAW_LIMITS,
+            "command_output_limits": _OSC_RAW_LIMITS,
+        },
+        "gripper_0": {"name": "MultiFingerGripperController"},
+    },
+    # Inverse-kinematics, pose-delta-ori. Used by teleop session
+    # (Gello/SO-101).
+    "ik": {
+        "arm_0": {
+            "name": "InverseKinematicsController",
+            "command_input_limits": None,
+        },
+        "gripper_0": {
+            "name": "MultiFingerGripperController",
+            "command_input_limits": None,
+            "mode": "binary",
+        },
+    },
+}
+
+
+def _build_runtime_robot_cfg(
+    scene_robot_setup: dict[str, Any] | None,
+    *,
+    controller_preset: str = "joint_position",
+) -> dict[str, Any]:
+    """Build a robot config for any sentinel pipeline.
+
+    Conventions locked across all pipelines:
+      * ``grasping_mode = "assisted"``
+      * ``action_normalize = False``
+
+    The controller_config is selected via ``controller_preset`` (see
+    :data:`CONTROLLER_PRESETS`). To add a new pipeline, register a preset
+    rather than reaching into the dict directly.
+    """
+    if controller_preset not in CONTROLLER_PRESETS:
+        raise ValueError(
+            f"unknown controller_preset {controller_preset!r}; "
+            f"choices: {sorted(CONTROLLER_PRESETS)}")
     robot_cfg = {
         "type": "FrankaPanda",
         "name": "agent_0",
@@ -108,34 +196,25 @@ def _build_runtime_robot_cfg(scene_robot_setup: dict[str, Any] | None) -> dict[s
         "exclude_sensor_names": None,
         "scale": 1.0,
         "self_collisions": True,
-        "action_normalize": True,
+        # Locked conventions (see feedback_env_config_conventions.md):
+        "action_normalize": False,
+        "grasping_mode": "assisted",
         "action_type": "continuous",
-        "grasping_mode": "physical",
         "position": [0.0, 0.0, 0.0],
         "orientation": [0.0, 0.0, 0.0, 1.0],
         "fixed_base": True,
-        "controller_config": {
-            "arm_0": {
-                "name": "JointController",
-                "motor_type": "position",
-                "command_input_limits": "default",
-                "command_output_limits": "default",
-                "use_delta_commands": False,
-                "use_impedances": False,
-            },
-            "gripper_0": {
-                "name": "MultiFingerGripperController",
-                "mode": "smooth",
-                "command_input_limits": "default",
-                "command_output_limits": "default",
-            },
-        },
+        "controller_config": json.loads(json.dumps(CONTROLLER_PRESETS[controller_preset])),
     }
     if scene_robot_setup is None:
         return robot_cfg
     robot_args = scene_robot_setup.get("robot_args")
     if isinstance(robot_args, dict):
-        robot_cfg.update(json.loads(json.dumps(robot_args)))
+        # Filter robot_args so it can't reintroduce drift (e.g. snapshots
+        # saved with action_normalize=True or grasping_mode=physical).
+        sanitized = {k: v for k, v in robot_args.items()
+                     if k not in ("action_normalize", "grasping_mode",
+                                  "controller_config")}
+        robot_cfg.update(json.loads(json.dumps(sanitized)))
     if scene_robot_setup.get("robot_type"):
         robot_cfg["type"] = scene_robot_setup["robot_type"]
     if scene_robot_setup.get("name"):
@@ -207,7 +286,24 @@ class FrozenTaskRuntimeSession:
         return False
 
 
-def build_env_config(scene_info: dict[str, Any], diagnostics: dict[str, Any], *, camera_names: Sequence[str] | None = None) -> dict[str, Any]:
+def build_env_config(
+    scene_info: dict[str, Any],
+    diagnostics: dict[str, Any],
+    *,
+    camera_names: Sequence[str] | None = None,
+    controller_preset: str = "joint_position",
+    external_camera_kwargs: dict[str, Any] | None = None,
+    action_frequency: int = 20,
+    rendering_frequency: int = 20,
+    physics_frequency: int = 120,
+) -> dict[str, Any]:
+    """Build an OmniGibson env config from a frozen scene snapshot.
+
+    ``controller_preset`` selects the arm/gripper controller pair from
+    :data:`CONTROLLER_PRESETS`. ``grasping_mode`` and ``action_normalize``
+    are NOT exposed — they are locked to ``"assisted"`` and ``False`` for
+    every pipeline (see feedback_env_config_conventions.md).
+    """
     runtime_scene_info = strip_scene_robots_from_scene_info(scene_info)
     scene_class = runtime_scene_info.get("init_info", {}).get("class_name", "")
     scene_model = diagnostics.get("scene_model")
@@ -229,19 +325,25 @@ def build_env_config(scene_info: dict[str, Any], diagnostics: dict[str, Any], *,
 
     cfg = {
         "scene": scene_cfg,
-        "robots": [_build_runtime_robot_cfg(robot_setup)] if robot_setup is not None else [],
+        "robots": (
+            [_build_runtime_robot_cfg(robot_setup,
+                                       controller_preset=controller_preset)]
+            if robot_setup is not None else []
+        ),
         "objects": [],
         "task": {"type": "DummyTask"},
         "env": {
-            "action_frequency": 20,
-            "rendering_frequency": 20,
-            "physics_frequency": 120,
+            "action_frequency": action_frequency,
+            "rendering_frequency": rendering_frequency,
+            "physics_frequency": physics_frequency,
         },
     }
     if camera_names:
         from sentinel.utils.camera_setup import build_external_camera_configs
 
-        cfg["env"]["external_sensors"] = build_external_camera_configs(names=list(camera_names))
+        cam_kwargs = dict(external_camera_kwargs or {})
+        cfg["env"]["external_sensors"] = build_external_camera_configs(
+            names=list(camera_names), **cam_kwargs)
     return cfg
 
 
