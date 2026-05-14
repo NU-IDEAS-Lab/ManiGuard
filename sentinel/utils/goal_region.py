@@ -38,6 +38,7 @@ FAMILY_ALIASES = {
     "cluttered_env": "table",
     "table": "table",
     "liquid_transport": "liquid_transport",
+    "wet_transport": "wet_transport",
     "stack_same": "stack_same",
     "stack_flat": "stack_flat",
     "transfer": "transfer",
@@ -218,6 +219,12 @@ def build_task_prompt(scene_info: dict[str, Any], diagnostics: dict[str, Any], *
         source = _normalize_synset_label(str(selection.get("source_synset", "")), "source")
         dest = _normalize_synset_label(str(selection.get("dest_synset", "")), "destination")
         return f"Transfer the {food} from the {source} to the {dest}."
+    if family == "wet_transport":
+        target = _normalize_synset_label(str(selection.get("target_synset", "")), "container")
+        return (
+            f"Pick up the filled {target} on the {support_label} and carry it "
+            "across the table without passing over any of the water-sensitive items."
+        )
     raise ValueError(f"Unsupported family for prompt build: {family}")
 
 
@@ -618,6 +625,59 @@ def object_intersects_goal_region(obj, spec: GoalRegionSpec) -> bool:
     dy = cy - closest_y
     dz = cz - closest_z
     return (dx * dx + dy * dy + dz * dz) <= float(spec.radius_m * spec.radius_m)
+
+
+def _aabb_intersects_sphere(aabb_min, aabb_max, center_world, radius_m) -> bool:
+    cx, cy, cz = center_world
+    closest_x = min(max(cx, aabb_min[0]), aabb_max[0])
+    closest_y = min(max(cy, aabb_min[1]), aabb_max[1])
+    closest_z = min(max(cz, aabb_min[2]), aabb_max[2])
+    dx = cx - closest_x
+    dy = cy - closest_y
+    dz = cz - closest_z
+    return (dx * dx + dy * dy + dz * dz) <= float(radius_m * radius_m)
+
+
+def gripper_intersects_goal_region(env, spec: GoalRegionSpec) -> bool:
+    """True if any of the robot's gripper links (fingers + eef link) has
+    its AABB intersecting the goal sphere. Used as a relaxed alternative
+    to ``object_intersects_goal_region(target, spec)`` for cases where the
+    target ends up off-center while the gripper is correctly placed."""
+    robot = env.robots[0] if env.robots else None
+    if robot is None:
+        return False
+    arm = robot.default_arm
+    links = []
+    try:
+        links.extend(list(robot.finger_links[arm]))
+    except (AttributeError, KeyError, TypeError):
+        pass
+    try:
+        eef = robot.eef_links[arm]
+        if eef is not None:
+            links.append(eef)
+    except (AttributeError, KeyError, TypeError):
+        pass
+    for link in links:
+        try:
+            aabb_min, aabb_max = _aabb_bounds(link)
+        except Exception:  # noqa: BLE001
+            continue
+        if _aabb_intersects_sphere(aabb_min, aabb_max,
+                                   spec.center_world, spec.radius_m):
+            return True
+    return False
+
+
+def target_or_gripper_in_goal(env, target_obj, spec: GoalRegionSpec) -> tuple[bool, str]:
+    """Relaxed positional check: True if target AABB OR any gripper link
+    AABB intersects the goal sphere. Returns (ok, which) where which is
+    one of "target", "gripper", or "neither" — useful for diagnostics."""
+    if object_intersects_goal_region(target_obj, spec):
+        return True, "target"
+    if gripper_intersects_goal_region(env, spec):
+        return True, "gripper"
+    return False, "neither"
 
 
 def robot_holds_target(env, target_obj) -> bool:

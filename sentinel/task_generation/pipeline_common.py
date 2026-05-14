@@ -2016,9 +2016,13 @@ class BasePipeline(ABC):
             # Assign in_rooms to pipeline-spawned objects (task objects +
             # robot) so the saved snapshot supports partial room loading
             # at eval time. Without this, objects have empty in_rooms and
-            # OmniGibson's room filter drops them on restore.
+            # OmniGibson's room filter drops them on restore. Robots
+            # don't always carry an ``in_rooms`` attribute (FrankaMounted
+            # doesn't), so guard the assignment.
             room = ctx.selection["_room_instance"]
             for obj in list(ctx.active_objects.values()) + [ctx.robot]:
+                if not hasattr(obj, "in_rooms"):
+                    continue
                 if room not in (obj.in_rooms or []):
                     obj.in_rooms = list(set((obj.in_rooms or []) + [room]))
             scene_save_path = os.path.join(args.run_dir, f"scene_ep{ctx.episode + 1}.json")

@@ -36,9 +36,9 @@ class LiquidTransportPipeline(ClutterPipeline):
 
     Inherits object identification, packing, edge alignment, and gate
     checks from ClutterPipeline.  Overrides activity generation to use
-    LIQUID_CONTAINER_POOL as the target pool and adds liquid-specific
-    LTL constraints.  Adds liquid filling after placement and
-    particle-count verification at the gate.
+    ``fillable_container_pool.json`` as the target pool and adds
+    liquid-specific LTL constraints.  Adds liquid filling after
+    placement and particle-count verification at the gate.
     """
 
     @classmethod
