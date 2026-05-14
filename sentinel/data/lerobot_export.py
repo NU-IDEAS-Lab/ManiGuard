@@ -4,8 +4,7 @@
 Consumes the output of `tools/playback_teleop_to_hdf5.py` and writes a
 LeRobot dataset at ${HF_LEROBOT_HOME:-~/.cache/huggingface/lerobot}/<repo_id>.
 
-Feature layout matches RLinf's OmniGibsonDataConfig repack transform
-(RLinf/rlinf/models/embodiment/openpi/dataconfig/omnigibson_dataconfig.py):
+Feature layout:
 
     image         (video HxWx3 uint8) -> observation/image
     wrist_image   (video HxWx3 uint8) -> observation/wrist_image
@@ -34,8 +33,8 @@ stage and run Stage 2 in it:
         --prompt "pick up the goblet and place it on the plate" \
         --fps 30
 
-Resulting dataset is then read by RLinf SFT when
-`data.data_path` points at the parent of the repo_id directory.
+Resulting dataset is loaded by your downstream SFT trainer (e.g. an
+external LeRobot consumer) via the standard LeRobot dataset API.
 """
 
 from __future__ import annotations
@@ -104,7 +103,7 @@ def main():
                    help="Root dir where the dataset folder will be written. "
                         "Defaults to $HF_LEROBOT_HOME or ~/.cache/huggingface/lerobot.")
     p.add_argument("--fps", type=int, default=30,
-                   help="Playback FPS recorded in dataset metadata. Pick what you want RLinf to think it is.")
+                   help="Playback FPS recorded in dataset metadata.")
     p.add_argument("--resolution", type=int, default=256,
                    help="Image side length (H = W). Must match playback stage.")
     p.add_argument("--single", type=str, default=None,
