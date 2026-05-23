@@ -154,12 +154,19 @@ def _eval_node(node, objects, env) -> tuple[bool, dict]:
     predicate = node.get("predicate", "").lower()
     subject_name = node.get("subject", "")
     reference_name = node.get("reference", "")
-    label = f"{predicate}({subject_name}, {reference_name})"
+    label = (f"{predicate}({subject_name}, {reference_name})"
+             if reference_name else f"{predicate}({subject_name})")
 
     subj = objects.get(subject_name)
-    ref = objects.get(reference_name)
-    if subj is None or ref is None:
+    if subj is None:
         return False, {label: False}
+    # Unary predicates (e.g. open / closed) have no reference.
+    if reference_name:
+        ref = objects.get(reference_name)
+        if ref is None:
+            return False, {label: False}
+    else:
+        ref = None
 
     result = _eval_predicate(predicate, subj, ref)
     return result, {label: result}
@@ -189,6 +196,13 @@ def _eval_predicate(predicate: str, subject, reference) -> bool:
             if target.name in str(contact):
                 return True
         return False
+    elif predicate == "open":
+        # Unary on articulated objects (cabinets, drawers, doors).
+        from omnigibson.object_states import Open
+        return bool(subject.states[Open].get_value())
+    elif predicate == "closed":
+        from omnigibson.object_states import Open
+        return not bool(subject.states[Open].get_value())
     else:
         raise ValueError(f"[GoalChecker] Unknown predicate: {predicate!r}")
 

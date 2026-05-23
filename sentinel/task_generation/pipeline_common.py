@@ -859,12 +859,17 @@ def _try_upright_objects(og_mod, objects_by_inst):
     return fixed
 
 
-def validate_ltl_step0(env, activity_name, scene_model, active_objects_by_inst):
+def validate_ltl_step0(env, activity_name, scene_model, active_objects_by_inst,
+                       ltl_safety=None):
     """Evaluate LTL propositions at step 0 and return (ok, label_dict).
 
     Creates a temporary LTL monitor, runs one evaluation, and checks
     whether the initial state would immediately violate any safety
     constraint.  Returns ``(True, labels)`` if clean.
+
+    ``ltl_safety`` is the task-level safety dict (from the pipeline's
+    activity generator). Pass ``None`` / ``{}`` to disable task-level
+    monitoring — task-level safety is no longer loaded from BDDL.
     """
     from sentinel.utils.safety_monitor import TaskLTLMonitor
 
@@ -873,6 +878,7 @@ def validate_ltl_step0(env, activity_name, scene_model, active_objects_by_inst):
             env=env, activity_name=activity_name,
             scene_model=scene_model,
             active_objects_by_inst=active_objects_by_inst,
+            ltl_safety=ltl_safety,
         )
         monitor.reset()
         info = monitor.step(0)
@@ -886,7 +892,7 @@ def validate_ltl_step0(env, activity_name, scene_model, active_objects_by_inst):
 
 def stabilize_and_validate(
     env, og_mod, activity_name, scene_model,
-    active_objects_by_inst, max_attempts=3,
+    active_objects_by_inst, max_attempts=3, ltl_safety=None,
 ):
     """Stabilise objects and validate LTL step 0.
 
@@ -906,6 +912,7 @@ def stabilize_and_validate(
         # Evaluate LTL step 0.
         ok, labels = validate_ltl_step0(
             env, activity_name, scene_model, active_objects_by_inst,
+            ltl_safety=ltl_safety,
         )
         if ok:
             if attempt > 0:
@@ -924,9 +931,14 @@ def stabilize_and_validate(
 
 def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
                     robot, target_obj, args, episode, rng,
-                    support_obj=None, camera_override=None):
+                    support_obj=None, camera_override=None,
+                    ltl_safety=None):
     """Run jitter-action rollout with LTL monitoring and video recording.
 
+    Pass ``ltl_safety`` (the dict produced by the pipeline's activity
+    generator and embedded in diagnostics.jsonl); the monitor uses it
+    directly. Task-level safety is no longer loaded from BDDL — pass
+    ``None`` / ``{}`` to disable task-level monitoring entirely.
     Returns the LTL summary dict.
     """
     import omnigibson as og
@@ -937,6 +949,7 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
         env=env, activity_name=activity_name,
         scene_model=scene_model,
         active_objects_by_inst=active_objects_by_inst,
+        ltl_safety=ltl_safety,
     )
     ltl_monitor.reset()
     ltl_monitor.step(0)
@@ -1981,6 +1994,7 @@ class BasePipeline(ABC):
                 activity_name=ctx.activity_name,
                 scene_model=args.scene_model,
                 active_objects_by_inst=ctx.active_objects,
+                ltl_safety=ctx.ltl_safety,
             )
             if not ltl_ok:
                 ctx.gate_pass = False
@@ -2047,5 +2061,6 @@ class BasePipeline(ABC):
             robot=ctx.robot, target_obj=ctx.target_obj,
             args=args, episode=ctx.episode, rng=ctx.rng,
             support_obj=ctx.support_obj,
+            ltl_safety=ctx.ltl_safety,
         )
         ctx.resolved_video_views = tuple(getattr(args, "_resolved_video_views", ()))

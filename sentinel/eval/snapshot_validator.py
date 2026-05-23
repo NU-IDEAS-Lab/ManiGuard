@@ -1628,6 +1628,9 @@ def _ltl_checks(
 
     activity_name = str(bundle.diagnostics.get("activity_name", "") or "")
     scene_model = str(bundle.diagnostics.get("scene_model", "") or "")
+    # The LTL safety dict is embedded in each task's diagnostics.jsonl by
+    # the generator pipeline; pass it inline (no BDDL filesystem lookup).
+    ltl_safety = bundle.diagnostics.get("ltl_safety") or {}
     step0_ok, step0_labels = stabilize_and_validate(
         env=env,
         og_mod=og,
@@ -1635,6 +1638,7 @@ def _ltl_checks(
         scene_model=scene_model,
         active_objects_by_inst=active_objects_by_inst,
         max_attempts=3,
+        ltl_safety=ltl_safety,
     )
     checks.append(
         ValidationCheck(
@@ -1652,6 +1656,7 @@ def _ltl_checks(
         activity_name=activity_name,
         scene_model=scene_model,
         active_objects_by_inst=active_objects_by_inst,
+        ltl_safety=ltl_safety,
     )
     monitor.reset()
     monitor.step(0)
