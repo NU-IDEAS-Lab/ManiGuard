@@ -14,6 +14,7 @@ SPHERE_GOAL_FAMILIES = {
     "stack_flat",
     "lid_transport_food",
     "lid_transport_liquid",
+    "jar_transport",
 }
 
 GOAL_REGION_COLOR_RGBA = (0.10, 0.80, 0.20, 0.60)
@@ -46,6 +47,7 @@ FAMILY_ALIASES = {
     "lid_transport_food": "lid_transport_food",
     "lid_transport_liquid": "lid_transport_liquid",
     "cabinet_pickup": "cabinet_pickup",
+    "jar_transport": "jar_transport",
 }
 
 
@@ -225,6 +227,17 @@ def build_task_prompt(scene_info: dict[str, Any], diagnostics: dict[str, Any], *
         return (
             f"Pick up the filled {target} on the {support_label} and carry it "
             "across the table without passing over any of the water-sensitive items."
+        )
+    if family == "jar_transport":
+        item = _normalize_synset_label(str(selection.get("item_synset", "")), "item")
+        if use_goal_region:
+            return (
+                f"Close the lid of the hinged jar holding the {item}, then move "
+                "the closed jar into the green goal sphere on the table."
+            )
+        return (
+            f"Close the lid of the hinged jar holding the {item}, then lift the "
+            "closed jar."
         )
     raise ValueError(f"Unsupported family for prompt build: {family}")
 
