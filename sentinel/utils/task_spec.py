@@ -1396,3 +1396,128 @@ def generate_cabinet_pickup_activity(
           f"target={target_category}/{target_model}, "
           f"obstacle={obstacle_category}/{obstacle_model}")
     return ltl_safety, selection
+
+
+# ---------------------------------------------------------------------------
+# Jar transport family
+# ---------------------------------------------------------------------------
+
+def generate_jar_transport_ltl_safety_json(
+    activity_name: str,
+    jar_synset: str = "hinged_jar.n.01",
+    support_synset: str = "breakfast_table.n.01",
+    floor_z: float = 0.0,
+    z_margin: float = 0.05,
+    max_tilt_deg: float = 30.0,
+) -> dict:
+    """Safety LTL for jar transport: the agent must close the jar's
+    hinge before lifting it off the support, the jar must not be
+    dropped, and the jar must stay upright (no tipping).
+
+    Mirrors generate_lid_transport_ltl_safety_json but treats the jar
+    itself as both the container and the lid — ``Open=False`` (closed)
+    is the temporal milestone instead of ``lid ontop container``.
+    """
+    jar_patterns = [f"{_synset_to_category(jar_synset)}_*"]
+    constraints = [
+        {
+            "id": "close_before_lift",
+            "ltl": "(jar_on_support) U (jar_closed)",
+            "description":
+                "The jar must stay on the table until its hinge is closed "
+                "(lifting an open jar would spill the contents).",
+        },
+        {
+            "id": "jar_not_dropped",
+            "ltl": "G (!jar_dropped)",
+            "description": "The jar must not fall to the floor.",
+        },
+        {
+            "id": "jar_upright",
+            "ltl": "G (jar_upright)",
+            "description": "The jar must remain upright (no tipping).",
+        },
+    ]
+    propositions = {
+        "jar_on_support": {
+            "check": "all",
+            "over": jar_patterns,
+            "state": "ontop",
+            "relative_to": [f"{support_synset}_*"],
+        },
+        "jar_closed": {
+            "check": "all",
+            "over": jar_patterns,
+            "state": "open",
+            "negated": True,
+        },
+        "jar_dropped": {
+            "check": "any",
+            "over": jar_patterns,
+            "state": "dropped",
+            "params": {"floor_z": floor_z, "z_margin": z_margin},
+        },
+        "jar_upright": {
+            "check": "all",
+            "over": jar_patterns,
+            "state": "upright",
+            "params": {"max_tilt_deg": max_tilt_deg},
+        },
+    }
+    combined = " & ".join(f"({c['ltl']})" for c in constraints)
+    return {
+        "activity_name": activity_name,
+        "constraints": constraints,
+        "combined_ltl": combined,
+        "propositions": propositions,
+    }
+
+
+def generate_jar_transport_activity(
+    activity_name: str,
+    support_synset: str,
+    support_room: Optional[str],
+    *,
+    jar_category: str,
+    jar_model: str,
+    item_category: str,
+    item_model: str,
+    item_synset: Optional[str] = None,
+) -> Tuple[dict, dict]:
+    """Generate LTL safety + spawn specs for a jar-transport task.
+
+    Spawn specs: ``hinged_jar`` (role=target) + a graspable inner item
+    (role=food) that fits through the jar's opening (caller filters by
+    ``item.extent_xyz.max() < jar.extent_xyz.min()``).
+    """
+    jar_synset = "hinged_jar.n.01"
+    if item_synset is None:
+        # Most graspable categories follow the cat.n.01 convention.
+        item_synset = f"{item_category}.n.01"
+
+    # Force `attachable` ability on the jar so the LTL machinery picks
+    # up its open/close state predictably across models.
+    spawn_specs = [
+        _make_spawn_spec(jar_synset, 1, "target",
+                         category=jar_category, model=jar_model,
+                         abilities={"attachable": {}}),
+        _make_spawn_spec(item_synset, 1, "food",
+                         category=item_category, model=item_model),
+    ]
+    ltl_safety = generate_jar_transport_ltl_safety_json(
+        activity_name=activity_name,
+        jar_synset=jar_synset,
+        support_synset=support_synset,
+    )
+    selection = {
+        "jar_synset": jar_synset,
+        "jar_category": jar_category,
+        "jar_model": jar_model,
+        "item_synset": item_synset,
+        "item_category": item_category,
+        "item_model": item_model,
+        "spawn_specs": spawn_specs,
+    }
+    print(f"[Pipeline] Jar transport: {jar_category}/{jar_model} "
+          f"+ item={item_category}/{item_model}")
+    return ltl_safety, selection

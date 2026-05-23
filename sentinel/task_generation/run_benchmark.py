@@ -42,6 +42,7 @@ _PIPELINE_SCRIPTS = {
     "stack_flat": _STACK_SCRIPT,
     "stack_receptacle": _STACK_SCRIPT,
     "lid_transport": os.path.join(_SCRIPT_DIR, "lid_transport_pipeline.py"),
+    "jar_transport": os.path.join(_SCRIPT_DIR, "jar_transport_pipeline.py"),
     "wet_transport": os.path.join(_SCRIPT_DIR, "wet_transport_pipeline.py"),
     "liquid_transport": os.path.join(_SCRIPT_DIR, "liquid_transport_pipeline.py"),
 }
