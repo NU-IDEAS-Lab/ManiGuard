@@ -107,6 +107,9 @@ class ObjectResolver:
 
     def __init__(self, env, active_objects_by_inst: Optional[Dict] = None):
         self._env = env
+        self._active_objs: Dict[str, Any] = (
+            dict(active_objects_by_inst) if active_objects_by_inst else {}
+        )
         self._active_insts: Optional[Set[str]] = (
             set(active_objects_by_inst.keys()) if active_objects_by_inst else None
         )
@@ -133,6 +136,19 @@ class ObjectResolver:
             wrapped = getattr(ent, "wrapped_obj", None)
             if wrapped is not None:
                 result[inst] = wrapped
+        if result:
+            return result
+
+        # Fallback for non-BDDL tasks (e.g. DummyTask used by every
+        # empty-Scene pipeline): the task carries no ``object_scope``,
+        # so the BDDL loop above is a no-op. Match patterns directly
+        # against active_objects_by_inst — those are real DatasetObjects
+        # the pipeline already resolved by name.
+        for inst, obj in self._active_objs.items():
+            if obj is None:
+                continue
+            if fnmatch.fnmatch(inst, pattern):
+                result[inst] = obj
         return result
 
 
@@ -402,24 +418,14 @@ class SafetyPropositionEvaluator:
 #  JSON loading
 # ---------------------------------------------------------------------------
 
-def _load_task_safety(activity_name: str) -> dict:
-    """Load ``ltl_safety.json`` from the BDDL activity definitions directory."""
-    try:
-        import bddl
-        path = os.path.join(
-            os.path.dirname(bddl.__file__),
-            "activity_definitions", activity_name, "ltl_safety.json",
-        )
-    except ImportError:
-        return {}
-    if not os.path.isfile(path):
-        return {}
-    with open(path, "r", encoding="utf-8") as fh:
-        return json.load(fh)
-
-
 def _load_scene_safety(scene_model: str) -> dict:
-    """Load ``ltl_safety.json`` from the scene assets directory."""
+    """Load ``ltl_safety.json`` from the scene assets directory.
+
+    Scene-level safety lives with the asset (next to the scene's USD,
+    not in BDDL), so this filesystem path stays — it's not a backward
+    compat shim. Task-level safety, on the other hand, is now passed
+    inline through ``TaskLTLMonitor(ltl_safety=...)``.
+    """
     try:
         from omnigibson.utils.asset_utils import get_scene_path
     except ImportError:
@@ -539,8 +545,11 @@ class TaskLTLMonitor:
 
     Usage in a runner::
 
-        monitor = TaskLTLMonitor(env, activity_name, scene_model,
-                                 active_objects_by_inst=active_objects)
+        monitor = TaskLTLMonitor(
+            env, ltl_safety=activity_ltl_safety,
+            scene_model=scene_model,
+            active_objects_by_inst=active_objects,
+        )
         monitor.reset()
         initial = monitor.step(0)
 
@@ -555,20 +564,30 @@ class TaskLTLMonitor:
     Parameters
     ----------
     env : og.Environment
-    activity_name : str
-        BDDL activity name (matches the directory under ``activity_definitions/``).
+    ltl_safety : dict
+        Task-level safety spec (constraints + propositions + combined LTL
+        formula) produced by ``sentinel.utils.task_spec``'s activity
+        generators and embedded in each task's ``diagnostics.jsonl``.
+        Required — pass ``{}`` to disable task-level monitoring.
+    activity_name : str, optional
+        Logged for diagnostics; no filesystem lookup happens.
     scene_model : str or None
-        Scene model identifier (matches the directory under ``scenes/``).
-        ``None`` skips scene-level safety constraints (e.g. empty scenes).
+        Scene model identifier. When set, scene-level safety constraints
+        are still loaded from ``scenes/<scene_model>/safety/ltl_safety.json``
+        (asset-side, not BDDL-side). ``None`` skips them.
     active_objects_by_inst : dict, optional
-        ``{inst_id: obj}`` for objects actually placed in the scene.  If given,
-        only these objects are monitored -- culled objects are ignored.
+        ``{inst_id: obj}`` for objects actually placed in the scene. If
+        given, only these objects are monitored — culled objects are
+        ignored, and patterns resolve against this dict when the env's
+        BDDL task has no ``object_scope`` (e.g. DummyTask).
     """
 
     def __init__(
         self,
         env,
-        activity_name: str,
+        *,
+        ltl_safety: dict,
+        activity_name: str = "",
         scene_model: Optional[str] = None,
         active_objects_by_inst: Optional[Dict] = None,
     ):
@@ -579,8 +598,7 @@ class TaskLTLMonitor:
         self._violation_step: Optional[int] = None
         self._ltl_log: List[dict] = []
 
-        # Load and merge task + scene safety definitions.
-        task_data = _load_task_safety(activity_name)
+        task_data = dict(ltl_safety) if ltl_safety else {}
         scene_data = _load_scene_safety(scene_model) if scene_model else {}
         merged = _merge_safety_data(task_data, scene_data)
         merged = _auto_generate_scene_propositions(merged, self._resolver)
