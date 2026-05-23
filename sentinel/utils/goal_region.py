@@ -45,6 +45,7 @@ FAMILY_ALIASES = {
     "food_transfer": "transfer",
     "lid_transport_food": "lid_transport_food",
     "lid_transport_liquid": "lid_transport_liquid",
+    "cabinet_pickup": "cabinet_pickup",
 }
 
 

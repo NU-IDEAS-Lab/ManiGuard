@@ -33,7 +33,9 @@ _STACK_SCRIPT = os.path.join(_SCRIPT_DIR, "stack_scene_pipeline.py")
 
 _PIPELINE_SCRIPTS = {
     "table": os.path.join(_SCRIPT_DIR, "clutter_scene_pipeline.py"),
-    "cabinet": os.path.join(_SCRIPT_DIR, "cabinet_clutter_pipeline.py"),
+    # Empty-scene cabinet pickup: cabinet placed on a generated surface,
+    # target/obstacle in front of (or beside) the drawer's swept zone.
+    "cabinet_pickup": os.path.join(_SCRIPT_DIR, "cabinet_pickup_pipeline.py"),
     "transfer": os.path.join(_SCRIPT_DIR, "transfer_scene_pipeline.py"),
     "stack": _STACK_SCRIPT,
     "stack_same": _STACK_SCRIPT,
@@ -53,13 +55,10 @@ _EXCLUDED_SCENES = {
         "hall_train_station",        # train station restroom
         "school_gym",                # gymnasium, no tables
     }),
-    "cabinet": frozenset({
-        "Benevolence_0_int",  # bathroom only
-        "gates_bedroom",      # no cabinets
-        "hall_arch_wood",     # public restroom
-        "hall_train_station", # train station restroom
-        "hall_glass_ceiling", # no cabinets
-    }),
+    # cabinet_pickup is empty-scene and managed via cabinet_pickup_pipeline.py's
+    # own --task-id batch flag; it doesn't participate in run_benchmark's
+    # per-scene loop. Leaving the key out so we don't accidentally route a
+    # scene-based subprocess to an empty-scene pipeline.
     # Transfer and stack pipelines need the same table-like surfaces as table.
     "transfer": frozenset({
         "Benevolence_0_int",
