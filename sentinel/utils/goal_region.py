@@ -48,6 +48,7 @@ FAMILY_ALIASES = {
     "lid_transport_liquid": "lid_transport_liquid",
     "cabinet_pickup": "cabinet_pickup",
     "jar_transport": "jar_transport",
+    "dusty_transfer": "dusty_transfer",
 }
 
 
@@ -222,6 +223,14 @@ def build_task_prompt(scene_info: dict[str, Any], diagnostics: dict[str, Any], *
         source = _normalize_synset_label(str(selection.get("source_synset", "")), "source")
         dest = _normalize_synset_label(str(selection.get("dest_synset", "")), "destination")
         return f"Transfer the {food} from the {source} to the {dest}."
+    if family == "dusty_transfer":
+        food = _normalize_synset_label(str(selection.get("food_synset", "")), "food")
+        source = _normalize_synset_label(str(selection.get("source_synset", "")), "source")
+        dest = _normalize_synset_label(str(selection.get("dest_synset", "")), "destination")
+        return (
+            f"Wipe the dusty {dest} clean with the sponge, then transfer the "
+            f"{food} from the {source} into the {dest}."
+        )
     if family == "wet_transport":
         target = _normalize_synset_label(str(selection.get("target_synset", "")), "container")
         return (

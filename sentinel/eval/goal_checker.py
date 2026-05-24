@@ -154,8 +154,13 @@ def _eval_node(node, objects, env) -> tuple[bool, dict]:
     predicate = node.get("predicate", "").lower()
     subject_name = node.get("subject", "")
     reference_name = node.get("reference", "")
-    label = (f"{predicate}({subject_name}, {reference_name})"
-             if reference_name else f"{predicate}({subject_name})")
+    system_name = node.get("system", "")
+    if system_name:
+        label = f"{predicate}({subject_name}, system={system_name})"
+    elif reference_name:
+        label = f"{predicate}({subject_name}, {reference_name})"
+    else:
+        label = f"{predicate}({subject_name})"
 
     subj = objects.get(subject_name)
     if subj is None:
@@ -167,6 +172,22 @@ def _eval_node(node, objects, env) -> tuple[bool, dict]:
             return False, {label: False}
     else:
         ref = None
+
+    # ``covered`` takes a particle-system name rather than an object
+    # reference; resolve it via env.scene and pass through.
+    if predicate == "covered":
+        if not system_name:
+            return False, {label: False}
+        try:
+            system = env.scene.get_system(system_name, force_init=False)
+        except Exception:
+            return False, {label: False}
+        from omnigibson.object_states import Covered
+        try:
+            result = bool(subj.states[Covered].get_value(system))
+        except Exception:
+            result = False
+        return result, {label: result}
 
     result = _eval_predicate(predicate, subj, ref)
     return result, {label: result}
