@@ -75,6 +75,12 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p.add_argument("--run-dir", default=None)
     p.add_argument("--save-video", action="store_true")
     p.add_argument("--video-fps", type=int, default=30)
+    p.add_argument("--camera-resolution", type=int, default=None,
+                   help="Override the external-camera resolution (single int "
+                        "= square pixels). Defaults to "
+                        "sentinel.utils.camera_setup.CAMERA_RESOLUTION (256). "
+                        "Bump to e.g. 1280 for higher-fidelity preview / "
+                        "review videos.")
     p.add_argument("--zone-edge-margin-m", type=float, default=None)
     p.add_argument("--obstacle-keepout-margin-m", type=float, default=None)
     p.add_argument("--obstacle-side-clearance-m", type=float, default=None)
@@ -1557,17 +1563,19 @@ class BasePipeline(ABC):
                   f"loading full scene {args.scene_model}")
 
         # 3 external cameras (canonical names + resolution shared across
-        # task-generation, teleop, training, eval).
+        # task-generation, teleop, training, eval). ``--camera-resolution``
+        # (int) overrides the global default for this run.
         from sentinel.utils.camera_setup import (
             CAMERA_RESOLUTION,
             build_external_camera_configs,
         )
+        cam_res = int(getattr(args, "camera_resolution", None) or CAMERA_RESOLUTION)
         cfg.setdefault("env", {})["external_sensors"] = build_external_camera_configs(
-            resolution=CAMERA_RESOLUTION,
+            resolution=cam_res,
         )
 
         print(f"[Pipeline] scene={scene_label}, activity={activity_name}, "
-              f"strict_gate={args.strict_gate}")
+              f"strict_gate={args.strict_gate}, cam_res={cam_res}")
         env = og.Environment(configs=cfg)
 
         # OG bug workaround (StanfordVL/OmniGibson#266, #1875): sensor_kwargs
@@ -1577,8 +1585,8 @@ class BasePipeline(ABC):
         ext_sensors = env.external_sensors or {}
         if ext_sensors:
             for cam in ext_sensors.values():
-                cam.image_height = CAMERA_RESOLUTION
-                cam.image_width = CAMERA_RESOLUTION
+                cam.image_height = cam_res
+                cam.image_width = cam_res
             env.load_observation_space()
         exit_code = 0
 
