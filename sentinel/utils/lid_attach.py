@@ -131,14 +131,15 @@ class LidSnapper:
             lids.append((obj, m.meta_link_id))
 
         # For each lid, find the container holding the matching F-link.
+        # NOTE: the container does NOT need its own AttachedTo state —
+        # AttachedTo lives on the M-side (the lid). We only require that
+        # the container exposes the F meta-link.
         pairs: List[_AttachPair] = []
         for lid, m_id in lids:
             f_target = m_id[:-1] + "F"
             container = None
             for obj in env.scene.objects:
                 if obj is lid:
-                    continue
-                if AttachedTo not in obj.states:
                     continue
                 if find_F_link(obj, m_id) is not None or any(
                     getattr(link, "is_meta_link", False)
@@ -157,42 +158,65 @@ class LidSnapper:
     def _is_grasped(self, robot, lid) -> bool:
         if robot is None:
             return False
-        try:
-            from omnigibson.controllers.controller_base import IsGraspingState
-            state = robot.is_grasping(candidate_obj=lid)
-            return state == IsGraspingState.TRUE
-        except Exception:
-            return False
+        from omnigibson.controllers.controller_base import IsGraspingState
+        state = robot.is_grasping(candidate_obj=lid)
+        return state == IsGraspingState.TRUE
 
-    def _lid_touching_container(self, lid, container) -> bool:
-        """True iff PhysX reports lid in contact with any link of container."""
+    def _lid_touching_container(self, lid, container) -> tuple[bool, int]:
+        """Return ``(touching, n_container_links_in_contact)``.
+
+        Contact lookup goes via PhysX through the ContactBodies state.
+        Raises if the state isn't on the lid — that means the lid wasn't
+        eligible in the first place, which discover() already filtered for.
+        """
         ContactBodies = self._ContactBodies
-        try:
-            contact_links = lid.states[ContactBodies].get_value()
-        except Exception:
-            return False
+        contact_links = lid.states[ContactBodies].get_value()
         if not contact_links:
-            return False
+            return False, 0
         container_link_set = set(container.links.values())
-        return bool(contact_links & container_link_set)
+        hits = contact_links & container_link_set
+        return bool(hits), len(hits)
 
-    def try_snap(self, robot=None) -> Optional[str]:
+    def try_snap(self, robot=None, verbose: bool = False) -> Optional[str]:
         """Run one snap pass over all known pairs. Returns the name of the
-        first pair attached this call, or None."""
+        first pair attached this call, or None.
+
+        When ``verbose=True``, prints one line per pair explaining which
+        check (already-attached, still-grasped, not-touching, reposition,
+        set_value) skipped the pair this call.
+        """
         AttachedTo = self._AttachedTo
         import omnigibson as og
         for p in self.pairs:
             try:
                 if p.lid.states[AttachedTo].get_value(p.container):
+                    if verbose:
+                        print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
+                              f"already-attached", flush=True)
                     continue  # already attached
             except KeyError:
+                if verbose:
+                    print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
+                          f"AttachedTo state missing (KeyError)", flush=True)
                 continue
-            if self._is_grasped(robot, p.lid):
+            grasped = self._is_grasped(robot, p.lid)
+            if grasped:
+                if verbose:
+                    print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
+                          f"still-grasped-by-robot", flush=True)
                 continue
-            if not self._lid_touching_container(p.lid, p.container):
+            touching, n_hits = self._lid_touching_container(p.lid, p.container)
+            if not touching:
+                if verbose:
+                    print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
+                          f"not-touching (n_container_links_in_contact={n_hits})",
+                          flush=True)
                 continue
 
             if not reposition_lid_onto_F(p.lid, p.container):
+                if verbose:
+                    print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
+                          f"reposition_lid_onto_F returned False", flush=True)
                 continue
             og.sim.step()  # let new poses register
             try:
@@ -200,6 +224,10 @@ class LidSnapper:
             except Exception as exc:
                 log.warning("LidSnapper: set_value failed on %s -> %s: %s",
                             p.lid.name, p.container.name, exc)
+                if verbose:
+                    print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
+                          f"set_value raised {type(exc).__name__}: {exc}",
+                          flush=True)
                 continue
             og.sim.step()
             if ok and p.lid.states[AttachedTo].get_value(p.container):
@@ -207,4 +235,8 @@ class LidSnapper:
                 print(line, flush=True)
                 log.info(line)
                 return p.lid.name
+            if verbose:
+                print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
+                      f"set_value ok={ok} but AttachedTo.get_value()=False "
+                      f"after step", flush=True)
         return None
