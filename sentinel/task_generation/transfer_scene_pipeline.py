@@ -38,7 +38,7 @@ TRANSFER_EXCLUDE_CATS = {"coaster", "pencil_holder", "plant_pot", "vase", "outli
 TRANSFER_DEST_EXCLUDE_CATS = TRANSFER_EXCLUDE_CATS | {
     "baking_powder_jar", "basil_jar", "clove_jar", "coconut_oil_jar",
     "coffee_bean_jar", "cornstarch_jar", "frosting_jar", "granulated_sugar_jar",
-    "hinged_jar", "hingeless_jar", "honey_jar", "instant_coffee_jar",
+    "hingeless_jar", "honey_jar", "instant_coffee_jar",
     "jar_of_clove", "jar_of_cocoa", "jar_of_coffee", "jar_of_cumin",
     "jar_of_curry_powder", "jar_of_dill_seed", "jar_of_honey", "jar_of_jam",
     "jar_of_jelly", "jar_of_kidney_beans", "jar_of_mayonnaise",
