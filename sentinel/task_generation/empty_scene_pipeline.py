@@ -91,7 +91,8 @@ _MIN_SURFACE_AREA_M2 = 0.35
 def parse_args():
     p = argparse.ArgumentParser(description="Empty-scene task generation pipeline")
     p.add_argument("--setup", required=True,
-                   choices=["clutter", "stack", "transfer", "liquid"])
+                   choices=["clutter", "stack", "transfer", "liquid",
+                            "dusty_transfer"])
     p.add_argument("--surface-category", default=None,
                    help="Surface category (random from pool if omitted)")
     p.add_argument("--surface-model", default=None,
@@ -135,6 +136,10 @@ def parse_args():
     p.add_argument("--dest-model", default=None,
                    help="Override destination container model id.")
     p.add_argument("--goal-predicate", default=None, choices=["inside", "ontop"])
+    # Dusty transfer (--setup dusty_transfer)
+    p.add_argument("--sponge-model", default=None,
+                   help="dusty_transfer: pin a sponge model "
+                        "(choices: aewrov, klwueh, qewotb).")
     # Liquid.
     p.add_argument("--difficulty", default="medium", choices=list(LIQUID_PRESETS),
                    help="Liquid difficulty (spill threshold and tilt limit only)")
@@ -322,6 +327,44 @@ def _build_liquid_objects(rng, density_key, container_category=None):
     return cfgs, roles, selection
 
 
+_DUSTY_SPONGE_MODELS = ("aewrov", "klwueh", "qewotb")
+_DUSTY_SYSTEM_NAME = "dust"
+
+
+def _build_dusty_transfer_objects(rng, *, food_model=None, source_model=None,
+                                  dest_model=None, goal_predicate=None,
+                                  sponge_model=None):
+    """Dusty-transfer object cfgs = standard transfer cfgs (food /
+    source / dest) plus a single sponge spawned at the parking pose.
+    The dust itself is layered post-spawn via ``Covered.set_value``.
+    """
+    cfgs, roles, selection = build_transfer_objects(
+        rng,
+        food_model=food_model,
+        source_model=source_model,
+        dest_model=dest_model,
+        goal_predicate=goal_predicate,
+    )
+    idx = len(cfgs)
+    if sponge_model is None:
+        sponge_model = _DUSTY_SPONGE_MODELS[int(rng.integers(len(_DUSTY_SPONGE_MODELS)))]
+    elif sponge_model not in _DUSTY_SPONGE_MODELS:
+        raise RuntimeError(
+            f"Unknown sponge_model={sponge_model!r}; choices: "
+            f"{_DUSTY_SPONGE_MODELS}"
+        )
+    name = f"sponge_sponge_{idx}"
+    cfgs.append(_make_obj_cfg(name, "sponge", sponge_model,
+                              position=(100 + idx, 100, -100)))
+    roles[name] = "sponge"
+    selection.update({
+        "sponge_synset": "sponge.n.01",
+        "sponge_category": "sponge",
+        "sponge_model": sponge_model,
+    })
+    return cfgs, roles, selection
+
+
 def _build_stack_objects(rng, stack_height_key, mode="same",
                          target_model=None, stack_model=None):
     """Build stack-task object cfgs using the verified shared selector.
@@ -423,6 +466,35 @@ def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection)
             goal_predicate=selection["goal_predicate"],
             rng=rng,
         )
+    elif args.setup == "dusty_transfer":
+        # Identical LTL to transfer (the dust constraint is checked
+        # post-rollout via goal_conditions, not per-step LTL).
+        ltl_safety, sel_out = generate_transfer_activity(
+            activity_name, support_synset, support_room,
+            food_category=selection["food_category"],
+            food_model=selection["food_model"],
+            source_category=selection["source_category"],
+            source_model=selection["source_model"],
+            dest_category=selection["dest_category"],
+            dest_model=selection["dest_model"],
+            goal_predicate=selection["goal_predicate"],
+            rng=rng,
+        )
+        # Append the sponge to spawn_specs so build_task_object_cfgs picks it up.
+        sel_out["sponge_synset"] = selection["sponge_synset"]
+        sel_out["sponge_category"] = selection["sponge_category"]
+        sel_out["sponge_model"] = selection["sponge_model"]
+        sel_out["spawn_specs"].append({
+            "synset": selection["sponge_synset"],
+            "category": selection["sponge_category"],
+            "count": 1,
+            "role": "sponge",
+            "model": selection["sponge_model"],
+            # Don't override abilities — sponge.n.01's taxonomy entry
+            # already supplies particleRemover with the proper
+            # conditions ({"dust.n.01": []} = always remove on adjacency).
+        })
+        return ltl_safety, sel_out
     elif args.setup == "liquid":
         # Same activity spawn-spec gen as clutter (fillable container as
         # target, tippable bottles as fragiles, table-obstacle clutter),
@@ -494,6 +566,15 @@ def run_dry_run(args):
             source_model=args.source_model,
             dest_model=args.dest_model,
             goal_predicate=args.goal_predicate,
+        )
+    elif args.setup == "dusty_transfer":
+        dry_cfgs, dry_roles, dry_sel = _build_dusty_transfer_objects(
+            rng,
+            food_model=args.food_model,
+            source_model=args.source_model,
+            dest_model=args.dest_model,
+            goal_predicate=args.goal_predicate,
+            sponge_model=args.sponge_model,
         )
     elif args.setup == "liquid":
         dry_cfgs, dry_roles, dry_sel = _build_liquid_objects(
@@ -572,7 +653,7 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
                 og.sim.step()
 
     # -- Place objects on the surface --------------------------------------
-    if args.setup in ("clutter", "transfer", "liquid"):
+    if args.setup in ("clutter", "transfer", "liquid", "dusty_transfer"):
         # Switched from the ring-based ``build_clutter_pack`` to the
         # offline maxrects solver. ``solve_pack`` supports 90° rotation
         # of non-target rectangles, which is the differentiator: the
@@ -673,14 +754,39 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
     settle_fn = make_settle_fn(og, th)
     settle_fn(objects_by_inst)
 
-    # -- Transfer: teleport food onto source -------------------------------
-    if args.setup == "transfer":
+    # -- Transfer (and dusty_transfer): teleport food onto source ----------
+    if args.setup in ("transfer", "dusty_transfer"):
         from sentinel.task_generation.transfer_scene_pipeline import place_food_on_source
         role_to_name = {r: n for n, r in roles_by_inst.items()}
         food_obj = objects_by_inst.get(role_to_name.get("food"))
         source_obj = objects_by_inst.get(role_to_name.get("source"))
         if food_obj and source_obj:
             place_food_on_source(env, food_obj, source_obj)
+
+    # -- Dusty transfer: dust the destination container --------------------
+    # Layer the dust visual-particle system on the dest *after* the food
+    # has been dropped into the source. Dust is a VisualParticleSystem —
+    # attached decals, no GPU dynamics, no collision coupling.
+    if args.setup == "dusty_transfer":
+        from omnigibson.object_states import Covered
+
+        role_to_name = {r: n for n, r in roles_by_inst.items()}
+        dest_name = role_to_name.get("dest")
+        dest_obj = objects_by_inst.get(dest_name) if dest_name else None
+        if dest_obj is not None and Covered in dest_obj.states:
+            try:
+                dust_system = env.scene.get_system(
+                    _DUSTY_SYSTEM_NAME, force_init=True,
+                )
+                ok = bool(dest_obj.states[Covered].set_value(dust_system, True))
+                print(f"[Pipeline] Dusted {dest_obj.name} with "
+                      f"{_DUSTY_SYSTEM_NAME} (success={ok})")
+                og.sim.step()
+            except Exception as exc:
+                print(f"[Pipeline] WARN: failed to dust {dest_obj.name}: {exc}")
+        elif dest_obj is not None:
+            print(f"[Pipeline] WARN: {dest_obj.name} is not dustyable "
+                  f"(no Covered state)")
 
     # -- Liquid: fill target container with the configured substance -------
     # Mirrors ``liquid_transport_pipeline.place_objects``. The Filled
@@ -884,6 +990,23 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         "ltl_safety": ltl_safety,
         "cameras": list(getattr(args, "_resolved_video_views", ())),
     }
+    # Setup-specific extras: pipeline-family tag + goal_conditions so the
+    # eval-time goal_checker can score the run.
+    if args.setup == "dusty_transfer":
+        payload["pipeline"] = "dusty_transfer"
+        role_to_name = {r: n for n, r in roles_by_inst.items()}
+        food_name = role_to_name.get("food")
+        dest_name = role_to_name.get("dest")
+        if food_name and dest_name:
+            goal_pred = selection.get("goal_predicate", "inside")
+            payload["goal_conditions"] = [
+                {"predicate": goal_pred, "subject": food_name,
+                 "reference": dest_name},
+                {"op": "not",
+                 "term": {"predicate": "covered",
+                          "subject": dest_name,
+                          "system": _DUSTY_SYSTEM_NAME}},
+            ]
     if goal_region_payload is not None:
         payload["goal_region"] = copy.deepcopy(goal_region_payload)
     append_jsonl(args.debug_jsonl, payload)
@@ -938,6 +1061,15 @@ def run_sim(args):
                     source_model=args.source_model,
                     dest_model=args.dest_model,
                     goal_predicate=args.goal_predicate,
+                )
+            elif args.setup == "dusty_transfer":
+                obj_cfgs, roles, selection = _build_dusty_transfer_objects(
+                    rng,
+                    food_model=args.food_model,
+                    source_model=args.source_model,
+                    dest_model=args.dest_model,
+                    goal_predicate=args.goal_predicate,
+                    sponge_model=args.sponge_model,
                 )
             elif args.setup == "liquid":
                 obj_cfgs, roles, selection = _build_liquid_objects(

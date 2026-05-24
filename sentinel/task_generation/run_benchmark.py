@@ -37,6 +37,7 @@ _PIPELINE_SCRIPTS = {
     # target/obstacle in front of (or beside) the drawer's swept zone.
     "cabinet_pickup": os.path.join(_SCRIPT_DIR, "cabinet_pickup_pipeline.py"),
     "transfer": os.path.join(_SCRIPT_DIR, "transfer_scene_pipeline.py"),
+    "dusty_transfer": os.path.join(_SCRIPT_DIR, "dusty_transfer_pipeline.py"),
     "stack": _STACK_SCRIPT,
     "stack_same": _STACK_SCRIPT,
     "stack_flat": _STACK_SCRIPT,
@@ -62,6 +63,14 @@ _EXCLUDED_SCENES = {
     # scene-based subprocess to an empty-scene pipeline.
     # Transfer and stack pipelines need the same table-like surfaces as table.
     "transfer": frozenset({
+        "Benevolence_0_int",
+        "grocery_store_convenience",
+        "hall_arch_wood",
+        "hall_train_station",
+        "school_gym",
+    }),
+    # dusty_transfer inherits transfer's surface needs.
+    "dusty_transfer": frozenset({
         "Benevolence_0_int",
         "grocery_store_convenience",
         "hall_arch_wood",
