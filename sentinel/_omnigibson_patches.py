@@ -373,6 +373,96 @@ def _register_bddl_predicates() -> None:
     register_sentinel_predicates()
 
 
+def _patch_attached_to_disable_collision() -> None:
+    """Enable upstream's commented-out
+    ``_disable_collision_between_child_and_parent`` call inside
+    ``AttachedTo._attach``.
+
+    Once a FixedJoint binds two bodies, their collision pairs no longer
+    need PhysX contact resolution — the joint constraint is the only
+    relevant interaction. Leaving collision enabled creates a
+    multi-constraint reconciliation problem at the moment of attach
+    (lid mesh ↔ container-rim mesh + lid root ↔ container F-link
+    FixedJoint + neighbors). PhysX's solver applies impulses that, for
+    light containers like a steamer basket holding a potato, send the
+    whole assembly flying.
+
+    Upstream OG has the disable-collision call commented out (see
+    ``omnigibson/object_states/attached_to.py:320-321``). We restore it
+    via a runtime wrapper around ``_attach``.
+    """
+    from omnigibson.object_states.attached_to import AttachedTo
+
+    if getattr(AttachedTo._attach, "_sentinel_disable_collision_patched", False):
+        return
+
+    original = AttachedTo._attach
+
+    def _attach_patched(self, other, child_link, parent_link,
+                        joint_type=None, can_joint_break=True):
+        result = original(self, other, child_link, parent_link,
+                          joint_type=joint_type, can_joint_break=can_joint_break)
+        # Hot-path collision-filter add: SKIP the upstream stop/play
+        # cycle (``_disable_collision_between_child_and_parent`` does
+        # ``og.sim.stop() + ... + og.sim.play()`` which crashes when
+        # invoked from within an in-flight ``sim.step``: try_snap calls
+        # ``set_value`` → ``_attach`` → wrapper, all inside one
+        # ``og.sim.step`` from the settle loop). The filtered-collision
+        # add takes effect for new contacts going forward without a
+        # sim restart.
+        if other in self.parents_disabled_collisions:
+            return result
+        self.parents_disabled_collisions.add(other)
+        for child_link_obj in self.obj.links.values():
+            for parent_link_obj in other.links.values():
+                child_link_obj.add_filtered_collision_pair(parent_link_obj)
+        return result
+
+    _attach_patched._sentinel_disable_collision_patched = True
+    AttachedTo._attach = _attach_patched
+
+
+def _patch_attachable_for_f_link_objects() -> None:
+    """Auto-inject the ``attachable`` ability into any object whose USD
+    has an F (female attachment) meta-link.
+
+    BEHAVIOR-1K's category taxonomy declares ``attachable`` for the M
+    side (lid/cap) but not the F side (tupperware/canister/kettle/etc.),
+    even though those categories carry the F-meta-link prims required
+    for the coupling. Without ``attachable`` declared, the F-side object
+    gets no ``AttachedTo`` state at load time → ``set_value(container,
+    True)`` from the M side fails inside ``_get_parent_candidates``
+    (which reads ``other.states[AttachedTo]``).
+
+    We patch ``StatefulObject.prepare_object_states`` so that, just
+    before state instantiation, we scan the object's links for any
+    ``is_meta_link AND meta_link_id.endswith("F")`` and add
+    ``"attachable"`` to ``self._abilities`` if missing. By this point
+    the USD is loaded and links are introspectable.
+    """
+    from omnigibson.objects.stateful_object import StatefulObject
+
+    if getattr(StatefulObject.prepare_object_states,
+               "_sentinel_attachable_patched", False):
+        return
+
+    original = StatefulObject.prepare_object_states
+
+    def prepare_object_states_patched(self):
+        for link in self.links.values():
+            if not getattr(link, "is_meta_link", False):
+                continue
+            # is_meta_link short-circuit makes meta_link_id safe to read.
+            if link.meta_link_id.endswith("F") \
+                    and "attachable" not in self._abilities:
+                self._abilities["attachable"] = {}
+                break
+        return original(self)
+
+    prepare_object_states_patched._sentinel_attachable_patched = True
+    StatefulObject.prepare_object_states = prepare_object_states_patched
+
+
 def _patch_create_joint_skip_render() -> None:
     """Skip ``og.sim.render()`` inside ``create_joint`` when all four
     local-pose args are provided by the caller.
@@ -508,6 +598,66 @@ def _patch_create_joint_skip_render() -> None:
     manip.create_joint = create_joint_safe
 
 
+def _patch_throttle_assisted_grasping(interval: int) -> None:
+    """Throttle ``_handle_assisted_grasping`` to fire every Nth substep call.
+
+    AG is wired into ``deploy_control`` which fires per physics substep — at
+    ``physics_frequency=300`` / ``action_frequency=30`` that's 10 fires per
+    env step, and each full-raycast fire costs ~2 ms (longfinger geometry,
+    16 raycasts per fire). For RL where the policy keeps fingers closed,
+    most of those substep fires are redundant — the AG state can only
+    change as fast as the policy emits new actions.
+
+    With ``interval=N``, the wrapped method short-circuits on
+    ``(N-1)/N`` calls and runs the original logic on every Nth call. Set
+    ``interval=10`` to fire once per env step at the standard
+    300/30 cadence. ``interval=1`` (or 0) disables the throttle.
+
+    State is kept on the robot instance (``_sentinel_ag_call_counter``),
+    so each robot has its own counter — multiple robots / multiple envs
+    don't interfere.
+    """
+    if interval <= 1:
+        return  # no-op — let AG fire every substep
+
+    from omnigibson.robots.manipulation_robot import ManipulationRobot
+
+    if getattr(ManipulationRobot, "_sentinel_ag_throttle_patched", False):
+        return  # already patched (idempotent across re-imports)
+
+    original_handle = ManipulationRobot._handle_assisted_grasping
+
+    def _throttled_handle(self):
+        # Skip unless this is the Nth substep tick.
+        counter = getattr(self, "_sentinel_ag_call_counter", 0) + 1
+        self._sentinel_ag_call_counter = counter
+        if counter % interval != 0:
+            return
+        original_handle(self)
+
+    ManipulationRobot._handle_assisted_grasping = _throttled_handle
+    ManipulationRobot._sentinel_ag_throttle_patched = True
+    ManipulationRobot._sentinel_ag_throttle_interval = interval
+
+
+def apply_ag_throttle_from_env() -> None:
+    """Read ``SENTINEL_AG_SUBSTEP_INTERVAL`` and install the throttle.
+
+    Called from wrappers.build_vec_env so the patch lands after OG is
+    imported but before env construction. Reading from env (rather than
+    forcing every caller through a Python API) keeps the patch out of OG's
+    import order — and lets profile scripts opt in via shell.
+    """
+    raw = os.environ.get("SENTINEL_AG_SUBSTEP_INTERVAL")
+    if not raw:
+        return
+    try:
+        interval = int(raw)
+    except ValueError:
+        return
+    _patch_throttle_assisted_grasping(interval)
+
+
 def _apply_eager_patches() -> None:
     global _EAGER_APPLIED
     if _EAGER_APPLIED:
@@ -519,7 +669,10 @@ def _apply_eager_patches() -> None:
     _patch_create_joint_skip_render()
     if not os.environ.get("SENTINEL_SKIP_LONGFINGER"):
         _patch_franka_longfinger()
+    apply_ag_throttle_from_env()
     _register_bddl_predicates()
+    _patch_attachable_for_f_link_objects()
+    _patch_attached_to_disable_collision()
     _EAGER_APPLIED = True
 
 
