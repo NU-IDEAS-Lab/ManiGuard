@@ -93,6 +93,14 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-05-25 — `refactor/remove-bddl-curation`: tools cleanup + n10x2 sweep driver (`9e17e8c3`)
+
+Replace 13 legacy/one-off scripts under `tools/` (older HDF5-era sweep drivers, ad-hoc tests, deprecated dataset generators, dead rendering helpers) with `_pnp_n10x2_first25.sh`, the current sweep driver: per-task quota of 2 held grasps × N=10 transport variants across the first 25 `clutter_pickup` tasks. Used to produce `outputs/variants_n10x2_first25/` (~448 successful trajectories, 130 GB) — the active SFT collection.
+
+## 2026-05-25 — `refactor/remove-bddl-curation`: lerobot_export recursive HDF5 discovery (`977bd189`)
+
+`_find_episodes` now uses `pathlib.rglob('rollout.hdf5')` so the exporter ingests both the flat `task__seed/` layout and the nested `task_/seed_/variant_/` layout produced by the transport-variants pipeline. `ep_tag` is derived from the relative path under `--input-dir` (e.g. `task_0000__seed_00__variant_03`) so per-variant log lines stay unique across the 25-task sweep. Verified: discovers all 448 `rollout.hdf5` under `outputs/variants_n10x2_first25/` in correct task→seed→variant order.
+
 ## 2026-05-24 — `refactor/remove-bddl-curation`: PnP transport-variants (`6c37f6d6`)
 
 After one successful Phase A held grasp, `pick_and_place_from_dataset` can now replay it N times with randomized `(lift_z, hover_z)` drawn from configurable ranges (defaults 0.08–0.15 m on both axes), writing each as a complete SFT episode into `<out-dir>/variant_XX/`. Phase A search runs ONCE per task; variants reuse `approach_traj` so the expensive cuRobo+AG search isn't paid 20 times. New CLI: `--n-transport-variants N` (default 1 preserves the legacy 0.25/0.25 single-trajectory layout), `--lift-z-{min,max}`, `--hover-z-{min,max}`. The post-Phase-A flow lives in a new `_run_one_variant` helper that owns per-variant `SFTRecorder` + `ReviewVideoRecorder`; `pre_phase_a_state` is snapshot before Phase A search and restored between variants so clutter displaced by one variant's transport can't leak into the next. Validated: N=20 on `clutter_pickup/task_0000` seed=0 → 20/20 succeeded, ~55s/variant steady state, **~2.8× speedup** vs sequential per-trajectory cost. `approach_traj` is bit-identical across variants (deterministic replay), `transport_arm_traj` diverges 0.13–0.23 rad peak between pairs (real diversity).
