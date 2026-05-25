@@ -91,6 +91,26 @@ def parse_args() -> argparse.Namespace:
                         "success. Skips writing on miss/fail.")
     p.add_argument("--record-resolution", type=int, default=256,
                    help="Square frame side length for the three SFT cameras.")
+    # Transport variants — reuse one successful Phase A held grasp to
+    # generate multiple transport trajectories with randomized lift/hover.
+    p.add_argument("--n-transport-variants", type=int, default=1,
+                   help="If >1, after Phase A succeeds, replay the held "
+                        "grasp + plan/execute Phase B N times with each "
+                        "variant drawing a random (lift_z, hover_z) from "
+                        "the configured ranges. Variants land in "
+                        "<out-dir>/variant_XX/. Default 1 preserves the "
+                        "single-trajectory legacy behavior with hardcoded "
+                        "0.25 / 0.25.")
+    p.add_argument("--lift-z-min", type=float, default=0.08,
+                   help="Minimum lift height (m) when sampling variants.")
+    p.add_argument("--lift-z-max", type=float, default=0.15,
+                   help="Maximum lift height (m) when sampling variants.")
+    p.add_argument("--hover-z-min", type=float, default=0.08,
+                   help="Minimum hover-above-target height (m) when sampling "
+                        "variants.")
+    p.add_argument("--hover-z-max", type=float, default=0.15,
+                   help="Maximum hover-above-target height (m) when sampling "
+                        "variants.")
     return p.parse_args()
 
 
@@ -974,6 +994,237 @@ def _record_phase_a_replay(env, og, robot, target_obj, *,
     return True
 
 
+def _run_one_variant(
+    env, og, robot, target_obj, primitives, *,
+    home_joint_q, target_init_pos, target_init_quat, approach_traj,
+    grasp, goal_spec, goal_center, goal_radius, target_name,
+    phase_a_wall_s, phase_a_breakdown,
+    args, task_dir, out_dir, camera_names,
+    variant_idx, n_variants,
+    lift_z, hover_z,
+) -> dict:
+    """Replay Phase A + plan & execute Phase B with the given lift/hover.
+
+    Creates per-variant SFTRecorder + ReviewVideoRecorder + result_payload,
+    writes ``result.json`` + ``trajectory.pt`` + the SFT rollout artifacts
+    into ``out_dir``. Returns the result_payload dict (so the caller can
+    aggregate across variants).
+
+    Phase A search is NOT re-run; we replay the supplied ``approach_traj``
+    so AG re-engages from the same initial robot/target pose.
+    """
+    import torch as th
+
+    from sentinel.envs.frozen_task_runtime import ReviewVideoRecorder
+    from sentinel.utils.goal_region import (
+        object_intersects_goal_region,
+        robot_holds_target,
+        target_or_gripper_in_goal,
+    )
+
+    sft_recorder = None
+    if args.record_sft:
+        from tools._sft_recorder import SFTRecorder
+        sft_recorder = SFTRecorder(out_dir, resolution=args.record_resolution,
+                                   fps=args.video_fps)
+        sft_recorder.attach(env, env.robots[0])
+
+    recorder_ctx = (
+        ReviewVideoRecorder(path=out_dir, fps=args.video_fps,
+                            camera_names=camera_names)
+        if args.save_video else None
+    )
+
+    result_payload: dict = {
+        "task_dir": str(task_dir),
+        "target_name": target_name,
+        "goal_center_world": goal_center.tolist(),
+        "goal_radius_m": goal_radius,
+        "variant_idx": variant_idx,
+        "n_variants": n_variants,
+        "lift_z": lift_z,
+        "hover_z": hover_z,
+        "phase_a": {
+            "held": True,
+            "wall_s": round(phase_a_wall_s, 2),
+            "obj_to_eef": float(grasp["obj_to_eef"]),
+            "breakdown": phase_a_breakdown,
+        },
+        "phase_b": {"planned": False, "executed": False, "success": False,
+                    "final_target_to_goal_m": None},
+    }
+
+    if recorder_ctx is not None:
+        recorder_ctx.__enter__()
+
+    try:
+        # ----- SFT Phase A capture -----
+        # Replay the successful Phase A kinematically through
+        # set_joint_positions + apply_action, capturing FK-derived
+        # (dpos, daa, gripper) actions per step. AG re-engages because
+        # we restore the same (robot, target) initial state.
+        if sft_recorder is not None:
+            _record_phase_a_replay(
+                env, og, robot, target_obj,
+                home_joint_q=home_joint_q,
+                target_init_pos=target_init_pos,
+                target_init_quat=target_init_quat,
+                approach_traj=approach_traj,
+                sft_recorder=sft_recorder,
+            )
+
+        # Record a few extra "holding" frames before replanning.
+        if recorder_ctx is not None:
+            for _ in range(5):
+                og.sim.step()
+                recorder_ctx.record(env, og)
+
+        # ----- Phase B PLAN -----
+        print(f"[PnP v{variant_idx:02d}] Phase B PLAN: "
+              f"lift_z={lift_z:.3f}, hover_z={hover_z:.3f} ...",
+              flush=True)
+        t1 = time.time()
+        goal_target_pos = goal_center.copy()
+        seg_timings: list = []
+        seg_pairs = _plan_transport(
+            primitives, robot, target_obj, goal_target_pos,
+            transport_timeout=args.transport_timeout,
+            lift_z=lift_z, hover_z=hover_z,
+            seg_timings=seg_timings,
+        )
+        plan_wall = time.time() - t1
+        result_payload["phase_b"]["plan_wall_s"] = round(plan_wall, 2)
+        result_payload["phase_b"]["plan_segments"] = [
+            {"label": st["label"],
+             "wall_s": round(st["wall_s"], 3),
+             "toggle_gripper_off": st["toggle_gripper_off"],
+             "ok": st["ok"], "n_wp": st["n_wp"]}
+            for st in seg_timings
+        ]
+        for st in seg_timings:
+            print(f"[PnP v{variant_idx:02d}]   plan seg {st['label']!r}: "
+                  f"ok={st['ok']} wall={st['wall_s']*1000:.1f}ms "
+                  f"n_wp={st['n_wp']}", flush=True)
+        if seg_pairs is None or len(seg_pairs) == 0:
+            first_fail = next((st["label"] for st in seg_timings
+                               if not st["ok"]), "unknown")
+            print(f"[PnP v{variant_idx:02d}] Phase B PLAN FAILED at "
+                  f"segment {first_fail!r}", flush=True)
+            result_payload["fail_step"] = f"phase_b_plan:{first_fail}"
+            return result_payload
+        transport_arm_traj = th.cat([s[1] for s in seg_pairs], dim=0)
+        transport_eef_traj = th.cat([s[2] for s in seg_pairs], dim=0)
+        result_payload["phase_b"]["planned"] = True
+        result_payload["phase_b"]["traj_len"] = int(len(transport_arm_traj))
+        result_payload["phase_b"]["segments"] = [
+            {"label": lbl, "n_waypoints": int(len(arm_t))}
+            for lbl, arm_t, _ in seg_pairs
+        ]
+        print(f"[PnP v{variant_idx:02d}] Phase B PLAN ok: "
+              f"{len(transport_arm_traj)} waypoints across "
+              f"{len(seg_pairs)} segments ({plan_wall:.1f}s)", flush=True)
+
+        # ----- Render preview + save trajectory.pt before executing -----
+        if not args.record_sft:
+            _render_planned_trajectory(
+                env, og, robot, target_obj, seg_pairs,
+                recorder=recorder_ctx,
+            )
+
+        full_arm_traj = th.cat([
+            th.as_tensor(approach_traj, dtype=th.float32),
+            th.as_tensor(transport_arm_traj, dtype=th.float32),
+        ], dim=0)
+        th.save({
+            "approach_traj": th.as_tensor(approach_traj, dtype=th.float32),
+            "transport_arm_traj": th.as_tensor(transport_arm_traj, dtype=th.float32),
+            "transport_eef_traj_base": th.as_tensor(transport_eef_traj, dtype=th.float32),
+            "transport_segments": [
+                {
+                    "label": lbl,
+                    "arm_traj": th.as_tensor(arm_t, dtype=th.float32),
+                    "eef_traj_base": th.as_tensor(eef_t, dtype=th.float32),
+                }
+                for lbl, arm_t, eef_t in seg_pairs
+            ],
+            "full_arm_traj": full_arm_traj,
+            "target_name": target_name,
+            "goal_center_world": th.tensor(goal_center, dtype=th.float64),
+            "goal_radius_m": float(goal_radius),
+            "lift_z": float(lift_z),
+            "hover_z": float(hover_z),
+        }, str(out_dir / "trajectory.pt"))
+        (out_dir / "result.json").write_text(json.dumps(result_payload, indent=2))
+
+        # ----- Phase B EXECUTE (JointController replay) -----
+        replay_deadline = time.time() + max(args.transport_timeout * 4, 240.0)
+        cb = (lambda: recorder_ctx.record(env, og)) if recorder_ctx else None
+        print(f"[PnP v{variant_idx:02d}] Phase B EXECUTE: "
+              f"{len(transport_arm_traj)} joint waypoints ...", flush=True)
+        t_exec = time.time()
+        ok = _replay_holding(
+            env, og, robot, target_obj, transport_arm_traj,
+            deadline=replay_deadline, frame_callback=cb,
+            sft_recorder=sft_recorder,
+        )
+        exec_wall = time.time() - t_exec
+        result_payload["phase_b"]["execute_wall_s"] = round(exec_wall, 2)
+        result_payload["phase_b"]["executed"] = bool(ok)
+        if not ok:
+            result_payload.setdefault("fail_step", "phase_b_execute")
+
+        # Success check.
+        tgt_pos_final, _ = target_obj.get_position_orientation()
+        tgt_pos_final_np = tgt_pos_final.cpu().numpy().astype(np.float64)
+        dist = float(np.linalg.norm(tgt_pos_final_np - goal_center))
+        pos_ok, which = target_or_gripper_in_goal(env, target_obj, goal_spec)
+        intersects_target = object_intersects_goal_region(target_obj, goal_spec)
+        still_held = robot_holds_target(env, target_obj)
+        success = ok and pos_ok and still_held
+        result_payload["phase_b"]["final_target_world"] = tgt_pos_final_np.tolist()
+        result_payload["phase_b"]["final_target_to_goal_m"] = dist
+        result_payload["phase_b"]["target_intersects_goal"] = bool(intersects_target)
+        result_payload["phase_b"]["gripper_or_target_in_goal"] = bool(pos_ok)
+        result_payload["phase_b"]["pos_check_which"] = which
+        result_payload["phase_b"]["robot_holds_target"] = bool(still_held)
+        result_payload["phase_b"]["success"] = bool(success)
+        print(f"[PnP v{variant_idx:02d}] Phase B EXECUTE "
+              f"{'OK' if ok else 'TRUNCATED'} — "
+              f"center_dist={dist:.3f} m, pos_ok={pos_ok} (by={which!r}), "
+              f"target_in={intersects_target}, AG_held={still_held} "
+              f"→ {'SUCCESS' if success else 'MISS'}", flush=True)
+        if not success and "fail_step" not in result_payload:
+            if not pos_ok:
+                result_payload["fail_step"] = "goal_not_intersected"
+            elif not still_held:
+                result_payload["fail_step"] = "lost_grip"
+            else:
+                result_payload["fail_step"] = "unknown"
+
+        # Hold final frames for the video.
+        if recorder_ctx is not None:
+            for _ in range(15):
+                og.sim.step()
+                recorder_ctx.record(env, og)
+        return result_payload
+    finally:
+        if recorder_ctx is not None:
+            recorder_ctx.__exit__(None, None, None)
+        if sft_recorder is not None:
+            phase_b = result_payload.get("phase_b", {})
+            sft_success = bool(phase_b.get("success"))
+            sft_recorder.finalize(success=sft_success, attrs={
+                "task_dir": str(task_dir),
+                "target_name": str(target_name),
+                "seed": int(args.seed),
+                "variant_idx": int(variant_idx),
+                "lift_z": float(lift_z),
+                "hover_z": float(hover_z),
+                "phase_a_held": True,
+            })
+        (out_dir / "result.json").write_text(json.dumps(result_payload, indent=2))
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -998,19 +1249,8 @@ def main() -> None:
         task_dir, args.episode, no_distractors=args.no_distractors,
         record_sft=args.record_sft, record_resolution=args.record_resolution,
     )
-    sft_recorder = None
-    if args.record_sft:
-        from tools._sft_recorder import SFTRecorder
-        sft_recorder = SFTRecorder(out_dir, resolution=args.record_resolution,
-                                   fps=args.video_fps)
-        sft_recorder.attach(env, env.robots[0])
     try:
-        from sentinel.utils.goal_region import (
-            GoalRegionSpec,
-            object_intersects_goal_region,
-            robot_holds_target,
-            target_or_gripper_in_goal,
-        )
+        from sentinel.utils.goal_region import GoalRegionSpec
         gr = diagnostics["goal_region"]
         goal_spec = GoalRegionSpec.from_json(gr)
         target_name = goal_spec.target_name
@@ -1070,290 +1310,142 @@ def main() -> None:
                                                      enable_head_tracking=False)
         print(f"[{time.strftime('%H:%M:%S')}] cuRobo ready.", flush=True)
 
-        # Open the video recorder around the full pick+place rollout.
-        from sentinel.envs.frozen_task_runtime import ReviewVideoRecorder
+        # ===== Phase A search — runs ONCE per task =====
+        t0 = time.time()
+        pick_deadline = t0 + args.pick_timeout
+        robot = env.robots[0]
+        home_joint_q = robot.get_joint_positions().clone()
+        target_init_pos, target_init_quat = target_obj.get_position_orientation()
+        target_init_pos = target_init_pos.clone()
+        target_init_quat = target_init_quat.clone()
+        # Snapshot world state BEFORE Phase A so multi-variant runs can
+        # restore between variants and see the same initial scene.
+        pre_phase_a_state = og.sim.dump_state()
 
-        recorder_ctx = (
-            ReviewVideoRecorder(path=out_dir, fps=args.video_fps,
-                                camera_names=camera_names)
-            if args.save_video else None
+        grasp, phase_a_timings = _phase_a_pick(
+            env, og, primitives, target_obj, args, pick_deadline,
         )
-
-        result_payload = {
-            "task_dir": str(task_dir),
-            "target_name": target_name,
-            "goal_center_world": goal_center.tolist(),
-            "goal_radius_m": goal_radius,
-            "phase_a": {"held": False},
-            "phase_b": {"planned": False, "executed": False, "success": False,
-                        "final_target_to_goal_m": None},
+        phase_a_wall = time.time() - t0
+        # Aggregate per-candidate timings into a summary.
+        n_cands = len(phase_a_timings)
+        n_held = sum(1 for t in phase_a_timings if t.get("held"))
+        n_pc = sum(1 for t in phase_a_timings if "ik_precheck_s" in t)
+        n_pc_ok = sum(1 for t in phase_a_timings if t.get("ik_precheck_ok"))
+        n_s1 = sum(1 for t in phase_a_timings if "stage1_s" in t)
+        n_s1_ok = sum(1 for t in phase_a_timings if t.get("stage1_ok"))
+        n_s2 = sum(1 for t in phase_a_timings if "stage2_s" in t)
+        sum_pc = sum(t.get("ik_precheck_s", 0.0) for t in phase_a_timings)
+        sum_s1 = sum(t.get("stage1_s", 0.0) for t in phase_a_timings)
+        sum_s2 = sum(t.get("stage2_s", 0.0) for t in phase_a_timings)
+        sum_tot = sum(t.get("total_s", 0.0) for t in phase_a_timings)
+        phase_a_breakdown = {
+            "n_cands_tried": n_cands, "n_held": n_held,
+            "ik_precheck": {"ran": n_pc, "ok": n_pc_ok,
+                            "total_s": round(sum_pc, 3)},
+            "stage1": {"ran": n_s1, "ok": n_s1_ok,
+                       "total_s": round(sum_s1, 3)},
+            "stage2": {"ran": n_s2, "total_s": round(sum_s2, 3)},
+            "per_cand_total_s": round(sum_tot, 3),
         }
+        print(f"[PnP] Phase A wall={phase_a_wall:.1f}s  "
+              f"cands_tried={n_cands}  held={n_held}", flush=True)
+        print(f"[PnP]   ik_precheck: ran={n_pc} ok={n_pc_ok} "
+              f"total={sum_pc:.2f}s "
+              f"avg={sum_pc/max(n_pc,1)*1000:.1f}ms", flush=True)
+        print(f"[PnP]   stage1     : ran={n_s1} ok={n_s1_ok} "
+              f"total={sum_s1:.2f}s "
+              f"avg={sum_s1/max(n_s1,1)*1000:.1f}ms", flush=True)
+        print(f"[PnP]   stage2     : ran={n_s2}           "
+              f"total={sum_s2:.2f}s "
+              f"avg={sum_s2/max(n_s2,1)*1000:.1f}ms", flush=True)
+        (out_dir / "phase_a_timings.json").write_text(
+            json.dumps(phase_a_timings, indent=2))
 
-        if recorder_ctx is not None:
-            recorder_ctx.__enter__()
-
-        try:
-            # ----- Phase A -----
-            t0 = time.time()
-            pick_deadline = t0 + args.pick_timeout
-            # Snapshot the home joint pose BEFORE Phase A so we can replay
-            # the successful approach kinematically for SFT recording later.
-            robot = env.robots[0]
-            home_joint_q = robot.get_joint_positions().clone()
-            target_init_pos, target_init_quat = target_obj.get_position_orientation()
-            target_init_pos = target_init_pos.clone()
-            target_init_quat = target_init_quat.clone()
-            grasp, phase_a_timings = _phase_a_pick(
-                env, og, primitives, target_obj, args, pick_deadline,
-            )
-            phase_a_wall = time.time() - t0
-            result_payload["phase_a"]["wall_s"] = round(phase_a_wall, 2)
-            # Aggregate per-candidate timings into a summary.
-            n_cands = len(phase_a_timings)
-            n_held = sum(1 for t in phase_a_timings if t.get("held"))
-            n_pc = sum(1 for t in phase_a_timings if "ik_precheck_s" in t)
-            n_pc_ok = sum(1 for t in phase_a_timings if t.get("ik_precheck_ok"))
-            n_s1 = sum(1 for t in phase_a_timings if "stage1_s" in t)
-            n_s1_ok = sum(1 for t in phase_a_timings if t.get("stage1_ok"))
-            n_s2 = sum(1 for t in phase_a_timings if "stage2_s" in t)
-            sum_pc = sum(t.get("ik_precheck_s", 0.0) for t in phase_a_timings)
-            sum_s1 = sum(t.get("stage1_s", 0.0) for t in phase_a_timings)
-            sum_s2 = sum(t.get("stage2_s", 0.0) for t in phase_a_timings)
-            sum_tot = sum(t.get("total_s", 0.0) for t in phase_a_timings)
-            result_payload["phase_a"]["breakdown"] = {
-                "n_cands_tried": n_cands, "n_held": n_held,
-                "ik_precheck": {"ran": n_pc, "ok": n_pc_ok,
-                                "total_s": round(sum_pc, 3)},
-                "stage1": {"ran": n_s1, "ok": n_s1_ok,
-                           "total_s": round(sum_s1, 3)},
-                "stage2": {"ran": n_s2, "total_s": round(sum_s2, 3)},
-                "per_cand_total_s": round(sum_tot, 3),
-            }
-            print(f"[PnP] Phase A wall={phase_a_wall:.1f}s  "
-                  f"cands_tried={n_cands}  held={n_held}", flush=True)
-            print(f"[PnP]   ik_precheck: ran={n_pc} ok={n_pc_ok} "
-                  f"total={sum_pc:.2f}s "
-                  f"avg={sum_pc/max(n_pc,1)*1000:.1f}ms", flush=True)
-            print(f"[PnP]   stage1     : ran={n_s1} ok={n_s1_ok} "
-                  f"total={sum_s1:.2f}s "
-                  f"avg={sum_s1/max(n_s1,1)*1000:.1f}ms", flush=True)
-            print(f"[PnP]   stage2     : ran={n_s2}           "
-                  f"total={sum_s2:.2f}s "
-                  f"avg={sum_s2/max(n_s2,1)*1000:.1f}ms", flush=True)
-            # Persist per-candidate detail to a separate file (can be large).
-            (out_dir / "phase_a_timings.json").write_text(
-                json.dumps(phase_a_timings, indent=2))
-            if grasp is None:
-                print("[PnP] Phase A FAILED — no grasp held", flush=True)
-                result_payload["fail_step"] = "phase_a"
-                return
-            result_payload["phase_a"]["held"] = True
-            result_payload["phase_a"]["obj_to_eef"] = float(grasp["obj_to_eef"])
-            approach_traj = grasp["approach_traj"]
-
-            # ----- SFT Phase A capture -----
-            # Phase A above runs many candidates before one holds; we only
-            # want the successful trajectory in the HDF5. Replay it now
-            # kinematically through set_joint_positions + apply_action,
-            # capturing FK-derived (dpos, daa, gripper) actions per step.
-            # AG re-engages because we restore the same (robot, target)
-            # initial state the original Phase A used.
-            if sft_recorder is not None:
-                _record_phase_a_replay(
-                    env, og, robot, target_obj,
-                    home_joint_q=home_joint_q,
-                    target_init_pos=target_init_pos,
-                    target_init_quat=target_init_quat,
-                    approach_traj=approach_traj,
-                    sft_recorder=sft_recorder,
-                )
-
-            # Record a few extra "holding" frames before replanning.
-            if recorder_ctx is not None:
-                for _ in range(5):
-                    og.sim.step()
-                    recorder_ctx.record(env, og)
-
-            # ----- Phase B PLAN (cuRobo only — no physics execution yet) -----
-            print("[PnP] Phase B PLAN: solving 3-segment transport "
-                  "(lift → hover → descend) ...", flush=True)
-            t1 = time.time()
-            goal_target_pos = goal_center.copy()
-            seg_timings: list = []
-            seg_pairs = _plan_transport(
-                primitives, env.robots[0], target_obj, goal_target_pos,
-                transport_timeout=args.transport_timeout,
-                seg_timings=seg_timings,
-            )
-            plan_wall = time.time() - t1
-            result_payload["phase_b"]["plan_wall_s"] = round(plan_wall, 2)
-            result_payload["phase_b"]["plan_segments"] = [
-                {"label": st["label"],
-                 "wall_s": round(st["wall_s"], 3),
-                 "toggle_gripper_off": st["toggle_gripper_off"],
-                 "ok": st["ok"], "n_wp": st["n_wp"]}
-                for st in seg_timings
-            ]
-            for st in seg_timings:
-                print(f"[PnP]   plan seg {st['label']!r}: ok={st['ok']} "
-                      f"wall={st['wall_s']*1000:.1f}ms "
-                      f"toggle_off={st['toggle_gripper_off']} "
-                      f"n_wp={st['n_wp']}", flush=True)
-            if seg_pairs is None or len(seg_pairs) == 0:
-                first_fail = next((st["label"] for st in seg_timings
-                                   if not st["ok"]), "unknown")
-                print(f"[PnP] Phase B PLAN FAILED at segment {first_fail!r} "
-                      f"(plan wall={plan_wall:.2f}s)", flush=True)
-                result_payload["fail_step"] = f"phase_b_plan:{first_fail}"
-                return
-            import torch as th
-            transport_arm_traj = th.cat([s[1] for s in seg_pairs], dim=0)
-            transport_eef_traj = th.cat([s[2] for s in seg_pairs], dim=0)
-            result_payload["phase_b"]["planned"] = True
-            result_payload["phase_b"]["traj_len"] = int(len(transport_arm_traj))
-            result_payload["phase_b"]["segments"] = [
-                {"label": lbl, "n_waypoints": int(len(arm_t))}
-                for lbl, arm_t, _ in seg_pairs
-            ]
-            print(f"[PnP] Phase B PLAN ok: {len(transport_arm_traj)} waypoints "
-                  f"across {len(seg_pairs)} segments "
-                  f"({result_payload['phase_b']['plan_wall_s']}s)", flush=True)
-
-            # ----- Render preview + save artifacts BEFORE executing -----
-            # Show what cuRobo planned, then persist trajectory + result.json.
-            # This way the artifacts exist even if the physics execution
-            # below diverges from the plan.
-            # Skip the visual marker spawning under --record-sft: the
-            # markers are persistent prims that stay visible during Phase B
-            # execute and would contaminate the SFT training frames.
-            robot = env.robots[0]
-            if not args.record_sft:
-                print("[PnP] rendering planned-trajectory preview ...", flush=True)
-                _render_planned_trajectory(
-                    env, og, robot, target_obj, seg_pairs,
-                    recorder=recorder_ctx,
-                )
-            else:
-                print("[PnP] skipping planned-trajectory preview "
-                      "(--record-sft is on)", flush=True)
-
-            full_arm_traj = th.cat([
-                th.as_tensor(approach_traj, dtype=th.float32),
-                th.as_tensor(transport_arm_traj, dtype=th.float32),
-            ], dim=0)
-            th.save({
-                "approach_traj": th.as_tensor(approach_traj, dtype=th.float32),
-                "transport_arm_traj": th.as_tensor(transport_arm_traj, dtype=th.float32),
-                "transport_eef_traj_base": th.as_tensor(transport_eef_traj, dtype=th.float32),
-                "transport_segments": [
-                    {
-                        "label": lbl,
-                        "arm_traj": th.as_tensor(arm_t, dtype=th.float32),
-                        "eef_traj_base": th.as_tensor(eef_t, dtype=th.float32),
-                    }
-                    for lbl, arm_t, eef_t in seg_pairs
-                ],
-                "full_arm_traj": full_arm_traj,
+        if grasp is None:
+            print("[PnP] Phase A FAILED — no grasp held", flush=True)
+            (out_dir / "result.json").write_text(json.dumps({
+                "task_dir": str(task_dir),
                 "target_name": target_name,
-                "goal_center_world": th.tensor(goal_center, dtype=th.float64),
-                "goal_radius_m": float(goal_radius),
-            }, str(out_dir / "trajectory.pt"))
-            print(f"[PnP] wrote {out_dir / 'trajectory.pt'}", flush=True)
-            (out_dir / "result.json").write_text(json.dumps(result_payload, indent=2))
-            print(f"[PnP] wrote {out_dir / 'result.json'} (pre-execute)", flush=True)
+                "goal_center_world": goal_center.tolist(),
+                "goal_radius_m": goal_radius,
+                "phase_a": {"held": False, "wall_s": round(phase_a_wall, 2),
+                            "breakdown": phase_a_breakdown},
+                "phase_b": {"planned": False, "executed": False,
+                            "success": False},
+                "fail_step": "phase_a",
+            }, indent=2))
+            return
 
-            # ----- Phase B EXECUTE (JointController replay) -----
-            # Drive the arm joints to each cuRobo waypoint with
-            # JointController + per-waypoint convergence loop; AG keeps
-            # the held target carried with the gripper.
-            # Generous deadline: each env.step has Python + Isaac
-            # overhead well beyond the 1/30s physics dt. n waypoints ×
-            # up to 8 substeps + final settle ≈ 30-60s wall time
-            # empirically for a 200-wp segment plan.
-            replay_deadline = time.time() + max(args.transport_timeout * 4, 240.0)
-            cb = (lambda: recorder_ctx.record(env, og)) if recorder_ctx else None
-            print("[PnP] Phase B EXECUTE: JointController replay of "
-                  f"{len(transport_arm_traj)} joint waypoints ...", flush=True)
-            t_exec = time.time()
-            ok = _replay_holding(
-                env, og, robot, target_obj, transport_arm_traj,
-                deadline=replay_deadline, frame_callback=cb,
-                sft_recorder=sft_recorder,
+        approach_traj = grasp["approach_traj"]
+
+        # ===== Variant loop =====
+        n_variants = max(1, args.n_transport_variants)
+        rng = np.random.default_rng(args.seed)
+        variant_summary: list = []
+        for vi in range(n_variants):
+            # Per-variant out_dir + sampled lift/hover.
+            if n_variants == 1:
+                v_out_dir = out_dir
+                lift_z = 0.25
+                hover_z = 0.25
+            else:
+                v_out_dir = out_dir / f"variant_{vi:02d}"
+                v_out_dir.mkdir(parents=True, exist_ok=True)
+                lift_z = float(rng.uniform(args.lift_z_min, args.lift_z_max))
+                hover_z = float(rng.uniform(args.hover_z_min, args.hover_z_max))
+
+            # Restore world snapshot before variants 2+ so clutter
+            # displacement from prior variant's transport doesn't leak.
+            if vi > 0:
+                og.sim.load_state(pre_phase_a_state)
+                og.sim.step()
+
+            print(f"\n[PnP] === Variant {vi+1}/{n_variants}  "
+                  f"lift_z={lift_z:.3f}  hover_z={hover_z:.3f}  "
+                  f"out_dir={v_out_dir.name} ===", flush=True)
+            variant_result = _run_one_variant(
+                env, og, robot, target_obj, primitives,
+                home_joint_q=home_joint_q,
+                target_init_pos=target_init_pos,
+                target_init_quat=target_init_quat,
+                approach_traj=approach_traj,
+                grasp=grasp, goal_spec=goal_spec,
+                goal_center=goal_center, goal_radius=goal_radius,
+                target_name=target_name,
+                phase_a_wall_s=phase_a_wall,
+                phase_a_breakdown=phase_a_breakdown,
+                args=args, task_dir=task_dir, out_dir=v_out_dir,
+                camera_names=camera_names,
+                variant_idx=vi, n_variants=n_variants,
+                lift_z=lift_z, hover_z=hover_z,
             )
-            exec_wall = time.time() - t_exec
-            result_payload["phase_b"]["execute_wall_s"] = round(exec_wall, 2)
-            result_payload["phase_b"]["executed"] = bool(ok)
-            if not ok:
-                result_payload.setdefault("fail_step", "phase_b_execute")
-            print(f"[PnP]   execute wall={exec_wall:.1f}s "
-                  f"ok={bool(ok)}", flush=True)
+            variant_summary.append({
+                "variant_idx": vi,
+                "lift_z": lift_z, "hover_z": hover_z,
+                "success": bool(variant_result.get("phase_b", {})
+                                .get("success")),
+                "fail_step": variant_result.get("fail_step"),
+                "out_dir": str(v_out_dir),
+            })
 
-            # Use the canonical "held_intersection" check from
-            # sentinel/utils/goal_region.py: target AABB ∩ sphere AND
-            # robot is still grasping the target.
-            tgt_pos_final, _ = target_obj.get_position_orientation()
-            tgt_pos_final_np = tgt_pos_final.cpu().numpy().astype(np.float64)
-            dist = float(np.linalg.norm(tgt_pos_final_np - goal_center))
-            # Relaxed positional check: target OR gripper AABB ∩ sphere.
-            # Captures the (common) case where the held object is slightly
-            # off-center but the fingers are inside the goal region.
-            pos_ok, which = target_or_gripper_in_goal(env, target_obj, goal_spec)
-            intersects_target = object_intersects_goal_region(target_obj, goal_spec)
-            still_held = robot_holds_target(env, target_obj)
-            success = ok and pos_ok and still_held
-            result_payload["phase_b"]["final_target_world"] = tgt_pos_final_np.tolist()
-            result_payload["phase_b"]["final_target_to_goal_m"] = dist
-            result_payload["phase_b"]["target_intersects_goal"] = bool(intersects_target)
-            result_payload["phase_b"]["gripper_or_target_in_goal"] = bool(pos_ok)
-            result_payload["phase_b"]["pos_check_which"] = which
-            result_payload["phase_b"]["robot_holds_target"] = bool(still_held)
-            result_payload["phase_b"]["success"] = bool(success)
-            print(f"[PnP] Phase B EXECUTE {'OK' if ok else 'TRUNCATED'} — "
-                  f"center_dist={dist:.3f} m (radius={goal_radius:.3f}), "
-                  f"pos_ok={pos_ok} (by={which!r}), "
-                  f"target_in={intersects_target}, AG_held={still_held} "
-                  f"→ {'SUCCESS' if success else 'MISS'}", flush=True)
-            if not success and "fail_step" not in result_payload:
-                if not pos_ok:
-                    result_payload["fail_step"] = "goal_not_intersected"
-                elif not still_held:
-                    result_payload["fail_step"] = "lost_grip"
-                else:
-                    result_payload["fail_step"] = "unknown"
-            # Final structured breakdown.
-            ph_a = result_payload["phase_a"].get("wall_s", 0)
-            ph_b_plan = result_payload["phase_b"].get("plan_wall_s", 0)
-            ph_b_exec = result_payload["phase_b"].get("execute_wall_s", 0)
-            print("\n[PnP] === STEP BREAKDOWN ===", flush=True)
-            print(f"[PnP]   Phase A (grasp find)    : {ph_a:6.1f}s",
-                  flush=True)
-            print(f"[PnP]   Phase B PLAN (3 segs)   : {ph_b_plan:6.1f}s",
-                  flush=True)
-            print(f"[PnP]   Phase B EXECUTE (JC)    : {ph_b_exec:6.1f}s",
-                  flush=True)
-            print(f"[PnP]   fail_step               : "
-                  f"{result_payload.get('fail_step', '-')}", flush=True)
-            print(f"[PnP]   success                 : {success}", flush=True)
-
-            # Hold a few more frames so the video shows the final pose.
-            if recorder_ctx is not None:
-                for _ in range(15):
-                    og.sim.step()
-                    recorder_ctx.record(env, og)
-        finally:
-            if recorder_ctx is not None:
-                recorder_ctx.__exit__(None, None, None)
-            if sft_recorder is not None:
-                phase_b = result_payload.get("phase_b", {})
-                sft_success = bool(phase_b.get("success"))
-                sft_recorder.finalize(success=sft_success, attrs={
-                    "task_dir": str(task_dir),
-                    "target_name": str(target_name),
-                    "seed": int(args.seed),
-                    "phase_a_held": bool(result_payload.get("phase_a", {}).get("held")),
-                })
-            (out_dir / "result.json").write_text(json.dumps(result_payload, indent=2))
-            print(f"[PnP] wrote {out_dir / 'result.json'}", flush=True)
+        # Write multi-variant aggregate summary alongside the per-variant
+        # result.json files.
+        if n_variants > 1:
+            n_succ = sum(1 for v in variant_summary if v["success"])
+            (out_dir / "variants_summary.json").write_text(json.dumps({
+                "task_dir": str(task_dir),
+                "target_name": target_name,
+                "n_variants": n_variants,
+                "n_succ": n_succ,
+                "phase_a_wall_s": round(phase_a_wall, 2),
+                "phase_a_breakdown": phase_a_breakdown,
+                "lift_z_range": [args.lift_z_min, args.lift_z_max],
+                "hover_z_range": [args.hover_z_min, args.hover_z_max],
+                "seed": int(args.seed),
+                "variants": variant_summary,
+            }, indent=2))
+            print(f"\n[PnP] variants summary: {n_succ}/{n_variants} succeeded, "
+                  f"wrote {out_dir / 'variants_summary.json'}", flush=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[PnP] FAIL: {exc}", flush=True)
         traceback.print_exc()
