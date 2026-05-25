@@ -53,20 +53,16 @@ from __future__ import annotations
 import argparse
 import glob
 import os
-import re
 from pathlib import Path
 
 import h5py
 import numpy as np
 import torch
 
-
-_TRAIL_INSTANCE_RE = re.compile(r"_\d+$")
-
-
-def _clean_target(name: str) -> str:
-    """``teacup_178`` -> ``teacup``; idempotent if no trailing instance id."""
-    return _TRAIL_INSTANCE_RE.sub("", name).replace("_", " ").strip()
+from sentinel.data.lerobot_writer import (
+    create_or_open_dataset,
+    episode_prompt as _episode_prompt_shared,
+)
 
 
 def _load_episode_from_hdf5(path: str) -> tuple[list[dict], dict]:
@@ -120,11 +116,8 @@ def _decode_attr(v) -> str:
 
 
 def _episode_prompt(attrs: dict, template: str, override: str | None) -> str:
-    if override is not None:
-        return override
     target = _decode_attr(attrs.get("target_name", "object"))
-    target_clean = _clean_target(target)
-    return template.format(target=target, target_clean=target_clean)
+    return _episode_prompt_shared(target, template, override)
 
 
 def _find_episodes(input_dir: str) -> list[str]:
@@ -150,10 +143,16 @@ def main():
                    help="LeRobot dataset identifier, e.g. sentinel/pnp_multitask")
     p.add_argument("--prompt", default=None,
                    help="If set, applied to every episode (overrides --prompt-template).")
-    p.add_argument("--prompt-template", default="pick up the {target_clean} and place it at the goal",
+    p.add_argument("--prompt-template",
+                   default="pick up the {target_clean} in the middle of the table and place it at the green goal",
                    help="Per-episode prompt template. Substitutions: {target} (raw BDDL "
                         "instance name like 'teacup_178'), {target_clean} (instance suffix "
                         "stripped, underscores -> spaces).")
+    p.add_argument("--vcodec", default="h264",
+                   choices=["h264", "hevc", "libsvtav1"],
+                   help="Video encoder. h264 (default) is ~10x faster than the "
+                        "LeRobot default 'libsvtav1' with marginal size cost and "
+                        "is universally decodable. Both work with pyav/torchcodec.")
     p.add_argument("--root", default=None,
                    help="Root dir for the dataset folder. Defaults to $HF_LEROBOT_HOME "
                         "or ~/.cache/huggingface/lerobot.")
@@ -174,63 +173,29 @@ def main():
                    help="Push the HF dataset as a private repo.")
     args = p.parse_args()
 
-    try:
-        from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
-    except ModuleNotFoundError:
-        try:
-            from lerobot.datasets.lerobot_dataset import LeRobotDataset
-        except ModuleNotFoundError as e:
-            raise SystemExit(
-                f"lerobot not importable: {e}\n"
-                f"Install in an isolated venv (see this script's docstring)."
-            )
-
-    # Feature spec. Flat names line up with a RepackTransform that maps:
-    #   observation/image_left  -> image_left
-    #   observation/image_right -> image_right
-    #   observation/wrist_image -> wrist_image
-    #   observation/state       -> state
-    #   actions                 -> actions
-    features = {
-        "image_left": {
-            "dtype": "video",
-            "shape": (args.resolution, args.resolution, 3),
-            "names": ["height", "width", "channel"],
-        },
-        "image_right": {
-            "dtype": "video",
-            "shape": (args.resolution, args.resolution, 3),
-            "names": ["height", "width", "channel"],
-        },
-        "wrist_image": {
-            "dtype": "video",
-            "shape": (args.resolution, args.resolution, 3),
-            "names": ["height", "width", "channel"],
-        },
-        "state": {
-            "dtype": "float32",
-            "shape": (8,),
-            "names": [
-                "eef_x", "eef_y", "eef_z",
-                "axisangle_x", "axisangle_y", "axisangle_z",
-                "gripper_l", "gripper_r",
-            ],
-        },
-        "actions": {
-            "dtype": "float32",
-            "shape": (7,),
-            "names": ["dpos_x", "dpos_y", "dpos_z", "drot_x", "drot_y", "drot_z", "gripper"],
-        },
-    }
-
-    dataset = LeRobotDataset.create(
-        repo_id=args.repo_id,
-        fps=args.fps,
-        features=features,
-        root=args.root,
-        use_videos=True,
-        robot_type="FrankaPanda",
+    # The shared writer applies the no-PNG / MP4-aware-stats patches. We
+    # additionally override encode_video_frames' default codec since this
+    # legacy path actually encodes from HDF5 image arrays.
+    dataset = create_or_open_dataset(
+        repo_id=args.repo_id, root=args.root,
+        fps=args.fps, resolution=args.resolution,
+        apply_passthrough=False,  # legacy path: actually encode from HDF5
     )
+    try:
+        import lerobot.common.datasets.video_utils as _vu
+        import lerobot.common.datasets.lerobot_dataset as _ld
+    except ModuleNotFoundError:
+        import lerobot.datasets.video_utils as _vu  # type: ignore
+        import lerobot.datasets.lerobot_dataset as _ld  # type: ignore
+    _orig_encode = _vu.encode_video_frames
+
+    def _encode_with_vcodec(*a, **kw):
+        kw.setdefault("vcodec", args.vcodec)
+        return _orig_encode(*a, **kw)
+
+    _vu.encode_video_frames = _encode_with_vcodec
+    _ld.encode_video_frames = _encode_with_vcodec
+    print(f"[Stage2] video codec: {args.vcodec}")
 
     if args.single is not None:
         input_files = [args.single]
