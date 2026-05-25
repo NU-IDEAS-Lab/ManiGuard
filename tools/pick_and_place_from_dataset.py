@@ -108,6 +108,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--hover-z-min", type=float, default=0.08,
                    help="Minimum hover-above-target height (m) when sampling "
                         "variants.")
+    p.add_argument("--phase-a-grasp-from-dataset", default=None,
+                   help="Path to a previously collected SFT dataset root "
+                        "(e.g. outputs/sft_dataset_2026-05-16/success_balanced). "
+                        "If a matching task_<NNNN>__seed_* rollout.hdf5 is "
+                        "found, its grasp pose is used as a single OBB "
+                        "candidate, skipping the ~60s OBB sampler + multi-"
+                        "candidate cuRobo loop. Falls back to OBB sampling "
+                        "if the candidate doesn't hold.")
     p.add_argument("--lerobot-repo-id", default=None,
                    help="If set, write each successful variant as a LeRobot "
                         "v2.1 episode at --lerobot-root (or default cache). "
@@ -376,8 +384,96 @@ def _gather_obstacle_surf_local(env, target_obj,
     return np.concatenate(all_pts, axis=0)
 
 
+def _grasp_candidate_from_sft(sft_root, task_dir, env, target_obj):
+    """Load a known-good eef pose from a previous successful HDF5 and
+    convert it to a target-local 4x4 matrix usable as an OBB candidate.
+
+    Returns the (4, 4) ``T_local`` matrix, or ``None`` if no matching
+    rollout was found in ``sft_root``.
+
+    The SFT dataset records per-step state in base frame (8D: eef_pos(3) +
+    eef_aa(3) + gripper_q(2)). We pick the step where the gripper first
+    crosses below a threshold ≈ 60% closed — that's the grasp-engagement
+    moment. Eef pose at that step → world → target-local.
+    """
+    import glob
+    from pathlib import Path
+
+    import h5py
+    import numpy as np
+    import torch as th
+    import omnigibson.utils.transform_utils as T
+    from sentinel.rl.grasps.collector import _pose_to_mat
+
+    task_name = Path(task_dir).parent.name  # 'task_NNNN'
+    pattern = str(Path(sft_root) / f"{task_name}__seed_*" / "rollout.hdf5")
+    paths = sorted(glob.glob(pattern))
+    if not paths:
+        # Fall back to recursive search for nested layouts.
+        paths = sorted(
+            str(p) for p in Path(sft_root).rglob(f"{task_name}__seed_*/rollout.hdf5")
+        )
+    if not paths:
+        print(f"[PnP] no SFT rollout found for {task_name} in {sft_root}",
+              flush=True)
+        return None
+
+    hdf5_path = paths[0]
+    with h5py.File(hdf5_path, "r") as f:
+        if not bool(f.attrs.get("phase_a_held", False)):
+            print(f"[PnP] SFT rollout {hdf5_path} did not hold; skipping",
+                  flush=True)
+            return None
+        state = np.asarray(f["data/demo_0/obs/state"])  # (N, 8) float32
+
+    grip = state[:, 6]
+    threshold = float(grip.min()) + 0.4 * (float(grip.max()) - float(grip.min()))
+    closing = np.where(grip < threshold)[0]
+    if len(closing) == 0:
+        print(f"[PnP] SFT rollout {hdf5_path} has no gripper transition",
+              flush=True)
+        return None
+    # Step a bit past the first crossing so the gripper has stabilised on
+    # the target instead of being mid-close.
+    i_grasp = min(int(closing[0]) + 10, len(state) - 1)
+    eef_pos_base = state[i_grasp, :3].astype(np.float64)
+    eef_aa_base = state[i_grasp, 3:6].astype(np.float64)
+    eef_quat_base = T.axisangle2quat(
+        th.tensor(eef_aa_base, dtype=th.float32)
+    ).numpy().astype(np.float64)  # xyzw
+
+    # base → world via the current robot base pose.
+    robot = env.robots[0]
+    base_pos_w, base_quat_w = robot.get_position_orientation()
+    T_base_world = _pose_to_mat(
+        base_pos_w.cpu().numpy().astype(np.float64),
+        base_quat_w.cpu().numpy().astype(np.float64),
+    )
+    T_eef_base = _pose_to_mat(eef_pos_base, eef_quat_base)
+    T_eef_world = T_base_world @ T_eef_base
+
+    # world → target-local via the current target pose.
+    tgt_pos_w, tgt_quat_w = target_obj.get_position_orientation()
+    T_target_world = _pose_to_mat(
+        tgt_pos_w.cpu().numpy().astype(np.float64),
+        tgt_quat_w.cpu().numpy().astype(np.float64),
+    )
+    T_local = np.linalg.inv(T_target_world) @ T_eef_world
+
+    print(f"[PnP] Phase A: grasp candidate loaded from "
+          f"{Path(hdf5_path).parent.name}  "
+          f"(grasp_step={i_grasp}/{len(state)})", flush=True)
+    print(f"[PnP]   eef_pos_target_local={T_local[:3, 3].tolist()}",
+          flush=True)
+    return T_local.astype(np.float64)
+
+
 def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     """Run OBB sampler + collect_valid_grasps; return the first held grasp.
+
+    With ``--phase-a-grasp-from-dataset`` set, the OBB sampler is replaced
+    by a single candidate loaded from a previous successful rollout —
+    skipping ~60s of OBB enumeration when a known-good grasp exists.
 
     Returns a dict with keys ``approach_traj`` (T, 7 torch tensor),
     ``rel_position``, ``rel_orientation_xyzw``, ``gripper_qpos``,
@@ -398,6 +494,45 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     init_pos, init_quat = target_obj.get_position_orientation()
     init_pos = init_pos.clone()
     init_quat = init_quat.clone()
+
+    # SFT-prior grasp candidate (single OBB-equivalent target) shortcut.
+    sft_grasp_root = getattr(args, "phase_a_grasp_from_dataset", None)
+    if sft_grasp_root:
+        T_local = _grasp_candidate_from_sft(
+            sft_grasp_root, args.task_dir, env, target_obj,
+        )
+        if T_local is not None:
+            candidates = np.asarray([T_local], dtype=np.float64)
+            primitives._motion_generator.update_obstacles(ignore_objects=[])
+            cfg = GraspCollectorConfig(
+                num_target_grasps=1,
+                max_reach=args.max_reach,
+                max_obj_to_eef_after_hold=args.max_obj_to_eef_after_hold,
+                ik_precheck=bool(getattr(args, "ik_precheck", False)),
+            )
+            held_list = []
+
+            def _on_progress(ci, result):
+                if result is not None:
+                    held_list.append(result)
+                    print(f"[PnP] Phase A cand {ci} (SFT-prior): HELD "
+                          f"(obj_to_eef={result['obj_to_eef']:.3f}m, "
+                          f"traj_len={len(result['approach_traj'])})",
+                          flush=True)
+
+            timings_log: list = []
+            held = collect_valid_grasps(
+                env, robot, primitives, target_obj,
+                init_pos, init_quat,
+                candidates_local=candidates,
+                cfg=cfg, deadline=deadline,
+                on_progress=_on_progress,
+                timings_log=timings_log,
+            )
+            if held:
+                return held[0], timings_log
+            print("[PnP] SFT-prior candidate did NOT hold; falling back "
+                  "to OBB sampling", flush=True)
 
     try:
         mesh = mesh_from_og_object(target_obj, use_visual=True)
