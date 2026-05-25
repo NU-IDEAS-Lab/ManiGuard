@@ -91,18 +91,21 @@ def _all_joint_controllers(robot) -> bool:
 def _build_hold_action(robot, gripper_open: bool) -> "torch.Tensor":
     """Build an "arm-stationary + gripper-{open,close}" action.
 
-    OSC arm: arm-action slot = zero (no pose delta).
-    JointController arm: arm-action slot = q_to_action(current arm pose)
-        so the controller holds the arm where it currently is rather
-        than driving every arm joint to zero.
+    Three controller setups handled:
 
-    The gripper command is +1.0 (open) or -1.0 (close) for both control
-    schemes — both MultiFingerGripper (smooth mode) and JointController
-    (with action_normalize=True) interpret ±1.0 as joint upper/lower
-    limit, which matches what AG's controller.control_type==POSITION
-    branch checks against.
+    * **OSC arm + any gripper**: arm-action slot = zero (no pose delta).
+    * **All JointController** (arm + gripper): full-DoF
+      ``q_to_action(current_arm_q + gripper_at_limit)``.
+    * **JointController arm + MultiFingerGripper**: arm slot = current
+      arm joint positions (so the absolute-position controller holds
+      the arm where it is), gripper slot = ±1.0.
+
+    Gripper command is +1.0 (open) or -1.0 (close); both
+    MultiFingerGripperController (smooth mode) and JointController
+    interpret ±1.0 as joint upper/lower limit.
     """
     import torch as th
+    from omnigibson.controllers.joint_controller import JointController
 
     arm = robot.default_arm
     gripper_idx = robot.gripper_action_idx[arm]
@@ -110,16 +113,25 @@ def _build_hold_action(robot, gripper_open: bool) -> "torch.Tensor":
     gripper_cmd = +1.0 if gripper_open else -1.0
 
     if _all_joint_controllers(robot):
-        # Compose a full-DoF target: current arm pose, gripper at the
-        # commanded limit. q_to_action will normalize → action vector.
         q_full = robot.get_joint_positions().clone()
-        arm_ctrl_idx = robot.arm_control_idx[arm]
         gripper_ctrl_idx = robot.gripper_control_idx[arm]
         if gripper_open:
             q_full[gripper_ctrl_idx] = robot.joint_upper_limits[gripper_ctrl_idx]
         else:
             q_full[gripper_ctrl_idx] = robot.joint_lower_limits[gripper_ctrl_idx]
         return robot.q_to_action(q_full)
+
+    arm_ctrl = robot._controllers[f"arm_{arm}"]
+    is_joint_arm = (isinstance(arm_ctrl, JointController)
+                    and not getattr(arm_ctrl, "use_delta_commands", False))
+    if is_joint_arm:
+        # Mixed: JointController arm + (non-JointController) gripper.
+        # Arm slot holds the current joint positions; gripper slot is ±1.
+        arm_ctrl_idx = robot.arm_control_idx[arm]
+        cur_q = robot.get_joint_positions().clone()
+        return _build_action(robot,
+                             cur_q[arm_ctrl_idx].to(th.float32),
+                             gripper_cmd)
 
     # OSC fallback — zero arm delta + scalar gripper command.
     zero_arm = th.zeros(len(arm_idx), dtype=th.float32)
@@ -219,6 +231,7 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
                     skip_obstacle_update,
                     pregrasp_standoff_m: float = 0.25,
                     ik_precheck: bool = False,
+                    single_stage: bool = False,
                     timings: dict | None = None):
     """Two-stage cuRobo plan: obstacle-aware approach to a pre-grasp
     standoff, then a linear-constrained continuation to the grasp pose
@@ -253,9 +266,14 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
     bs = motion_gen.batch_size
 
     # Compute the pre-grasp standoff once (also used by Stage 1 below).
+    # In single-stage mode, the "standoff" IS the grasp pose — Stage 1
+    # plans directly to it with full collision and there is no Stage 2.
     T_grasp = _pose_to_mat(eef_pos.cpu().numpy(), eef_quat.cpu().numpy())
     approach_w = T_grasp[:3, 2]
-    standoff_pos_np = eef_pos.cpu().numpy() - pregrasp_standoff_m * approach_w
+    if single_stage:
+        standoff_pos_np = eef_pos.cpu().numpy()
+    else:
+        standoff_pos_np = eef_pos.cpu().numpy() - pregrasp_standoff_m * approach_w
     standoff_pos_t = th.tensor(standoff_pos_np, dtype=eef_pos.dtype)
 
     # --- Precheck: ik_only at the STANDOFF with world-collision ON.
@@ -329,6 +347,11 @@ def _curobo_ik_fast(motion_gen, robot, arm, eef_pos, eef_quat,
         stage1_arm = joint_pos[manip_idx].unsqueeze(0).cpu()
     else:
         stage1_arm = joint_pos[:, manip_idx].cpu()
+
+    # In single-stage mode, Stage 1 already reached the grasp pose with
+    # full collision — there is no linear servo to append.
+    if single_stage:
+        return stage1_arm
 
     # Capture Stage 1's FINAL full-DoF joint state — this is the seed for
     # Stage 2 so trajopt plans the linear segment from the standoff (where
@@ -426,6 +449,14 @@ class GraspCollectorConfig:
     candidates that have no IK solution at all, skipping the expensive
     trajopt cost on dead candidates."""
 
+    single_stage_grasp: bool = False
+    """If True, skip the standoff + linear-servo stages and plan a single
+    cuRobo trajectory directly to the grasp pose with full collision
+    checking (gripper links INCLUDED). Useful when the two-stage approach
+    produces phantom plans through thin objects that then fail the AG
+    engage check downstream — single-stage rejects those plans up-front
+    by treating gripper-target overlap as a collision."""
+
     num_target_grasps: int = 10
     """Stop iterating candidates once this many holding grasps have been
     collected. Larger numbers give the RL reset more variety but cost
@@ -503,62 +534,145 @@ def run_grasp_attempt(
     Args:
         joint_traj: ``(T, 7)`` torch tensor or numpy array of arm-joint
             waypoints. Must end at the desired grasp eef pose.
-        frame_callback: optional zero-arg callable invoked once after every
-            simulator step. Phase B uses it to push frames into a buffer.
+        frame_callback: optional callable invoked once after every simulator
+            step. Receives a single ``phase`` string ('init', 'approach',
+            'settle_open', 'close', 'gravity_hold'). Phase B uses it to push
+            frames into a buffer; SFT recording uses it to pick the right
+            gripper_cmd per step.
         verbose_idx: when set, prints a stage-specific reject reason
             (``AG didn't engage`` / ``phase2 drop``).
     """
     import omnigibson as og
+    import torch as th
+    import numpy as np
     from omnigibson.controllers.controller_base import IsGraspingState
 
     arm = robot.default_arm
 
+    def _cb(phase: str) -> None:
+        if frame_callback is None:
+            return
+        # Backward compatibility: callers that registered a 0-arg callback
+        # (e.g. render_grasps._capture) should accept the phase kwarg via a
+        # default. New callers should declare ``def fn(phase): ...``.
+        frame_callback(phase)
+
     # Reset for this attempt — clears any stale AG bond, returns arm to home,
-    # snaps target back to its init pose.
+    # snaps target back to its init pose. Target gravity stays ON; no
+    # hard pin during approach (gravity holds the target on the surface
+    # while the gripper approaches dynamically).
     robot.release_grasp_immediately(arm)
     robot.set_joint_positions(initial_joint_pos)
     target_obj.set_position_orientation(position=init_pos, orientation=init_quat)
+    target_obj.root_link.set_linear_velocity(th.zeros(3))
+    target_obj.root_link.set_angular_velocity(th.zeros(3))
     _reset_controller_goals(robot)
-    _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
-    if frame_callback is not None:
-        frame_callback()
+    # A few settle steps so the target rests on the surface under gravity
+    # before we start moving the gripper.
+    for _ in range(4):
+        og.sim.step()
+    _cb("init")
 
-    # Stage 1: replay trajectory with hard pin so the gripper sweeping
-    # toward the grasp pose can't push the target around.
-    robot.set_joint_positions(open_gripper_q, gripper_control_idx)
-    for waypoint in joint_traj:
+    # Stage 1: dynamic approach via JointController tracking cuRobo's
+    # joint trajectory. We DON'T densify — instead we hold each cuRobo
+    # waypoint as the controller target for up to N env.steps until
+    # joint error is below tol. JointController PD-tracks each target;
+    # under impedance gains it may take a few env.steps to fully
+    # converge. Each env.step = 4 physics substeps at our default
+    # (120 Hz physics / 30 Hz action) = ~33 ms wall-time of physics
+    # simulation per action.
+    arm_traj_torch = (joint_traj if isinstance(joint_traj, th.Tensor)
+                      else th.as_tensor(joint_traj, dtype=th.float32))
+
+    arm_action_idx = robot.arm_action_idx[arm]
+    gripper_action_idx = robot.gripper_action_idx[arm]
+    WP_TOL_RAD = 0.02      # accept arrival within ~1.1°/joint norm
+    WP_MAX_STEPS = 8       # cap per-waypoint substeps; 8 × 33ms = 264ms
+
+    # Track per-waypoint convergence so we can diagnose tracking issues.
+    wp_substeps_used: list[int] = []
+    wp_final_err: list[float] = []
+    for wi, waypoint in enumerate(arm_traj_torch):
         if time.time() > deadline:
             return None
-        robot.set_joint_positions(waypoint, arm_control_idx)
-        robot.set_joint_positions(open_gripper_q, gripper_control_idx)
-        _reset_controller_goals(robot)
-        _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
-        if frame_callback is not None:
-            frame_callback()
+        action = th.zeros(robot.action_dim, dtype=th.float32)
+        action[arm_action_idx] = waypoint.to(action.dtype)
+        action[gripper_action_idx] = 1.0
+        # Final waypoint: tighter tol + more substeps. AG needs the
+        # fingers exactly where the OBB sampler placed them (~2mm
+        # clearance) or its raycasts miss.
+        is_final = (wi == len(arm_traj_torch) - 1)
+        tol = 0.005 if is_final else WP_TOL_RAD
+        max_substeps = 20 if is_final else WP_MAX_STEPS
+        substeps_used = max_substeps
+        err = float("inf")
+        for k in range(max_substeps):
+            env.step(action)
+            _cb("approach")
+            cur_q = robot.get_joint_positions()[arm_control_idx]
+            err = float((cur_q - waypoint.to(cur_q.dtype).to(cur_q.device))
+                        .norm().item())
+            if err < tol:
+                substeps_used = k + 1
+                break
+            if time.time() > deadline:
+                return None
+        wp_substeps_used.append(substeps_used)
+        wp_final_err.append(err)
 
-    # Stage 2: open settle + close, still pinned.
-    # _build_hold_action picks the right "arm-stationary + gripper-{open/close}"
-    # action assembly for both OSC (legacy) and JointController (pick_and_place)
-    # controller setups. For JointController, q_to_action(current_arm_q) is
-    # rebuilt each iteration because contact reactions during gripper close
-    # shift the arm pose slightly.
-    robot.set_joint_positions(open_gripper_q, gripper_control_idx)
-    _reset_controller_goals(robot)
+    # Approach diagnostics: how well did we track the cuRobo joint plan?
+    if verbose_idx is not None and len(wp_final_err) > 0:
+        avg_substeps = float(np.mean(wp_substeps_used))
+        max_err = float(max(wp_final_err))
+        final_err = wp_final_err[-1]
+        # Compute eef-space error at planned final pose vs achieved.
+        planned_final_q = arm_traj_torch[-1]
+        cur_q = robot.get_joint_positions()[arm_control_idx]
+        joint_diff = (cur_q - planned_final_q.to(cur_q.dtype).to(cur_q.device))
+        joint_l1 = float(joint_diff.abs().sum().item())
+        joint_max = float(joint_diff.abs().max().item())
+        eef_pos, eef_quat = robot.eef_links[arm].get_position_orientation()
+        print(f"    cand {verbose_idx}: approach tracking — "
+              f"avg_substeps={avg_substeps:.1f}/{WP_MAX_STEPS}, "
+              f"max_q_err={max_err:.4f}, final_q_err_norm={final_err:.4f} rad, "
+              f"final_q_err_L1={joint_l1:.4f}, final_q_err_max_joint="
+              f"{joint_max:.4f}", flush=True)
+        print(f"    cand {verbose_idx}: eef-after-approach world pos="
+              f"{eef_pos.cpu().numpy().tolist()}", flush=True)
+
+    # Stage 2: settle (HOLD the planned final waypoint, gripper open)
+    # then close. Important: hold the PLANNED final joint pose, not
+    # the current robot pose — otherwise the controller locks in any
+    # undershoot and the fingers won't be at the grasp pose AG expects.
+    final_waypoint = arm_traj_torch[-1]
+    settle_open_action = th.zeros(robot.action_dim, dtype=th.float32)
+    settle_open_action[arm_action_idx] = final_waypoint.to(settle_open_action.dtype)
+    settle_open_action[gripper_action_idx] = 1.0
     for _ in range(cfg.settle_open_steps):
         if time.time() > deadline:
             return None
-        robot.apply_action(_build_hold_action(robot, gripper_open=True))
-        _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
-        if frame_callback is not None:
-            frame_callback()
+        env.step(settle_open_action)
+        _cb("settle_open")
 
+    # Post-settle: how close did we get to the planned final pose?
+    if verbose_idx is not None:
+        cur_q = robot.get_joint_positions()[arm_control_idx]
+        joint_diff = (cur_q - final_waypoint.to(cur_q.dtype).to(cur_q.device))
+        joint_max = float(joint_diff.abs().max().item())
+        joint_l2 = float(joint_diff.norm().item())
+        eef_pos_now, eef_quat_now = robot.eef_links[arm].get_position_orientation()
+        print(f"    cand {verbose_idx}: post-settle — "
+              f"q_err_L2={joint_l2:.4f}, q_err_max_joint={joint_max:.4f}, "
+              f"eef_pos={eef_pos_now.cpu().numpy().tolist()}",
+              flush=True)
+
+    close_action = settle_open_action.clone()
+    close_action[gripper_action_idx] = -1.0
     for _ in range(cfg.close_steps):
         if time.time() > deadline:
             return None
-        robot.apply_action(_build_hold_action(robot, gripper_open=False))
-        _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
-        if frame_callback is not None:
-            frame_callback()
+        env.step(close_action)
+        _cb("close")
 
     if robot.is_grasping(arm, target_obj) != IsGraspingState.TRUE:
         if verbose_idx is not None:
@@ -566,18 +680,17 @@ def run_grasp_attempt(
                   flush=True)
         return None
 
-    # Stage 3: gravity hold without pin — real verification.
-    target_obj.root_link.enable_gravity()
-    try:
-        for _ in range(cfg.gravity_hold_steps):
-            if time.time() > deadline:
-                return None
-            robot.apply_action(_build_hold_action(robot, gripper_open=False))
-            og.sim.step()
-            if frame_callback is not None:
-                frame_callback()
-    finally:
-        target_obj.root_link.disable_gravity()
+    # Stage 3: gravity hold — extra steps to verify the grasp survives
+    # dynamic forces (no pin, no gravity-toggle since gravity is always
+    # on now).
+    # Gravity hold target = planned final waypoint with gripper closed
+    # (NOT current arm pose) so the controller keeps holding the grasp
+    # configuration even if dynamic forces nudge the arm.
+    for _ in range(cfg.gravity_hold_steps):
+        if time.time() > deadline:
+            return None
+        env.step(close_action)
+        _cb("gravity_hold")
 
     still_grasping = robot.is_grasping(arm, target_obj) == IsGraspingState.TRUE
     obj_to_eef = float(
@@ -644,7 +757,11 @@ def _try_grasp_candidate(
     target_obj.root_link.set_linear_velocity(th.zeros(3))
     target_obj.root_link.set_angular_velocity(th.zeros(3))
     _reset_controller_goals(robot)
-    _phase1_step(env, robot, target_obj, init_pos, init_quat, hard_pin=True)
+    # Settle so the target rests on the surface under gravity (no
+    # hard_pin — the gripper isn't touching it yet, gravity holds it).
+    import omnigibson as og
+    for _ in range(2):
+        og.sim.step()
 
     # Stage 1: reach prefilter.
     T_eef_world = T_target_world @ T_local
@@ -670,6 +787,7 @@ def _try_grasp_candidate(
             primitives._motion_generator, robot, arm,
             eef_pos_t, eef_quat_t, skip_obstacle_update=True,
             ik_precheck=cfg.ik_precheck,
+            single_stage=cfg.single_stage_grasp,
             timings=cand_timings,
         )
     except Exception as exc:  # noqa: BLE001
@@ -745,7 +863,7 @@ def collect_valid_grasps(
         init_quat.cpu().numpy() if hasattr(init_quat, "cpu") else init_quat,
     )
 
-    # Pin the target to (init_pos, init_quat) and refresh cuRobo's
+    # Place the target at (init_pos, init_quat) and refresh cuRobo's
     # collision world ONCE, then keep ``skip_obstacle_update=True`` for
     # every per-candidate plan. The target is reset to the same pose at
     # the start of every candidate so the obstacle world is identical
@@ -754,8 +872,23 @@ def collect_valid_grasps(
     target_obj.set_position_orientation(position=init_pos, orientation=init_quat)
     primitives._motion_generator.update_obstacles(ignore_objects=[])
 
+    # Snapshot the FULL sim state right now (post-target-placement,
+    # pre-first-candidate). With the new dynamic approach, the gripper
+    # can brush against scene objects (fragiles, clutter) during a
+    # failed candidate — those displacements would otherwise persist.
+    # We restore this snapshot at the start of every candidate so
+    # every attempt sees the same scene state.
+    import omnigibson as og
+    pre_candidate_state = og.sim.dump_state()
+
     held: list[dict] = []
     for ci, T_local in enumerate(candidates_local):
+        # Restore the full scene snapshot before each candidate. This
+        # zeros velocities, returns every object to its position at the
+        # top of this function, and clears any stale AG bond.
+        if ci > 0:
+            og.sim.load_state(pre_candidate_state)
+            og.sim.step()
         if time.time() > deadline:
             break
         if len(held) >= cfg.num_target_grasps:
