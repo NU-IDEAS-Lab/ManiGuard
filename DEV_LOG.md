@@ -93,6 +93,18 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-05-24 — `refactor/remove-bddl-curation`: PnP sweep drivers (`965d79a2`)
+
+Two new one-off bash drivers under `tools/`: `_pnp_first5.sh` collects one successful trajectory from each of the first 5 clutter_pickup base tasks; `_pnp_task0000_x5.sh` collects 5 successes from `task_0000` by sweeping seeds. Both drivers run `pick_and_place_from_dataset` with `--record-sft`, check `result.json` on resume to skip prior successes, and report aggregate timings.
+
+## 2026-05-24 — `refactor/remove-bddl-curation`: collector JC-based run_grasp_attempt + per-cand snapshot (`b47ad039`)
+
+`collector.run_grasp_attempt` now drives the Phase A approach via dense `JointController` waypoint tracking with per-waypoint convergence (early-exit on `q_err < WP_TOL_RAD`) instead of kinematic teleport. `collect_valid_grasps` snapshots the full sim state via `og.sim.dump_state` at the top and restores it before every candidate, so clutter that's brushed by a failed dynamic approach is reset bit-identically. `_build_hold_action` handles the mixed JC-arm + `MultiFingerGripper` action layout, and final-waypoint settle uses the planned target so AG engages reliably even when the gripper undershoots by a few mm.
+
+## 2026-05-24 — `refactor/remove-bddl-curation`: pnp Phase B JointController + cleanup (`b7df7e98`)
+
+`tools/pick_and_place_from_dataset.py` switches Phase B EXECUTE from OSC eef-delta replay to `JointController` joint-target tracking with per-waypoint convergence; Phase A approach uses the same dense JC replay (no teleport, gravity always on). Cleanup pass on this file: stale OSC / gravity-disable comments removed, dead `single_stage_grasp` CLI field dropped, silent `try/except: pass` blocks (material setter, env.close, obstacle mesh sampling) surfaced or made explicit.
+
 ## 2026-05-24 — `refactor/remove-bddl-curation`: lid_attach F-link container check (`4780b57e`)
 
 `LidSnapper` now only requires the candidate container to expose the F meta-link matching the lid's M id; the old check additionally required the container itself to carry an `AttachedTo` state, which it never needs (the M-side is the lid's). Containers without an `AttachedTo` state were silently filtered, missing valid pairs.
