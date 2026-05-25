@@ -114,6 +114,7 @@ def sample_obb_assisted_grasps(
     config: OBBConfig | None = None,
     rng: np.random.Generator | None = None,
     pose_chunk: int = 4000,
+    obstacle_surf_local: np.ndarray | None = None,
 ):
     """OBB-based assisted-grasp sampler. Returns ``(poses, scores)``.
 
@@ -125,6 +126,18 @@ def sample_obb_assisted_grasps(
             test. ``(pose_chunk × n_surface_points × 3)`` floats fit in
             RAM at once. 4000 → ~600 MB peak at 6000 points; lower if
             memory-constrained.
+        obstacle_surf_local: optional ``(M, 3)`` array of OBSTACLE
+            surface points (container, support, food, etc.) in the
+            TARGET-local frame. When provided, the must-be-empty boxes
+            (left/right finger, palm) reject any candidate that contains
+            an obstacle point — so the sampler avoids grasps whose
+            gripper body would intersect the container rim, food
+            sitting inside the target, or the desk top. Without this,
+            obstacle collisions only get caught later by cuRobo's
+            collision-aware trajopt (slow) or by AG failing to engage.
+            The swept-volume box still requires TARGET material; it
+            does NOT count obstacle points toward the non-empty
+            requirement (obstacle in swept zone = bad grasp anyway).
 
     Returns:
         ``(poses (N, 4, 4) float32, scores (N,) float32)`` in mesh-local
@@ -311,6 +324,10 @@ def sample_obb_assisted_grasps(
     ) + 0.005   # 5 mm safety
     r_max_sq = r_max ** 2
     surf32 = surf.astype(np.float32)
+    # Obstacle surface points in target-local frame, if provided.
+    obs32 = (np.asarray(obstacle_surf_local, dtype=np.float32)
+             if obstacle_surf_local is not None and len(obstacle_surf_local) > 0
+             else None)
     for start in range(0, n_cand, pose_chunk):
         end = min(start + pose_chunk, n_cand)
         R = R_all[start:end].astype(np.float32)        # (B, 3, 3)
@@ -334,6 +351,16 @@ def sample_obb_assisted_grasps(
             # Grasp-frame coords (relative to mid): diff_near @ R[bi].
             local_mid = diff_near @ R[bi]                       # (S', 3)
 
+            # Pre-filter obstacle points for this pose with same sphere.
+            obs_local_mid = None
+            if obs32 is not None:
+                obs_diff = obs32 - mid_chunk[bi]
+                obs_d2 = np.einsum("ij,ij->i", obs_diff, obs_diff)
+                obs_near_mask = obs_d2 <= r_max_sq
+                if np.any(obs_near_mask):
+                    obs_local_mid = obs_diff[obs_near_mask] @ R[bi]
+
+            rejected = False
             for name, (center_offset, half_ext, must_be_nonempty) in boxes.items():
                 local = local_mid - center_offset.astype(np.float32)
                 inside = np.all(np.abs(local) <= half_ext.astype(np.float32), axis=-1)
@@ -341,13 +368,29 @@ def sample_obb_assisted_grasps(
                 if must_be_nonempty:
                     if count == 0:
                         keep[b_idx] = False
+                        rejected = True
                         break
                     if name == "swept":
                         swept_count[b_idx] = count
                 else:
                     if count > 0:
                         keep[b_idx] = False
+                        rejected = True
                         break
+                    # Obstacle check: same empty-box must also avoid
+                    # OBSTACLE surface points (container/desk/food).
+                    if obs_local_mid is not None:
+                        obs_local = (obs_local_mid -
+                                     center_offset.astype(np.float32))
+                        obs_inside = np.all(
+                            np.abs(obs_local) <=
+                            half_ext.astype(np.float32), axis=-1)
+                        if int(obs_inside.sum()) > 0:
+                            keep[b_idx] = False
+                            rejected = True
+                            break
+            if rejected:
+                continue
 
     if not np.any(keep):
         return _empty()
