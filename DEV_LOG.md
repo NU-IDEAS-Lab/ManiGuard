@@ -900,3 +900,7 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 - `24fd2eb4` `pick_and_place_from_dataset` — `--lerobot-*` live-write CLI flags, auto-attach TaskLTLMonitor with cat→synset object resolution, Phase A cache reuse across variants (~6-10s saved/variant), per-stage prints in `_replay_holding`, early-exit-after-hover when target is inside goal (skips descend + final settle to avoid the cuRobo IK-flip bug)
 - `a44a3db7` `tools/lerobot_from_mp4s.py` — one-off converter using hardlinks to migrate legacy fat-HDF5 + sibling-MP4 collections to LeRobot v2.1 (~25 min for 448 variants vs 9 h re-encoding); also strips image arrays from source HDF5 in place (294 MB → 340 KB per variant)
 - Bonus: `datasets` downgraded to <3.0 in `behavior` env (lerobot 0.1.0 incompat with datasets 4.x Column return type); lerobot installed --no-deps so OmniGibson torch stack stays intact
+
+### SFT-prior grasp shortcut + sweep driver
+- `ac0458ed` `--phase-a-grasp-from-dataset` loads grasp pose from prior successful HDF5 (eef pose at gripper-transition step → base→world→target-local), uses it as a single OBB candidate; Phase A wall drops ~75s → ~22s with falls-back to OBB on miss
+- `d5912b33` `tools/_pnp_sft_prior_n10.sh` sweep driver — 47 tasks × 10 variants each, appends to outputs/lerobot_pnp_sft_prior_n10/; one prior per task (lowest seed); follow-up will add per-prior loop for 5× more diversity
