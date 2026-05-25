@@ -78,6 +78,13 @@ class InGoalRegion(SuccessCondition):
         self.success_radius = success_radius
         self._init_obj_z: float | None = None
         self._goal_region_spec = goal_region_spec
+        # Half-extent of the object's AABB in its local frame, cached at
+        # reset. ``obj.aabb`` is expensive (~4 ms — iterates every link,
+        # gathers world-frame collision boundary points, then th.min/max
+        # along axis 0); calling it once per episode instead of once per
+        # step trades a sub-cm intersection-shape approximation for a
+        # ~12 % per-step win. See pick_and_lift profile (2026-05-11).
+        self._obj_half_extent: tuple[float, float, float] | None = None
 
     def _step(self, task, env, action):
         obj = env.scene.object_registry("name", self.obj_name)
@@ -85,8 +92,29 @@ class InGoalRegion(SuccessCondition):
             return False
 
         if self._goal_region_spec is not None:
-            from sentinel.utils.goal_region import object_intersects_goal_region
-            if not object_intersects_goal_region(obj, self._goal_region_spec):
+            # AABB-sphere intersection using the cached half-extent: build
+            # the world AABB as ``obj_pos ± half_extent`` (orientation
+            # ignored — a slight box-over-approximation that's well below
+            # the goal-sphere radius for graspable objects) and do the
+            # clamp-then-distance check inline.
+            if self._obj_half_extent is None:
+                # Cache lazily if reset() ran before the obj existed.
+                ext = obj.aabb_extent
+                self._obj_half_extent = (
+                    0.5 * float(ext[0]),
+                    0.5 * float(ext[1]),
+                    0.5 * float(ext[2]),
+                )
+            obj_pos = obj.get_position_orientation()[0]
+            ox, oy, oz = float(obj_pos[0]), float(obj_pos[1]), float(obj_pos[2])
+            hx, hy, hz = self._obj_half_extent
+            cx, cy, cz = self._goal_region_spec.center_world
+            # closest point on the box to the sphere center
+            dx = cx - min(max(cx, ox - hx), ox + hx)
+            dy = cy - min(max(cy, oy - hy), oy + hy)
+            dz = cz - min(max(cz, oz - hz), oz + hz)
+            r = float(self._goal_region_spec.radius_m)
+            if dx * dx + dy * dy + dz * dz > r * r:
                 return False
         else:
             obj_pos = obj.get_position_orientation()[0]
@@ -103,6 +131,12 @@ class InGoalRegion(SuccessCondition):
         obj = env.scene.object_registry("name", self.obj_name)
         if obj is not None:
             self._init_obj_z = float(obj.get_position_orientation()[0][2])
+            ext = obj.aabb_extent
+            self._obj_half_extent = (
+                0.5 * float(ext[0]),
+                0.5 * float(ext[1]),
+                0.5 * float(ext[2]),
+            )
 
 
 class PickAndLiftReward(BaseRewardFunction):

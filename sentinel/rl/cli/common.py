@@ -50,6 +50,28 @@ def add_env_args(parser: argparse.ArgumentParser) -> None:
                    help="'joint' (default): JointController (position delta, "
                         "no Jacobian inversion). 'osc': OperationalSpace; "
                         "crashes with LinAlgError on kinematic singularity.")
+    g.add_argument("--grasping-mode", choices=["assisted", "physical"],
+                   default="assisted",
+                   help="'assisted' (default): AG fires raycasts per physics "
+                        "substep (~10×/env step) and synthesises a joint when "
+                        "contacts qualify. 'physical': contacts only, no AG. "
+                        "When --scene-file is set, the saved scene's baked-in "
+                        "grasping_mode is overridden via a sibling .json.")
+    g.add_argument("--ag-substep-interval", type=int, default=1,
+                   help="Throttle AG to fire once every N physics substeps. "
+                        "Only effective with --grasping-mode assisted. "
+                        "Default 1 (fire every substep). Set 10 to fire once "
+                        "per env step at the standard 300/30 cadence — saves "
+                        "~9/10 of AG's per-step cost at the cost of a 1-frame "
+                        "delay in grasp formation/release.")
+    g.add_argument("--obs-modalities", nargs="+", default=None,
+                   metavar="MOD",
+                   help="Robot obs modalities (e.g. proprio rgb). When "
+                        "--scene-file is set, the saved scene's baked-in "
+                        "modalities are overridden via a sibling .json, "
+                        "which lets the robot loader skip creating the eef "
+                        "RGB camera prim entirely (Hydra renders cost ~18 "
+                        "ms/step). Omit to preserve the saved modalities.")
     g.add_argument("--max-steps", type=int, default=200,
                    help="Episode length (task timeout in env steps).")
     g.add_argument("--diagnostics-file", type=Path, default=None,
@@ -58,6 +80,13 @@ def add_env_args(parser: argparse.ArgumentParser) -> None:
                         "is used instead of the hardcoded goal_offset. "
                         "Also infers --scene-file from the sibling "
                         "scene_ep1.json if not explicitly set.")
+    g.add_argument("--use-interactive-scene", action="store_true",
+                   help="Load via InteractiveTraversableScene with "
+                        "load_room_instances=[diagnostics.room_instance]. "
+                        "Off by default — plain `Scene` with scene_file is "
+                        "much faster (the trimmed scene_ep1.json already "
+                        "encodes the needed objects, and ITS additionally "
+                        "loads the full house structure + seg/trav maps).")
 
 
 def add_training_args(parser: argparse.ArgumentParser) -> None:
