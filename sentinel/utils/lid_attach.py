@@ -220,7 +220,12 @@ class LidSnapper:
                 continue
             og.sim.step()  # let new poses register
             try:
-                ok = p.lid.states[AttachedTo].set_value(p.container, True)
+                # can_joint_break=False so the FixedJoint can't snap under
+                # Phase 2B's transport acceleration (otherwise the lid's
+                # inertia pulling against the joint mid-motion exceeds the
+                # default break_force and the lid detaches mid-trajectory).
+                ok = p.lid.states[AttachedTo].set_value(
+                    p.container, True, can_joint_break=False)
             except Exception as exc:
                 log.warning("LidSnapper: set_value failed on %s -> %s: %s",
                             p.lid.name, p.container.name, exc)
