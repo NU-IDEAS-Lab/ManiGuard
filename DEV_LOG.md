@@ -93,6 +93,22 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-05-25 — `refactor/remove-bddl-curation`: misc cleanup + sim_table eval config (`c104e861`)
+
+`CLAUDE.md` no longer references the deleted RLinf submodule (removed in `d817eb3d`); `cabinet_pickup_pipeline` strips comments pointing at the deleted `test_open_drawer_tall_object.py`. `replay_empty_from_dataset` now falls back to `scene_ep<N>_replay.json` when the primary `scene_ep<N>.json` is missing — covers the LidTransport-pipeline outputs that only emit the `_replay` variant. New `configs/eval/sim_table_base.yaml`: eval config for the sim_table base benchmark against `pi05_base` via OpenPI.
+
+## 2026-05-25 — `refactor/remove-bddl-curation`: JointController input-limit fix + obstacle-aware OBB (`a7cb9ff4`)
+
+`joint_position_impedance` controller preset had `command_input_limits="default"` (i.e. `(-1, 1)`), which clipped raw joint-radian targets to 1.0 and then scaled them to joint upper limits — the catastrophic tracking failure (~2 rad final `q_err`) we hit during the transport-variants debugging. Switch to `None` so cuRobo joint targets pass through as absolute joint positions. `_build_runtime_robot_cfg` also takes a `grasping_mode` kwarg now (default `"assisted"`) so lid pipelines can opt into `"sticky"`. `obb_sampler.sample_obb_assisted_grasps` gains an optional `obstacle_surf_local` array: must-be-empty boxes (palm + finger) reject candidates whose gripper body would intersect non-target surface points, pre-filtering bad candidates before cuRobo trajopt. `render_grasps._capture` becomes `_capture(_phase=None)` to match the new phase-aware `frame_callback` signature.
+
+## 2026-05-25 — `refactor/remove-bddl-curation`: RL grasping-mode + AG-throttle + obs-modalities CLI + AABB cache (`02ef5134`)
+
+`sentinel.rl.cli.common` gains `--grasping-mode`, `--ag-substep-interval N` (throttle AG raycasts to 1-in-N substeps), `--obs-modalities` (skip the eef RGB camera at robot-build time — saves ~18 ms/step of Hydra rendering when training without pixels), and `--use-interactive-scene` (default off; plain `Scene + scene_file` is much faster than `InteractiveTraversableScene`). `wrappers._apply_ag_throttle_from_args` wires the throttle via the `SENTINEL_AG_SUBSTEP_INTERVAL` env var (idempotent re-application post-import). `grasp_reset_scene._patch_scene_for_runtime_overrides` now overrides not just `controller_config` but also `grasping_mode` and `obs_modalities` baked into the saved scene's `init_info`. `pick_and_lift.InGoalRegion` caches `obj.aabb` half-extent on first step — avoids the ~4 ms per-step iteration over every link's collision boundary, ~12% step-time win on the long-horizon RL rollout.
+
+## 2026-05-25 — `refactor/remove-bddl-curation`: lid-transport pipeline + AttachedTo runtime patches (`df3261d8`)
+
+New `tools/lid_transport_from_dataset.py` (45 KB): full bimanual pipeline — grasp lid → transport to F meta-link → snap → grasp container → transport to goal — with multi-seed snapshot/restore and SFT recording, matching `pick_and_place_from_dataset`'s state/action contract. `sentinel/utils/lid_attach.py`: `LidSnapper` calls `set_value(can_joint_break=False)` so the FixedJoint survives Phase 2B transport acceleration instead of snapping mid-motion. `sentinel/_omnigibson_patches.py` restores upstream's commented-out `_disable_collision_between_child_and_parent` inside `AttachedTo._attach` via a hot-path-safe collision-filter add (upstream's path calls `og.sim.stop/play` which crashes from inside `sim.step`); auto-injects the `attachable` ability for objects exposing F meta-links but missing the declaration; and adds the `_patch_throttle_assisted_grasping` / `apply_ag_throttle_from_env` helpers consumed by the RL wrappers commit.
+
 ## 2026-05-25 — `refactor/remove-bddl-curation`: tools cleanup + n10x2 sweep driver (`9e17e8c3`)
 
 Replace 13 legacy/one-off scripts under `tools/` (older HDF5-era sweep drivers, ad-hoc tests, deprecated dataset generators, dead rendering helpers) with `_pnp_n10x2_first25.sh`, the current sweep driver: per-task quota of 2 held grasps × N=10 transport variants across the first 25 `clutter_pickup` tasks. Used to produce `outputs/variants_n10x2_first25/` (~448 successful trajectories, 130 GB) — the active SFT collection.
