@@ -39,7 +39,6 @@ SENTINEL-Lite is a Python package built on top of [BEHAVIOR-1K](https://github.c
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
 │                        #   contains OmniGibson/, bddl3/, joylo/, docs/,
 │                        #   asset_pipeline/, knowledgebase/, eval-jobqueue/
-├── RLinf/               # submodule → RLinf/RLinf @ 5714022
 ├── vla_models/          # VLA checkpoints (user-downloaded, gitignored)
 ├── tests/               # sentinel-side pytest suites
 ├── configs/             # RL / SFT training configs
@@ -89,9 +88,6 @@ cd behavior-1k
 # --omnigibson requires --bddl; --primitives requires --omnigibson
 cd ..
 
-# Install RLinf (its own uv venv, separate from the conda env)
-cd RLinf && uv sync && cd ..
-
 # Install sentinel (editable)
 conda activate behavior
 pip install -e .                     # base
@@ -111,45 +107,12 @@ pytest tests/ -v
 # Upstream tests (inside submodules, rarely needed)
 pytest behavior-1k/OmniGibson/tests/ -v
 pytest behavior-1k/bddl3/tests/
-pytest RLinf/tests/unit_tests/       # RLinf unit tests
-pytest RLinf/tests/e2e_tests/        # RLinf E2E tests (requires GPU)
 ```
 
 ### Task Generation Pipelines
 
-All pipelines live in `sentinel/task_generation/` and share a `BasePipeline` class from `pipeline_common.py`. Each auto-discovers a surface in the given scene, generates BDDL + `ltl_safety.json`, spawns objects, places the robot, and runs LTL-monitored rollouts.
+All pipelines live in `sentinel/task_generation/` and share a `BasePipeline` class from `pipeline_common.py`. Each randomly selects the objects, auto-discovers a surface in the given scene, spawns objects, places the robot, and runs LTL-monitored rollouts. See `task_generation` folder for details.
 
-```bash
-conda activate behavior
-
-# Tabletop clutter (retrieve target from fragile clutter)
-python -m sentinel.task_generation.clutter_scene_pipeline \
-  --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video --strict-gate
-
-# Stack retrieval (retrieve target from under a stack)
-python -m sentinel.task_generation.stack_scene_pipeline \
-  --scene-model Benevolence_1_int --stack-height medium --episodes 1 --steps 300 --save-video
-
-# Food transfer (move food between containers without touching)
-python -m sentinel.task_generation.transfer_scene_pipeline \
-  --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
-
-# Pinch-point (fragile near target handle)
-python -m sentinel.task_generation.pinch_point_pipeline \
-  --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
-
-# Cabinet clutter (retrieve from inside a cabinet)
-python -m sentinel.task_generation.cabinet_clutter_pipeline \
-  --scene-model Rs_int --episodes 1 --steps 300 --save-video
-
-# Empty scene (no pre-existing furniture; setup: clutter/stack/transfer)
-python -m sentinel.task_generation.empty_scene_pipeline \
-  --setup stack --episodes 1 --steps 300 --save-video
-
-# Dry-run any pipeline (generates BDDL + LTL only, no simulator)
-python -m sentinel.task_generation.clutter_scene_pipeline \
-  --scene-model Benevolence_1_int --dry-run
-```
 
 ### Benchmark (multi-scene)
 
@@ -173,15 +136,7 @@ ruff format .
 pre-commit run --all-files
 ```
 
-Root `ruff.toml` excludes `behavior-1k/`, `RLinf/`, `vla_models/`, `Omnireset/`, and runtime output dirs — lint only touches sentinel-owned code. The `behavior-1k/` submodule has its own ruff config (120-char line length for OmniGibson); RLinf has 88-char with Google docstrings + type hints.
-
-### RLinf Training
-
-```bash
-cd RLinf
-source .venv/bin/activate    # Separate uv-managed venv, not the conda env
-bash examples/embodiment/run_embodiment.sh behavior_ppo_openpi
-```
+Root `ruff.toml` excludes `behavior-1k/`, `vla_models/`, `Omnireset/`, and runtime output dirs — lint only touches sentinel-owned code. The `behavior-1k/` submodule has its own ruff config (120-char line length for OmniGibson)
 
 ### Documentation (upstream BEHAVIOR-1K docs)
 
@@ -214,8 +169,4 @@ Key environment variables (for RLinf/headless deployment):
 - `CUDA_VISIBLE_DEVICES` — GPU selection (use when transitioning between multi-GPU tasks)
 
 ## Common Debug Issues
-
-- **PhysX CUDA error 700**: Set `CUDA_VISIBLE_DEVICES=0` to pin a single GPU
-- **`typing_extensions` errors with torch 2.6.0**: Remove outdated `typing_extensions` from Isaac Sim so conda's version is used
 - **Vulkan `ERROR_INCOMPATIBLE_DRIVER`**: Fix `VK_ICD_FILENAMES` to point to valid local ICD JSON
-- **CUDA OOM**: Reduce `total_num_envs` in YAML config; ensure `component_placement` GPUs don't overlap

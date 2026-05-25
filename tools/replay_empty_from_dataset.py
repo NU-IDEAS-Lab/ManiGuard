@@ -91,7 +91,13 @@ def _load_diagnostics_row(task_dir: Path, episode: int) -> dict[str, Any]:
 
 
 def _load_scene_info(task_dir: Path, episode: int) -> dict[str, Any]:
-    return json.loads((task_dir / f"scene_ep{episode}.json").read_text())
+    primary = task_dir / f"scene_ep{episode}.json"
+    if primary.is_file():
+        return json.loads(primary.read_text())
+    fallback = task_dir / f"scene_ep{episode}_replay.json"
+    if fallback.is_file():
+        return json.loads(fallback.read_text())
+    raise FileNotFoundError(f"No scene_ep{episode}.json or scene_ep{episode}_replay.json in {task_dir}")
 
 
 _TASK_OBJ_PATTERN = re.compile(r"^[a-z][a-z0-9_]*_\d+$")
