@@ -93,6 +93,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-05-24 — `refactor/remove-bddl-curation`: PnP transport-variants (`6c37f6d6`)
+
+After one successful Phase A held grasp, `pick_and_place_from_dataset` can now replay it N times with randomized `(lift_z, hover_z)` drawn from configurable ranges (defaults 0.08–0.15 m on both axes), writing each as a complete SFT episode into `<out-dir>/variant_XX/`. Phase A search runs ONCE per task; variants reuse `approach_traj` so the expensive cuRobo+AG search isn't paid 20 times. New CLI: `--n-transport-variants N` (default 1 preserves the legacy 0.25/0.25 single-trajectory layout), `--lift-z-{min,max}`, `--hover-z-{min,max}`. The post-Phase-A flow lives in a new `_run_one_variant` helper that owns per-variant `SFTRecorder` + `ReviewVideoRecorder`; `pre_phase_a_state` is snapshot before Phase A search and restored between variants so clutter displaced by one variant's transport can't leak into the next. Validated: N=20 on `clutter_pickup/task_0000` seed=0 → 20/20 succeeded, ~55s/variant steady state, **~2.8× speedup** vs sequential per-trajectory cost. `approach_traj` is bit-identical across variants (deterministic replay), `transport_arm_traj` diverges 0.13–0.23 rad peak between pairs (real diversity).
+
 ## 2026-05-24 — `refactor/remove-bddl-curation`: PnP sweep drivers (`965d79a2`)
 
 Two new one-off bash drivers under `tools/`: `_pnp_first5.sh` collects one successful trajectory from each of the first 5 clutter_pickup base tasks; `_pnp_task0000_x5.sh` collects 5 successes from `task_0000` by sweeping seeds. Both drivers run `pick_and_place_from_dataset` with `--record-sft`, check `result.json` on resume to skip prior successes, and report aggregate timings.
