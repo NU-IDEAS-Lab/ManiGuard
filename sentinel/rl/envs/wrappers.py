@@ -107,6 +107,23 @@ def _load_diagnostics(diagnostics_file: Path) -> dict:
     raise SystemExit(f"Empty diagnostics file: {diagnostics_file}")
 
 
+def _apply_ag_throttle_from_args(args) -> None:
+    """Install the AG-substep throttle if requested.
+
+    The patch is read from ``SENTINEL_AG_SUBSTEP_INTERVAL`` by
+    ``sentinel._omnigibson_patches``, so we set the env var before
+    constructing the OG environment. Idempotent.
+    """
+    import os as _os
+    interval = int(getattr(args, "ag_substep_interval", 1) or 1)
+    if interval > 1:
+        _os.environ["SENTINEL_AG_SUBSTEP_INTERVAL"] = str(interval)
+        # Apply immediately in case OG was already imported by an earlier
+        # call (e.g. in profile_step.py where validate_env_args ran first).
+        from sentinel._omnigibson_patches import _patch_throttle_assisted_grasping
+        _patch_throttle_assisted_grasping(interval)
+
+
 def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
     """Build an SB3-ready VecEnv from parsed CLI args.
 
@@ -132,6 +149,8 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
 
     from sentinel.rl.envs.grasp_reset_scene import build_config
 
+    _apply_ag_throttle_from_args(args)
+
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -149,10 +168,15 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
             )
         if args.target_name is None:
             args.target_name = goal_region_spec.get("target_name")
-        room = (diag.get("support_selection") or {}).get("room_instance")
-        if room:
-            load_room_instances = [room]
-        scene_model = diag.get("scene_model")
+        # Only opt into InteractiveTraversableScene partial-load when the
+        # caller explicitly asks. Plain `Scene` + scene_file is ~2× faster
+        # because ITS loads the whole house structure (walls/floors/seg
+        # map/trav map) even when load_room_instances filters objects.
+        if getattr(args, "use_interactive_scene", False):
+            room = (diag.get("support_selection") or {}).get("room_instance")
+            if room:
+                load_room_instances = [room]
+            scene_model = diag.get("scene_model")
 
     target_name = args.target_name or f"target_{args.category}_{args.model}"
     grasp_path = args.grasp_dataset_dir / f"grasps_{args.category}_{args.model}.pt"
@@ -172,6 +196,8 @@ def build_vec_env(args, *, out_dir: Path, verbose: bool = True):
         scene_file=args.scene_file,
         grasp_reset_mode=args.reset_mode,
         arm_controller=args.arm_controller,
+        grasping_mode=getattr(args, "grasping_mode", "assisted"),
+        obs_modalities=getattr(args, "obs_modalities", None),
         goal_region_spec=goal_region_spec,
         max_steps=getattr(args, "max_steps", 200),
         load_room_instances=load_room_instances,
