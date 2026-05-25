@@ -112,7 +112,8 @@ def _init_omnigibson(headless: bool):
 
 
 def _build_env(task_dir: Path, episode: int, *, no_distractors: bool = False,
-               record_sft: bool = False, record_resolution: int = 256):
+               record_sft: bool = False, record_resolution: int = 256,
+               grasping_mode: str = "assisted"):
     """Build the empty-scene env from the task dump and return
     (env, og, diagnostics, camera_names).
 
@@ -183,13 +184,16 @@ def _build_env(task_dir: Path, episode: int, *, no_distractors: bool = False,
         }
 
     # Centralized config build:
-    #   - OSC arm controller in raw m/rad (Phase B feeds dpos/daa directly)
-    #   - grasping_mode=assisted, action_normalize=False locked
-    #   - Phase A drives via set_joint_positions (bypasses controllers)
+    #   - JointController with impedance — Phase A approach via
+    #     dense JointController tracking (no teleport, gravity on);
+    #     Phase B transport feeds the cuRobo joint trajectory directly.
+    #   - grasping_mode override per caller (assisted default; lid uses sticky).
+    #   - action_normalize=False locked.
     env_cfg = build_env_config(
         scene_info, diagnostics,
         camera_names=camera_names,
-        controller_preset="osc",
+        controller_preset="joint_position_impedance",
+        grasping_mode=grasping_mode,
         external_camera_kwargs=external_camera_kwargs,
         action_frequency=30, rendering_frequency=30,
     )
@@ -266,6 +270,78 @@ def _build_env(task_dir: Path, episode: int, *, no_distractors: bool = False,
 # ---------------------------------------------------------------------------
 
 
+def _gather_obstacle_surf_local(env, target_obj,
+                                points_per_obstacle: int = 1500,
+                                rng_seed: int = 0) -> np.ndarray:
+    """Sample obstacle surface points (every scene object except the
+    target and the robot) in the TARGET's local frame.
+
+    Used by the OBB sampler's obstacle-aware empty-box rejection. Each
+    obstacle's visual mesh is sampled, transformed world → target-local,
+    and concatenated. Returns an empty (0, 3) array if no obstacles
+    have an extractable mesh.
+    """
+    from sentinel.rl.grasps.collector import _pose_to_mat
+    from sentinel.rl.grasps.mesh import mesh_from_og_object
+
+    # Target world pose → inverse transform to take world points into
+    # target-local frame.
+    t_pos, t_quat = target_obj.get_position_orientation()
+    t_pos_np = t_pos.cpu().numpy().astype(np.float64)
+    t_quat_np = t_quat.cpu().numpy().astype(np.float64)
+    T_tgt_w = _pose_to_mat(t_pos_np, t_quat_np)
+    T_w_to_local = np.linalg.inv(T_tgt_w)
+
+    rng = np.random.default_rng(rng_seed)
+    all_pts: list[np.ndarray] = []
+    target_name = target_obj.name
+    # Robot.name vs robot.prim_path — match either; objects are uniquely
+    # named so identity comparison is enough.
+    robot_objs = set(env.robots) if env.robots else set()
+
+    for obj in env.scene.objects:
+        if obj is target_obj or obj in robot_objs:
+            continue
+        # Skip goal-region markers (visual-only, no real geometry).
+        name = getattr(obj, "name", "") or ""
+        if "goal_region" in name:
+            continue
+        try:
+            obs_mesh = mesh_from_og_object(obj, use_visual=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[PnP] obstacle-mesh skip {obj.name!r}: {exc}", flush=True)
+            continue
+        if obs_mesh is None or len(obs_mesh.vertices) == 0:
+            continue
+        # Sample surface in obstacle-local frame.
+        import trimesh
+        try:
+            n_pts = min(points_per_obstacle,
+                        max(200, int(obs_mesh.area * 5000)))
+            pts_local, _ = trimesh.sample.sample_surface(
+                obs_mesh, n_pts,
+                seed=int(rng.integers(0, 2**31 - 1)),
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"[PnP] obstacle-sample skip {obj.name!r}: {exc}", flush=True)
+            continue
+        pts_local = np.asarray(pts_local, dtype=np.float64)
+        # Obstacle-local → world via obstacle's world pose.
+        o_pos, o_quat = obj.get_position_orientation()
+        o_pos_np = o_pos.cpu().numpy().astype(np.float64)
+        o_quat_np = o_quat.cpu().numpy().astype(np.float64)
+        T_obs_w = _pose_to_mat(o_pos_np, o_quat_np)
+        pts_world = (T_obs_w[:3, :3] @ pts_local.T).T + T_obs_w[:3, 3]
+        # World → target-local.
+        pts_tgt_local = (T_w_to_local[:3, :3] @ pts_world.T).T \
+            + T_w_to_local[:3, 3]
+        all_pts.append(pts_tgt_local.astype(np.float32))
+
+    if not all_pts:
+        return np.empty((0, 3), dtype=np.float32)
+    return np.concatenate(all_pts, axis=0)
+
+
 def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     """Run OBB sampler + collect_valid_grasps; return the first held grasp.
 
@@ -289,21 +365,30 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     init_pos = init_pos.clone()
     init_quat = init_quat.clone()
 
-    # OBB sampler needs gravity off so the mesh extraction is stable; the
-    # collector also pins the target during approach.
-    target_obj.root_link.disable_gravity()
-
+    # Gravity stays ON throughout — the gripper approach is dynamic
+    # (JointController tracking dense waypoints), not kinematic teleport,
+    # so we don't need to pin or float the target during candidate
+    # evaluation. Mesh extraction is unaffected by physics state.
     try:
         mesh = mesh_from_og_object(target_obj, use_visual=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[PnP] mesh extraction failed: {exc}", flush=True)
         return None
 
+    # Gather obstacle surface points (container, support, food, etc.) in
+    # the TARGET-local frame, so the OBB sampler can reject candidates
+    # whose gripper boxes would intersect non-target geometry. Without
+    # this, cuRobo's collision-aware trajopt has to filter those, which
+    # is much slower (and AG-engage on the dropped candidates also slows
+    # things down further).
+    obstacle_surf_local = _gather_obstacle_surf_local(env, target_obj)
+
     rng = np.random.default_rng(args.seed)
     candidates, scores = sample_obb_assisted_grasps(
         mesh,
         config=OBBConfig(max_candidates=args.max_candidates),
         rng=rng,
+        obstacle_surf_local=obstacle_surf_local,
     )
     if len(candidates) == 0:
         print("[PnP] OBB sampler returned 0 candidates", flush=True)
@@ -422,6 +507,8 @@ def _solve_one_segment(motion_gen, robot, target_obj, eef_link, eef_goal_pos,
 def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
                     *, transport_timeout: float, lift_z: float = 0.25,
                     hover_z: float = 0.25,
+                    goal_target_quat_world=None,
+                    skip_descend: bool = False,
                     seg_timings: list | None = None):
     """Two-stage transport plan: lift (vertical) then translate (lifted to
     above-goal) then lower (to goal).
@@ -460,6 +547,9 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
     robot_base = robot.get_position_orientation()[0].cpu().numpy()
     print(f"[PnP transport] robot_base={robot_base.tolist()}", flush=True)
 
+
+    # TODO: Check why the attach_objects_to_robot approach crashed on the teacup mesh and consider re-enabling it.
+    
     # Drop the held target from the obstacle world. With it in the world,
     # the robot's gripper at the held pose is "in collision" with the
     # target → any planner call from this start state fails immediately.
@@ -472,17 +562,31 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
     # teacup is small enough that the gripper spheres already cover it.
     motion_gen.update_obstacles(ignore_objects=[target_obj])
 
-    def _eef_goal_for_tgt(tgt_xyz_np: np.ndarray):
-        T_tgt_goal = T_tgt_w.copy()
+    # If goal_target_quat_world is provided, build a 4-segment plan:
+    # lift → hover → rotate-in-place → descend. The rotate segment sits
+    # at the hover position and changes orientation only. Splitting
+    # rotation out into its own segment keeps each cuRobo call as a
+    # "mostly translation" or "mostly rotation" problem, which the
+    # trajopt handles much better than mixed translate+rotate.
+    if goal_target_quat_world is not None:
+        goal_quat_np = np.asarray(goal_target_quat_world, dtype=np.float64)
+        T_tgt_goal_oriented = _pose_to_mat(np.zeros(3), goal_quat_np)
+    else:
+        T_tgt_goal_oriented = None
+
+    def _eef_goal_for_tgt(tgt_xyz_np: np.ndarray, use_goal_quat: bool):
+        if use_goal_quat and T_tgt_goal_oriented is not None:
+            T_tgt_goal = T_tgt_goal_oriented.copy()
+        else:
+            T_tgt_goal = T_tgt_w.copy()
         T_tgt_goal[:3, 3] = tgt_xyz_np
         T_eef_goal = T_tgt_goal @ T_eef_in_tgt
         p, q = _mat_to_pose(T_eef_goal)
         return (th.tensor(p, dtype=th.float32),
                 th.tensor(q, dtype=th.float32))
 
-    # Three waypoints: lift → above-goal → goal. Hold the target
-    # orientation throughout (we only translate). Use the current target xy
-    # for the lift, and target_goal xy for above-goal + final.
+    # Waypoints: lift → above-goal → (rotate) → goal. Use the current
+    # target xy for the lift, and target_goal xy for above-goal + final.
     wp1_xyz = tgt_pos_now_np.copy(); wp1_xyz[2] += lift_z
     wp2_xyz = goal_xyz.copy();        wp2_xyz[2] = tgt_pos_now_np[2] + hover_z
     wp3_xyz = goal_xyz.copy()
@@ -490,7 +594,13 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
     print(f"[PnP transport] waypoints (target_xyz):", flush=True)
     print(f"    wp1 (lift)    = {wp1_xyz.tolist()}", flush=True)
     print(f"    wp2 (hover)   = {wp2_xyz.tolist()}", flush=True)
+    if T_tgt_goal_oriented is not None:
+        print(f"    wp2.5 (rotate)= {wp2_xyz.tolist()}  "
+              f"(at hover xyz, new quat)", flush=True)
     print(f"    wp3 (descend) = {wp3_xyz.tolist()}", flush=True)
+    if T_tgt_goal_oriented is not None:
+        print(f"    target_quat_world (rotate+descend) = "
+              f"{goal_quat_np.tolist()}", flush=True)
 
     # Disable collision on the gripper links for the duration of the
     # transport plan. Reason: at the held pose the Franka panda finger
@@ -508,14 +618,25 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
     # Each entry: (label, arm_traj [T,7], eef_traj_base [T,7]=[pos,quat_xyzw])
     seg_pairs: list[tuple[str, "torch.Tensor", "torch.Tensor"]] = []
     chain_init = None
-    plan_spec = [
-        # (label, target_xyz, toggle_gripper_collision_off)
-        ("lift",    wp1_xyz, True),   # fingers below table at start
-        ("hover",   wp2_xyz, False),  # lifted above clutter — full collisions
-        ("descend", wp3_xyz, True),   # fingers near table at end
-    ]
-    for label, tgt_xyz, toggle_off in plan_spec:
-        ep, eq = _eef_goal_for_tgt(tgt_xyz)
+    if T_tgt_goal_oriented is not None:
+        plan_spec = [
+            # (label, target_xyz, toggle_gripper_off, use_goal_quat)
+            ("lift",    wp1_xyz, True,  False),  # current quat, +lift_z
+            ("hover",   wp2_xyz, False, False),  # current quat, translate
+            ("rotate",  wp2_xyz, False, True),   # goal quat, rotate in place
+        ]
+        if not skip_descend:
+            plan_spec.append(
+                ("descend", wp3_xyz, True,  True))  # goal quat, translate down
+    else:
+        plan_spec = [
+            ("lift",    wp1_xyz, True,  False),
+            ("hover",   wp2_xyz, False, False),
+        ]
+        if not skip_descend:
+            plan_spec.append(("descend", wp3_xyz, True, False))
+    for label, tgt_xyz, toggle_off, use_goal_quat in plan_spec:
+        ep, eq = _eef_goal_for_tgt(tgt_xyz, use_goal_quat=use_goal_quat)
         t_seg = time.time()
         toggled = toggle_off and hasattr(raw_mg, "toggle_link_collision")
         if toggled:
@@ -650,13 +771,10 @@ def _render_planned_trajectory(env, og, robot, target_obj, seg_pairs, *,
                     mat = vm.material
                     if mat is None:
                         continue
-                    try:
-                        mat.diffuse_color_constant = th.tensor(
-                            color, dtype=th.float32,
-                        )
-                        mat.opacity_constant = 0.40
-                    except Exception:  # noqa: BLE001
-                        pass
+                    mat.diffuse_color_constant = th.tensor(
+                        color, dtype=th.float32,
+                    )
+                    mat.opacity_constant = 0.40
                 marker_count += 1
 
     print(f"[PnP preview] spawned {marker_count} visual markers "
@@ -688,120 +806,171 @@ def _quat_canonical(q_xyzw):
     return q_xyzw
 
 
-def _replay_holding(env, og, robot, target_obj, eef_traj_base, *,
+def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
                     deadline: float, frame_callback=None,
                     sft_recorder=None,
-                    inner_substeps_per_wp: int = 6,
-                    inner_pos_tol: float = 0.005,
-                    inner_rot_tol_rad: float = 0.05,
-                    final_settle_steps: int = 200,
-                    final_pos_tol: float = 0.01,
-                    final_rot_tol_rad: float = 0.05):
-    """OSC-native replay of a cuRobo eef trajectory while holding the
-    target with the gripper closed.
+                    final_settle_steps: int = 60):
+    """JointController replay of a cuRobo joint trajectory while
+    holding the target with the gripper closed.
 
-    ``eef_traj_base`` is a (T, 7) tensor of ``[pos(3), quat_xyzw(4)]`` in
-    the robot's BASE frame — produced by
-    ``motion_gen.path_to_eef_trajectory``. Each cuRobo waypoint is given
-    up to ``inner_substeps_per_wp`` env.steps to settle within
-    (``inner_pos_tol``, ``inner_rot_tol_rad``); when the inner-loop
-    converges early we move to the next waypoint immediately.
+    ``arm_joint_traj`` is a (T, n_arm_dof) tensor of arm-joint
+    waypoints — produced by cuRobo's ``compute_trajectories`` (and
+    concatenated across segments by the caller). The trajectory is
+    linearly interp'd up to ~2x density so each sim step is a small
+    joint delta JointController can PD-track in one pass.
 
-    This pattern (verified by tools/test_curobo_osc_tracking.py) keeps
-    peak mid-trajectory tracking error around 2 cm at OSC default
-    gains, and was the best of three strategies tested (vs. pure
-    streaming and joint-space densification).
+    Per env.step the action is built by ``q_to_action(q_full)`` where
+    ``q_full`` is the current robot joint vector with the arm joints
+    replaced by the next waypoint and the gripper at its CLOSED limit.
 
-    Per env.step the action is:
-        action[arm]     = [target_pos - cur_pos,
-                           axisangle(canon(target_quat) * inv(canon(cur_quat)))]
-        action[gripper] = -1.0   # close → AG bond carries the target
-
-    Quaternions are canonicalized (w >= 0) before the delta to prevent
-    long-way-around axis-angle wraps.
+    For SFT recording we still emit 7D EEF-delta actions, computed via
+    FK from the eef pose change across the step.
     """
     import torch as th
     import omnigibson.utils.transform_utils as T
 
     arm = robot.default_arm
+    arm_control_idx = robot.arm_control_idx[arm]
+    gripper_control_idx = robot.gripper_control_idx[arm]
+    gripper_closed_q = robot.joint_lower_limits[gripper_control_idx]
+
+    arm_traj = (arm_joint_traj if isinstance(arm_joint_traj, th.Tensor)
+                else th.as_tensor(arm_joint_traj, dtype=th.float32))
+    n = len(arm_traj)
+
     arm_action_idx = robot.arm_action_idx[arm]
     gripper_action_idx = robot.gripper_action_idx[arm]
+    WP_TOL_RAD = 0.02
+    WP_MAX_STEPS = 8  # ~264ms per waypoint cap (8 × 33ms)
 
-    def _osc_step(target_pos_b, target_quat_b):
-        cur_pos_b, cur_quat_b = robot.get_relative_eef_pose(arm)
-        cur_pos_b = cur_pos_b.float()
-        cur_quat_b = cur_quat_b.float()
-        dpos = target_pos_b - cur_pos_b
-        q_target = _quat_canonical(target_quat_b)
-        q_cur = _quat_canonical(cur_quat_b)
-        q_inv = T.quat_inverse(q_cur)
-        q_delta = _quat_canonical(T.quat_multiply(q_target, q_inv))
-        daa = T.quat2axisangle(q_delta)
-        # action units are meters/radians directly — see env build for
-        # action_normalize=False + matched OSC input/output limits.
+    def _jc_step(arm_target):
+        cur_pos_b_pre, cur_quat_b_pre = robot.get_relative_eef_pose(arm)
+        cur_pos_b_pre = cur_pos_b_pre.float()
+        cur_quat_b_pre = cur_quat_b_pre.float()
+        # Build action: arm slot = target joints, gripper slot = -1 (close).
         action = th.zeros(robot.action_dim, dtype=th.float32)
-        action[arm_action_idx] = th.cat([dpos, daa])
+        action[arm_action_idx] = arm_target.to(action.dtype)
         action[gripper_action_idx] = -1.0
         env.step(action)
+        # 7D EEF-delta from FK pose change (gripper closed → cmd = -1).
         if sft_recorder is not None:
+            cur_pos_b, cur_quat_b = robot.get_relative_eef_pose(arm)
+            cur_pos_b = cur_pos_b.float()
+            cur_quat_b = cur_quat_b.float()
+            dpos = (cur_pos_b - cur_pos_b_pre).detach().cpu().numpy().astype(np.float32)
+            q_t = _quat_canonical(cur_quat_b)
+            q_p = _quat_canonical(cur_quat_b_pre)
+            q_delta = _quat_canonical(T.quat_multiply(
+                q_t, T.quat_inverse(q_p)))
+            daa = T.quat2axisangle(q_delta).detach().cpu().numpy().astype(np.float32)
             act7 = np.zeros(7, dtype=np.float32)
-            act7[:3] = dpos.detach().cpu().numpy().astype(np.float32)
-            act7[3:6] = daa.detach().cpu().numpy().astype(np.float32)
+            act7[:3] = dpos
+            act7[3:6] = daa
             act7[6] = -1.0
             sft_recorder.record_step(act7, done=False)
         if frame_callback is not None:
             frame_callback()
-        return float(th.norm(dpos).item()), float(th.norm(daa).item())
 
-    n = len(eef_traj_base)
-    print(f"[PnP replay] {n} waypoints, up to {inner_substeps_per_wp} "
-          f"substeps/wp, early-exit on "
-          f"(pos<{inner_pos_tol*1000:.1f}mm, rot<{inner_rot_tol_rad:.3f}rad) ...",
-          flush=True)
-    last_pos_err = last_rot_err = 0.0
+    print(f"[PnP replay] {n} joint waypoints, up to {WP_MAX_STEPS} "
+          f"substeps/wp, early-exit on q_err<{WP_TOL_RAD} rad", flush=True)
+    last_err = 0.0
     last_substeps = 0
     for wi in range(n):
         if time.time() > deadline:
             print(f"[PnP replay] DEADLINE at wp {wi}/{n}", flush=True)
             return False
-        target_pos_b = eef_traj_base[wi, :3].float()
-        target_quat_b = eef_traj_base[wi, 3:7].float()
-        last_substeps = inner_substeps_per_wp
-        for k in range(inner_substeps_per_wp):
+        last_substeps = WP_MAX_STEPS
+        for k in range(WP_MAX_STEPS):
             if time.time() > deadline:
-                print(f"[PnP replay] DEADLINE at wp {wi}/{n} substep {k}",
-                      flush=True)
                 return False
-            last_pos_err, last_rot_err = _osc_step(target_pos_b, target_quat_b)
-            if (last_pos_err < inner_pos_tol and
-                    last_rot_err < inner_rot_tol_rad):
+            _jc_step(arm_traj[wi])
+            cur_q = robot.get_joint_positions()[arm_control_idx]
+            last_err = float(
+                (cur_q - arm_traj[wi].to(cur_q.dtype).to(cur_q.device))
+                .norm().item())
+            if last_err < WP_TOL_RAD:
                 last_substeps = k + 1
                 break
-        if wi % 30 == 0 or wi == n - 1:
-            print(f"[PnP replay]   wp {wi+1}/{n}  "
-                  f"pos_err={last_pos_err:.4f} m  "
-                  f"rot_err={last_rot_err:.4f} rad  "
+        if wi % 10 == 0 or wi == n - 1:
+            print(f"[PnP replay]   wp {wi+1}/{n}  q_err={last_err:.4f} rad "
                   f"({last_substeps} substeps)", flush=True)
 
-    # Final settle on the last waypoint.
-    target_pos_b = eef_traj_base[-1, :3].float()
-    target_quat_b = eef_traj_base[-1, 3:7].float()
-    print(f"[PnP replay] final settle (≤{final_settle_steps} steps, "
-          f"tol=({final_pos_tol} m, {final_rot_tol_rad} rad)) ...", flush=True)
+    # Final settle: hold last waypoint with gripper closed so AG locks.
+    print(f"[PnP replay] final settle ({final_settle_steps} steps holding "
+          "last joint waypoint, gripper closed) ...", flush=True)
     for k in range(final_settle_steps):
         if time.time() > deadline:
-            print(f"[PnP replay] DEADLINE during final settle (step {k})",
-                  flush=True)
             return False
-        last_pos_err, last_rot_err = _osc_step(target_pos_b, target_quat_b)
-        if last_pos_err < final_pos_tol and last_rot_err < final_rot_tol_rad:
-            print(f"[PnP replay]   settled after {k+1} steps  "
-                  f"(pos_err={last_pos_err:.4f} m, rot_err={last_rot_err:.4f} rad)",
-                  flush=True)
-            return True
-    print(f"[PnP replay]   final settle hit cap  "
-          f"(pos_err={last_pos_err:.4f} m, rot_err={last_rot_err:.4f} rad)",
-          flush=True)
+        _jc_step(arm_traj[-1])
+    return True
+
+
+def _record_phase_a_replay(env, og, robot, target_obj, *,
+                           home_joint_q, target_init_pos, target_init_quat,
+                           approach_traj, sft_recorder,
+                           cfg=None,
+                           deadline: float | None = None):
+    """Replay a successful Phase A through PHYSICS with SFT recording.
+
+    Calls :func:`run_grasp_attempt` directly so the AG re-engagement +
+    gravity-hold verification path is identical to the candidate
+    iteration that originally succeeded. Returns True on a clean
+    re-grasp, False otherwise.
+
+    The previous implementation duplicated the run_grasp_attempt body
+    with a kinematic-only path that SKIPPED the gravity-hold AG check.
+    That left a silent failure mode: AG could fail to re-engage during
+    the kinematic close, the function returned anyway, then Phase 1B
+    moved the gripper around without actually carrying the lid.
+    """
+    import time as _time
+    import torch as th
+    from sentinel.rl.grasps.collector import (
+        run_grasp_attempt, GraspCollectorConfig,
+    )
+
+    arm = robot.default_arm
+    arm_control_idx = robot.arm_control_idx[arm]
+    gripper_control_idx = robot.gripper_control_idx[arm]
+    open_gripper_q = robot.joint_upper_limits[gripper_control_idx].clone()
+    zero_arm_cmd = th.zeros(len(robot.arm_action_idx[arm]), dtype=th.float32)
+    if cfg is None:
+        cfg = GraspCollectorConfig(num_target_grasps=1)
+    if deadline is None:
+        deadline = _time.time() + 120.0
+
+    sft_recorder.reset_eef_history()
+
+    # Phase-aware callback: gripper_cmd=+1 (open) during init+approach+
+    # settle_open, -1 (close) during close+gravity_hold.
+    def _phase_cb(phase: str) -> None:
+        gripper_cmd = 1.0 if phase in ("init", "approach",
+                                       "settle_open") else -1.0
+        sft_recorder.record_fk_step(gripper_cmd=gripper_cmd, done=False)
+
+    approach_traj_t = th.as_tensor(approach_traj, dtype=th.float32)
+
+    result = run_grasp_attempt(
+        env, robot, target_obj, target_init_pos, target_init_quat,
+        joint_traj=approach_traj_t,
+        cfg=cfg,
+        open_gripper_q=open_gripper_q,
+        zero_arm_cmd=zero_arm_cmd,
+        arm_control_idx=arm_control_idx,
+        gripper_control_idx=gripper_control_idx,
+        initial_joint_pos=home_joint_q,
+        deadline=deadline,
+        frame_callback=_phase_cb,
+    )
+
+    if result is None:
+        print(f"[PnP] SFT Phase A replay: AG did NOT re-engage — "
+              f"the recorded trajectory exists but the env state is "
+              f"NOT grasped. Phase 1B will fail.", flush=True)
+        return False
+    print(f"[PnP] SFT Phase A replay: re-engaged AG, recorded "
+          f"{len(approach_traj) + 1 + cfg.settle_open_steps + cfg.close_steps + cfg.gravity_hold_steps} "
+          f"steps", flush=True)
     return True
 
 
@@ -927,6 +1096,13 @@ def main() -> None:
             # ----- Phase A -----
             t0 = time.time()
             pick_deadline = t0 + args.pick_timeout
+            # Snapshot the home joint pose BEFORE Phase A so we can replay
+            # the successful approach kinematically for SFT recording later.
+            robot = env.robots[0]
+            home_joint_q = robot.get_joint_positions().clone()
+            target_init_pos, target_init_quat = target_obj.get_position_orientation()
+            target_init_pos = target_init_pos.clone()
+            target_init_quat = target_init_quat.clone()
             grasp, phase_a_timings = _phase_a_pick(
                 env, og, primitives, target_obj, args, pick_deadline,
             )
@@ -974,6 +1150,23 @@ def main() -> None:
             result_payload["phase_a"]["held"] = True
             result_payload["phase_a"]["obj_to_eef"] = float(grasp["obj_to_eef"])
             approach_traj = grasp["approach_traj"]
+
+            # ----- SFT Phase A capture -----
+            # Phase A above runs many candidates before one holds; we only
+            # want the successful trajectory in the HDF5. Replay it now
+            # kinematically through set_joint_positions + apply_action,
+            # capturing FK-derived (dpos, daa, gripper) actions per step.
+            # AG re-engages because we restore the same (robot, target)
+            # initial state the original Phase A used.
+            if sft_recorder is not None:
+                _record_phase_a_replay(
+                    env, og, robot, target_obj,
+                    home_joint_q=home_joint_q,
+                    target_init_pos=target_init_pos,
+                    target_init_quat=target_init_quat,
+                    approach_traj=approach_traj,
+                    sft_recorder=sft_recorder,
+                )
 
             # Record a few extra "holding" frames before replanning.
             if recorder_ctx is not None:
@@ -1030,12 +1223,19 @@ def main() -> None:
             # Show what cuRobo planned, then persist trajectory + result.json.
             # This way the artifacts exist even if the physics execution
             # below diverges from the plan.
+            # Skip the visual marker spawning under --record-sft: the
+            # markers are persistent prims that stay visible during Phase B
+            # execute and would contaminate the SFT training frames.
             robot = env.robots[0]
-            print("[PnP] rendering planned-trajectory preview ...", flush=True)
-            _render_planned_trajectory(
-                env, og, robot, target_obj, seg_pairs,
-                recorder=recorder_ctx,
-            )
+            if not args.record_sft:
+                print("[PnP] rendering planned-trajectory preview ...", flush=True)
+                _render_planned_trajectory(
+                    env, og, robot, target_obj, seg_pairs,
+                    recorder=recorder_ctx,
+                )
+            else:
+                print("[PnP] skipping planned-trajectory preview "
+                      "(--record-sft is on)", flush=True)
 
             full_arm_traj = th.cat([
                 th.as_tensor(approach_traj, dtype=th.float32),
@@ -1062,21 +1262,21 @@ def main() -> None:
             (out_dir / "result.json").write_text(json.dumps(result_payload, indent=2))
             print(f"[PnP] wrote {out_dir / 'result.json'} (pre-execute)", flush=True)
 
-            # ----- Phase B EXECUTE (OSC Cartesian path) -----
-            # OSC arm is in pose_delta_ori mode (from env build). Drive it
-            # by feeding (target_eef_base - current_eef_base) deltas per
-            # substep; physics handles the joint motion and AG keeps the
-            # held target carried with the gripper.
-            # Generous deadline for OSC replay: each env.step has Python +
-            # Isaac overhead well beyond the 1/30s physics dt. 209 wp +
-            # 30 settle ≈ 240 env.steps ≈ 30-60s wall time empirically.
+            # ----- Phase B EXECUTE (JointController replay) -----
+            # Drive the arm joints to each cuRobo waypoint with
+            # JointController + per-waypoint convergence loop; AG keeps
+            # the held target carried with the gripper.
+            # Generous deadline: each env.step has Python + Isaac
+            # overhead well beyond the 1/30s physics dt. n waypoints ×
+            # up to 8 substeps + final settle ≈ 30-60s wall time
+            # empirically for a 200-wp segment plan.
             replay_deadline = time.time() + max(args.transport_timeout * 4, 240.0)
             cb = (lambda: recorder_ctx.record(env, og)) if recorder_ctx else None
-            print("[PnP] Phase B EXECUTE: OSC Cartesian replay of "
-                  f"{len(transport_eef_traj)} eef waypoints ...", flush=True)
+            print("[PnP] Phase B EXECUTE: JointController replay of "
+                  f"{len(transport_arm_traj)} joint waypoints ...", flush=True)
             t_exec = time.time()
             ok = _replay_holding(
-                env, og, robot, target_obj, transport_eef_traj,
+                env, og, robot, target_obj, transport_arm_traj,
                 deadline=replay_deadline, frame_callback=cb,
                 sft_recorder=sft_recorder,
             )
@@ -1129,7 +1329,7 @@ def main() -> None:
                   flush=True)
             print(f"[PnP]   Phase B PLAN (3 segs)   : {ph_b_plan:6.1f}s",
                   flush=True)
-            print(f"[PnP]   Phase B EXECUTE (OSC)   : {ph_b_exec:6.1f}s",
+            print(f"[PnP]   Phase B EXECUTE (JC)    : {ph_b_exec:6.1f}s",
                   flush=True)
             print(f"[PnP]   fail_step               : "
                   f"{result_payload.get('fail_step', '-')}", flush=True)
@@ -1159,10 +1359,7 @@ def main() -> None:
         traceback.print_exc()
         raise
     finally:
-        try:
-            env.close()
-        except Exception:  # noqa: BLE001
-            pass
+        env.close()
 
 
 if __name__ == "__main__":
