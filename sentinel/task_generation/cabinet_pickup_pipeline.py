@@ -398,9 +398,9 @@ def _build_env(og, surface_pick, cabinet_category, cabinet_model,
     Surface is spawned with origin at z=height_m/2 so its bottom sits on
     the floor (B1K center-origin convention), matching empty_scene_pipeline.
 
-    Robot config matches the verified test_open_drawer_tall_object.py
-    setup: FrankaPanda, OperationalSpaceController, action_normalize=False,
-    grasping_mode="assisted" (per project env conventions).
+    Robot config: FrankaPanda, OperationalSpaceController,
+    action_normalize=False, grasping_mode="assisted" (per project env
+    conventions).
     """
     surface_height = float(surface_pick["height_m"])
     surface_spawn_xyz = (0.0, 0.0, surface_height / 2.0)
@@ -885,8 +885,7 @@ def _place_robot(og, robot, surface_bounds_xy, slide_dir_xy, placements,
 
 
 # ---------------------------------------------------------------------------
-# Cameras + snapshots (reuses the patterns from
-# tools/test_open_drawer_tall_object.py)
+# Cameras + snapshots
 # ---------------------------------------------------------------------------
 
 def _setup_canonical_cameras(env, robot, support_obj, target_obj,
