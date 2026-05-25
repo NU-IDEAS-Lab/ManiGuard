@@ -196,6 +196,13 @@ class SafetyPropositionEvaluator:
         check = prop_def.get("check", "any")
         params = prop_def.get("params", {})
 
+        print(
+            f"[LTL] unary {state_cls.__name__} over "
+            f"{prop_def.get('over', [])} -> {len(subjects)} subject(s): "
+            f"{sorted(subjects.keys())}",
+            flush=True,
+        )
+
         # Apply configurable params from JSON onto each object's state instance.
         self._apply_state_params(subjects, state_cls, params)
 

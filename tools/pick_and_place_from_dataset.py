@@ -108,6 +108,20 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--hover-z-min", type=float, default=0.08,
                    help="Minimum hover-above-target height (m) when sampling "
                         "variants.")
+    p.add_argument("--lerobot-repo-id", default=None,
+                   help="If set, write each successful variant as a LeRobot "
+                        "v2.1 episode at --lerobot-root (or default cache). "
+                        "Reuses the SFT recorder's MP4s in-place; no re-encode.")
+    p.add_argument("--lerobot-root", default=None,
+                   help="Root for the LeRobot dataset folder. "
+                        "Required when --lerobot-repo-id is set (otherwise "
+                        "defaults to HF cache, which is rarely what we want).")
+    p.add_argument("--lerobot-prompt-template",
+                   default="pick up the {target_clean} in the middle of the "
+                           "table and place it at the green goal",
+                   help="Substitutions: {target} (raw BDDL instance like "
+                        "'teacup_178'), {target_clean} (suffix stripped, "
+                        "underscores -> spaces).")
     p.add_argument("--hover-z-max", type=float, default=0.15,
                    help="Maximum hover-above-target height (m) when sampling "
                         "variants.")
@@ -385,10 +399,6 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     init_pos = init_pos.clone()
     init_quat = init_quat.clone()
 
-    # Gravity stays ON throughout — the gripper approach is dynamic
-    # (JointController tracking dense waypoints), not kinematic teleport,
-    # so we don't need to pin or float the target during candidate
-    # evaluation. Mesh extraction is unaffected by physics state.
     try:
         mesh = mesh_from_og_object(target_obj, use_visual=True)
     except Exception as exc:  # noqa: BLE001
@@ -829,7 +839,10 @@ def _quat_canonical(q_xyzw):
 def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
                     deadline: float, frame_callback=None,
                     sft_recorder=None,
-                    final_settle_steps: int = 60):
+                    final_settle_steps: int = 60,
+                    segment_breakdown=None,
+                    goal_spec=None,
+                    early_exit_after: str = "hover"):
     """JointController replay of a cuRobo joint trajectory while
     holding the target with the gripper closed.
 
@@ -893,9 +906,45 @@ def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
 
     print(f"[PnP replay] {n} joint waypoints, up to {WP_MAX_STEPS} "
           f"substeps/wp, early-exit on q_err<{WP_TOL_RAD} rad", flush=True)
+    # Build a per-waypoint segment label map so we can announce when the
+    # replay crosses a stage boundary. segment_breakdown is the seg_pairs
+    # list of (label, n_wp_in_segment).
+    seg_starts: dict[int, str] = {}
+    if segment_breakdown:
+        cum = 0
+        for label, seg_n in segment_breakdown:
+            seg_starts[cum] = label
+            cum += int(seg_n)
     last_err = 0.0
     last_substeps = 0
     for wi in range(n):
+        if wi in seg_starts:
+            new_stage = seg_starts[wi]
+            # End-of-hover check: if the held target already intersects
+            # the goal region, skip the descend segment entirely. Descend
+            # commonly triggers a cuRobo IK branch flip JointController can't
+            # track, knocking over clutter or tipping the target.
+            if (goal_spec is not None and early_exit_after is not None
+                    and new_stage != early_exit_after):
+                prev_labels = [seg_starts[k] for k in seg_starts if k < wi]
+                if early_exit_after in prev_labels:
+                    from sentinel.utils.goal_region import (
+                        object_intersects_goal_region,
+                        target_or_gripper_in_goal,
+                    )
+                    pos_ok, which = target_or_gripper_in_goal(
+                        env, target_obj, goal_spec)
+                    intersects = object_intersects_goal_region(
+                        target_obj, goal_spec)
+                    if pos_ok and intersects:
+                        print(f"[PnP replay] '{early_exit_after}' ended "
+                              f"INSIDE goal region (by={which}); skipping "
+                              f"'{new_stage}' ({n-wi} waypoints saved) AND "
+                              f"final settle — declaring success",
+                              flush=True)
+                        return True
+            print(f"[PnP replay] >>> stage '{new_stage}' "
+                  f"(wp {wi}/{n})", flush=True)
         if time.time() > deadline:
             print(f"[PnP replay] DEADLINE at wp {wi}/{n}", flush=True)
             return False
@@ -1002,6 +1051,10 @@ def _run_one_variant(
     args, task_dir, out_dir, camera_names,
     variant_idx, n_variants,
     lift_z, hover_z,
+    lerobot_dataset=None,
+    ltl_monitor=None,
+    phase_a_cache=None,
+    cache_phase_a=False,
 ) -> dict:
     """Replay Phase A + plan & execute Phase B with the given lift/hover.
 
@@ -1023,10 +1076,22 @@ def _run_one_variant(
     )
 
     sft_recorder = None
+    lerobot_writer = None
     if args.record_sft:
         from tools._sft_recorder import SFTRecorder
-        sft_recorder = SFTRecorder(out_dir, resolution=args.record_resolution,
-                                   fps=args.video_fps)
+        if lerobot_dataset is not None:
+            from sentinel.data.lerobot_writer import (
+                LeRobotEpisodeWriter, episode_prompt,
+            )
+            lerobot_writer = LeRobotEpisodeWriter(lerobot_dataset)
+            prompt = episode_prompt(target_name, args.lerobot_prompt_template)
+        else:
+            prompt = None
+        sft_recorder = SFTRecorder(
+            out_dir, resolution=args.record_resolution, fps=args.video_fps,
+            lerobot_writer=lerobot_writer, lerobot_prompt=prompt,
+            ltl_monitor=ltl_monitor,
+        )
         sft_recorder.attach(env, env.robots[0])
 
     recorder_ctx = (
@@ -1058,20 +1123,36 @@ def _run_one_variant(
         recorder_ctx.__enter__()
 
     try:
-        # ----- SFT Phase A capture -----
-        # Replay the successful Phase A kinematically through
-        # set_joint_positions + apply_action, capturing FK-derived
-        # (dpos, daa, gripper) actions per step. AG re-engages because
-        # we restore the same (robot, target) initial state.
+        # ----- SFT Phase A capture / replay-from-cache -----
+        # First variant (cache_phase_a=True, phase_a_cache=None): run the
+        # real kinematic replay + AG re-engagement and tee the per-step
+        # frames into the recorder's cache.
+        # Subsequent variants (phase_a_cache=<list>): skip the physics and
+        # push the cached frames straight into the recorder. Caller has
+        # already restored the post-Phase-A sim state and re-stepped the
+        # LTL automaton through the cached AP labels.
         if sft_recorder is not None:
-            _record_phase_a_replay(
-                env, og, robot, target_obj,
-                home_joint_q=home_joint_q,
-                target_init_pos=target_init_pos,
-                target_init_quat=target_init_quat,
-                approach_traj=approach_traj,
-                sft_recorder=sft_recorder,
-            )
+            if phase_a_cache is None:
+                if cache_phase_a:
+                    sft_recorder.start_phase_a_cache()
+                _record_phase_a_replay(
+                    env, og, robot, target_obj,
+                    home_joint_q=home_joint_q,
+                    target_init_pos=target_init_pos,
+                    target_init_quat=target_init_quat,
+                    approach_traj=approach_traj,
+                    sft_recorder=sft_recorder,
+                )
+                if cache_phase_a:
+                    captured = sft_recorder.end_phase_a_cache()
+                    result_payload["_captured_phase_a"] = captured
+                    result_payload["_post_phase_a_state"] = og.sim.dump_state()
+            else:
+                for frame in phase_a_cache:
+                    sft_recorder.append_cached_step(frame)
+                print(f"[PnP v{variant_idx:02d}] Phase A: replayed "
+                      f"{len(phase_a_cache)} cached frames "
+                      f"(no physics)", flush=True)
 
         # Record a few extra "holding" frames before replanning.
         if recorder_ctx is not None:
@@ -1154,7 +1235,10 @@ def _run_one_variant(
             "lift_z": float(lift_z),
             "hover_z": float(hover_z),
         }, str(out_dir / "trajectory.pt"))
-        (out_dir / "result.json").write_text(json.dumps(result_payload, indent=2))
+        (out_dir / "result.json").write_text(json.dumps(
+            {k: v for k, v in result_payload.items() if not k.startswith("_")},
+            indent=2,
+        ))
 
         # ----- Phase B EXECUTE (JointController replay) -----
         replay_deadline = time.time() + max(args.transport_timeout * 4, 240.0)
@@ -1166,6 +1250,9 @@ def _run_one_variant(
             env, og, robot, target_obj, transport_arm_traj,
             deadline=replay_deadline, frame_callback=cb,
             sft_recorder=sft_recorder,
+            segment_breakdown=[(lbl, len(arm_t)) for lbl, arm_t, _ in seg_pairs],
+            goal_spec=goal_spec,
+            early_exit_after="hover",
         )
         exec_wall = time.time() - t_exec
         result_payload["phase_b"]["execute_wall_s"] = round(exec_wall, 2)
@@ -1222,7 +1309,21 @@ def _run_one_variant(
                 "hover_z": float(hover_z),
                 "phase_a_held": True,
             })
-        (out_dir / "result.json").write_text(json.dumps(result_payload, indent=2))
+        if ltl_monitor is not None:
+            s = ltl_monitor.summary()
+            # Drop the per-step log from result.json — it can be reconstructed
+            # from HDF5 if needed and it bloats this artifact.
+            result_payload["ltl"] = {
+                "formula": s["formula"],
+                "violated": bool(s["violated"]),
+                "violation_step": s["violation_step"],
+                "violation_count": int(s["violation_count"]),
+                "total_steps_monitored": int(s["total_steps_monitored"]),
+            }
+        (out_dir / "result.json").write_text(json.dumps(
+            {k: v for k, v in result_payload.items() if not k.startswith("_")},
+            indent=2,
+        ))
 
 
 # ---------------------------------------------------------------------------
@@ -1239,6 +1340,23 @@ def main() -> None:
     out_dir = (args.out_dir or (task_dir / "pick_and_place")).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    lerobot_dataset = None
+    if args.lerobot_repo_id:
+        if not args.record_sft:
+            raise SystemExit("--lerobot-repo-id requires --record-sft "
+                             "(LeRobot needs the SFT recorder's frames).")
+        from sentinel.data.lerobot_writer import create_or_open_dataset
+        lerobot_dataset = create_or_open_dataset(
+            repo_id=args.lerobot_repo_id, root=args.lerobot_root,
+            fps=args.video_fps, resolution=args.record_resolution,
+        )
+        print(f"[PnP] LeRobot dataset opened at {lerobot_dataset.root}  "
+              f"(starting from episode {lerobot_dataset.meta.total_episodes})",
+              flush=True)
+
+    # ltl_monitor is instantiated after _build_env (needs the env handle).
+    ltl_monitor = None
+
     og = _init_omnigibson(headless=not args.gui)
 
     if args.record_sft:
@@ -1249,6 +1367,48 @@ def main() -> None:
         task_dir, args.episode, no_distractors=args.no_distractors,
         record_sft=args.record_sft, record_resolution=args.record_resolution,
     )
+
+    # Auto-attach an LTL monitor when the task ships a non-empty ltl_safety
+    # spec in diagnostics.jsonl. The summary lands in result.json + HDF5
+    # attrs + episodes.jsonl's ltl_violated flag. Skips itself silently if
+    # Spot is missing or the spec is empty.
+    ltl_safety_spec = diagnostics.get("ltl_safety") or {}
+    if args.record_sft and ltl_safety_spec:
+        try:
+            from sentinel.utils.safety_monitor import TaskLTLMonitor
+            # The pnp pipeline runs against a non-BDDL task (no object_scope),
+            # so the proposition resolver needs an explicit active-object
+            # dict. Build it from diagnostics.selection.spawn_specs by
+            # mapping each scene object's category back to its synset short
+            # name (which is what the proposition patterns use).
+            cat_to_synset = {
+                spec["category"]: spec["synset"].split(".")[0]
+                for spec in diagnostics.get("selection", {}).get("spawn_specs", [])
+            }
+            active_by_inst = {}
+            synset_counts = {}
+            for obj in env.scene.objects:
+                cat = getattr(obj, "category", None)
+                short = cat_to_synset.get(cat)
+                if short is None:
+                    continue
+                idx = synset_counts.get(short, 0)
+                active_by_inst[f"{short}_{idx}"] = obj
+                synset_counts[short] = idx + 1
+            ltl_monitor = TaskLTLMonitor(
+                env,
+                ltl_safety=ltl_safety_spec,
+                activity_name=diagnostics.get("activity_name", ""),
+                scene_model=diagnostics.get("scene_model"),
+                active_objects_by_inst=active_by_inst,
+            )
+            print(f"[PnP] LTL monitor attached  "
+                  f"(active_objects: {sorted(active_by_inst.keys())})",
+                  flush=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"[PnP] LTL monitor init failed ({e}); continuing without LTL",
+                  flush=True)
+            ltl_monitor = None
     try:
         from sentinel.utils.goal_region import GoalRegionSpec
         gr = diagnostics["goal_region"]
@@ -1382,6 +1542,8 @@ def main() -> None:
         n_variants = max(1, args.n_transport_variants)
         rng = np.random.default_rng(args.seed)
         variant_summary: list = []
+        phase_a_cache: list | None = None      # captured by variant 0
+        post_phase_a_state = None              # sim state immediately after Phase A replay
         for vi in range(n_variants):
             # Per-variant out_dir + sampled lift/hover.
             if n_variants == 1:
@@ -1394,11 +1556,28 @@ def main() -> None:
                 lift_z = float(rng.uniform(args.lift_z_min, args.lift_z_max))
                 hover_z = float(rng.uniform(args.hover_z_min, args.hover_z_max))
 
-            # Restore world snapshot before variants 2+ so clutter
-            # displacement from prior variant's transport doesn't leak.
+            # Restore world snapshot between variants. From variant 1
+            # onwards, prefer the post-Phase-A snapshot so we skip the
+            # physics replay entirely (the recorder will inject the cached
+            # frames instead). Fall back to pre-Phase-A if variant 0 didn't
+            # produce a cache (e.g. record_sft disabled).
             if vi > 0:
-                og.sim.load_state(pre_phase_a_state)
-                og.sim.step()
+                if post_phase_a_state is not None and phase_a_cache is not None:
+                    og.sim.load_state(post_phase_a_state)
+                    og.sim.step()
+                    # Re-step the LTL automaton through the cached AP labels
+                    # so its state matches "post Phase A". reset() also
+                    # clears the violation log so each variant gets a fresh
+                    # summary including its Phase A frames.
+                    if ltl_monitor is not None and ltl_monitor._monitor is not None:
+                        ltl_monitor.reset()
+                        for f in phase_a_cache:
+                            ap = f.get("ap_labels")
+                            if ap:
+                                ltl_monitor._monitor.step(ap)
+                else:
+                    og.sim.load_state(pre_phase_a_state)
+                    og.sim.step()
 
             print(f"\n[PnP] === Variant {vi+1}/{n_variants}  "
                   f"lift_z={lift_z:.3f}  hover_z={hover_z:.3f}  "
@@ -1418,7 +1597,20 @@ def main() -> None:
                 camera_names=camera_names,
                 variant_idx=vi, n_variants=n_variants,
                 lift_z=lift_z, hover_z=hover_z,
+                lerobot_dataset=lerobot_dataset,
+                ltl_monitor=ltl_monitor,
+                phase_a_cache=phase_a_cache,
+                cache_phase_a=(vi == 0),
             )
+            # Variant 0 produces the Phase A cache + post-replay snapshot.
+            if vi == 0:
+                phase_a_cache = variant_result.pop("_captured_phase_a", None)
+                post_phase_a_state = variant_result.pop("_post_phase_a_state", None)
+                if phase_a_cache is not None:
+                    print(f"[PnP] Phase A cache captured: "
+                          f"{len(phase_a_cache)} frames "
+                          f"(variants 1..{n_variants-1} will skip physics replay)",
+                          flush=True)
             variant_summary.append({
                 "variant_idx": vi,
                 "lift_z": lift_z, "hover_z": hover_z,
