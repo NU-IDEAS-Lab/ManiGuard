@@ -501,7 +501,7 @@ def _render_one(env, primitives, category, model, args, obj_dir,
         frames: list = []
         frame_state = {"i": 0}
 
-        def _capture():
+        def _capture(_phase=None):
             frame_state["i"] += 1
             if frame_state["i"] % args.frame_stride == 0:
                 fr = _capture_frame(viewer_cam, target_hw)

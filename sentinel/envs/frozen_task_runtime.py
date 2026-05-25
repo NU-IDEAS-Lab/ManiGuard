@@ -130,12 +130,16 @@ CONTROLLER_PRESETS: dict[str, dict[str, dict[str, Any]]] = {
     },
     # Joint-space, absolute position, with impedance control (mass-matrix
     # joint efforts) for accurate tracking during cuRobo Phase A replays.
+    # input_limits=None disables clip/scaling so the action passes
+    # through as raw joint position targets — required because the
+    # action_normalize=False robot setting means we feed raw radians,
+    # and "default" command_input_limits would clip those to (-1, 1).
     "joint_position_impedance": {
         "arm_0": {
             "name": "JointController",
             "motor_type": "position",
-            "command_input_limits": "default",
-            "command_output_limits": "default",
+            "command_input_limits": None,
+            "command_output_limits": None,
             "use_delta_commands": False,
             "use_impedances": True,
         },
@@ -173,11 +177,13 @@ def _build_runtime_robot_cfg(
     scene_robot_setup: dict[str, Any] | None,
     *,
     controller_preset: str = "joint_position",
+    grasping_mode: str = "assisted",
 ) -> dict[str, Any]:
     """Build a robot config for any sentinel pipeline.
 
-    Conventions locked across all pipelines:
-      * ``grasping_mode = "assisted"``
+    Conventions locked across most pipelines:
+      * ``grasping_mode = "assisted"`` (override via kwarg for lid /
+        thin-object pipelines where ``"sticky"`` is more robust)
       * ``action_normalize = False``
 
     The controller_config is selected via ``controller_preset`` (see
@@ -188,6 +194,10 @@ def _build_runtime_robot_cfg(
         raise ValueError(
             f"unknown controller_preset {controller_preset!r}; "
             f"choices: {sorted(CONTROLLER_PRESETS)}")
+    if grasping_mode not in ("physical", "assisted", "sticky"):
+        raise ValueError(
+            f"unknown grasping_mode {grasping_mode!r}; "
+            f"choices: physical, assisted, sticky")
     robot_cfg = {
         "type": "FrankaPanda",
         "name": "agent_0",
@@ -198,7 +208,7 @@ def _build_runtime_robot_cfg(
         "self_collisions": True,
         # Locked conventions (see feedback_env_config_conventions.md):
         "action_normalize": False,
-        "grasping_mode": "assisted",
+        "grasping_mode": grasping_mode,
         "action_type": "continuous",
         "position": [0.0, 0.0, 0.0],
         "orientation": [0.0, 0.0, 0.0, 1.0],
@@ -292,6 +302,7 @@ def build_env_config(
     *,
     camera_names: Sequence[str] | None = None,
     controller_preset: str = "joint_position",
+    grasping_mode: str = "assisted",
     external_camera_kwargs: dict[str, Any] | None = None,
     action_frequency: int = 20,
     rendering_frequency: int = 20,
@@ -300,9 +311,10 @@ def build_env_config(
     """Build an OmniGibson env config from a frozen scene snapshot.
 
     ``controller_preset`` selects the arm/gripper controller pair from
-    :data:`CONTROLLER_PRESETS`. ``grasping_mode`` and ``action_normalize``
-    are NOT exposed — they are locked to ``"assisted"`` and ``False`` for
-    every pipeline (see feedback_env_config_conventions.md).
+    :data:`CONTROLLER_PRESETS`. ``grasping_mode`` defaults to ``"assisted"``
+    (matches feedback_env_config_conventions.md) but can be overridden
+    to ``"sticky"`` for lid / thin-object pipelines where assisted's
+    both-finger-contact requirement is too strict.
     """
     runtime_scene_info = strip_scene_robots_from_scene_info(scene_info)
     scene_class = runtime_scene_info.get("init_info", {}).get("class_name", "")
@@ -327,7 +339,8 @@ def build_env_config(
         "scene": scene_cfg,
         "robots": (
             [_build_runtime_robot_cfg(robot_setup,
-                                       controller_preset=controller_preset)]
+                                       controller_preset=controller_preset,
+                                       grasping_mode=grasping_mode)]
             if robot_setup is not None else []
         ),
         "objects": [],
