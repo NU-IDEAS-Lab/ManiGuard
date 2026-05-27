@@ -1,0 +1,46 @@
+# CPO starter hyperparameters for PickAndLiftPrivilegedTask.
+#
+# Derived from omnisafe's CPO defaults
+# (omnisafe/configs/on-policy/CPO.yaml, Apache-2.0).
+#
+# CPO is the most sample-efficient of the three algorithms under tight cost
+# budgets but the most expensive per update (CG iters × FVP calls).
+# Start with cg_iters=10 and reduce to 5 if wall-clock time is a concern.
+#
+# With ZeroCost the optim_case will always be "feasible_trpo" (c ≤ 0,
+# TRPO step is cost-safe). Run with ConstantCost to exercise the
+# projection + feasibility recovery paths before wiring real costs.
+
+# --- env ----------------------------------------------------------------
+num_envs: 8
+max_steps: 200
+reset_mode: cached
+arm_controller: joint
+
+# --- training -----------------------------------------------------------
+total_timesteps: 5_000_000
+n_steps: 256             # CPO benefits from longer rollouts (full-batch policy update)
+batch_size: 256          # used only for the value function minibatch updates
+learning_rate: 3.0e-4   # not used by policy (natural gradient), only init LR for critic
+seed: 0
+output_dir: outputs/safe_rl/cpo
+
+# --- cpo-specific -------------------------------------------------------
+target_kl_delta: 0.01    # KL trust-region budget δ
+cg_iters: 10             # conjugate-gradient iterations for F^{-1}g
+cg_damping: 0.1          # Tikhonov damping for numerical stability
+line_search_max_iters: 10
+line_search_backtrack_coef: 0.8
+n_value_epochs: 10       # Adam steps on value function after each policy step
+critic_lr: 3.0e-4
+
+# --- cost ---------------------------------------------------------------
+cost_limit: 1.0
+cost_source: zero
+cost_gamma: 0.99
+cost_gae_lambda: 0.95
+vf_cost_coef: 0.5
+
+# --- video (optional) ---------------------------------------------------
+video_freq: 500_000
+video_length: 200

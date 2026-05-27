@@ -64,6 +64,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-05-27 — `feat/omnisafe-integration`: Phase 5 — observability + configs
+
+`SafetyCallback` now records `info["cost"]` per step: accumulates per-rollout sums into `safety/ep_cost_mean` and `safety/ep_cost_max` (flushed in `_on_rollout_end`), matching the `rollout/ep_cost_mean` convention logged by `ConstrainedPPO.collect_rollouts`. `safety/ltl_violations` unchanged. Starter YAML hyperparams added at `configs/rl/safe/{ppo_lag,focops,cpo}.yaml` derived from omnisafe's published defaults adapted for `PickAndLiftPrivilegedTask` (shorter episodes, smaller obs). All 32 tests still pass.
+
 ## 2026-05-27 — `feat/omnisafe-integration`: Phase 4 — CPO + TRPO infrastructure
 
 `sentinel/rl/safe/trpo_utils.py`: `flat_params`, `set_flat_params`, `flat_grad`, `conjugate_gradients` (CG solver with Tikhonov damping, validated against a known 2×2 SPD system). `sentinel/rl/policies/constrained_actor_critic.py` gains `get_action_distribution(obs)` (actor-only forward, skips value heads; used by the FVP to avoid computing the two value heads on each of 20+ CG iterations). `sentinel/rl/algorithms/cpo.py:CPO(ConstrainedPPO)`: uses `FOCOPSDictRolloutBuffer` for old-dist storage; separate `_critic_optimizer` (Adam) that only touches value heads; `train()` does: full-batch policy gradient + cost gradient → CG natural gradients `x_a = F⁻¹g` and `x_b = F⁻¹b` via Pearlmutter double-backward FVP (must be outside `th.no_grad()` — caught during debugging) → three-case QP projection (`feasible_trpo`, `projected/projected_infeasible`, `feasibility`) → KL backtracking line search → standard Adam minibatch value updates. Logs `train/cpo_optim_case`, `train/cpo_accept`, `train/cpo_constraint_violation`. Save/load persists `_critic_optimizer` state to sidecar `.._critic_opt.pt`. 8/8 new tests pass. 32/32 total.
