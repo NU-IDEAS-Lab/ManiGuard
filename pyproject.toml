@@ -70,7 +70,6 @@ exclude = [
 
 [tool.setuptools.package-data]
 maniguard = [
-    "configs/*.yaml",
     "eval/profiles/*.yaml",
     "task_generation/utils/*.json",
     "task_generation/curation/*.json",

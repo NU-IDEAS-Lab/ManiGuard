@@ -11,7 +11,6 @@ maniguard/_version.py
 maniguard.egg-info/
 behavior-1k/bddl3/bddl/activity_definitions/*
 vla_models/
-RLinf/.venv*/
 .vscode/
 teleop_bridge/SO-ARM100/
 Omnireset/
