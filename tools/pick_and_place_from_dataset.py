@@ -116,6 +116,13 @@ def parse_args() -> argparse.Namespace:
                         "candidate, skipping the ~60s OBB sampler + multi-"
                         "candidate cuRobo loop. Falls back to OBB sampling "
                         "if the candidate doesn't hold.")
+    p.add_argument("--phase-a-grasp-index", type=int, default=0,
+                   help="When --phase-a-grasp-from-dataset is set and the "
+                        "directory contains multiple task_<NNNN>__seed_* "
+                        "rollouts for this task, pick the N-th one (0-based, "
+                        "sorted by path). Lets a single sweep collect "
+                        "multiple distinct grasps per task by re-running "
+                        "with different indices.")
     p.add_argument("--lerobot-repo-id", default=None,
                    help="If set, write each successful variant as a LeRobot "
                         "v2.1 episode at --lerobot-root (or default cache). "
@@ -384,7 +391,8 @@ def _gather_obstacle_surf_local(env, target_obj,
     return np.concatenate(all_pts, axis=0)
 
 
-def _grasp_candidate_from_sft(sft_root, task_dir, env, target_obj):
+def _grasp_candidate_from_sft(sft_root, task_dir, env, target_obj,
+                              grasp_index: int = 0):
     """Load a known-good eef pose from a previous successful HDF5 and
     convert it to a target-local 4x4 matrix usable as an OBB candidate.
 
@@ -418,7 +426,15 @@ def _grasp_candidate_from_sft(sft_root, task_dir, env, target_obj):
               flush=True)
         return None
 
-    hdf5_path = paths[0]
+    grasp_idx = int(grasp_index)
+    if grasp_idx >= len(paths):
+        print(f"[PnP] phase-a-grasp-index={grasp_idx} out of range "
+              f"({len(paths)} priors available for {task_name}); "
+              f"using last available", flush=True)
+        grasp_idx = len(paths) - 1
+    hdf5_path = paths[grasp_idx]
+    print(f"[PnP] phase-a-grasp-index={grasp_idx}/{len(paths)-1}: "
+          f"using {Path(hdf5_path).parent.name}", flush=True)
     with h5py.File(hdf5_path, "r") as f:
         if not bool(f.attrs.get("phase_a_held", False)):
             print(f"[PnP] SFT rollout {hdf5_path} did not hold; skipping",
@@ -779,6 +795,7 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
                     hover_z: float = 0.25,
                     goal_target_quat_world=None,
                     skip_descend: bool = False,
+                    skip_rotate: bool = False,
                     seg_timings: list | None = None):
     """Two-stage transport plan: lift (vertical) then translate (lifted to
     above-goal) then lower (to goal).
@@ -893,11 +910,16 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
             # (label, target_xyz, toggle_gripper_off, use_goal_quat)
             ("lift",    wp1_xyz, True,  False),  # current quat, +lift_z
             ("hover",   wp2_xyz, False, False),  # current quat, translate
-            ("rotate",  wp2_xyz, False, True),   # goal quat, rotate in place
         ]
-        if not skip_descend:
+        if not skip_rotate:
             plan_spec.append(
-                ("descend", wp3_xyz, True,  True))  # goal quat, translate down
+                ("rotate",  wp2_xyz, False, True))   # goal quat, rotate in place
+        if not skip_descend:
+            # Descend uses goal quat unless rotate was skipped, in which case
+            # we descend with the current quat (consistent with the upstream
+            # hover segment which never adopted the goal orientation).
+            plan_spec.append(
+                ("descend", wp3_xyz, True, not skip_rotate))
     else:
         plan_spec = [
             ("lift",    wp1_xyz, True,  False),
