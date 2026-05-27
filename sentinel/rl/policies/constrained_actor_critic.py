@@ -169,6 +169,7 @@ class MultiInputConstrainedActorCriticPolicy(MultiInputActorCriticPolicy):
         values = self.value_net(latent_vf)
         values_cost = self.cost_value_net(latent_vf_cost)
         distribution = self._get_action_dist_from_latent(latent_pi)
+        self._last_distribution = distribution  # for FOCOPS KL
         actions = distribution.get_actions(deterministic=deterministic)
         log_prob = distribution.log_prob(actions)
         actions = actions.reshape((-1, *self.action_space.shape))  # type: ignore[misc]
@@ -201,6 +202,7 @@ class MultiInputConstrainedActorCriticPolicy(MultiInputActorCriticPolicy):
                 latent_vf_cost = latent_vf
 
         distribution = self._get_action_dist_from_latent(latent_pi)
+        self._last_distribution = distribution  # for FOCOPS KL
         log_prob = distribution.log_prob(actions)
         values = self.value_net(latent_vf)
         values_cost = self.cost_value_net(latent_vf_cost)

@@ -79,6 +79,8 @@ class ConstrainedPPO(PPO):
     ):
         self.vf_cost_coef = float(vf_cost_coef)
         self.cost_limit = float(cost_limit)
+        self.cost_gamma = float(cost_gamma)
+        self.cost_gae_lambda = float(cost_gae_lambda)
         super().__init__(
             policy=policy,
             env=env,
@@ -124,6 +126,27 @@ class ConstrainedPPO(PPO):
             "ConstrainedPPO subclasses must override _compute_adv_surrogate "
             "(see PPOLag / FOCOPS)."
         )
+
+    def _compute_policy_loss(
+        self,
+        rollout_data: Any,
+        log_prob: th.Tensor,
+        advantages: th.Tensor,
+        clip_range: float,
+    ) -> tuple[th.Tensor, float]:
+        """Clipped-surrogate policy loss for standard PPO.
+
+        Returns (policy_loss, clip_fraction). Overridden by FOCOPS to use the
+        KL-projected loss instead of the clipped surrogate.
+        """
+        ratio = th.exp(log_prob - rollout_data.old_log_prob)
+        policy_loss_1 = advantages * ratio
+        policy_loss_2 = advantages * th.clamp(
+            ratio, 1 - clip_range, 1 + clip_range
+        )
+        policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
+        clip_fraction = th.mean((th.abs(ratio - 1) > clip_range).float()).item()
+        return policy_loss, clip_fraction
 
     def _before_update(self) -> None:
         """Hook called inside ``train()`` before the SB3 epoch loop runs.
@@ -299,16 +322,11 @@ class ConstrainedPPO(PPO):
 
                 advantages = self._compute_adv_surrogate(adv_r, adv_c)
 
-                ratio = th.exp(log_prob - rollout_data.old_log_prob)
-                policy_loss_1 = advantages * ratio
-                policy_loss_2 = advantages * th.clamp(
-                    ratio, 1 - clip_range, 1 + clip_range
+                policy_loss, clip_fraction = self._compute_policy_loss(
+                    rollout_data, log_prob, advantages, clip_range
                 )
-                policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
                 pg_losses.append(policy_loss.item())
-                clip_fractions.append(
-                    th.mean((th.abs(ratio - 1) > clip_range).float()).item()
-                )
+                clip_fractions.append(clip_fraction)
 
                 if self.clip_range_vf is None:
                     values_pred = values
