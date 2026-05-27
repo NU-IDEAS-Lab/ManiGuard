@@ -440,8 +440,8 @@ class CPO(ConstrainedPPO):
         x_b = x_b.detach()
 
         # ------ 6. QP scalars -------------------------------------------
-        Ax_a = fvp(x_a).detach()
-        Ax_b = fvp(x_b).detach()
+        # p, q, r, s = g·F⁻¹g, b·F⁻¹b, g·F⁻¹b, b·F⁻¹b — all derivable from
+        # the inner products of g/b with the natural-gradient outputs.
         p_scalar = float((g * x_a).sum().item())
         q_scalar = float((b * x_b).sum().item())
         r_scalar = float((g * x_b).sum().item())
@@ -465,7 +465,6 @@ class CPO(ConstrainedPPO):
 
             with th.no_grad():
                 _, lp_new, _ = _eval_actor(self.policy, obs, actions)
-                ratio_new = th.exp(lp_new - old_log_prob)
                 log_ratio_new = lp_new - old_log_prob
                 kl_approx = float(
                     th.mean((th.exp(log_ratio_new) - 1) - log_ratio_new).item()

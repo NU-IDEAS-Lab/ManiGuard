@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch as th
 from gymnasium import spaces
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv
@@ -121,7 +120,6 @@ def test_lagrange_state_dict_roundtrip():
 
 
 def test_ppo_lag_surrogate_uses_lambda():
-    lag = Lagrange(cost_limit=0.0, lagrangian_multiplier_init=2.0, lambda_lr=0.0)
     # Make a minimal PPOLag just to test the math (no env needed)
     env = _DictObsFakeVecEnv(num_envs=2)
     wrapped = CostInjectingVecEnvWrapper(env, [ConstantCost(1.0)])

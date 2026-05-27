@@ -202,11 +202,6 @@ def test_policy_forward_returns_four():
 
 
 def test_subclass_must_override_adv_surrogate():
-    obs_space = spaces.Dict(
-        {"x": spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)}
-    )
-    act_space = spaces.Box(-1.0, 1.0, shape=(1,), dtype=np.float32)
-
     class _NoOverride(ConstrainedPPO):
         pass
 

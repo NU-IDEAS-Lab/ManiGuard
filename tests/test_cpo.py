@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch as th
 from gymnasium import spaces
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv
