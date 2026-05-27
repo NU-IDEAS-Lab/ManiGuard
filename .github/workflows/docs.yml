@@ -4,7 +4,7 @@ name: docs
 # Enable once: repo Settings → Pages → Source = "Deploy from a branch" → gh-pages.
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - docs/**
       - mkdocs.yml
