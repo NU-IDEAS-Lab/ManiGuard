@@ -977,7 +977,8 @@ def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
                     final_settle_steps: int = 60,
                     segment_breakdown=None,
                     goal_spec=None,
-                    early_exit_after: str = "hover"):
+                    early_exit_after: str = "hover",
+                    gripper_cmd: float = -1.0):
     """JointController replay of a cuRobo joint trajectory while
     holding the target with the gripper closed.
 
@@ -1015,10 +1016,12 @@ def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
         cur_pos_b_pre, cur_quat_b_pre = robot.get_relative_eef_pose(arm)
         cur_pos_b_pre = cur_pos_b_pre.float()
         cur_quat_b_pre = cur_quat_b_pre.float()
-        # Build action: arm slot = target joints, gripper slot = -1 (close).
+        # Build action: arm slot = target joints, gripper slot = command
+        # (default -1.0 = close → closed-grip transport; teleop overrides
+        # to +1.0 to keep the gripper open during click-to-target moves).
         action = th.zeros(robot.action_dim, dtype=th.float32)
         action[arm_action_idx] = arm_target.to(action.dtype)
-        action[gripper_action_idx] = -1.0
+        action[gripper_action_idx] = gripper_cmd
         env.step(action)
         # 7D EEF-delta from FK pose change (gripper closed → cmd = -1).
         if sft_recorder is not None:
@@ -1052,6 +1055,10 @@ def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
             cum += int(seg_n)
     last_err = 0.0
     last_substeps = 0
+    # Articulation may transiently lose its view across env.step inside
+    # this loop. Edge-trigger the warning so we don't print every
+    # substep — print once on entry, once on recovery.
+    art_broken = False
     for wi in range(n):
         if wi in seg_starts:
             new_stage = seg_starts[wi]
@@ -1088,7 +1095,25 @@ def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
             if time.time() > deadline:
                 return False
             _jc_step(arm_traj[wi])
-            cur_q = robot.get_joint_positions()[arm_control_idx]
+            # robot.get_joint_positions() occasionally returns None when
+            # Isaac transiently de-initializes the articulation after a
+            # cuRobo plan. Edge-triggered logging: print once when state
+            # flips bad/good, not every substep. Not silent — any new
+            # failure mode still surfaces the first time it appears.
+            try:
+                cur_q = robot.get_joint_positions()[arm_control_idx]
+                if art_broken:
+                    print(f"[PnP replay] articulation RECOVERED at wp "
+                          f"{wi}/{n} substep {k}", flush=True)
+                    art_broken = False
+            except (AttributeError, TypeError, RuntimeError) as exc:
+                if not art_broken:
+                    print(f"[PnP replay] articulation BROKEN at wp "
+                          f"{wi}/{n} substep {k} "
+                          f"({type(exc).__name__}: {exc}); skipping "
+                          f"q_err check until recovery", flush=True)
+                    art_broken = True
+                continue
             last_err = float(
                 (cur_q - arm_traj[wi].to(cur_q.dtype).to(cur_q.device))
                 .norm().item())
