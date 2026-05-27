@@ -2,6 +2,7 @@
 
 site_name: ManiGuard
 site_description: LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K
+site_url: https://nu-ideas-lab.github.io/SENTINEL-Lite/
 repo_name: NU-IDEAS-Lab/SENTINEL-Lite
 repo_url: https://github.com/NU-IDEAS-Lab/SENTINEL-Lite
 edit_uri: edit/main/docs/

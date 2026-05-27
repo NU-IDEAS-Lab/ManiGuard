@@ -916,3 +916,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 
 ### Docs: SFT / Eval / RL sections + RLinf purge + Home gallery (2026-05-27)
 - Added SFT controller/action/eval end-to-end guide, Evaluation overview, RL overview, and a Reference page; removed CLI/Outputs blocks site-wide; deleted the redundant Teleop-overview page (content folded into Data Collection) and documented the interactive ghost-gripper cuRobo collection. Purged all RLinf references from the docs site, README, and CLAUDE.md (RLinf is no longer used) and fixed stale module refs (ManiGuardEnv, maniguard_env.py, tasks/rlinf/openpi subpackages, serve module names). Rebuilt Home around the lifecycle nav with rendered Material icons and a 10×10 gallery of 100 6fam-base thumbnails (left/right overview; cabinet = right only).
+
+### Docs hero montage + README polish + Pages workflow (2026-05-27)
+- Combined the 100 6fam-base thumbnails into a single 10×10 montage (docs/index_gallery/montage.jpg); Home and README now use it as a hero image (dropped the 100 individual files + the .mg-gallery grid). Polished the README header (centered montage, tagline, nav links, Documentation link). Added site_url + a GitHub Actions workflow (.github/workflows/docs.yml) that builds --strict and gh-deploys the MkDocs site to GitHub Pages on push to main.

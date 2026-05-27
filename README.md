@@ -1,9 +1,24 @@
-# ManiGuard
+<p align="center">
+  <img src="docs/index_gallery/montage.jpg" alt="100 ManiGuard task instances" width="680">
+</p>
 
-ManiGuard is a Python package built on top of
-[BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) that adds
-LTL (Linear Temporal Logic) safety checking, task-generation pipelines, and
-VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
+<h1 align="center">ManiGuard</h1>
+
+<p align="center">
+  LTL-safe task generation, teleop &amp; scripted data collection, VLA fine-tuning,
+  evaluation, and reinforcement learning — on top of
+  <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson.
+</p>
+
+<p align="center">
+  <a href="https://nu-ideas-lab.github.io/SENTINEL-Lite/"><b>📖 Documentation</b></a>
+  &nbsp;·&nbsp;
+  <a href="#installation">Installation</a>
+  &nbsp;·&nbsp;
+  <a href="#task-generation--benchmark">Task generation</a>
+  &nbsp;·&nbsp;
+  <a href="#sft--rl">SFT + RL</a>
+</p>
 
 ## Repository layout
 
