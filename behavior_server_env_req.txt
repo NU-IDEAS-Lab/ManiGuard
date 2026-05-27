@@ -12,7 +12,7 @@ asttokens==3.0.1
 async-timeout==5.0.1
 attrs==25.4.0
 av @ file:///home/conda/feedstock_root/build_artifacts/av_1764676090727/work
--e git+ssh://git@github.com/NU-IDEAS-Lab/SENTINEL-Lite.git@2c9fa70841eff53e810c639b14e441d857069d98#egg=bddl&subdirectory=bddl3
+-e git+ssh://git@github.com/NU-IDEAS-Lab/ManiGuard.git@2c9fa70841eff53e810c639b14e441d857069d98#egg=bddl&subdirectory=bddl3
 blinker==1.9.0
 boto3==1.42.44
 botocore==1.42.44
@@ -113,7 +113,7 @@ Jinja2==3.1.6
 jmespath==1.1.0
 joblib==1.5.3
 joycon-python==0.2.4
--e git+ssh://git@github.com/NU-IDEAS-Lab/SENTINEL-Lite.git@2c9fa70841eff53e810c639b14e441d857069d98#egg=joylo&subdirectory=joylo
+-e git+ssh://git@github.com/NU-IDEAS-Lab/ManiGuard.git@2c9fa70841eff53e810c639b14e441d857069d98#egg=joylo&subdirectory=joylo
 jsonlines==4.0.0
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
@@ -167,7 +167,7 @@ nvidia-nvtx-cu12==12.4.127
 nvidia_curobo @ git+https://github.com/StanfordVL/curobo@cbaf7d32436160956dad190a9465360fad6aba73
 oauthlib==3.3.1
 omegaconf==2.3.0
--e git+ssh://git@github.com/NU-IDEAS-Lab/SENTINEL-Lite.git@2c9fa70841eff53e810c639b14e441d857069d98#egg=omnigibson&subdirectory=OmniGibson
+-e git+ssh://git@github.com/NU-IDEAS-Lab/ManiGuard.git@2c9fa70841eff53e810c639b14e441d857069d98#egg=omnigibson&subdirectory=OmniGibson
 omniverse-kit @ file:///data/juc9508/tmp/tmp.nHuOsUEKUF/omniverse_kit-106.5.0.162521-cp310-none-manylinux_2_34_x86_64.whl#sha256=c320dfb1dba2c660102e95fb48af9c3617933e5916d184d84f71917ca6bad7f1
 ompl @ https://storage.googleapis.com/gibson_scenes/ompl-1.6.0-cp310-cp310-manylinux_2_28_x86_64.whl#sha256=032e50abdc3f86755c1353af2f1a5d63176175b596a267873f5aedc051c7955d
 open3d==0.19.0

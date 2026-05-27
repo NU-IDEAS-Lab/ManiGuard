@@ -7,7 +7,7 @@ its own venv (see the [SFT](../openpi_sim_teleop_sft.md) pages).
 ## 1. Clone with submodules
 
 ```bash
-git clone --recursive https://github.com/NU-IDEAS-Lab/SENTINEL-Lite.git
+git clone --recursive https://github.com/NU-IDEAS-Lab/ManiGuard.git
 cd ManiGuard
 # or, if already cloned:
 git submodule update --init --recursive

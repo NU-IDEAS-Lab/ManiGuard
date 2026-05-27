@@ -51,7 +51,7 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/NU-IDEAS-Lab/SENTINEL-Lite"
+Repository = "https://github.com/NU-IDEAS-Lab/ManiGuard"
 
 [tool.setuptools.packages.find]
 where = ["."]

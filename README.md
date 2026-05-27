@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://nu-ideas-lab.github.io/SENTINEL-Lite/"><b>📖 Documentation</b></a>
+  <a href="https://nu-ideas-lab.github.io/ManiGuard/"><b>📖 Documentation</b></a>
   &nbsp;·&nbsp;
   <a href="#installation">Installation</a>
   &nbsp;·&nbsp;
@@ -48,8 +48,8 @@
 1. **Clone with submodules**:
 
    ```bash
-   git clone --recursive git@github.com:NU-IDEAS-Lab/SENTINEL-Lite.git
-   cd SENTINEL-Lite
+   git clone --recursive git@github.com:NU-IDEAS-Lab/ManiGuard.git
+   cd ManiGuard
    # or, if already cloned:
    git submodule update --init --recursive
    ```

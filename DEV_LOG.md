@@ -1,4 +1,4 @@
-# SENTINEL-Lite — Dev Log
+# ManiGuard — Dev Log
 
 ## Action items (deferred)
 
