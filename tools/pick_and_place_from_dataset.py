@@ -469,15 +469,18 @@ def _grasp_candidate_from_sft(sft_root, task_dir, env, target_obj):
 
 
 def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
-    """Run OBB sampler + collect_valid_grasps; return the first held grasp.
+    """Run OBB sampler + collect_valid_grasps; return all held grasps.
 
     With ``--phase-a-grasp-from-dataset`` set, the OBB sampler is replaced
     by a single candidate loaded from a previous successful rollout —
     skipping ~60s of OBB enumeration when a known-good grasp exists.
 
-    Returns a dict with keys ``approach_traj`` (T, 7 torch tensor),
+    Returns ``(held_grasps, phase_a_timings)`` where ``held_grasps`` is a
+    list of dicts (each with keys ``approach_traj`` (T, 7 torch tensor),
     ``rel_position``, ``rel_orientation_xyzw``, ``gripper_qpos``,
-    ``arm_joint_pos``, or None if no grasp held.
+    ``arm_joint_pos``). May be empty if no candidate held. The number of
+    held candidates is capped at ``args.max_held_candidates`` when that
+    attr is present (default 1 for legacy callers).
     """
     import torch as th
 
@@ -500,12 +503,13 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     if sft_grasp_root:
         T_local = _grasp_candidate_from_sft(
             sft_grasp_root, args.task_dir, env, target_obj,
+            grasp_index=int(getattr(args, "phase_a_grasp_index", 0)),
         )
         if T_local is not None:
             candidates = np.asarray([T_local], dtype=np.float64)
             primitives._motion_generator.update_obstacles(ignore_objects=[])
             cfg = GraspCollectorConfig(
-                num_target_grasps=1,
+                num_target_grasps=int(getattr(args, "max_held_candidates", 1)),
                 max_reach=args.max_reach,
                 max_obj_to_eef_after_hold=args.max_obj_to_eef_after_hold,
                 ik_precheck=bool(getattr(args, "ik_precheck", False)),
@@ -530,7 +534,7 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
                 timings_log=timings_log,
             )
             if held:
-                return held[0], timings_log
+                return held, timings_log
             print("[PnP] SFT-prior candidate did NOT hold; falling back "
                   "to OBB sampling", flush=True)
 
@@ -566,7 +570,7 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     primitives._motion_generator.update_obstacles(ignore_objects=[])
 
     cfg = GraspCollectorConfig(
-        num_target_grasps=1,
+        num_target_grasps=int(getattr(args, "max_held_candidates", 1)),
         max_reach=args.max_reach,
         max_obj_to_eef_after_hold=args.max_obj_to_eef_after_hold,
         ik_precheck=bool(getattr(args, "ik_precheck", False)),
@@ -592,7 +596,7 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
         verbose=True,
         timings_log=timings_log,
     )
-    return (held[0] if held else None), timings_log
+    return (held if held else []), timings_log
 
 
 # ---------------------------------------------------------------------------
@@ -622,12 +626,20 @@ def _solve_one_segment(motion_gen, robot, target_obj, eef_link, eef_goal_pos,
         {eef_link: 1.0} if use_attached_obj else None
     )
 
-    successes, joint_states = motion_gen.compute_trajectories(
+    # Use return_full_result=True so we can salvage trajectories that
+    # cuRobo's trajopt marks as `success=False` but actually converged
+    # exactly at the goal (pos_err≈0, rot_err≈0). This case appears in
+    # short/degenerate motions where trajopt's convergence criterion is
+    # overly strict — `result.interpolated_plan` is populated and lands
+    # at the goal, but the success flag is False. Salvage tolerance is
+    # tight (5 mm / 0.03 rad) so we only accept truly near-zero-error
+    # plans — anything looser would risk dataset quality.
+    full = motion_gen.compute_trajectories(
         target_pos=target_pos, target_quat=target_quat,
         initial_joint_pos=initial_joint_pos, is_local=False,
         max_attempts=max_attempts, timeout=timeout,
         ik_fail_return=5, enable_finetune_trajopt=True,
-        finetune_attempts=2, return_full_result=False,
+        finetune_attempts=2, return_full_result=True,
         success_ratio=1.0 / bs,
         attached_obj=attached_obj,
         attached_obj_scale=attached_obj_scale,
@@ -635,12 +647,105 @@ def _solve_one_segment(motion_gen, robot, target_obj, eef_link, eef_goal_pos,
         ik_only=False, ik_world_collision_check=True,
         emb_sel=CuRoboEmbodimentSelection.DEFAULT,
     )
-    success_idx = th.where(successes)[0].cpu()
-    if len(success_idx) == 0:
+
+    def _flt_at(e, j):
+        if e is None:
+            return None
+        try:
+            return float(e[j])
+        except Exception:
+            try:
+                return float(e)
+            except Exception:
+                return None
+
+    POS_TOL = 0.005  # 5 mm — tight for production data quality
+    ROT_TOL = 0.03   # ~1.7° rotation error
+
+    joint_state = None
+    for i, r in enumerate(full):
+        try:
+            paths = r.get_paths()
+        except Exception:
+            paths = []
+        succ_t = getattr(r, "success", None)
+        for j in range(len(paths)):
+            is_succ = False
+            if succ_t is not None:
+                try:
+                    is_succ = bool(succ_t[j].item())
+                except Exception:
+                    try:
+                        is_succ = bool(succ_t[j])
+                    except Exception:
+                        is_succ = False
+            pos_err = _flt_at(getattr(r, "position_error", None), j)
+            rot_err = _flt_at(getattr(r, "rotation_error", None), j)
+            path_js = paths[j]
+            if path_js is None:
+                continue
+            accepted = is_succ or (
+                (pos_err is None or pos_err < POS_TOL)
+                and (rot_err is None or rot_err < ROT_TOL)
+            )
+            if accepted:
+                if not is_succ:
+                    print(f"[PnP transport] segment {label!r}: salvage "
+                          f"iter#{i} batch#{j} (status="
+                          f"{getattr(r, 'status', '?')!r}, "
+                          f"pos_err={pos_err}, rot_err={rot_err})",
+                          flush=True)
+                joint_state = path_js
+                break
+        if joint_state is not None:
+            break
+
+    if joint_state is None:
         print(f"[PnP transport] segment {label!r}: cuRobo FAILED "
               f"(0/{int(bs)} successes)", flush=True)
+        # Diagnostic probe: re-run with return_full_result=True so we
+        # can read the per-batch MotionGenStatus and pos/rot errors.
+        # Cheap on already-warmed kernels. No behavior change — we
+        # still return None — but the print tells us whether the fail
+        # mode is IK Fail (truly unreachable), Trajopt Fail (motion
+        # planning gave up but IK landed close), Start State In
+        # Collision (held object intersects environment), etc.
+        try:
+            full = motion_gen.compute_trajectories(
+                target_pos=target_pos, target_quat=target_quat,
+                initial_joint_pos=initial_joint_pos, is_local=False,
+                max_attempts=1, timeout=timeout,
+                ik_fail_return=5, enable_finetune_trajopt=False,
+                finetune_attempts=1, return_full_result=True,
+                success_ratio=1.0 / bs,
+                attached_obj=attached_obj,
+                attached_obj_scale=attached_obj_scale,
+                motion_constraint=None, skip_obstacle_update=True,
+                ik_only=False, ik_world_collision_check=True,
+                emb_sel=CuRoboEmbodimentSelection.DEFAULT,
+            )
+            def _fmt(e):
+                if e is None:
+                    return "?"
+                try:
+                    return f"{float(e):.4f}"
+                except Exception:
+                    try:
+                        return f"{float(e.min().item()):.4f}"
+                    except Exception:
+                        return repr(e)
+            for i, r in enumerate(full):
+                status = getattr(r, "status", "?")
+                pos_err = getattr(r, "position_error", None)
+                rot_err = getattr(r, "rotation_error", None)
+                print(f"[PnP transport]   diag #{i}: status={status!r} "
+                      f"pos_err={_fmt(pos_err)} rot_err={_fmt(rot_err)}",
+                      flush=True)
+        except Exception as exc:
+            print(f"[PnP transport]   diag probe raised "
+                  f"{type(exc).__name__}: {exc}", flush=True)
         return None, None, None
-    joint_state = joint_states[success_idx[0]]
+    # joint_state was set in the salvage loop above.
     manip_idx = robot.arm_control_idx[robot.default_arm]
     joint_pos = motion_gen.path_to_joint_trajectory(
         joint_state, get_full_js=False,
@@ -801,9 +906,44 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
         if not skip_descend:
             plan_spec.append(("descend", wp3_xyz, True, False))
     for label, tgt_xyz, toggle_off, use_goal_quat in plan_spec:
-        ep, eq = _eef_goal_for_tgt(tgt_xyz, use_goal_quat=use_goal_quat)
+        if label == "lift":
+            # Use the ACTUAL current eef pose as the reference for the
+            # lift segment instead of reconstructing via T_eef_in_tgt.
+            # The reconstructed eef goal drifts by a few mm + several
+            # degrees from the achievable pose when the post-grasp arm
+            # configuration is near-singular (e.g. extreme --lid-at-edge
+            # cases), causing IK_FAIL even at lift_z=0. Building the
+            # goal directly as (eef_now_xyz + (0,0,lift_z), eef_quat_now)
+            # eliminates the reconstruction drift and lets cuRobo plan a
+            # pure +z translation from a self-consistent start state.
+            re_eef_pos, re_eef_quat = (
+                robot.eef_links[arm].get_position_orientation())
+            re_eef_pos_np = re_eef_pos.cpu().numpy().astype(np.float64)
+            re_eef_quat_np = re_eef_quat.cpu().numpy().astype(np.float64)
+            lift_delta_z = float(tgt_xyz[2] - tgt_pos_now_np[2])
+            ep_np = re_eef_pos_np.copy()
+            ep_np[2] += lift_delta_z
+            ep = th.tensor(ep_np, dtype=th.float32)
+            eq = th.tensor(re_eef_quat_np, dtype=th.float32)
+            print(f"[PnP transport]   lift override: using actual eef "
+                  f"pos={re_eef_pos_np.tolist()} + dZ={lift_delta_z:+.3f}, "
+                  f"quat={re_eef_quat_np.tolist()}", flush=True)
+        else:
+            ep, eq = _eef_goal_for_tgt(tgt_xyz, use_goal_quat=use_goal_quat)
         t_seg = time.time()
-        toggled = toggle_off and hasattr(raw_mg, "toggle_link_collision")
+        # Skip the gripper-link collision toggle for the lift segment.
+        # The gripper_target_teleop tool succeeds on these same
+        # post-grasp configurations without toggling — and the toggle
+        # appears to corrupt cuRobo's internal collision config when
+        # we're starting from a near-singular post-grasp joint state,
+        # producing IK_FAIL with 6mm + 16° residuals even for a pure
+        # +z translation. Pnp's other segments (hover, descend) still
+        # toggle since they need the relaxation.
+        toggled = (
+            toggle_off
+            and label != "lift"
+            and hasattr(raw_mg, "toggle_link_collision")
+        )
         if toggled:
             raw_mg.toggle_link_collision(
                 list(_FRANKA_GRIPPER_COLLISION_LINKS), False)
@@ -1642,9 +1782,11 @@ def main() -> None:
         # restore between variants and see the same initial scene.
         pre_phase_a_state = og.sim.dump_state()
 
-        grasp, phase_a_timings = _phase_a_pick(
+        held_grasps_list, phase_a_timings = _phase_a_pick(
             env, og, primitives, target_obj, args, pick_deadline,
         )
+        # Legacy pnp main path is single-grasp.
+        grasp = held_grasps_list[0] if held_grasps_list else None
         phase_a_wall = time.time() - t0
         # Aggregate per-candidate timings into a summary.
         n_cands = len(phase_a_timings)
