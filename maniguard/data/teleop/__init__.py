@@ -3,8 +3,8 @@
 Moved out of ``OmniGibson/omnigibson/{teleop,examples/teleoperation}/``
 so OmniGibson stays closer to upstream. Entry points:
 
-    python -m maniguard.teleop.so101_franka_teleop --snapshot <scene_ep1.json>
-    python -m maniguard.teleop.so101_franka_playback --input <teleop.hdf5>
+    python -m maniguard.data.teleop.so101_franka_teleop --snapshot <scene_ep1.json>
+    python -m maniguard.data.teleop.so101_franka_playback --input <teleop.hdf5>
 
 The companion ZMQ server (for the real SO-101 leader arm) lives outside
 this package at ``teleop_bridge/so101_server.py`` -- it runs in the

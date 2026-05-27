@@ -15,7 +15,7 @@ and let cuRobo solve the IK + path.
 Usage::
 
     DISPLAY=:1 conda run -n behavior --no-capture-output \\
-      python -m tools.gripper_target_teleop \\
+      python -m maniguard.data.curobo.gripper_target_teleop \\
         --task-dir datasets/6fam-base-20260513/lid_transport/task_0003/base \\
         --episode 1 --lid-at-edge 0.6
 """
@@ -289,7 +289,7 @@ def main():
         # injects a wrist VisionSensor when the robot config is loaded).
         from tools._sft_recorder import install_wrist_camera_patch
         install_wrist_camera_patch()
-        from maniguard.data.lerobot_writer import create_or_open_dataset
+        from maniguard.data.lerobot.lerobot_writer import create_or_open_dataset
         lerobot_dataset = create_or_open_dataset(
             repo_id=args.lerobot_repo_id, root=args.lerobot_root,
             fps=args.video_fps, resolution=args.record_resolution,
@@ -788,7 +788,7 @@ def main():
                     segment_idx = None
                     if saving:
                         from tools._sft_recorder import SFTRecorder
-                        from maniguard.data.lerobot_writer import (
+                        from maniguard.data.lerobot.lerobot_writer import (
                             LeRobotEpisodeWriter,
                         )
                         segment_idx = (

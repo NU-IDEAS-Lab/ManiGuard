@@ -13,7 +13,7 @@ Usage:
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \\
     CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 \\
         /home/simonzhan/anaconda3/envs/behavior/bin/python \\
-            tools/collect_grasps_in_scene.py \\
+            maniguard/data/curobo/collect_grasps_in_scene.py \\
             --scene-file <path>/scene_ep1.joint.json \\
             --diagnostics-file <path>/diagnostics.jsonl \\
             --target-name cocktail_glass_178 \\

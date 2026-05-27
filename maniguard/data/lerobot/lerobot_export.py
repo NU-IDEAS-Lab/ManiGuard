@@ -42,7 +42,7 @@ the right lerobot rev) or openpi's own ``openpi/.venv``. Do *not* use the
 older ``.venv-lerobot`` (lerobot 0.4.4 — writes v3.0).
 
     /data/Projects/ManiGuard/.venv-lerobot-v2/bin/python \
-        -m maniguard.data.lerobot_export \
+        -m maniguard.data.lerobot.lerobot_export \
         --input-dir outputs/sft_dataset_2026-05-16/success_balanced \
         --repo-id maniguard/pnp_multitask \
         --fps 30
@@ -59,7 +59,7 @@ import h5py
 import numpy as np
 import torch
 
-from maniguard.data.lerobot_writer import (
+from maniguard.data.lerobot.lerobot_writer import (
     create_or_open_dataset,
     episode_prompt as _episode_prompt_shared,
 )

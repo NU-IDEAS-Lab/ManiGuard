@@ -13,7 +13,7 @@ Mirrors ``so101_franka_teleop._build_from_snapshot`` but writes to disk
 instead of an ephemeral sibling path.
 
 Usage:
-    python -m maniguard.data.rewrite_scene_robot \\
+    python -m maniguard.data.scene.rewrite_scene_robot \\
         datasets/safety-benchmark/clutter_goblet_00 \\
         datasets/safety-benchmark/clutter_goblet_00_frankapanda
 """

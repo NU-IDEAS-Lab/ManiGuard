@@ -1,6 +1,6 @@
 """Pick up a lid and place it onto a container via a variant transport.
 
-Counterpart to ``tools/pick_and_place_from_dataset.py``, but for the
+Counterpart to ``maniguard/data/curobo/pick_and_place_from_dataset.py``, but for the
 lid_transport task family. The pipeline is:
 
   Phase A — search for a graspable pose on the lid (cuRobo + OBB sampler,
@@ -177,13 +177,13 @@ def _run_one_variant(
     if args.record_sft:
         from tools._sft_recorder import SFTRecorder
         if lerobot_dataset is not None:
-            from maniguard.data.lerobot_writer import (
+            from maniguard.data.lerobot.lerobot_writer import (
                 LeRobotEpisodeWriter, episode_prompt,
             )
             lerobot_writer = LeRobotEpisodeWriter(lerobot_dataset)
             # Templated with {container_clean} so the prompt mentions the
             # actual container the agent is closing.
-            from maniguard.data.lerobot_writer import clean_target
+            from maniguard.data.lerobot.lerobot_writer import clean_target
             prompt = args.lerobot_prompt_template.format(
                 target=lid.name, target_clean=clean_target(lid.name),
                 container=container.name,
@@ -479,7 +479,7 @@ def main() -> None:
     if args.lerobot_repo_id:
         if not args.record_sft:
             raise SystemExit("--lerobot-repo-id requires --record-sft")
-        from maniguard.data.lerobot_writer import create_or_open_dataset
+        from maniguard.data.lerobot.lerobot_writer import create_or_open_dataset
         lerobot_dataset = create_or_open_dataset(
             repo_id=args.lerobot_repo_id, root=args.lerobot_root,
             fps=args.video_fps, resolution=args.record_resolution,

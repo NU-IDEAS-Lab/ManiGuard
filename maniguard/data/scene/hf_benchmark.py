@@ -8,7 +8,7 @@ files whose server-side hash matches the cache, so repeated eval runs
 only pay bandwidth for changed scenes.
 
 Usage:
-    from maniguard.data.hf_benchmark import resolve_benchmark_root
+    from maniguard.data.scene.hf_benchmark import resolve_benchmark_root
     path = resolve_benchmark_root(args.benchmark_root, revision="main")
     # path.is_dir() == True; discover_scenes(path) proceeds unchanged.
 

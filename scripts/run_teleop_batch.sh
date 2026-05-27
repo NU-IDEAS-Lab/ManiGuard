@@ -173,7 +173,7 @@ for ((i=0; i<total; i++)); do
         echo "============================================================"
 
         VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
-        python -m maniguard.teleop.so101_franka_teleop \
+        python -m maniguard.data.teleop.so101_franka_teleop \
             --snapshot "$snap" \
             --output-hdf5 "$hdf5" \
             --only-successes \

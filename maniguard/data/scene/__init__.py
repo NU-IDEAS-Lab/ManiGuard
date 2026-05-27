@@ -1,0 +1,1 @@
+"""Benchmark / scene snapshot utilities."""

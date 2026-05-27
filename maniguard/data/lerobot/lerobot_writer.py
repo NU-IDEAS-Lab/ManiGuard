@@ -10,7 +10,7 @@ Standard LeRobotDataset flow during collection is:
                        updates meta/*.
 
 For sim collection that already streams h264 MP4s via imageio (e.g.
-``tools/_sft_recorder.SFTRecorder``), the PNG-write + re-encode is pure
+``maniguard/data/curobo/_sft_recorder.SFTRecorder``), the PNG-write + re-encode is pure
 overhead. This module makes ``LeRobotDataset`` accept pre-rendered MP4s
 instead:
 
@@ -192,19 +192,42 @@ def apply_no_png_patch() -> None:
     _PATCHED = True
 
 
+def lerobot_features_joint(resolution: int) -> dict:
+    """Schema variant with absolute-joint state + actions (DROID-style).
+
+    state   = [arm_q(7), gripper_pos(1)]            (current joint config)
+    actions = [arm_q_target(7), gripper_cmd(1)]     (absolute next-step target)
+    """
+    f = lerobot_features(resolution)
+    f["state"] = {
+        "dtype": "float32", "shape": (8,),
+        "names": [f"joint_{i}" for i in range(7)] + ["gripper_pos"],
+    }
+    f["actions"] = {
+        "dtype": "float32", "shape": (8,),
+        "names": [f"joint_{i}_target" for i in range(7)] + ["gripper_cmd"],
+    }
+    return f
+
+
 def create_or_open_dataset(repo_id: str, root: str | Path | None,
                            fps: int, resolution: int,
-                           apply_passthrough: bool = True):
+                           apply_passthrough: bool = True,
+                           features: dict | None = None):
     """Open an existing LeRobot v2.1 dataset at ``root``, or create one.
 
     ``apply_passthrough=True`` (default) installs the no-PNG / MP4-aware-stats
     patches needed when MP4s are pre-placed at the target paths (the live
     SFTRecorder path). Set False for the legacy batch exporter that actually
     needs LeRobot to encode from in-memory frames.
+
+    ``features`` overrides the default eef-delta schema (e.g.
+    ``lerobot_features_joint`` for absolute-joint state/actions).
     """
     if apply_passthrough:
         apply_no_png_patch()
     LeRobotDataset = _import_dataset_cls()
+    feats = features if features is not None else lerobot_features(resolution)
     root_p = Path(root) if root else None
     # Reopen-existing requires both meta/info.json AND at least one
     # committed parquet under data/. LeRobotDataset cannot load an
@@ -224,7 +247,7 @@ def create_or_open_dataset(repo_id: str, root: str | Path | None,
         _sh.rmtree(root_p)
     ds = LeRobotDataset.create(
         repo_id=repo_id, fps=fps,
-        features=lerobot_features(resolution),
+        features=feats,
         root=root_p, use_videos=True, robot_type="FrankaPanda",
     )
     return ds
