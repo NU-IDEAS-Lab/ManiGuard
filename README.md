@@ -1,8 +1,8 @@
-<p align="center">
-  <img src="docs/index_gallery/montage.jpg" alt="100 ManiGuard task instances" width="680">
-</p>
-
 <h1 align="center">ManiGuard</h1>
+
+<p align="center">
+  <img src="docs/index_gallery/montage.jpg" alt="50 ManiGuard task instances" width="760">
+</p>
 
 <p align="center">
   LTL-safe task generation, teleop &amp; scripted data collection, VLA fine-tuning,
