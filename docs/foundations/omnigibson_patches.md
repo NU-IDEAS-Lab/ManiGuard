@@ -1,0 +1,72 @@
+# OmniGibson patches & configs
+
+ManiGuard consumes OmniGibson as an **unmodified upstream dependency**. The
+behaviors it needs that aren't in upstream are installed at runtime by
+`maniguard/_omnigibson_patches.py`, applied automatically the first time you
+`import maniguard`:
+
+```python
+import maniguard   # calls maniguard._omnigibson_patches.apply()
+```
+
+`apply()` is idempotent. Set `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` to skip it
+entirely (e.g. lightweight pure-Python consumers that never touch the
+simulator). If OmniGibson isn't importable, the eager patches are silently
+skipped so non-sim tooling still works.
+
+## Two kinds of patch
+
+**1. Import-time injection.** A `MetaPathFinder` wraps the loader for
+`omnigibson.object_states` so the instant that subpackage finishes importing,
+ManiGuard injects `Dropped`, `Upright` (from
+[`maniguard.object_states`](ltl_safety.md#maniguard-object-states)), and
+`Grasped` (an alias of upstream `IsGrasping`). This must happen *during* `import
+omnigibson` because downstream modules reference those names at module load.
+
+**2. Eager class/function patches**, applied after `import omnigibson` completes:
+
+| Patch | What it does | Why |
+|---|---|---|
+| `_extend_factory_lists` | Adds `Dropped`/`Upright` to the default state set | so any object can carry them |
+| `_patch_grasp_goal` | `GraspGoal` gains a `hold_steps` counter | require a grasp to be held N steps |
+| `_patch_grasp_reward` | `GraspReward` falls back when robot lacks `torso_lift_link` | Franka has no torso link |
+| `_patch_sampling_utils` | tensor dtype/device-safe `draw_debug_markers` | avoid CPU/GPU tensor mismatches |
+| `_patch_franka_longfinger` | long-finger Franka USD/URDF/cuRobo assets + denser AG ray points | accurate assisted-grasp with long fingers |
+| `_patch_create_joint_skip_render` | skips `og.sim.render()` in `create_joint` when all poses are supplied | fixes an AG-path segfault (render invalidates articulation handles inside a physics callback) |
+| `_patch_attachable_for_f_link_objects` | auto-adds `attachable` to objects with an F meta-link | lid↔container coupling needs both sides attachable |
+| `_patch_attached_to_disable_collision` | filters collisions between attached child/parent | stops light containers flying apart on attach |
+| `apply_ag_throttle_from_env` | throttles assisted-grasp to every Nth substep | cuts redundant per-substep AG raycasts in RL |
+| `_register_bddl_predicates` | registers `upright`/`dropped`/`grasped`/`stashed` BDDL predicates | expose ManiGuard states to BDDL |
+
+!!! note "Remaining in-tree edits"
+    Two upstream files still carry local ManiGuard edits on this branch
+    (`OmniGibson/.../utils/bddl_utils.py`, `tasks/grasp_task.py`). Fully
+    extracting them needs upstream PRs or a `sys.modules` override and is tracked
+    follow-up work — they are the reason the `behavior-1k/` submodule shows as
+    modified.
+
+## Environment variables
+
+These keep the `SENTINEL_` prefix for backward compatibility with existing
+scripts and deployments.
+
+| Variable | Effect |
+|---|---|
+| `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` | skip all patches (no sim needed) |
+| `SENTINEL_SKIP_LONGFINGER=1` | skip the long-finger Franka asset patch |
+| `SENTINEL_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps (`10` ≈ once per env step at 300/30) |
+
+## Config helpers (`maniguard/configs/`)
+
+ManiGuard-owned OmniGibson/RL config files that used to live under
+`OmniGibson/omnigibson/configs/`. Resolve one to an absolute path with:
+
+```python
+from maniguard.configs import config_path
+
+cfg_file = config_path("franka_mounted_maniguard.yaml")
+```
+
+`config_path(filename)` simply returns the absolute path of a file shipped
+inside the `maniguard.configs` package — register new pipeline configs here
+rather than hard-coding paths.

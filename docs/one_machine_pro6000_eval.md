@@ -116,7 +116,74 @@ Key fields:
 - `max_steps` — rollout horizon per scene
 - `output_dir` — where results/videos go
 
-## 6. Shutdown
+## 6. Three-Camera pnp-clutter Model
+
+The `pi05-base-pnp-clutter-n10x2-3cam-lora` checkpoint is a LoRA finetune that
+consumes **three real camera views** instead of one third-person + a padded
+wrist slot. The view-to-slot mapping matches the SFT recorder
+(`maniguard/data/curobo/_sft_recorder.py`) and exporter (`maniguard/data/lerobot/lerobot_export.py`):
+
+| sim camera           | observation key            | pi0 slot           |
+| -------------------- | -------------------------- | ------------------ |
+| `cam_left` (ext)     | `observation/image_left`   | `base_0_rgb`       |
+| wrist (panda_hand)   | `observation/wrist_image`  | `left_wrist_0_rgb` |
+| `cam_right` (ext)    | `observation/image_right`  | `right_wrist_0_rgb`|
+
+All three slots are unmasked. The eval client applies the canonical
+wrist-camera patch automatically when `obs_layout: three_cam` is set, so the
+wrist view matches training.
+
+Download the final checkpoint (≈6.3 GB):
+
+```bash
+cd /workspace/ManiGuard
+.venv-or-openpi-python -c "
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id='IDEAS-Lab-Northwestern/pi05-base-pnp-clutter-n10x2-3cam-lora',
+    allow_patterns=['99999/*'],
+    local_dir='vla_models/pi05_pnp_clutter_n10x2_3cam_lora',
+)"
+```
+
+Start the server with the 3-camera config (`pi05_pnp_clutter_3cam_lora`):
+
+```bash
+cd /workspace/ManiGuard/openpi
+
+XLA_PYTHON_CLIENT_PREALLOCATE=false \
+CUDA_VISIBLE_DEVICES=0 \
+.venv/bin/python scripts/serve_policy.py \
+  --port 8000 \
+  policy:checkpoint \
+  --policy.config pi05_pnp_clutter_3cam_lora \
+  --policy.dir /workspace/ManiGuard/vla_models/pi05_pnp_clutter_n10x2_3cam_lora/99999
+```
+
+Run the eval with the 3-camera config (one scene shown; drop `--max-scenes` /
+use `scripts/run_benchmark_all_scenes.sh` for the full set, as in §4):
+
+```bash
+cd /workspace/ManiGuard
+
+PYTHONPATH=/workspace/ManiGuard/openpi/packages/openpi-client/src \
+OMNI_KIT_ACCEPT_EULA=YES \
+OMNIGIBSON_HEADLESS=1 \
+VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json \
+CUDA_VISIBLE_DEVICES=0 \
+/workspace/miniconda3/bin/conda run -n behavior python -m maniguard.eval.benchmark \
+  --config configs/eval/pnp_clutter_3cam.yaml \
+  --max-steps 100 \
+  --max-scenes 1 \
+  --headless \
+  --output-dir /workspace/ManiGuard/outputs/eval_pnp_clutter_3cam_smoke
+```
+
+The norm-stats asset id (`IDEAS-Lab-Northwestern/sentinel-pnp-clutter-n10x2`)
+is baked into the checkpoint under `99999/assets/...`, so serving needs no
+extra dataset download.
+
+## 7. Shutdown
 
 Stop the policy server with `Ctrl-C`. Confirm GPU memory is released:
 

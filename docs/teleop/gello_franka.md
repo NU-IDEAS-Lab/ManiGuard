@@ -50,7 +50,7 @@ Differences from the SO-101 path:
 ```bash
 conda activate behavior
 
-python -m maniguard.teleop.gello_franka_teleop \
+python -m maniguard.data.teleop.gello_franka_teleop \
     --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
     --output-hdf5 outputs/jixing_teleop2_hdf5/table/scene_ep0000.hdf5
 ```
@@ -114,4 +114,4 @@ goal-state shape).
 
 ## Source
 
-`maniguard/teleop/gello_franka_teleop.py`
+`maniguard/data/teleop/gello_franka_teleop.py`

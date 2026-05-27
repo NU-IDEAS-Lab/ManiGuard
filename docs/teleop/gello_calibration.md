@@ -4,7 +4,7 @@ The GELLO leader arm uses Dynamixel servos that report joint position as a
 **multi-turn absolute encoder count**, not a normalized angle. Each time
 servo IDs are re-flashed, a servo is swapped, finger geometry changes, or
 a servo wraps to a different turn count on power-up, the per-joint
-multiples-of-π/2 offsets baked into `maniguard/teleop/gello_franka_teleop.py`
+multiples-of-π/2 offsets baked into `maniguard/data/teleop/gello_franka_teleop.py`
 go stale and must be regenerated. The result is mirroring that drifts,
 jolts at startup, or simply flips the wrong direction.
 
@@ -104,7 +104,7 @@ inline in `GELLO_JOINT_OFFSETS`).
 
 ### 4. Update the constants
 
-Edit `maniguard/teleop/gello_franka_teleop.py` and replace **`GELLO_JOINT_OFFSETS`**
+Edit `maniguard/data/teleop/gello_franka_teleop.py` and replace **`GELLO_JOINT_OFFSETS`**
 (currently around line 83) with the new values.
 
 If you changed `--joint-signs`, also update `GELLO_JOINT_SIGNS`.
@@ -126,7 +126,7 @@ recalibration apart from a "real" hardware change.
 Restart the teleop entry point:
 
 ```bash
-python -m maniguard.teleop.gello_franka_teleop \
+python -m maniguard.data.teleop.gello_franka_teleop \
   --snapshot <some_snapshot.json>
 ```
 
@@ -145,7 +145,7 @@ Two things to check:
 
 | File | What changes |
 |---|---|
-| `maniguard/teleop/gello_franka_teleop.py` | `GELLO_JOINT_OFFSETS`, optionally `GELLO_JOINT_SIGNS`, `GELLO_CALIBRATION_FRANKA_POSE`, calibration-date comment |
+| `maniguard/data/teleop/gello_franka_teleop.py` | `GELLO_JOINT_OFFSETS`, optionally `GELLO_JOINT_SIGNS`, `GELLO_CALIBRATION_FRANKA_POSE`, calibration-date comment |
 
 No other files. The same constants are imported by `gello_grasp_batch.py`
 and any future GELLO entry, so a single edit is enough.
@@ -153,6 +153,6 @@ and any future GELLO entry, so a single edit is enough.
 ## Source
 
 - Calibration script: `behavior-1k/joylo/scripts/gello_get_offset.py`
-- Constants: `maniguard/teleop/gello_franka_teleop.py` (`GELLO_PORT`,
+- Constants: `maniguard/data/teleop/gello_franka_teleop.py` (`GELLO_PORT`,
   `GELLO_JOINT_IDS`, `GELLO_JOINT_OFFSETS`, `GELLO_JOINT_SIGNS`,
   `GELLO_GRIPPER_CONFIG`, `GELLO_CALIBRATION_FRANKA_POSE`)

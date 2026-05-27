@@ -4,54 +4,7 @@
 
 Picks a compatible (source container, food item, destination container) triple from the precomputed compatibility matrix and places source + destination side-by-side on the table with the food settled into the source's cavity. The robot's task is to move the food from source to destination without touching the food directly or letting it fall to the floor.
 
-Compatibility data lives at `maniguard/task_generation/utils/transfer_compatibility.json` and is built offline by `tools/build_transfer_compatibility.py`; runtime inverts it into food→containers indexes.
-
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--scene-model` | (required) | Scene to use; surface auto-discovered. |
-| `--surface-category` / `--surface-model` | None | Restrict the support surface. |
-| `--food-model` | None | Pin a specific food model id (category inferred from compat matrix). |
-| `--source-model` | None | Pin a specific source-container model id. |
-| `--dest-model` | None | Pin a specific destination-container model id. |
-| `--goal-predicate` | None | Override goal predicate, one of `inside` / `ontop` (default `inside`). |
-| `--episodes` | 1 | Episodes per scene. |
-| `--steps` | 5000 | Max LTL rollout steps. |
-| `--seed` | 0 | RNG seed. |
-| `--mount-gap-m` | 0.10 | Robot-mount gap from table edge. |
-| `--strict-gate` / `--no-strict-gate` | strict | Abort on gate failure. |
-| `--save-video` | off | Emit `rollout_ep*.mp4`. |
-| `--video-fps` | 30 | Recording frame rate. |
-| `--dry-run` | off | Generate BDDL + LTL only. |
-
-## Run
-
-Random compatible triple:
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.transfer_scene_pipeline \
-  --scene-model Benevolence_1_int \
-  --episodes 1 --steps 300 --save-video
-```
-
-Pin specific assets and goal predicate:
-
-```bash
-python -m maniguard.task_generation.transfer_scene_pipeline \
-  --scene-model Benevolence_1_int \
-  --food-model qkjrwt --source-model abcdef --dest-model uvwxyz \
-  --goal-predicate ontop --episodes 1 --steps 300 --save-video
-```
-
-## Outputs
-
-- `diagnostics.jsonl` — gate result, LTL outcome, selection (food/source/dest categories + models, goal predicate).
-- `scene_ep1.json` — frozen scene snapshot.
-- `stdout.log` — runtime trace.
-- `rollout_ep*.mp4` — rollout video (if `--save-video`).
+Compatibility data lives under `maniguard/task_generation/utils/food_transfer_pipeline/transfer_compatibility.json` and is built offline by `maniguard.task_generation.utils.food_transfer_pipeline.build_transfer_compatibility`; runtime inverts it into food→containers indexes.
 
 ## Gate checks
 

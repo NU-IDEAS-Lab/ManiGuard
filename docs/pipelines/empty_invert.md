@@ -6,45 +6,6 @@ A liquid-filled container sits on a tabletop. The robot must empty the container
 
 Requires GPU dynamics (FlatCache disabled) for liquid simulation.
 
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--scene-model` | (required) | Scene to use; surface auto-discovered. |
-| `--surface-category` / `--surface-model` | None | Restrict the support surface. |
-| `--container-synset` | None | Override container synset (random from `INVERT_CONTAINER_POOL` if omitted). |
-| `--system-name` | `water` | Liquid particle system name (passed to `Filled` / `ContainedParticles`). |
-| `--episodes` | 1 | Episodes per scene. |
-| `--steps` | 5000 | Max LTL rollout steps. |
-| `--seed` | 0 | RNG seed. |
-| `--mount-gap-m` | 0.10 | Robot-mount gap from table edge. |
-| `--strict-gate` / `--no-strict-gate` | strict | Abort on gate failure. |
-| `--save-video` | off | Emit `rollout_ep*.mp4`. |
-| `--video-fps` | 30 | Recording frame rate. |
-| `--dry-run` | off | Generate BDDL + LTL only. |
-
-## Run
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.empty_invert_pipeline \
-  --scene-model Rs_int --episodes 1 --steps 300 --save-video
-```
-
-Dry-run BDDL + LTL only:
-
-```bash
-python -m maniguard.task_generation.empty_invert_pipeline --dry-run
-```
-
-## Outputs
-
-- `diagnostics.jsonl` — gate result, LTL outcome, `container_synset`, `system_name`.
-- `scene_ep1.json` — frozen scene snapshot.
-- `stdout.log` — runtime trace.
-- `rollout_ep*.mp4` — rollout video (if `--save-video`).
-
 ## Gate checks
 
 Shared base gate: robot/target poses finite, robot base near floor, mount collision-free, target inside reach band.

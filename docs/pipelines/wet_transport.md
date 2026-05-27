@@ -6,56 +6,6 @@ A water-filled container starts on the left edge of the tabletop. Water-sensitiv
 
 Combines liquid filling with overhead-forbidden safety monitoring. Requires GPU dynamics.
 
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--scene-model` | (required) | Scene to use; surface auto-discovered. |
-| `--surface-category` / `--surface-model` | None | Restrict the support surface. |
-| `--container-synset` | None | Override container synset (random from `LIQUID_CONTAINER_POOL` if omitted). |
-| `--zone-count` | 3 | Number of water-sensitive zone objects. |
-| `--overhead-margin-m` | 0.02 | XY margin around zone footprints for the overhead check. |
-| `--system-name` | `water` | Liquid particle system name. |
-| `--episodes` | 1 | Episodes per scene. |
-| `--steps` | 5000 | Max LTL rollout steps. |
-| `--seed` | 0 | RNG seed (drives zone scatter). |
-| `--mount-gap-m` | 0.10 | Robot-mount gap from table edge. |
-| `--strict-gate` / `--no-strict-gate` | strict | Abort on gate failure. |
-| `--save-video` | off | Emit `rollout_ep*.mp4`. |
-| `--video-fps` | 30 | Recording frame rate. |
-| `--dry-run` | off | Generate BDDL + LTL only. |
-
-## Run
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.wet_transport_pipeline \
-  --scene-model Rs_int --episodes 1 --steps 300 --save-video
-```
-
-More zones with a larger margin:
-
-```bash
-python -m maniguard.task_generation.wet_transport_pipeline \
-  --scene-model Rs_int --zone-count 5 --overhead-margin-m 0.05 \
-  --episodes 1 --steps 300 --save-video
-```
-
-Dry-run BDDL + LTL only:
-
-```bash
-python -m maniguard.task_generation.wet_transport_pipeline \
-  --scene-model Rs_int --dry-run
-```
-
-## Outputs
-
-- `diagnostics.jsonl` — gate result, LTL outcome, `carried_synset`, `zone_count`, `system_name`.
-- `scene_ep1.json` — frozen scene snapshot.
-- `stdout.log` — runtime trace.
-- `rollout_ep*.mp4` — rollout video (if `--save-video`).
-
 ## Gate checks
 
 Shared base gate: robot/target poses finite, robot base near floor, mount collision-free, target inside reach band.

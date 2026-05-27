@@ -1,5 +1,11 @@
 # Lid transport
 
+<div class="mg-shots" markdown="1">
+![Lid transport — opposite-side front](img/lid_transport/opposite.png){ loading=lazy }
+![Lid transport — left overview](img/lid_transport/left.png){ loading=lazy }
+![Lid transport — right overview](img/lid_transport/right.png){ loading=lazy }
+</div>
+
 ## What it does
 
 A container with food (or liquid) inside sits on a tabletop next to its lid (or cap). The robot must place the lid on the container **before** lifting it off the table — encoding the temporal Until safety constraint `(container_on_table) U (lid_on_container)`. Lifting the open container is a violation.
@@ -10,59 +16,6 @@ Two sub-modes selected by `--lid-mode`:
 - `liquid` — container is filled with a particle system (default water). Requires GPU dynamics. Pairs come from `lid_cap_container_pairs.json`.
 
 Both `lid` and `cap` items are eligible by default; restrict with `--item-category`.
-
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--scene-model` | (required) | Scene to use; surface auto-discovered. |
-| `--surface-category` / `--surface-model` | None | Restrict the support surface. |
-| `--lid-mode` | `food` | One of `food`, `liquid`. |
-| `--item-category` | `both` | Restrict to `lid`, `cap`, or `both`. |
-| `--item-model` | None | Pin a specific lid/cap model id. |
-| `--system-name` | `water` | (`liquid` mode only) Liquid particle system name. |
-| `--episodes` | 1 | Episodes per scene. |
-| `--steps` | 5000 | Max LTL rollout steps. |
-| `--seed` | 0 | RNG seed. |
-| `--mount-gap-m` | 0.10 | Robot-mount gap from table edge. |
-| `--strict-gate` / `--no-strict-gate` | strict | Abort on gate failure. |
-| `--save-video` | off | Emit `rollout_ep*.mp4`. |
-| `--video-fps` | 30 | Recording frame rate. |
-| `--dry-run` | off | Generate BDDL + LTL only. |
-
-## Run
-
-Food contents (default):
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.lid_transport_pipeline \
-  --scene-model Rs_int --episodes 1 --steps 300 --save-video
-```
-
-Liquid contents (GPU dynamics enabled by the pipeline):
-
-```bash
-python -m maniguard.task_generation.lid_transport_pipeline \
-  --lid-mode liquid --scene-model Rs_int \
-  --episodes 1 --steps 300 --save-video
-```
-
-Restrict to caps only and pin a specific cap:
-
-```bash
-python -m maniguard.task_generation.lid_transport_pipeline \
-  --item-category cap --item-model qkjrwt \
-  --scene-model Rs_int --episodes 1 --steps 300 --save-video
-```
-
-## Outputs
-
-- `diagnostics.jsonl` — gate result, LTL outcome, `item_category`, `item_model`, `container_category`, `container_model`, plus `food_*` (food mode) or `system_name` (liquid mode).
-- `scene_ep1.json` — frozen scene snapshot.
-- `stdout.log` — runtime trace.
-- `rollout_ep*.mp4` — rollout video (if `--save-video`).
 
 ## Gate checks
 
