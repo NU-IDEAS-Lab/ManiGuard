@@ -8,7 +8,7 @@ OG_ROOT = os.path.abspath(os.path.join(TESTS_DIR, ".."))
 if OG_ROOT not in sys.path:
     sys.path.insert(0, OG_ROOT)
 
-from sentinel.utils.ltl_utils import LTLMonitor
+from maniguard.utils.ltl_utils import LTLMonitor
 
 
 spot = pytest.importorskip("spot")

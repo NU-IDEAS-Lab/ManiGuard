@@ -2,7 +2,7 @@
 """Overlay the cuRobo collision-sphere envelope on the active Franka in an empty scene.
 
 Boots OmniGibson with an empty Scene and a single FrankaPanda (long-finger
-bundle when the sentinel patch is active), drives the fingers fully open, then
+bundle when the maniguard patch is active), drives the fingers fully open, then
 spawns one translucent visual sphere per entry in ``collision_spheres`` of the
 robot's active cuRobo YAML. Saves PNGs from four canonical viewpoints.
 
@@ -33,7 +33,7 @@ try:
 except ImportError:
     pass
 
-import sentinel  # noqa: F401  -- installs longfinger / Dropped / Upright patches
+import maniguard  # noqa: F401  -- installs longfinger / Dropped / Upright patches
 from omnigibson.macros import gm
 
 gm.ENABLE_OBJECT_STATES = True
@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-# Shared margins (kept in sync with sentinel/rl/grasps/obb_sampler.py).
+# Shared margins (kept in sync with maniguard/rl/grasps/obb_sampler.py).
 _OBB_S  = 0.002   # shrink margin for empty boxes
 _OBB_E  = 0.002   # expand margin for swept boxes
 _HAND_TO_EEF_OFFSET  = 0.1034   # panda_hand origin → eef_link along +z

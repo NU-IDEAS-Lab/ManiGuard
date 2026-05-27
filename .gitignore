@@ -7,9 +7,8 @@ log_dir/*
 scene_generation/*
 outputs/*
 wandb/
-sentinel/_version.py
-sentinel-lite.egg-info/
-sentinel_lite.egg-info/
+maniguard/_version.py
+maniguard.egg-info/
 behavior-1k/bddl3/bddl/activity_definitions/*
 vla_models/
 RLinf/.venv*/
@@ -27,8 +26,8 @@ GraspGen/
 GraspGenModels/
 
 # stack_pipeline raw raycast (122 MB; reproducible from scan_top_surface.py)
-sentinel/task_generation/utils/stack_pipeline/scan_top_full.json
-sentinel/task_generation/utils/stack_pipeline/__pycache__/
+maniguard/task_generation/utils/stack_pipeline/scan_top_full.json
+maniguard/task_generation/utils/stack_pipeline/__pycache__/
 
 # mkdocs build output (regenerable via `mkdocs build`)
 site/

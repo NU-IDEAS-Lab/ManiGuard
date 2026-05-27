@@ -6,9 +6,9 @@ eval saves per-scene MP4 video.
 
 ## Assumptions
 
-- Repo root: `/workspace/SENTINEL-Lite`
+- Repo root: `/workspace/ManiGuard`
 - Behavior env: `/workspace/miniconda3/bin/conda run -n behavior`
-- OpenPI venv: `/workspace/SENTINEL-Lite/openpi/.venv`
+- OpenPI venv: `/workspace/ManiGuard/openpi/.venv`
 - Vulkan ICD: `/etc/vulkan/icd.d/nvidia_icd.json`
 - Eval config: `configs/eval/sim_table_25k.yaml` (edit paths as needed)
 
@@ -30,7 +30,7 @@ Run this in one shell and leave it running. The checkpoint path and config name
 should match the `checkpoint` and `serve_config_name` fields in your eval YAML.
 
 ```bash
-cd /workspace/SENTINEL-Lite/openpi
+cd /workspace/ManiGuard/openpi
 
 XLA_PYTHON_CLIENT_PREALLOCATE=false \
 CUDA_VISIBLE_DEVICES=0 \
@@ -38,7 +38,7 @@ CUDA_VISIBLE_DEVICES=0 \
   --port 8000 \
   policy:checkpoint \
   --policy.config pi05_clutter_libero_lora \
-  --policy.dir /workspace/SENTINEL-Lite/vla_models/pi05_sim_table_lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/25000
+  --policy.dir /workspace/ManiGuard/vla_models/pi05_sim_table_lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/25000
 ```
 
 Wait for:
@@ -55,19 +55,19 @@ from reserving nearly all VRAM before Isaac starts.
 Run this from the repo root in a second shell:
 
 ```bash
-cd /workspace/SENTINEL-Lite
+cd /workspace/ManiGuard
 
-PYTHONPATH=/workspace/SENTINEL-Lite/openpi/packages/openpi-client/src \
+PYTHONPATH=/workspace/ManiGuard/openpi/packages/openpi-client/src \
 OMNI_KIT_ACCEPT_EULA=YES \
 OMNIGIBSON_HEADLESS=1 \
 VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json \
 CUDA_VISIBLE_DEVICES=0 \
-/workspace/miniconda3/bin/conda run -n behavior python -m sentinel.eval.benchmark \
+/workspace/miniconda3/bin/conda run -n behavior python -m maniguard.eval.benchmark \
   --config configs/eval/sim_table_25k.yaml \
   --max-steps 100 \
   --max-scenes 1 \
   --headless \
-  --output-dir /workspace/SENTINEL-Lite/outputs/eval_smoke_one_scene
+  --output-dir /workspace/ManiGuard/outputs/eval_smoke_one_scene
 ```
 
 Expected output files:
@@ -85,9 +85,9 @@ OmniGibson segfaults on `og.clear()` between scenes, so the batch script runs
 one python process per scene:
 
 ```bash
-cd /workspace/SENTINEL-Lite
+cd /workspace/ManiGuard
 
-PYTHONPATH=/workspace/SENTINEL-Lite/openpi/packages/openpi-client/src \
+PYTHONPATH=/workspace/ManiGuard/openpi/packages/openpi-client/src \
 OMNI_KIT_ACCEPT_EULA=YES \
 OMNIGIBSON_HEADLESS=1 \
 VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json \
@@ -130,7 +130,7 @@ No output means no active compute process is holding VRAM.
 
 - Use `127.0.0.1` for `host` in the YAML because server and eval client are on
   the same machine.
-- Keep `PYTHONPATH=/workspace/SENTINEL-Lite/openpi/packages/openpi-client/src`
+- Keep `PYTHONPATH=/workspace/ManiGuard/openpi/packages/openpi-client/src`
   unless `openpi-client` has been installed into the `behavior` env.
 - The first policy call can be slow because JAX/XLA compiles and autotunes
   kernels. The local client should not use an aggressive websocket ping timeout.

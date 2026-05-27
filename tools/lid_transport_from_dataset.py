@@ -198,13 +198,13 @@ def _lid_goal_world_pose(lid, container, *, clearance_z: float
     in world z.
 
     Returns (pos_xyz, quat_xyzw). Mirrors the transform in
-    ``sentinel.utils.lid_attach.reposition_lid_onto_F`` but does NOT
+    ``maniguard.utils.lid_attach.reposition_lid_onto_F`` but does NOT
     mutate the lid pose. The quat encodes the lid orientation needed
     for snap-attach to fire cleanly — without it the lid lands tilted
     and never makes contact with the container rim.
     """
     import omnigibson.utils.transform_utils as T
-    from sentinel.utils.lid_attach import find_M_link, find_F_link
+    from maniguard.utils.lid_attach import find_M_link, find_F_link
 
     m = find_M_link(lid)
     if m is None:
@@ -342,13 +342,13 @@ def main() -> None:
 
     try:
         from omnigibson.controllers.controller_base import IsGraspingState
-        from sentinel.utils.goal_region import (
+        from maniguard.utils.goal_region import (
             GoalRegionSpec,
             object_intersects_goal_region,
             robot_holds_target,
             target_or_gripper_in_goal,
         )
-        from sentinel.utils.lid_attach import LidSnapper
+        from maniguard.utils.lid_attach import LidSnapper
         from omnigibson.object_states import AttachedTo
 
         # Goal region (always centered on the container per pipeline_common).
@@ -381,7 +381,7 @@ def main() -> None:
             # Reuse the SAME local↔world transforms used to write
             # support_bounds_robot_local_xy in the first place. Those
             # are full-quaternion rotations, not yaw-only.
-            from sentinel.utils.goal_region import (
+            from maniguard.utils.goal_region import (
                 _local_xy_to_world, _world_to_local,
             )
             sb = diagnostics.get("goal_region", {}).get(
@@ -667,7 +667,7 @@ def main() -> None:
             # snapper a few times. Print snap diagnostics at start, midway,
             # and end of the settle window so we can see why it isn't firing
             # without flooding the log.
-            from sentinel.utils.lid_attach import find_M_link, find_F_link
+            from maniguard.utils.lid_attach import find_M_link, find_F_link
             f_link = find_F_link(container,
                                  find_M_link(lid).meta_link_id)
             f_pos_t, _ = f_link.get_position_orientation()

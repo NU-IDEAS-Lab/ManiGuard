@@ -9,7 +9,7 @@ Usage::
 
     python tools/build_graspability_report.py \
         --survey-dir outputs/grasp_datasets/graspgen_full \
-        --csv sentinel/task_generation/utils/franka_graspability_full.csv \
+        --csv maniguard/task_generation/utils/franka_graspability_full.csv \
         --output-dir outputs/grasp_datasets/survey
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ def parse_args():
     p.add_argument("--survey-dir", type=Path,
                    default=Path("outputs/grasp_datasets/graspgen_full"))
     p.add_argument("--csv", type=Path,
-                   default=Path("sentinel/task_generation/utils/franka_graspability_full.csv"))
+                   default=Path("maniguard/task_generation/utils/franka_graspability_full.csv"))
     p.add_argument("--output-dir", type=Path,
                    default=Path("docs"))
     return p.parse_args()

@@ -35,15 +35,15 @@ try:
 except ImportError:
     pass
 
-import sentinel  # noqa: F401 — applies OG patches
+import maniguard  # noqa: F401 — applies OG patches
 from omnigibson.macros import gm
 
 gm.ENABLE_OBJECT_STATES = True
 gm.ENABLE_TRANSITION_RULES = False
 
 
-# Match sentinel/rl/grasps/obb_sampler.py
-from sentinel.rl.grasps.obb_sampler import (  # noqa: E402
+# Match maniguard/rl/grasps/obb_sampler.py
+from maniguard.rl.grasps.obb_sampler import (  # noqa: E402
     _FRANKA_MAX_OPENING,
     _FRANKA_FINGER_LEN,
     _FRANKA_FINGER_BREAD,
@@ -161,8 +161,8 @@ def main() -> None:
     from omnigibson.objects import DatasetObject
     from omnigibson.objects.primitive_object import PrimitiveObject
 
-    from sentinel.rl.grasps.mesh import mesh_from_og_object
-    from sentinel.rl.grasps.obb_sampler import OBBConfig, sample_obb_assisted_grasps
+    from maniguard.rl.grasps.mesh import mesh_from_og_object
+    from maniguard.rl.grasps.obb_sampler import OBBConfig, sample_obb_assisted_grasps
 
     cfg = {
         "scene": {"type": "Scene"},

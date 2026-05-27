@@ -27,7 +27,7 @@ Differences from the SO-101 path:
 | Hardware | GELLO leader (7 Dynamixel servos, IDs 1-7) + USB-FTDI cable |
 | Calibration | per-joint trim constants in `gello_franka_teleop.py` (`GELLO_JOINT_OFFSETS`, `GELLO_JOINT_SIGNS`); regenerate with `behavior-1k/joylo/scripts/gello_get_offset.py` after re-flashing IDs / replacing servos / changing finger geometry. **See [GELLO calibration](gello_calibration.md) for the full procedure.** |
 | `joylo` | The `gello.robots.dynamixel` import resolves to `behavior-1k/joylo/` (added to `sys.path` automatically). `joylo` is intentionally not pip-installed — its `setup.py` pulls in unrelated deps (telemoma / pyglm / joycon / pybullet) |
-| Snapshot | `scene_ep*.json` produced by any `sentinel.task_generation.*_pipeline` run |
+| Snapshot | `scene_ep*.json` produced by any `maniguard.task_generation.*_pipeline` run |
 
 ## CLI flags
 
@@ -50,7 +50,7 @@ Differences from the SO-101 path:
 ```bash
 conda activate behavior
 
-python -m sentinel.teleop.gello_franka_teleop \
+python -m maniguard.teleop.gello_franka_teleop \
     --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
     --output-hdf5 outputs/jixing_teleop2_hdf5/table/scene_ep0000.hdf5
 ```
@@ -114,4 +114,4 @@ goal-state shape).
 
 ## Source
 
-`sentinel/teleop/gello_franka_teleop.py`
+`maniguard/teleop/gello_franka_teleop.py`

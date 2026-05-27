@@ -36,7 +36,7 @@ def get_asset_root(explicit_root: Path | None) -> Path:
         return explicit_root.resolve()
     repo_root = Path(__file__).resolve().parents[1]
     candidates = [
-        repo_root.parent / "SENTINEL-Lite-data" / "datasets" / "omnigibson-robot-assets",
+        repo_root.parent / "ManiGuard-data" / "datasets" / "omnigibson-robot-assets",
         repo_root / "datasets" / "omnigibson-robot-assets",
     ]
     for candidate in candidates:

@@ -1,6 +1,6 @@
-# SENTINEL-Lite
+# ManiGuard
 
-SENTINEL-Lite is a Python package built on top of [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K)
+ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K)
 that adds **LTL (Linear Temporal Logic) safety checking**, **task-generation pipelines**,
 and **VLA policy evaluation** for robotic manipulation in simulated household environments.
 
@@ -29,7 +29,7 @@ It integrates:
   Per-object grasp eval feeding the RL reset dataset.
 
 - :material-school: **[RL training](rl_training.md)**
-  PPO grasp training on top of `SentinelEnv`.
+  PPO grasp training on top of `ManiGuardEnv`.
 
 - :material-broadcast: **[Evaluation](one_machine_pro6000_eval.md)**
   Single-machine and two-machine eval setups.
@@ -40,10 +40,10 @@ It integrates:
 
 ```
 .
-├── sentinel/            # Sentinel package (LTL, task-gen, envs, rl, serve, teleop)
+├── maniguard/            # ManiGuard package (LTL, task-gen, envs, rl, serve, teleop)
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
 ├── RLinf/               # submodule → RLinf/RLinf
-├── tests/               # sentinel-side pytest suites
+├── tests/               # maniguard-side pytest suites
 ├── configs/             # RL / SFT training configs
 ├── scripts/             # shell entrypoints
 ├── tools/               # one-off utilities
@@ -51,8 +51,8 @@ It integrates:
 ```
 
 **Upstream boundary:** anything under `behavior-1k/` or `RLinf/` is upstream.
-Do not modify those trees — patch behaviors via `sentinel._omnigibson_patches`,
-subclass via `sentinel.tasks.*`, or extend via `sentinel.rlinf.patches`.
+Do not modify those trees — patch behaviors via `maniguard._omnigibson_patches`,
+subclass via `maniguard.tasks.*`, or extend via `maniguard.rlinf.patches`.
 
 ## Building these docs locally
 

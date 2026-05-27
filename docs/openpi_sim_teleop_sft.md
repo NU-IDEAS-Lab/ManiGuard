@@ -16,7 +16,7 @@ matches our data 1:1.
 
 ## 1. Overview
 
-**Input**: rendered HDF5 from `sentinel.data.playback` over OmniGibson
+**Input**: rendered HDF5 from `maniguard.data.playback` over OmniGibson
 teleop, with the standard OmniGibson schema:
 
 ```
@@ -26,8 +26,8 @@ data/demo_0/obs/state        (N+1, 8)            f32    [eef_pos(3), axisangle(3
 data/demo_0/action           (N,   7)            f32    [Δpos(3), Δrot(3), gripper_sign(1)]
 ```
 
-**Output**: LoRA-finetuned pi0.5 ckpt evaluable in our SentinelEnv via
-`sentinel/serve/openpi_native.py`.
+**Output**: LoRA-finetuned pi0.5 ckpt evaluable in our ManiGuardEnv via
+`maniguard/serve/openpi_native.py`.
 
 **Pipeline**:
 ```
@@ -41,7 +41,7 @@ cloud: pull dataset + pi05_base ckpt from GCS  ->  openpi train.py  ->  ckpt
 ## 2. Why LIBERO schema (not DROID)
 
 `LeRobotLiberoDataConfig`'s repack expects exactly the LeRobot column
-names our `sentinel/data/lerobot_export.py` already writes:
+names our `maniguard/data/lerobot_export.py` already writes:
 
 | LIBERO key | Our column | Match? |
 |---|---|---|
@@ -59,7 +59,7 @@ moot — `pi05_base` has not seen any robot-specific state, so any
 
 **DROID schema would require joint_position(7) + joint_velocity(7)** as
 new LeRobot columns. We don't record these in sim playback, and adding
-them needs a `sentinel/data/playback.py` modification + 39-episode
+them needs a `maniguard/data/playback.py` modification + 39-episode
 re-playback (~3-4 h on a 4080). Not worth it unless you want to do
 sim+real DROID-format mixed training.
 
@@ -93,7 +93,7 @@ actions. To get clean obs (image, wrist_image, 8D state), run:
 
 ```bash
 for f in outputs/jixing_teleop_hdf5/scene_ep*.hdf5; do
-  conda run -n behavior python -m sentinel.data.playback \
+  conda run -n behavior python -m maniguard.data.playback \
     --input "$f" \
     --output "outputs/teleop_rendered_<task>/$(basename $f)" \
     --record
@@ -106,12 +106,12 @@ task → `outputs/teleop_rendered_mug_into_bowl/` (39 eps).
 ### 4.3 Stage 2: HDF5 → LeRobot v2.1 + push to HF
 
 ```bash
-.venv-lerobot/bin/python -m sentinel.data.lerobot_export \
+.venv-lerobot/bin/python -m maniguard.data.lerobot_export \
   --input-dir outputs/teleop_rendered_<task> \
-  --repo-id sentinel/<task>_libero \
+  --repo-id maniguard/<task>_libero \
   --prompt "<natural-language instruction>" \
   --fps 30 \
-  --root outputs/lerobot_datasets/sentinel/<task>_libero \
+  --root outputs/lerobot_datasets/maniguard/<task>_libero \
   --push-to-hub IDEAS-Lab-Northwestern/<hf_repo_name> \
   --hub-private
 ```
@@ -131,7 +131,7 @@ streams).
 .venv-lerobot/bin/python -c "
 import json, pyarrow.parquet as pq
 from pathlib import Path
-root = Path('outputs/lerobot_datasets/sentinel/<task>_libero')
+root = Path('outputs/lerobot_datasets/maniguard/<task>_libero')
 info = json.loads((root/'meta/info.json').read_text())
 assert info['codebase_version'] == 'v2.1', info['codebase_version']
 print(f'eps={info[\"total_episodes\"]}  frames={info[\"total_frames\"]}  fps={info[\"fps\"]}')
@@ -271,17 +271,17 @@ model-card template.
 
 ### 8.2 Serve in sim eval
 
-Our `sentinel/serve/openpi_native.py` auto-detects JAX vs PyTorch
+Our `maniguard/serve/openpi_native.py` auto-detects JAX vs PyTorch
 ckpts; openpi-trained ckpts are JAX (orbax `params/` subdir, no
 `model.safetensors`):
 
 ```bash
-sudo RLinf/.venv/bin/python sentinel/serve/openpi_native.py \
+sudo RLinf/.venv/bin/python maniguard/serve/openpi_native.py \
   --config pi05_<task>_libero_lora \
   --checkpoint <local_path>/<step>
 ```
 
-Then point your SentinelEnv eval client at `localhost:8000`. The same
+Then point your ManiGuardEnv eval client at `localhost:8000`. The same
 serve path is used for real-teleop ckpts — backend selection is
 automatic.
 
@@ -337,8 +337,8 @@ automatic.
 
 ## 11. File pointers
 
-- `sentinel/data/playback.py` — Stage 1: re-renders OmniGibson env from raw teleop, emits image/wrist_image/state HDF5
-- `sentinel/data/lerobot_export.py` — Stage 2: HDF5 → LeRobot v2.1 (LIBERO-compatible columns), with `--push-to-hub`
-- `sentinel/data/real_teleop_to_droid.py` — sister script for real data → DROID schema (different path)
-- `sentinel/serve/openpi_native.py` — JAX/PyTorch-auto-detect serve, used for both sim and real evals
+- `maniguard/data/playback.py` — Stage 1: re-renders OmniGibson env from raw teleop, emits image/wrist_image/state HDF5
+- `maniguard/data/lerobot_export.py` — Stage 2: HDF5 → LeRobot v2.1 (LIBERO-compatible columns), with `--push-to-hub`
+- `maniguard/data/real_teleop_to_droid.py` — sister script for real data → DROID schema (different path)
+- `maniguard/serve/openpi_native.py` — JAX/PyTorch-auto-detect serve, used for both sim and real evals
 - `docs/openpi_real_teleop_sft.md` — companion doc for the real-data DROID path

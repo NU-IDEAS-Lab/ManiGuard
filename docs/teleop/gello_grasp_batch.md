@@ -15,7 +15,7 @@ Resume is automatic: rows whose `.pt` already exists in `--output-dir`
 are skipped (override with `--overwrite`). Output `.pt` format is
 bit-compatible with the survey-pipeline writer (`save_grasp_dataset`)
 and consumed downstream by
-`sentinel.rl.grasps.reset.GraspDatasetResetter`.
+`maniguard.rl.grasps.reset.GraspDatasetResetter`.
 
 ## Prerequisites
 
@@ -23,14 +23,14 @@ and consumed downstream by
 |---|---|
 | Python env | `behavior` conda env (Python 3.10) |
 | Hardware | GELLO leader (same setup as the [GELLO → Franka teleop](gello_franka.md) page) |
-| CSV | `sentinel/task_generation/utils/franka_graspability.csv` (or pass `--targets cat:model …`) |
+| CSV | `maniguard/task_generation/utils/franka_graspability.csv` (or pass `--targets cat:model …`) |
 | Optional | `gm.DEBUG=True` (`--debug-ag`) renders AG raycast endpoints as small green spheres so you can see whether the rays land inside the object when the gripper closes |
 
 ## CLI flags
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--csv` | `sentinel/task_generation/utils/franka_graspability.csv` | Source of (category, model) rows. |
+| `--csv` | `maniguard/task_generation/utils/franka_graspability.csv` | Source of (category, model) rows. |
 | `--output-dir` | `outputs/grasp_datasets/teleop/tensors` | Where `grasps_{cat}_{model}.pt` files land. |
 | `--limit` | `50` | Cap on pending objects (0 = no cap). |
 | `--exclude-statuses` | `too_large` | Comma-separated CSV statuses to skip. |
@@ -54,8 +54,8 @@ and consumed downstream by
 ```bash
 conda activate behavior
 
-python -m sentinel.teleop.gello_grasp_batch \
-    --csv sentinel/task_generation/utils/franka_graspability.csv \
+python -m maniguard.teleop.gello_grasp_batch \
+    --csv maniguard/task_generation/utils/franka_graspability.csv \
     --limit 50 \
     --output-dir outputs/grasp_datasets/teleop/tensors
 ```
@@ -63,7 +63,7 @@ python -m sentinel.teleop.gello_grasp_batch \
 Run on an explicit list:
 
 ```bash
-python -m sentinel.teleop.gello_grasp_batch \
+python -m maniguard.teleop.gello_grasp_batch \
     --targets bowl_abc1234 mug_xyz5678 \
     --output-dir outputs/grasp_datasets/teleop/tensors
 ```
@@ -128,8 +128,8 @@ If OG's articulation view goes null mid-run (a known OG bug —
 
 | Artifact | Notes |
 |---|---|
-| `grasps_{category}_{model}.pt` | Per-object dict list with `rel_position`, `rel_orientation_xyzw`, `gripper_qpos`, `arm_joint_pos`, `approach_traj`. Format identical to `sentinel.rl.grasps.collector.save_grasp_dataset`'s output, so they drop directly into `GraspDatasetResetter`. |
+| `grasps_{category}_{model}.pt` | Per-object dict list with `rel_position`, `rel_orientation_xyzw`, `gripper_qpos`, `arm_joint_pos`, `approach_traj`. Format identical to `maniguard.rl.grasps.collector.save_grasp_dataset`'s output, so they drop directly into `GraspDatasetResetter`. |
 
 ## Source
 
-`sentinel/teleop/gello_grasp_batch.py`
+`maniguard/teleop/gello_grasp_batch.py`

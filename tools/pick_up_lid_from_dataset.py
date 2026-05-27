@@ -177,13 +177,13 @@ def _run_one_variant(
     if args.record_sft:
         from tools._sft_recorder import SFTRecorder
         if lerobot_dataset is not None:
-            from sentinel.data.lerobot_writer import (
+            from maniguard.data.lerobot_writer import (
                 LeRobotEpisodeWriter, episode_prompt,
             )
             lerobot_writer = LeRobotEpisodeWriter(lerobot_dataset)
             # Templated with {container_clean} so the prompt mentions the
             # actual container the agent is closing.
-            from sentinel.data.lerobot_writer import clean_target
+            from maniguard.data.lerobot_writer import clean_target
             prompt = args.lerobot_prompt_template.format(
                 target=lid.name, target_clean=clean_target(lid.name),
                 container=container.name,
@@ -479,7 +479,7 @@ def main() -> None:
     if args.lerobot_repo_id:
         if not args.record_sft:
             raise SystemExit("--lerobot-repo-id requires --record-sft")
-        from sentinel.data.lerobot_writer import create_or_open_dataset
+        from maniguard.data.lerobot_writer import create_or_open_dataset
         lerobot_dataset = create_or_open_dataset(
             repo_id=args.lerobot_repo_id, root=args.lerobot_root,
             fps=args.video_fps, resolution=args.record_resolution,
@@ -493,7 +493,7 @@ def main() -> None:
     ltl_safety_spec = diagnostics.get("ltl_safety") or {}
     if args.record_sft and ltl_safety_spec:
         try:
-            from sentinel.utils.safety_monitor import TaskLTLMonitor
+            from maniguard.utils.safety_monitor import TaskLTLMonitor
             cat_to_synset = {
                 spec["category"]: spec["synset"].split(".")[0]
                 for spec in diagnostics.get("selection", {}).get("spawn_specs", [])
@@ -544,7 +544,7 @@ def main() -> None:
         _place_lid_at_edge(env, lid, container, diagnostics, args)
 
     # LidSnapper — discovers (lid, container) pair via meta-links.
-    from sentinel.utils.lid_attach import LidSnapper
+    from maniguard.utils.lid_attach import LidSnapper
     snapper = LidSnapper(env)
 
     # cuRobo primitives.
@@ -623,7 +623,7 @@ def main() -> None:
               f"and replaying its approach trajectory", flush=True)
         og.sim.load_state(pre_phase_a_state)
         og.sim.step()
-        from sentinel.rl.grasps.collector import (
+        from maniguard.rl.grasps.collector import (
             run_grasp_attempt, GraspCollectorConfig,
         )
         _arm = robot.default_arm
@@ -770,7 +770,7 @@ def _place_lid_at_edge(env, lid, container, diagnostics, args) -> None:
     """
     import torch as th
     import omnigibson as _og
-    from sentinel.utils.goal_region import _local_xy_to_world, _world_to_local
+    from maniguard.utils.goal_region import _local_xy_to_world, _world_to_local
 
     sb = diagnostics.get("goal_region", {}).get("support_bounds_robot_local_xy")
     if sb is None:

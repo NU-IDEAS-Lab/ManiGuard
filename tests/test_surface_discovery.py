@@ -2,7 +2,7 @@
 
 import pytest
 
-from sentinel.utils.surface_discovery import (
+from maniguard.utils.surface_discovery import (
     SurfaceAnalysis,
     SurfaceCandidate,
     SurfaceObstacle,

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Auto-restart wrapper for sentinel.rl.grasps.survey_graspability.
+# Auto-restart wrapper for maniguard.rl.grasps.survey_graspability.
 #
 # Why: the survey runs OmniGibson + cuRobo for 5+ hours, and Isaac Sim
 # accumulates state that occasionally triggers a PhysX hang or per-IK
@@ -30,7 +30,7 @@ mkdir -p "$(dirname "$CSV")"
 kill_survey() {
     # The conda-run wrapper doesn't always propagate signals; kill anything
     # whose cmdline matches the survey module.
-    pkill -9 -f "sentinel.rl.grasps.survey_graspability" 2>/dev/null || true
+    pkill -9 -f "maniguard.rl.grasps.survey_graspability" 2>/dev/null || true
     sleep 1
 }
 
@@ -47,13 +47,13 @@ while true; do
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 \
         conda run -n behavior --no-capture-output \
-            python -u -m sentinel.rl.grasps.survey_graspability \
+            python -u -m maniguard.rl.grasps.survey_graspability \
                 --output "$CSV" >> "$LOG" 2>&1 &
     BG_PID=$!
 
     no_growth=0
     progress_count=$last_count
-    while kill -0 $BG_PID 2>/dev/null || pgrep -f "sentinel.rl.grasps.survey_graspability" >/dev/null; do
+    while kill -0 $BG_PID 2>/dev/null || pgrep -f "maniguard.rl.grasps.survey_graspability" >/dev/null; do
         sleep "$POLL_INTERVAL"
         cur=$(wc -l < "$CSV" 2>/dev/null || echo 0)
 

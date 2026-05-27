@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Collect Franka grasps for a target object in the actual benchmark scene.
 
-Mirrors ``sentinel.rl.grasps.render_grasps`` but loads the trained scene
+Mirrors ``maniguard.rl.grasps.render_grasps`` but loads the trained scene
 (robot + desk + distractors + target at their training poses) instead of
 the empty floating-object setup. The resulting ``arm_joint_pos`` values
 are valid for the training scene's robot+object geometry, so cached-mode
 ``GraspDatasetResetter`` actually places the gripper on the target.
 
 Usage:
-    PYTHONPATH=/data/Projects/SENTINEL-Lite \\
+    PYTHONPATH=/data/Projects/ManiGuard \\
     OMNI_KIT_ACCEPT_EULA=yes \\
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \\
     CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 \\
@@ -32,8 +32,8 @@ from pathlib import Path
 
 import numpy as np
 
-# Apply sentinel patches (longfinger asset bundle, AG state aliases, etc.)
-import sentinel  # noqa: F401
+# Apply maniguard patches (longfinger asset bundle, AG state aliases, etc.)
+import maniguard  # noqa: F401
 
 
 def parse_args():
@@ -140,14 +140,14 @@ def main():
     target_obj.root_link.set_angular_velocity(th.zeros(3))
     target_obj.root_link.disable_gravity()
 
-    from sentinel.rl.grasps.collector import (
+    from maniguard.rl.grasps.collector import (
         GraspCollectorConfig,
         _phase1_step,
         collect_valid_grasps,
         save_grasp_dataset,
     )
-    from sentinel.rl.grasps.graspgen_sampler import sample_graspgen_grasps
-    from sentinel.rl.grasps.mesh import mesh_from_og_object
+    from maniguard.rl.grasps.graspgen_sampler import sample_graspgen_grasps
+    from maniguard.rl.grasps.mesh import mesh_from_og_object
     from omnigibson.action_primitives.starter_semantic_action_primitives import (
         StarterSemanticActionPrimitives,
     )

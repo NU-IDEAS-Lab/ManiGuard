@@ -1,4 +1,4 @@
-"""Unit tests for sentinel.eval.goal_checker.
+"""Unit tests for maniguard.eval.goal_checker.
 
 Tests the parsing and evaluation logic without OmniGibson — predicates
 are mocked so the test suite runs in any Python env (no GPU / Isaac Sim).
@@ -7,14 +7,14 @@ are mocked so the test suite runs in any Python env (no GPU / Isaac Sim).
 import pytest
 from unittest.mock import MagicMock, patch
 
-from sentinel.eval.goal_checker import (
+from maniguard.eval.goal_checker import (
     GoalChecker,
     GoalRegionChecker,
     build_goal_checker,
     _collect_names,
     _eval_node,
 )
-from sentinel.utils.goal_region import GoalRegionSpec
+from maniguard.utils.goal_region import GoalRegionSpec
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +97,7 @@ class TestEvalNode:
     def _mock_objects(self, names):
         return {n: _make_mock_obj(n) for n in names}
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_flat_list_all_true(self, mock_pred):
         mock_pred.return_value = True
         objects = self._mock_objects(["a", "b", "c"])
@@ -109,7 +109,7 @@ class TestEvalNode:
         assert ok is True
         assert all(detail.values())
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_flat_list_one_false(self, mock_pred):
         mock_pred.side_effect = [True, False]
         objects = self._mock_objects(["a", "b", "c"])
@@ -120,7 +120,7 @@ class TestEvalNode:
         ok, detail = _eval_node(node, objects, None)
         assert ok is False
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_compound_or(self, mock_pred):
         mock_pred.side_effect = [False, True]
         objects = self._mock_objects(["a", "b", "c"])
@@ -134,7 +134,7 @@ class TestEvalNode:
         ok, detail = _eval_node(node, objects, None)
         assert ok is True
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_compound_not_true(self, mock_pred):
         mock_pred.return_value = False  # predicate is false → NOT is true
         objects = self._mock_objects(["a", "b"])
@@ -145,7 +145,7 @@ class TestEvalNode:
         ok, detail = _eval_node(node, objects, None)
         assert ok is True
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_compound_not_false(self, mock_pred):
         mock_pred.return_value = True  # predicate is true → NOT is false
         objects = self._mock_objects(["a", "b"])
@@ -156,7 +156,7 @@ class TestEvalNode:
         ok, detail = _eval_node(node, objects, None)
         assert ok is False
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_nested_and_not(self, mock_pred):
         # (inside a b) AND NOT(touching c d)
         mock_pred.side_effect = [True, False]  # inside=True, touching=False
@@ -259,7 +259,7 @@ class TestGoalCheckerIntegration:
         env.scene.object_registry = object_registry
         return env, objects
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_check_success(self, mock_pred):
         mock_pred.return_value = True
         env, _ = self._mock_env(["potato_1", "pot_2"])
@@ -270,7 +270,7 @@ class TestGoalCheckerIntegration:
         ok, detail = gc.check(env)
         assert ok is True
 
-    @patch("sentinel.eval.goal_checker._eval_predicate")
+    @patch("maniguard.eval.goal_checker._eval_predicate")
     def test_check_failure(self, mock_pred):
         mock_pred.return_value = False
         env, _ = self._mock_env(["potato_1", "pot_2"])
@@ -283,8 +283,8 @@ class TestGoalCheckerIntegration:
 
 
 class TestGoalRegionChecker:
-    @patch("sentinel.eval.goal_checker.object_intersects_goal_region")
-    @patch("sentinel.eval.goal_checker.robot_holds_target")
+    @patch("maniguard.eval.goal_checker.object_intersects_goal_region")
+    @patch("maniguard.eval.goal_checker.robot_holds_target")
     def test_held_intersection_success(self, mock_holds, mock_intersects):
         mock_holds.return_value = True
         mock_intersects.return_value = True

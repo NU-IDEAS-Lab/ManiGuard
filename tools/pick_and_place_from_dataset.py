@@ -181,13 +181,13 @@ def _build_env(task_dir: Path, episode: int, *, no_distractors: bool = False,
         _load_diagnostics_row,
         _load_scene_info,
     )
-    from sentinel.envs.frozen_task_runtime import (
+    from maniguard.envs.frozen_task_runtime import (
         build_env_config,
         configure_review_sensors,
         extract_scene_robot_setup,
         position_diagnostics_cameras,
     )
-    from sentinel.utils.goal_region import GoalRegionSpec, spawn_goal_region_marker
+    from maniguard.utils.goal_region import GoalRegionSpec, spawn_goal_region_marker
 
     diagnostics = _load_diagnostics_row(task_dir, episode)
     scene_info = _load_scene_info(task_dir, episode)
@@ -330,8 +330,8 @@ def _gather_obstacle_surf_local(env, target_obj,
     and concatenated. Returns an empty (0, 3) array if no obstacles
     have an extractable mesh.
     """
-    from sentinel.rl.grasps.collector import _pose_to_mat
-    from sentinel.rl.grasps.mesh import mesh_from_og_object
+    from maniguard.rl.grasps.collector import _pose_to_mat
+    from maniguard.rl.grasps.mesh import mesh_from_og_object
 
     # Target world pose → inverse transform to take world points into
     # target-local frame.
@@ -411,7 +411,7 @@ def _grasp_candidate_from_sft(sft_root, task_dir, env, target_obj,
     import numpy as np
     import torch as th
     import omnigibson.utils.transform_utils as T
-    from sentinel.rl.grasps.collector import _pose_to_mat
+    from maniguard.rl.grasps.collector import _pose_to_mat
 
     task_name = Path(task_dir).parent.name  # 'task_NNNN'
     pattern = str(Path(sft_root) / f"{task_name}__seed_*" / "rollout.hdf5")
@@ -500,12 +500,12 @@ def _phase_a_pick(env, og, primitives, target_obj, args, deadline: float):
     """
     import torch as th
 
-    from sentinel.rl.grasps.collector import (
+    from maniguard.rl.grasps.collector import (
         GraspCollectorConfig,
         collect_valid_grasps,
     )
-    from sentinel.rl.grasps.mesh import mesh_from_og_object
-    from sentinel.rl.grasps.obb_sampler import (
+    from maniguard.rl.grasps.mesh import mesh_from_og_object
+    from maniguard.rl.grasps.obb_sampler import (
         OBBConfig, sample_obb_assisted_grasps,
     )
 
@@ -806,7 +806,7 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
     import torch as th
     from omnigibson.action_primitives.curobo import CuRoboEmbodimentSelection
 
-    from sentinel.rl.grasps.collector import (
+    from maniguard.rl.grasps.collector import (
         _patch_curobo_mimic_lookup,
         _pose_to_mat,
         _mat_to_pose,
@@ -897,7 +897,7 @@ def _plan_transport(primitives, robot, target_obj, goal_target_pos_world,
     # every plan. Phase A solves the same problem via the same toggle
     # during Stage-2 linear servo. AG holds the target during transport,
     # so finger pose is locked relative to the gripper anyway.
-    from sentinel.rl.grasps.collector import _FRANKA_GRIPPER_COLLISION_LINKS
+    from maniguard.rl.grasps.collector import _FRANKA_GRIPPER_COLLISION_LINKS
     from omnigibson.action_primitives.curobo import CuRoboEmbodimentSelection
     raw_mg = motion_gen.mg[CuRoboEmbodimentSelection.DEFAULT]
 
@@ -1012,7 +1012,7 @@ def _render_planned_trajectory(env, og, robot, target_obj, seg_pairs, *,
     """
     import torch as th
     from omnigibson.objects.primitive_object import PrimitiveObject
-    from sentinel.rl.grasps.obb_sampler import (
+    from maniguard.rl.grasps.obb_sampler import (
         _FRANKA_MAX_OPENING,
         _FRANKA_FINGER_LEN,
         _FRANKA_FINGER_BREAD,
@@ -1116,12 +1116,12 @@ def _render_planned_trajectory(env, og, robot, target_obj, seg_pairs, *,
 
 
 def _pose_to_mat_local(pos, quat_xyzw):
-    from sentinel.rl.grasps.collector import _pose_to_mat
+    from maniguard.rl.grasps.collector import _pose_to_mat
     return _pose_to_mat(pos, quat_xyzw)
 
 
 def _mat_to_pose_local(T):
-    from sentinel.rl.grasps.collector import _mat_to_pose
+    from maniguard.rl.grasps.collector import _mat_to_pose
     return _mat_to_pose(T)
 
 
@@ -1232,7 +1232,7 @@ def _replay_holding(env, og, robot, target_obj, arm_joint_traj, *,
                     and new_stage != early_exit_after):
                 prev_labels = [seg_starts[k] for k in seg_starts if k < wi]
                 if early_exit_after in prev_labels:
-                    from sentinel.utils.goal_region import (
+                    from maniguard.utils.goal_region import (
                         object_intersects_goal_region,
                         target_or_gripper_in_goal,
                     )
@@ -1316,7 +1316,7 @@ def _record_phase_a_replay(env, og, robot, target_obj, *,
     """
     import time as _time
     import torch as th
-    from sentinel.rl.grasps.collector import (
+    from maniguard.rl.grasps.collector import (
         run_grasp_attempt, GraspCollectorConfig,
     )
 
@@ -1390,8 +1390,8 @@ def _run_one_variant(
     """
     import torch as th
 
-    from sentinel.envs.frozen_task_runtime import ReviewVideoRecorder
-    from sentinel.utils.goal_region import (
+    from maniguard.envs.frozen_task_runtime import ReviewVideoRecorder
+    from maniguard.utils.goal_region import (
         object_intersects_goal_region,
         robot_holds_target,
         target_or_gripper_in_goal,
@@ -1402,7 +1402,7 @@ def _run_one_variant(
     if args.record_sft:
         from tools._sft_recorder import SFTRecorder
         if lerobot_dataset is not None:
-            from sentinel.data.lerobot_writer import (
+            from maniguard.data.lerobot_writer import (
                 LeRobotEpisodeWriter, episode_prompt,
             )
             lerobot_writer = LeRobotEpisodeWriter(lerobot_dataset)
@@ -1667,7 +1667,7 @@ def main() -> None:
         if not args.record_sft:
             raise SystemExit("--lerobot-repo-id requires --record-sft "
                              "(LeRobot needs the SFT recorder's frames).")
-        from sentinel.data.lerobot_writer import create_or_open_dataset
+        from maniguard.data.lerobot_writer import create_or_open_dataset
         lerobot_dataset = create_or_open_dataset(
             repo_id=args.lerobot_repo_id, root=args.lerobot_root,
             fps=args.video_fps, resolution=args.record_resolution,
@@ -1697,7 +1697,7 @@ def main() -> None:
     ltl_safety_spec = diagnostics.get("ltl_safety") or {}
     if args.record_sft and ltl_safety_spec:
         try:
-            from sentinel.utils.safety_monitor import TaskLTLMonitor
+            from maniguard.utils.safety_monitor import TaskLTLMonitor
             # The pnp pipeline runs against a non-BDDL task (no object_scope),
             # so the proposition resolver needs an explicit active-object
             # dict. Build it from diagnostics.selection.spawn_specs by
@@ -1732,7 +1732,7 @@ def main() -> None:
                   flush=True)
             ltl_monitor = None
     try:
-        from sentinel.utils.goal_region import GoalRegionSpec
+        from maniguard.utils.goal_region import GoalRegionSpec
         gr = diagnostics["goal_region"]
         goal_spec = GoalRegionSpec.from_json(gr)
         target_name = goal_spec.target_name

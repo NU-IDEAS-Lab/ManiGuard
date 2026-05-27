@@ -4,24 +4,24 @@
 
 ```
 .
-├── sentinel/            # Sentinel Python package (all sentinel-owned code)
+├── maniguard/            # ManiGuard Python package (all maniguard-owned code)
 │   ├── object_states/   #   Dropped, Upright
 │   ├── utils/           #   ltl_utils, safety_monitor, bddl_generator, …
 │   ├── task_generation/ #   clutter / stack / transfer / cabinet / … pipelines
-│   ├── tasks/           #   SentinelGraspTask
-│   ├── envs/            #   SentinelEnv
+│   ├── tasks/           #   ManiGuardGraspTask
+│   ├── envs/            #   ManiGuardEnv
 │   ├── eval/            #   benchmark runner, websocket eval client
 │   ├── serve/           #   pi0.5 / GR00T / websocket policy servers
 │   ├── rl/              #   SB3 PPO grasp training
 │   ├── rlinf/           #   RLinf enum extension + env dispatch patches
 │   ├── openpi/          #   OpenPI dataconfig + policy adapters
 │   ├── teleop/          #   SO-101 → Franka teleop
-│   ├── configs/         #   franka_mounted_sentinel.yaml + helpers
+│   ├── configs/         #   franka_mounted_maniguard.yaml + helpers
 │   └── _omnigibson_patches.py   # runtime OmniGibson patches
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
 ├── RLinf/               # submodule → RLinf/RLinf
 ├── vla_models/          # VLA checkpoints (gitignored)
-├── tests/               # sentinel-side pytest suites
+├── tests/               # maniguard-side pytest suites
 ├── configs/             # RL / SFT training configs
 ├── scripts/             # shell entrypoints
 ├── tools/               # one-off utilities
@@ -34,9 +34,9 @@
 Anything under `behavior-1k/` or `RLinf/` is **upstream**. Never modify those trees.
 Instead:
 
-- Patch OmniGibson behaviors via `sentinel._omnigibson_patches`.
-- Subclass tasks via `sentinel.tasks.*`.
-- Extend RLinf via `sentinel.rlinf.patches`.
+- Patch OmniGibson behaviors via `maniguard._omnigibson_patches`.
+- Subclass tasks via `maniguard.tasks.*`.
+- Extend RLinf via `maniguard.rlinf.patches`.
 
 ## Data flow
 
@@ -62,10 +62,10 @@ RL training (RLinf)
 
 | Component | Location |
 |---|---|
-| Atomic-proposition generator (`AtomicPropositionGenerator`) | `sentinel/utils/ltl_utils.py` |
-| LTL → LDBA monitor (`LTLMonitor`) | `sentinel/utils/ltl_utils.py` |
-| Per-step LTL info (`info["ltl"]`) | `sentinel/envs/sentinel_env.py` |
-| High-level wrapper that loads task + scene `ltl_safety.json` | `sentinel/utils/safety_monitor.py` |
+| Atomic-proposition generator (`AtomicPropositionGenerator`) | `maniguard/utils/ltl_utils.py` |
+| LTL → LDBA monitor (`LTLMonitor`) | `maniguard/utils/ltl_utils.py` |
+| Per-step LTL info (`info["ltl"]`) | `maniguard/envs/maniguard_env.py` |
+| High-level wrapper that loads task + scene `ltl_safety.json` | `maniguard/utils/safety_monitor.py` |
 | Task-level constraints | `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json` |
 | Scene-level constraints | `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json` |
 

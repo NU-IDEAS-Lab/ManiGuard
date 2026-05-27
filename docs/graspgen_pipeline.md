@@ -1,7 +1,7 @@
 # GraspGen-driven grasp evaluation pipeline
 
 Run NVlabs/GraspGen as a local ZMQ server, then drive the
-`sentinel.rl.grasps.render_grasps` per-object validator against it to
+`maniguard.rl.grasps.render_grasps` per-object validator against it to
 produce `.pt` grasp datasets (consumed by `GraspDatasetResetter`),
 diagnostic PNGs, and success-grasp `.mp4` videos.
 
@@ -14,12 +14,12 @@ env clean — the only client-side dependency is `pyzmq + msgpack-numpy`.
 
 ## One-time setup
 
-All commands assume your project root is the SENTINEL-Lite repo.
+All commands assume your project root is the ManiGuard repo.
 
 ### 1. Clone GraspGen + its model checkpoints
 
 ```bash
-cd $PROJECT_ROOT  # /path/to/SENTINEL-Lite
+cd $PROJECT_ROOT  # /path/to/ManiGuard
 git clone https://github.com/NVlabs/GraspGen.git
 git clone https://huggingface.co/adithyamurali/GraspGenModels
 ```
@@ -115,7 +115,7 @@ cd $PROJECT_ROOT
 SENTINEL_SKIP_LONGFINGER=1 \
 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
 CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 \
-  python -m sentinel.rl.grasps.render_grasps \
+  python -m maniguard.rl.grasps.render_grasps \
     --targets alarm_clock:cvknrh apple:bwteqh mug:fapsrj \
     --output-dir outputs/grasp_datasets/run01 \
     --save-grasp-dataset outputs/grasp_datasets/run01/datasets \
@@ -129,7 +129,7 @@ Flags worth knowing:
 | Flag | Default | Effect |
 |---|---|---|
 | `--targets cat:model ...` | (use CSV) | Skip CSV, run on listed objects only |
-| `--csv path` | `sentinel/task_generation/utils/franka_graspability.csv` | Drive from a CSV with `category,model,status,...` columns |
+| `--csv path` | `maniguard/task_generation/utils/franka_graspability.csv` | Drive from a CSV with `category,model,status,...` columns |
 | `--exclude-statuses` | `too_large,no_grasp,no_candidates,timeout` | CSV statuses to skip; default keeps only `graspable` rows |
 | `--num-target-grasps N` | 1 | Phase A stops once N valid grasps collected per object |
 | `--save-grasp-dataset DIR` | unset | Write `grasps_{cat}_{model}.pt` per object |
@@ -157,7 +157,7 @@ On Phase A success (`held >= 1`):
 - `{cat}_{model}.pt` (in `--save-grasp-dataset` dir) — keys
   `rel_position, rel_orientation_xyzw, gripper_qpos, arm_joint_pos,
   approach_traj`. Loaded directly by
-  `sentinel.rl.grasps.reset.GraspDatasetResetter`.
+  `maniguard.rl.grasps.reset.GraspDatasetResetter`.
 - `{cat}_{model}.mp4` (only with `--save-video`) — Phase B replay of
   the first held grasp through the same physics kernel Phase A used.
 

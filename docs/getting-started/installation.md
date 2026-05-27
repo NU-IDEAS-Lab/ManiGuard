@@ -1,6 +1,6 @@
 # Installation
 
-SENTINEL-Lite uses **two separate Python environments**:
+ManiGuard uses **two separate Python environments**:
 
 1. **`behavior` conda env** — for OmniGibson simulation, BDDL, teleoperation.
 2. **RLinf `.venv`** — uv-managed venv for distributed RL training (kept separate
@@ -10,7 +10,7 @@ SENTINEL-Lite uses **two separate Python environments**:
 
 ```bash
 git clone --recursive https://github.com/NU-IDEAS-Lab/SENTINEL-Lite.git
-cd SENTINEL-Lite
+cd ManiGuard
 # or, if already cloned:
 git submodule update --init --recursive
 ```
@@ -39,7 +39,7 @@ uv sync
 cd ..
 ```
 
-## 4. Install Sentinel (editable)
+## 4. Install ManiGuard (editable)
 
 ```bash
 conda activate behavior
@@ -64,7 +64,7 @@ For RLinf / headless deployment:
 |---|---|
 | `ISAAC_PATH` | Path to Isaac Sim package |
 | `OMNIGIBSON_DATA_PATH` | Path to BEHAVIOR datasets (override only) |
-| `BEHAVIOR_PATH` | Path to SENTINEL-Lite root |
+| `BEHAVIOR_PATH` | Path to ManiGuard root |
 | `OMNIGIBSON_HEADLESS=1` | Required for server / headless rendering |
 | `VK_ICD_FILENAMES` | Vulkan ICD config for headless GPU rendering |
 | `CUDA_VISIBLE_DEVICES` | GPU selection (esp. when transitioning between multi-GPU tasks) |

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from sentinel.data.perturbation_scaling import (
+from maniguard.data.perturbation_scaling import (
     TaskBundle,
     apply_object_model_swap,
     apply_env_remap,
@@ -158,7 +158,7 @@ def test_list_generation_specs_env_emits_env_swap() -> None:
     _require_task(task_dir)
     if not ENV_ROOT.is_dir():
         pytest.skip(f"Env donor root missing: {ENV_ROOT}")
-    from sentinel.data.perturbation_scaling import build_env_inventory
+    from maniguard.data.perturbation_scaling import build_env_inventory
 
     bundle = load_task_bundle(task_dir)
     specs = list_generation_specs(
@@ -256,7 +256,7 @@ def test_scale_base_task_set_online_specs_use_materializer(monkeypatch: pytest.M
             "returncode": 0,
         }
 
-    monkeypatch.setattr("sentinel.data.perturbation_scaling._run_online_materialization_subprocess", _fake_materialize_online_variant)
+    monkeypatch.setattr("maniguard.data.perturbation_scaling._run_online_materialization_subprocess", _fake_materialize_online_variant)
 
     output_root = tmp_path / "published"
     summary = scale_base_task_set(
@@ -307,9 +307,9 @@ def test_scale_base_task_set_retries_online_variants_until_success(monkeypatch: 
             "returncode": 0,
         }
 
-    monkeypatch.setattr("sentinel.data.perturbation_scaling._run_online_materialization_subprocess", _fake_worker)
+    monkeypatch.setattr("maniguard.data.perturbation_scaling._run_online_materialization_subprocess", _fake_worker)
     monkeypatch.setattr(
-        "sentinel.data.perturbation_scaling._resample_online_spec",
+        "maniguard.data.perturbation_scaling._resample_online_spec",
         lambda bundle, spec, global_seed, attempt_idx, attempt_limit: {**spec, "model": f"candidate_{attempt_idx}"},
     )
 
@@ -346,9 +346,9 @@ def test_scale_base_task_set_skips_variant_after_attempt_budget(monkeypatch: pyt
             "returncode": 1,
         }
 
-    monkeypatch.setattr("sentinel.data.perturbation_scaling._run_online_materialization_subprocess", _fake_worker)
+    monkeypatch.setattr("maniguard.data.perturbation_scaling._run_online_materialization_subprocess", _fake_worker)
     monkeypatch.setattr(
-        "sentinel.data.perturbation_scaling._resample_online_spec",
+        "maniguard.data.perturbation_scaling._resample_online_spec",
         lambda bundle, spec, global_seed, attempt_idx, attempt_limit: {**spec, "model": f"candidate_{attempt_idx}"},
     )
 

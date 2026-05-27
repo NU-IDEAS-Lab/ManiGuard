@@ -6,7 +6,7 @@ import pytest
 
 
 def _load_module():
-    mod_path = Path(__file__).resolve().parents[1] / "sentinel" / "utils" / "manipulation_task_spec.py"
+    mod_path = Path(__file__).resolve().parents[1] / "maniguard" / "utils" / "manipulation_task_spec.py"
     spec = importlib.util.spec_from_file_location("manipulation_task_spec", mod_path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module

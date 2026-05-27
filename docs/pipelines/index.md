@@ -1,6 +1,6 @@
 # Task-generation pipelines
 
-All pipelines live in `sentinel/task_generation/` and share a `BasePipeline`
+All pipelines live in `maniguard/task_generation/` and share a `BasePipeline`
 runtime contract from `pipeline_common.py`. Each pipeline auto-discovers a
 support surface in the given scene, generates BDDL + `ltl_safety.json` at
 runtime, spawns objects, places the robot, runs gate checks, and executes an
@@ -37,7 +37,7 @@ renderer state and makes failed scenes easier to isolate and rerun.
 ```bash
 conda activate behavior
 
-python -m sentinel.task_generation.run_benchmark \
+python -m maniguard.task_generation.run_benchmark \
   --pipeline table \
   --scenes hall_conference_large \
   --episodes 1 --steps 300 --density medium --timeout 1800
@@ -48,7 +48,7 @@ Pipeline choices for `--pipeline`: `table`, `transfer`, `stack`.
 ## Dry-run (BDDL + LTL only, no simulator)
 
 ```bash
-python -m sentinel.task_generation.clutter_scene_pipeline \
+python -m maniguard.task_generation.clutter_scene_pipeline \
   --scene-model Benevolence_1_int --dry-run
 ```
 

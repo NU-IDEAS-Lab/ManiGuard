@@ -12,7 +12,7 @@ import sys
 import tempfile
 import traceback
 
-from sentinel.envs.frozen_task_runtime import (
+from maniguard.envs.frozen_task_runtime import (
     DEFAULT_REVIEW_CAMERA_NAMES,
     FrozenTaskRuntimeSession,
     ReviewVideoRecorder,
@@ -22,7 +22,7 @@ from sentinel.envs.frozen_task_runtime import (
     resolve_runtime_python,
     step_idle,
 )
-from sentinel.envs.perturbation_runtime import apply_runtime_perturbations
+from maniguard.envs.perturbation_runtime import apply_runtime_perturbations
 
 
 PERTURBATION_KINDS = ("object", "position", "semantic", "env")

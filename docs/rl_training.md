@@ -20,7 +20,7 @@ conda activate behavior
 # Single-scene, 4 parallel envs, 200k steps
 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
 OMNIGIBSON_HEADLESS=1 \
-python -m sentinel.rl.algorithms.ppo \
+python -m maniguard.rl.algorithms.ppo \
     --diagnostics-file datasets/<benchmark>/table/task_0022/base/diagnostics.jsonl \
     --num-envs 4 \
     --total-timesteps 200000 \
@@ -36,7 +36,7 @@ python -m sentinel.rl.algorithms.ppo \
 ## Resume from Checkpoint
 
 ```bash
-python -m sentinel.rl.algorithms.ppo \
+python -m maniguard.rl.algorithms.ppo \
     --diagnostics-file <same as above> \
     --num-envs 4 \
     --total-timesteps 10000000 \

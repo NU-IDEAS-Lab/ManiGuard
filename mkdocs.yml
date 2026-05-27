@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
 
-site_name: SENTINEL-Lite
+site_name: ManiGuard
 site_description: LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K
 repo_name: NU-IDEAS-Lab/SENTINEL-Lite
 repo_url: https://github.com/NU-IDEAS-Lab/SENTINEL-Lite

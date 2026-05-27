@@ -14,7 +14,7 @@ class _DummyObject:
 
 
 def _load_module():
-    mod_path = Path(__file__).resolve().parents[1] / "sentinel" / "utils" / "clutter_pack_layout.py"
+    mod_path = Path(__file__).resolve().parents[1] / "maniguard" / "utils" / "clutter_pack_layout.py"
     spec = importlib.util.spec_from_file_location("clutter_pack_layout", mod_path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module

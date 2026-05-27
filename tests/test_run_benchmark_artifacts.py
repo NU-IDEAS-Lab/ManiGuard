@@ -5,7 +5,7 @@ from pathlib import Path
 
 def _load_module():
     mod_path = (
-        Path(__file__).resolve().parents[1] / "sentinel" / "task_generation"
+        Path(__file__).resolve().parents[1] / "maniguard" / "task_generation"
         / "run_benchmark.py"
     )
     spec = importlib.util.spec_from_file_location("run_benchmark", mod_path)
