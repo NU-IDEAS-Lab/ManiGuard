@@ -177,7 +177,7 @@ class SFTRecorder:
         # consumer that needs to replay the rollout in OG. Set False to
         # suppress (saves ~10% disk on SFT-only runs).
         self.record_sim_states = bool(record_sim_states)
-        # Optional maniguard.data.lerobot_writer.LeRobotEpisodeWriter — when
+        # Optional maniguard.data.lerobot.lerobot_writer.LeRobotEpisodeWriter — when
         # set, MP4s are streamed directly to the writer's target paths and
         # per-step (state, action) is buffered for commit on success. In
         # this mode the HDF5 no longer stores image arrays (LeRobot owns the

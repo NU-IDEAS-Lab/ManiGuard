@@ -42,6 +42,14 @@ def _init_omnigibson(cfg: EvalConfig):
     if cfg.headless:
         gm.HEADLESS = True
 
+    # three_cam models consume the wrist view (right_wrist_0_rgb, unmasked).
+    # SFT data was recorded with the wrist Camera relocated to a canonical
+    # pose; reuse that exact patch so the eval wrist matches training.
+    if getattr(cfg, "obs_layout", "single_plus_wrist") == "three_cam":
+        from maniguard.data.curobo._sft_recorder import install_wrist_camera_patch
+        install_wrist_camera_patch()
+        print("[Eval] three_cam: installed canonical wrist-camera patch.")
+
 
 # ---------------------------------------------------------------------------
 # Environment helpers
@@ -146,6 +154,49 @@ def quat2axisangle(quat):
     return (axis * angle).astype(np.float32)
 
 
+def _eef_jacobian_arm(robot, arm, arm_cols_np):
+    """(6, n_arm_dof) base-frame eef Jacobian (numpy), replicating OmniGibson's
+    controllable_object eef-task extraction + arm-DOF column selection."""
+    link_name = robot.eef_link_names[arm]
+    start_idx = 0 if robot.fixed_base else 6
+    link_idx = robot._articulation_view.get_body_index(link_name)
+    jac = robot.get_relative_jacobian().cpu().numpy()  # (n_links, 6, n_joints[+6])
+    j_link = jac[-(robot.n_links - link_idx), :, start_idx:start_idx + robot.n_joints]
+    return j_link[:, arm_cols_np].astype(np.float64)
+
+
+def eef_delta_to_joint_action(robot, eef_delta, action_space):
+    """Convert a 7-D policy action [dpos(3), daa(3), gripper(1)] into the
+    robot's JointController action [target_arm_joints(7), gripper(1)].
+
+    One damped-least-squares Jacobian step maps the commanded base-frame eef
+    twist to a joint delta; the absolute joint target (current + dq) is what
+    the JointController PD-tracks each step. This reproduces the SFT mechanism
+    (cuRobo joint targets tracked by a JointController), so the joint path that
+    realizes the eef delta matches training instead of diverging like OSC.
+
+    The 6-D eef delta IS the base-frame twist to realize (orientation delta is
+    axis-angle, since R_target = dR @ R_cur)."""
+    arm = robot.default_arm
+    err6 = np.asarray(eef_delta[:6], dtype=np.float64)
+
+    arm_cols_t = robot.arm_control_idx[arm]
+    arm_cols_np = arm_cols_t.cpu().numpy() if hasattr(arm_cols_t, "cpu") else np.asarray(arm_cols_t)
+    J = _eef_jacobian_arm(robot, arm, arm_cols_np)
+    lam = 0.05
+    dq = J.T @ np.linalg.solve(J @ J.T + (lam ** 2) * np.eye(6), err6)
+
+    q_all = robot.get_joint_positions().cpu().numpy()
+    target_arm = (q_all[arm_cols_np] + dq).astype(np.float32)
+
+    # Action vector is ordered [arm_0 (7), gripper_0 (1)]; arm command is the
+    # absolute joint target, gripper is the (binarized) command passed through.
+    out = np.zeros(action_space.shape[0], dtype=np.float32)
+    out[: len(target_arm)] = target_arm
+    out[-1] = float(eef_delta[-1])
+    return out
+
+
 def extract_obs(env, robot, prompt, cfg: EvalConfig):
     from maniguard.utils.camera_setup import compose_main_image, normalize_policy_cameras
 
@@ -195,6 +246,7 @@ def extract_obs(env, robot, prompt, cfg: EvalConfig):
 
     return {
         "main_images": main_rgb,
+        "images_by_cam": rgb_by_cam,
         "wrist_images": wrist_rgb,
         "states": state,
         "task_descriptions": prompt,
@@ -227,7 +279,26 @@ def connect_policy(cfg: EvalConfig):
         return policy, "omnigibson"
 
 
-def _remap_obs_for_openpi(obs: dict) -> dict:
+def _remap_obs_for_openpi(obs: dict, cfg: EvalConfig) -> dict:
+    layout = getattr(cfg, "obs_layout", "single_plus_wrist")
+    if layout == "three_cam":
+        from maniguard.utils.camera_setup import normalize_policy_cameras
+        cams = normalize_policy_cameras(cfg.policy_cameras)
+        if len(cams) < 2:
+            raise ValueError(
+                "obs_layout='three_cam' needs 2 external policy_cameras in order "
+                f"(e.g. [cam_left, cam_right]); got {cams}"
+            )
+        # ManiGuardInputs assigns slots: cams[0]/image_left -> base_0_rgb,
+        # wrist -> left_wrist_0_rgb, cams[1]/image_right -> right_wrist_0_rgb
+        # (matches openpi pi05_pnp_clutter_3cam_lora).
+        return {
+            "observation/image_left": obs["images_by_cam"][cams[0]],
+            "observation/image_right": obs["images_by_cam"][cams[1]],
+            "observation/wrist_image": obs["wrist_images"],
+            "observation/state": obs["states"],
+            "prompt": obs["task_descriptions"],
+        }
     return {
         "observation/image": obs["main_images"],
         "observation/wrist_image": obs["wrist_images"],
@@ -236,12 +307,12 @@ def _remap_obs_for_openpi(obs: dict) -> dict:
     }
 
 
-def query_policy(policy, obs, client_type):
+def query_policy(policy, obs, client_type, cfg):
     if client_type == "random":
         action = policy.act(obs)
         chunk = action.numpy() if hasattr(action, "numpy") else np.asarray(action)
     elif client_type == "openpi":
-        result = policy.infer(_remap_obs_for_openpi(obs))
+        result = policy.infer(_remap_obs_for_openpi(obs, cfg))
         chunk = np.asarray(result["actions"], dtype=np.float32)
     else:
         action = policy.act(obs)
@@ -277,7 +348,7 @@ def main():
     _init_omnigibson(cfg)
     import omnigibson as og
 
-    from maniguard.data.hf_benchmark import resolve_benchmark_root
+    from maniguard.data.scene.hf_benchmark import resolve_benchmark_root
     resolved_root = resolve_benchmark_root(
         cfg.benchmark_root, revision=cfg.benchmark_revision,
     )
@@ -304,6 +375,9 @@ def main():
     all_results = []
 
     for scene_idx, scene_info in enumerate(scenes):
+        if cfg.prompt_template:
+            from maniguard.data.lerobot.lerobot_writer import episode_prompt
+            scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
         print(f"\n{'='*60}")
         print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}")
         print(f"Prompt: {scene_info['prompt']}")
@@ -319,14 +393,59 @@ def main():
                 og.clear()
 
             env = og.Environment(configs=og_cfg)
-            ext_sensors = env.external_sensors or {}
-            if ext_sensors:
-                for _cam in ext_sensors.values():
-                    _cam.image_height = cfg.camera_resolution
-                    _cam.image_width = cfg.camera_resolution
+            robot = env.robots[0]
+
+            # Resize external (cam_left/right) AND the robot's onboard wrist
+            # camera to the policy resolution. The wrist cam defaults to
+            # 128x128; SFT recorded it at cfg.camera_resolution, so leaving it
+            # at the default feeds the wrist (left_wrist_0) slot a degraded
+            # half-res image vs training.
+            from omnigibson.sensors import VisionSensor as _VisionSensor
+            _resized = False
+            for _cam in (env.external_sensors or {}).values():
+                _cam.image_height = cfg.camera_resolution
+                _cam.image_width = cfg.camera_resolution
+                _resized = True
+            for _sensor in (robot.sensors or {}).values():
+                if isinstance(_sensor, _VisionSensor):
+                    _sensor.image_height = cfg.camera_resolution
+                    _sensor.image_width = cfg.camera_resolution
+                    _resized = True
+            if _resized:
                 env.load_observation_space()
             env.reset()
             _setup_eval_cameras(env, scene_info=scene_info)
+
+            # Reload the eval controller AFTER env.reset(): reset restores the
+            # scene snapshot's (JointController) controller-state into the
+            # matching baked controller; reloading after avoids loading that
+            # state into the new controller (IK's control_filter / state-length
+            # mismatch -> KeyError). The fresh controller's goal is then
+            # initialized by the zero-delta warmup below.
+            override_cc = cfg.override_controller_config
+            if override_cc is None and cfg.controller_preset:
+                from maniguard.envs.frozen_task_runtime import CONTROLLER_PRESETS
+                if cfg.controller_preset not in CONTROLLER_PRESETS:
+                    raise ValueError(
+                        f"unknown controller_preset {cfg.controller_preset!r}; "
+                        f"choices: {sorted(CONTROLLER_PRESETS)}"
+                    )
+                override_cc = json.loads(json.dumps(CONTROLLER_PRESETS[cfg.controller_preset]))
+            if override_cc and cfg.joint_pos_kp is not None:
+                arm0 = override_cc.get("arm_0", {})
+                if arm0.get("name") == "JointController":
+                    # Implicit position drive (stable at high stiffness) instead
+                    # of explicit impedance torque. joint_pos_kp -> isaac drive
+                    # stiffness; isaac_kd ~ critically damped (unit inertia).
+                    kp = float(cfg.joint_pos_kp)
+                    arm0["use_impedances"] = False
+                    arm0["isaac_kp"] = kp
+                    arm0["isaac_kd"] = 2.0 * (kp ** 0.5)
+                    print(f"  JointController position drive isaac_kp -> {kp}", flush=True)
+            if override_cc:
+                print(f"  Overriding controllers ({cfg.controller_preset or 'custom'}): "
+                      f"{list(override_cc.keys())}", flush=True)
+                robot.reload_controllers(override_cc)
         except Exception as e:
             print(f"  FAILED to load scene: {e}")
             all_results.append({
@@ -337,13 +456,10 @@ def main():
             })
             continue
 
-        robot = env.robots[0]
-
-        if cfg.override_controller_config:
-            print(f"  Overriding controllers: {list(cfg.override_controller_config.keys())}")
-            robot.reload_controllers(cfg.override_controller_config)
-
         action_space = robot.action_space
+        print(f"  Action space dim: {action_space.shape[0]}", flush=True)
+        print(f"  Action space low:  {np.array2string(np.asarray(action_space.low), precision=3)}", flush=True)
+        print(f"  Action space high: {np.array2string(np.asarray(action_space.high), precision=3)}", flush=True)
 
         from maniguard.eval.goal_checker import build_goal_checker
         goal_checker = build_goal_checker(scene_info)
@@ -356,9 +472,20 @@ def main():
         else:
             print(f"  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
 
+        # Warm up by stepping a hold command, initializing the freshly-reloaded
+        # controller's goal from the current pose and settling physics. For the
+        # JointController (ik_eef_to_joint), "hold" is the current joint targets
+        # (a zero action would command joints to 0 and fling the arm); a zero
+        # eef-delta maps to current joints. For a delta controller, zeros hold.
+        _hold_eef = np.zeros(7, dtype=np.float32)
+        _hold_eef[-1] = 1.0  # gripper open during warmup
         for _ in range(10):
-            robot.keep_still()
-            og.sim.step()
+            if cfg.ik_eef_to_joint:
+                wa = eef_delta_to_joint_action(robot, _hold_eef, action_space)
+            else:
+                wa = np.zeros(action_space.shape[0], dtype=np.float32)
+            wa = np.clip(wa, action_space.low, action_space.high)
+            env.step(torch.from_numpy(wa).unsqueeze(0))
         for _ in range(2):
             og.sim.render()
 
@@ -370,34 +497,73 @@ def main():
         success = False
         total_reward = 0.0
         goal_detail = {}
+        status = "completed"
 
-        while step_idx < cfg.max_steps and not done:
-            chunk = query_policy(policy, obs, client_type)
-            chunk_len = min(cfg.execute_horizon, len(chunk), cfg.max_steps - step_idx)
+        # A flailing policy can drive the arm into a PhysX blowup that
+        # invalidates the articulation mid-rollout (get_joint_positions ->
+        # None). Catch it so the partial video + result are still saved and
+        # the batch moves on to the next scene instead of dying.
+        try:
+            while step_idx < cfg.max_steps and not done:
+                chunk = query_policy(policy, obs, client_type, cfg)
+                if os.environ.get("EVAL_DEBUG_IMG") and step_idx == 0:
+                    for _nm, _im in obs.get("images_by_cam", {}).items():
+                        imageio.imwrite(f"outputs/dbg_{_nm}.png", np.asarray(_im))
+                    imageio.imwrite("outputs/dbg_wrist.png", np.asarray(obs["wrist_images"]))
+                    print("[img] dumped policy input images to outputs/dbg_*.png", flush=True)
+                if os.environ.get("EVAL_DEBUG_IO"):
+                    with open(os.environ["EVAL_DEBUG_IO"], "a", encoding="utf-8") as _f:
+                        _f.write(json.dumps({
+                            "step": step_idx,
+                            "state": np.asarray(obs["states"], dtype=np.float32).tolist(),
+                            "act0": np.asarray(chunk[0], dtype=np.float32).tolist(),
+                        }) + "\n")
+                chunk_len = min(cfg.execute_horizon, len(chunk), cfg.max_steps - step_idx)
 
-            for ci in range(chunk_len):
-                action = chunk[ci].copy()
-                if cfg.gripper_binarize:
-                    action[-1] = np.sign(action[-1]) if abs(action[-1]) > 0.01 else -1.0
-                action_clipped = np.clip(action[:action_space.shape[0]], action_space.low, action_space.high)
+                for ci in range(chunk_len):
+                    action = chunk[ci].copy()  # policy 7-D eef delta + gripper
+                    if cfg.gripper_binarize:
+                        action[-1] = np.sign(action[-1]) if abs(action[-1]) > 0.01 else -1.0
+                    if cfg.ik_eef_to_joint:
+                        # eef delta -> absolute joint targets for the JointController
+                        ctrl_action = eef_delta_to_joint_action(robot, action, action_space)
+                    else:
+                        ctrl_action = action[:action_space.shape[0]]
+                    action_clipped = np.clip(ctrl_action, action_space.low, action_space.high)
 
-                _, reward, _, _, _ = env.step(
-                    torch.from_numpy(action_clipped).unsqueeze(0)
-                )
-                obs = extract_obs(env, robot, scene_info["prompt"], cfg)
-                if cfg.save_video:
-                    frames.append(obs["main_images"])
-                step_idx += 1
-                total_reward += float(reward)
+                    _eef_before = np.asarray(obs["states"][:3], dtype=np.float32)
+                    _, reward, _, _, _ = env.step(
+                        torch.from_numpy(action_clipped).unsqueeze(0)
+                    )
+                    obs = extract_obs(env, robot, scene_info["prompt"], cfg)
+                    if os.environ.get("EVAL_DEBUG_STEP"):
+                        _eef_after = np.asarray(obs["states"][:3], dtype=np.float32)
+                        with open(os.environ["EVAL_DEBUG_STEP"], "a", encoding="utf-8") as _f:
+                            _f.write(json.dumps({
+                                "step": step_idx,
+                                "raw_act": np.asarray(chunk[ci], dtype=np.float32).tolist(),
+                                "clipped_act": np.asarray(action_clipped, dtype=np.float32).tolist(),
+                                "eef_before": _eef_before.tolist(),
+                                "eef_after": _eef_after.tolist(),
+                            }) + "\n")
+                    if cfg.save_video:
+                        frames.append(obs["main_images"])
+                    step_idx += 1
+                    total_reward += float(reward)
 
-                if goal_checker is not None:
-                    success, goal_detail = goal_checker.check(env)
-                if success:
-                    done = True
-                    break
+                    if goal_checker is not None:
+                        success, goal_detail = goal_checker.check(env)
+                    if success:
+                        done = True
+                        break
 
-            if step_idx % 50 == 0 or step_idx == 1:
-                print(f"  Step {step_idx}/{cfg.max_steps} | success={success} | goals={goal_detail}")
+                if step_idx % 50 == 0 or step_idx == 1:
+                    print(f"  Step {step_idx}/{cfg.max_steps} | success={success} | goals={goal_detail}", flush=True)
+        except Exception as e:  # noqa: BLE001 - want the partial video regardless of cause
+            status = "crashed"
+            import traceback as _tb
+            print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
+            print(_tb.format_exc(), flush=True)
 
         result = {
             "scene_name": scene_info["name"],
@@ -405,14 +571,14 @@ def main():
             "target": scene_info["target_name"],
             "pipeline": scene_info.get("pipeline", ""),
             "rooms": scene_info["target_rooms"],
-            "status": "completed",
+            "status": status,
             "steps": step_idx,
             "success": success,
             "goal_detail": goal_detail,
             "total_reward": total_reward,
         }
         all_results.append(result)
-        print(f"  Result: success={success}, steps={step_idx}")
+        print(f"  Result: success={success}, steps={step_idx}, status={status}", flush=True)
 
         with results_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=True) + "\n")

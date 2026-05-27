@@ -35,7 +35,7 @@ Notes:
       openpi's data loader reads videos identically.
 
 Usage:
-    python -m maniguard.data.real_teleop_to_droid \\
+    python -m maniguard.data.real_teleop.real_teleop_to_droid \\
         --input-dir outputs/real_teleop \\
         --repo-id maniguard/real_mug_into_bowl_droid \\
         --prompt "pick up the smallest mug and place it in the bowl" \\

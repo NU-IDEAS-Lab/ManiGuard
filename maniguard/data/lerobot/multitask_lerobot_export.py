@@ -16,13 +16,13 @@ All episodes from all tasks are merged into ONE LeRobot dataset whose
 ``meta/tasks.jsonl`` enumerates the unique prompt strings, and each
 frame's ``task_index`` resolves to the right prompt at training time.
 
-Schema written matches ``maniguard/data/lerobot_export.py`` (LIBERO-compatible
+Schema written matches ``maniguard/data/lerobot/lerobot_export.py`` (LIBERO-compatible
 columns), so openpi's ``LeRobotLiberoDataConfig`` can repack it directly
 IF action is 7D. For 8D action (e.g. gello joint-target + gripper), see
 the action_dim flag below.
 
 Usage:
-    .venv-lerobot/bin/python -m maniguard.data.multitask_lerobot_export \\
+    .venv-lerobot/bin/python -m maniguard.data.lerobot.multitask_lerobot_export \\
         --input-root outputs/gello_teleop_rendered/table \\
         --diag-root datasets/final_unique_accepted-goal_region_sphere-full-perturbed_with_base-20260426/table \\
         --repo-id maniguard/clutter_pickup_libero \\

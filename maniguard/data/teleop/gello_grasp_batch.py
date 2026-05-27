@@ -4,7 +4,7 @@ GELLO Leader Arm → Franka Grasp Teleop (batch over CSV)
 Mash-up of:
   - maniguard.rl.grasps.render_grasps : per-object outer loop, floor-only env,
     object pin + disable_gravity, .pt grasp dataset save format.
-  - maniguard.teleop.gello_franka_teleop : GELLO joint mirroring, calibration
+  - maniguard.data.teleop.gello_franka_teleop : GELLO joint mirroring, calibration
     pose + ramp, SPACE-toggle gripper.
 
 Per object: spawn target → pin to --object-xyz → disable gravity → reset
@@ -17,7 +17,7 @@ written to ``grasps_{cat}_{model}.pt`` in the format consumed by
 Resume: rows whose .pt already exists are skipped.
 
 Usage:
-    python -m maniguard.teleop.gello_grasp_batch \\
+    python -m maniguard.data.teleop.gello_grasp_batch \\
         --csv maniguard/task_generation/utils/franka_graspability.csv \\
         --limit 50 \\
         --output-dir outputs/grasp_datasets/teleop/tensors
@@ -53,7 +53,7 @@ from omnigibson.utils.constants import LightingMode
 from omnigibson.utils.ui_utils import KeyboardEventHandler
 
 # joylo on sys.path (not pip-installed).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _JOYLO = _REPO_ROOT / "behavior-1k" / "joylo"
 if str(_JOYLO) not in sys.path:
     sys.path.insert(0, str(_JOYLO))
@@ -71,7 +71,7 @@ from maniguard.rl.grasps.render_grasps import (  # noqa: E402
     _read_graspable,
     _rpy_deg_to_quat_xyzw,
 )
-from maniguard.teleop.gello_franka_teleop import (  # noqa: E402
+from maniguard.data.teleop.gello_franka_teleop import (  # noqa: E402
     GELLO_CALIBRATION_FRANKA_POSE,
     GELLO_GRIPPER_CONFIG,
     GELLO_JOINT_IDS,

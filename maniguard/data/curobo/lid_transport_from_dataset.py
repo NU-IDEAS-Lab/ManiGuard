@@ -21,7 +21,7 @@ Given a single lid_transport task folder containing ``scene_ep<N>.json`` +
 
 The full bimanual flow is recorded into ONE HDF5 + 3 review MP4s when
 ``--record-sft`` is on. State + action format match
-``tools/pick_and_place_from_dataset.py``: 8D state, 7D EEF-delta action,
+``maniguard/data/curobo/pick_and_place_from_dataset.py``: 8D state, 7D EEF-delta action,
 gripper_cmd ∈ {+1 (open), −1 (close)}.
 
 Success = container AABB ∩ goal sphere AND robot still grasping container
@@ -48,7 +48,7 @@ from pathlib import Path
 import numpy as np
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

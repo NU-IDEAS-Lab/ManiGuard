@@ -22,7 +22,7 @@ This script:
          filesystem → zero data copied, just an inode reference.
        * reads ``state`` + ``action`` from the HDF5 (image arrays ignored —
          LeRobot's video is now the pixel carrier).
-       * commits via :class:`maniguard.data.lerobot_writer.LeRobotEpisodeWriter`
+       * commits via :class:`maniguard.data.lerobot.lerobot_writer.LeRobotEpisodeWriter`
          which calls ``save_episode`` under the no-PNG / MP4-aware-stats
          patches, so the only disk work is the parquet + meta updates.
   3. Rewrites the source HDF5 in place to drop ``obs/image_*`` datasets.
@@ -40,7 +40,7 @@ outputs/lerobot_pnp_clutter_first25/`` before invoking.
 
 Usage::
 
-    conda run -n behavior --no-capture-output python tools/lerobot_from_mp4s.py \\
+    conda run -n behavior --no-capture-output python maniguard/data/lerobot/lerobot_from_mp4s.py \\
         --input-dir outputs/variants_n10x2_first25 \\
         --repo-id maniguard/clutter_pickup_n10x2_first25 \\
         --root outputs/lerobot_pnp_clutter_first25
@@ -57,7 +57,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from maniguard.data.lerobot_writer import (
+from maniguard.data.lerobot.lerobot_writer import (
     LeRobotEpisodeWriter,
     create_or_open_dataset,
     episode_prompt,

@@ -2,7 +2,7 @@
 
 Given a single task folder containing ``scene_ep<N>.json`` +
 ``diagnostics.jsonl`` (the same format that
-``tools/replay_empty_from_dataset.py`` consumes), this script:
+``maniguard/data/curobo/replay_empty_from_dataset.py`` consumes), this script:
 
   1. Rebuilds the task in a bare OmniGibson Scene: floor + fixed support
      + every spawn-spec object (target / fragile / clutter) + the Franka
@@ -41,7 +41,7 @@ from pathlib import Path
 import numpy as np
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -144,7 +144,7 @@ def parse_args() -> argparse.Namespace:
 
 
 # ---------------------------------------------------------------------------
-# Env build — lifted from tools/replay_empty_from_dataset.py
+# Env build — lifted from maniguard/data/curobo/replay_empty_from_dataset.py
 # ---------------------------------------------------------------------------
 
 
@@ -1402,7 +1402,7 @@ def _run_one_variant(
     if args.record_sft:
         from tools._sft_recorder import SFTRecorder
         if lerobot_dataset is not None:
-            from maniguard.data.lerobot_writer import (
+            from maniguard.data.lerobot.lerobot_writer import (
                 LeRobotEpisodeWriter, episode_prompt,
             )
             lerobot_writer = LeRobotEpisodeWriter(lerobot_dataset)
@@ -1667,7 +1667,7 @@ def main() -> None:
         if not args.record_sft:
             raise SystemExit("--lerobot-repo-id requires --record-sft "
                              "(LeRobot needs the SFT recorder's frames).")
-        from maniguard.data.lerobot_writer import create_or_open_dataset
+        from maniguard.data.lerobot.lerobot_writer import create_or_open_dataset
         lerobot_dataset = create_or_open_dataset(
             repo_id=args.lerobot_repo_id, root=args.lerobot_root,
             fps=args.video_fps, resolution=args.record_resolution,

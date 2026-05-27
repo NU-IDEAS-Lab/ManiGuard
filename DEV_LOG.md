@@ -910,3 +910,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 
 ### Docs: ManiGuard module walkthrough (2026-05-27)
 - mkdocs site reorganized into lifecycle nav (Foundations + 5 stages). New Foundations pages (env layer, LTL safety, OmniGibson patches & configs); architecture overview rewritten. Task-gen pages refreshed, cabinet/jar/dusty pages added, offline-pool carousel + 6fam-base example renders, and an "Add a custom pipeline" guide. Carousel/triptych CSS+JS under docs/stylesheets + docs/javascripts.
+
+### Refactor: data-collection consolidation (2026-05-27)
+- Moved maniguard/teleop/ → data/teleop/ and tools/ cuRobo demo-collection scripts (+_sft_recorder) → data/curobo/; restructured data/ into lerobot/, real_teleop/, scene/ subpackages. Rewrote all imports + path-depth hacks; benchmark.py now imports maniguard.data.curobo._sft_recorder directly. compileall OK, 125 tests collect, strict docs build clean. (Carries pre-existing data/eval WIP.)

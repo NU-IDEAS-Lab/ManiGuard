@@ -18,7 +18,7 @@ Differs from so101_franka_teleop.py in three ways:
     and the gripper via keyboard.
 
 Usage:
-    python -m maniguard.teleop.gello_franka_teleop \
+    python -m maniguard.data.teleop.gello_franka_teleop \
         --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
         --output-hdf5 outputs/jixing_teleop2_hdf5/table/scene_ep0000.hdf5
 
@@ -58,7 +58,7 @@ from omnigibson.utils.ui_utils import KeyboardEventHandler
 # joylo on sys.path (we don't pip install it because its setup.py pulls in
 # telemoma / pyglm / joycon / pybullet / etc which we don't need)
 # ---------------------------------------------------------------------------
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _JOYLO = _REPO_ROOT / "behavior-1k" / "joylo"
 if str(_JOYLO) not in sys.path:
     sys.path.insert(0, str(_JOYLO))
@@ -70,7 +70,7 @@ from gello.robots.dynamixel import DynamixelRobot  # noqa: E402
 # init time, so this entry no longer needs to install anything.
 
 # Reuse so101's diagnostics-jsonl reader for goal_checker auto-success.
-from maniguard.teleop.so101_franka_teleop import _read_first_jsonl  # noqa: E402
+from maniguard.data.teleop.so101_franka_teleop import _read_first_jsonl  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

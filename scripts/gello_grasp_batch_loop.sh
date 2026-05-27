@@ -1,5 +1,5 @@
 #!/bin/bash
-# Auto-restart wrapper for maniguard.teleop.gello_grasp_batch.
+# Auto-restart wrapper for maniguard.data.teleop.gello_grasp_batch.
 #
 # Why: OG's articulation_view nulls out after ~7-15 add/remove cycles
 # (same bug render_grasps_loop.sh handles). gello_grasp_batch detects it
@@ -30,7 +30,7 @@ while true; do
     set +e
     CUDA_VISIBLE_DEVICES=0 \
         conda run -n behavior --no-capture-output \
-            python -u -m maniguard.teleop.gello_grasp_batch \
+            python -u -m maniguard.data.teleop.gello_grasp_batch \
                 --limit "$LIMIT" --output-dir "$OUTPUT_DIR" \
                 $EXTRA_ARGS 2>&1 | tee -a "$LOG"
     rc=${PIPESTATUS[0]}

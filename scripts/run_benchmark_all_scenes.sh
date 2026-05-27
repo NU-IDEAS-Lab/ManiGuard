@@ -67,7 +67,7 @@ echo "[batch] Discovering scenes from: ${BENCHMARK_ROOT}"
 SCENE_LIST=$($PY -c "
 import sys, json
 sys.path.insert(0, '${REPO_ROOT}')
-from maniguard.data.hf_benchmark import resolve_benchmark_root
+from maniguard.data.scene.hf_benchmark import resolve_benchmark_root
 from maniguard.eval.scene_discovery import discover_scenes
 root = resolve_benchmark_root('${BENCHMARK_ROOT}', revision='${BENCHMARK_REVISION}')
 scenes = discover_scenes(str(root))

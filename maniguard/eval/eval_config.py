@@ -39,11 +39,41 @@ class EvalConfig:
 
     # -- Model / observation --
     state_mode: str = "eef_8d_axisangle"
+    # When set, overrides each scene's prompt with this template formatted by
+    # the target name (same as training: {target_clean} strips the trailing
+    # _NNN and underscores). Use to match the SFT prompt distribution.
+    prompt_template: Optional[str] = None
+    # How camera RGB is packed into the policy-server observation:
+    #   "single_plus_wrist" (default): policy_cameras composed into one
+    #       observation/image + observation/wrist_image (2 pi0 slots).
+    #   "three_cam": policy_cameras[0]/[1] + wrist -> observation/image_left,
+    #       observation/image_right, observation/wrist_image (3 pi0 slots).
+    #       Requires exactly the cameras the model was trained on, in order.
+    obs_layout: str = "single_plus_wrist"
     policy_cameras: List[str] = field(default_factory=lambda: ["cam_opposite"])
     action_dim: int = 7
     execute_horizon: int = 5
     gripper_binarize: bool = True
+    # Arm/gripper controller. Set controller_preset to a key of
+    # maniguard.envs.frozen_task_runtime.CONTROLLER_PRESETS (e.g. "osc" for
+    # pi0.5 / VLA policies emitting raw 6-D EEF deltas). The scene-baked
+    # controller is overridden at load. override_controller_config (a raw
+    # dict) takes precedence if both are set.
+    controller_preset: Optional[str] = None
     override_controller_config: Optional[Dict[str, Any]] = None
+    # When true, treat the policy output as a 6-D eef delta (+ gripper) and
+    # convert it to absolute joint targets via a Jacobian IK step, then feed
+    # those to a JointController (PD position tracking). This matches how the
+    # SFT data was generated (cuRobo joint targets tracked by a JointController)
+    # so the realized joint path follows training instead of diverging.
+    # Use with controller_preset: joint_position_impedance.
+    ik_eef_to_joint: bool = False
+    # Override the JointController impedance stiffness (pos_kp). The default
+    # (50) is too soft to reach the per-step joint target within one control
+    # step (~10% tracking), which double-softens the already-PD-tracked SFT
+    # deltas. A high value makes the controller reach its target each step
+    # (achieved eef == commanded delta). Only applied to a JointController arm.
+    joint_pos_kp: Optional[float] = None
 
     # -- Simulation --
     action_frequency: int = 20

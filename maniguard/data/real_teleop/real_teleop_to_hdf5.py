@@ -3,7 +3,7 @@
 
 Consumes the npz files written by the real-franka teleop capture
 (outputs/real_teleop/<id>.npz) and emits one HDF5 per episode that
-matches the schema `maniguard.data.lerobot_export` expects:
+matches the schema `maniguard.data.lerobot.lerobot_export` expects:
 
     data/demo_0/obs/image        (N+1, H, W, 3) uint8   <- cam0, resized
     data/demo_0/obs/wrist_image  (N+1, H, W, 3) uint8   <- cam1, resized
@@ -28,7 +28,7 @@ Conventions matched with sim:
       axisangle continuity.
 
 Usage:
-    python -m maniguard.data.real_teleop_to_hdf5 \
+    python -m maniguard.data.real_teleop.real_teleop_to_hdf5 \
         --input-dir outputs/real_teleop \
         --output-dir outputs/real_teleop_hdf5
 """

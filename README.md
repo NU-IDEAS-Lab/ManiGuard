@@ -271,7 +271,7 @@ python teleop_bridge/so101_server.py --mock
 
 ```bash
 conda activate behavior
-python -m maniguard.teleop.so101_franka_teleop \
+python -m maniguard.data.teleop.so101_franka_teleop \
     --snapshot outputs/pipeline_runs/<run>/scene_ep1.json \
     --output-hdf5 outputs/teleop/demo.hdf5 --only-successes
 ```
@@ -280,7 +280,7 @@ python -m maniguard.teleop.so101_franka_teleop \
 dataset curation):
 
 ```bash
-python -m maniguard.teleop.so101_franka_playback \
+python -m maniguard.data.teleop.so101_franka_playback \
     --input outputs/teleop/demo.hdf5 \
     --output outputs/teleop/demo_obs.hdf5 --record
 ```
@@ -307,7 +307,7 @@ python behavior-1k/joylo/scripts/gello_get_offset.py \
 ```
 
 The printed `best offsets` array goes into `GELLO_JOINT_OFFSETS` near the
-top of `maniguard/teleop/gello_franka_teleop.py`. Update `JOINT_SIGNS`
+top of `maniguard/data/teleop/gello_franka_teleop.py`. Update `JOINT_SIGNS`
 similarly if joints move backwards in sim. Calibration only needs to run
 once (or after re-flashing servos / changing geometry).
 
@@ -315,7 +315,7 @@ once (or after re-flashing servos / changing geometry).
 
 ```bash
 conda activate behavior
-python -m maniguard.teleop.gello_franka_teleop \
+python -m maniguard.data.teleop.gello_franka_teleop \
     --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
     --output-hdf5 outputs/gello_teleop_hdf5/table/scene_ep0000.hdf5 \
     --only-successes
@@ -348,7 +348,7 @@ bundle from stock Panda assets if it isn't already present.)
 
 `scripts/run_teleop_batch.sh` iterates every `scene_ep*.json` under a
 task family. Currently hardcoded to the SO-101 entry point — for GELLO,
-either edit the `python -m maniguard.teleop.so101_franka_teleop` line in
+either edit the `python -m maniguard.data.teleop.so101_franka_teleop` line in
 the script, or use a shell loop:
 
 ```bash
@@ -359,7 +359,7 @@ bash scripts/run_teleop_batch.sh --task table
 for snap in outputs/teleop_scenes/table/scene_ep*.json; do
     out="outputs/gello_teleop_hdf5/table/$(basename "$snap" .json).hdf5"
     [[ -f "$out" && $(stat -c%s "$out") -gt 8192 ]] && continue   # skip already-collected
-    python -m maniguard.teleop.gello_franka_teleop \
+    python -m maniguard.data.teleop.gello_franka_teleop \
         --snapshot "$snap" --output-hdf5 "$out" --only-successes
 done
 ```

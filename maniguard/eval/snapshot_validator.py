@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 from typing import Any, Iterable, Sequence
 
-from maniguard.data.trim_scene_to_room import trim_scene_info_to_room
+from maniguard.data.scene.trim_scene_to_room import trim_scene_info_to_room
 from maniguard.envs.registry import build_prompt as build_effective_prompt
 from maniguard.envs.perturbation_runtime import apply_runtime_perturbations
 
