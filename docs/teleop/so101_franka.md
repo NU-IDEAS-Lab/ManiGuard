@@ -17,7 +17,7 @@ conda env (Python 3.10).
 |---|---|
 | Python env | `behavior` conda env, with `pip install pyzmq` |
 | Server running | `python teleop_bridge/so101_server.py` (or `--mock`) in a separate terminal |
-| Snapshot | `scene_ep*.json` produced by any `sentinel.task_generation.*_pipeline` run |
+| Snapshot | `scene_ep*.json` produced by any `maniguard.task_generation.*_pipeline` run |
 | Optional | `diagnostics.jsonl` next to the snapshot — if present, an auto goal-checker fires success when the recorded goal region is satisfied |
 
 ## CLI flags
@@ -49,14 +49,14 @@ python teleop_bridge/so101_server.py --mock
 
 # Terminal 2: behavior env
 conda activate behavior
-python -m sentinel.teleop.so101_franka_teleop \
+python -m maniguard.teleop.so101_franka_teleop \
     --snapshot outputs/pipeline_runs/<run>/scene_ep1.json
 ```
 
 Real hardware + record to HDF5, only saving successes:
 
 ```bash
-python -m sentinel.teleop.so101_franka_teleop \
+python -m maniguard.teleop.so101_franka_teleop \
     --snapshot outputs/pipeline_runs/<run>/scene_ep1.json \
     --output-hdf5 outputs/teleop/<name>.hdf5 \
     --only-successes
@@ -74,7 +74,7 @@ match IK). When swapping `FrankaMounted → FrankaPanda`, the base is lifted
 by 0.5 m so the arm doesn't sit on the floor.
 
 The main loop calls `SO101TeleopAgent.get_action(robot)` from
-`sentinel/teleop/so101_teleop.py`:
+`maniguard/teleop/so101_teleop.py`:
 
 1. Pull the latest ZMQ message (CONFLATE=1, RCVTIMEO=100 ms).
 2. Compute `delta_pos = (ee_pos - prev_ee_pos) * position_scale` (gated by
@@ -87,10 +87,10 @@ The main loop calls `SO101TeleopAgent.get_action(robot)` from
    `robot.teleop_data_to_action(action)`.
 
 If `diagnostics.jsonl` is present next to the snapshot, an auto goal
-checker (`sentinel.eval.goal_checker.build_goal_checker`) breaks the loop
+checker (`maniguard.eval.goal_checker.build_goal_checker`) breaks the loop
 the moment the goal region fires.
 
-A separate `LidSnapper` (from `sentinel.utils.lid_attach`) runs after each
+A separate `LidSnapper` (from `maniguard.utils.lid_attach`) runs after each
 `env.step()` and eagerly attaches a lid/cap to its container when placed
 within range and the gripper has released — no-op when no eligible pair is
 in the scene.
@@ -113,5 +113,5 @@ in the scene.
 
 ## Source
 
-`sentinel/teleop/so101_franka_teleop.py` — entry point.
-`sentinel/teleop/so101_teleop.py` — `SO101TeleopAgent` / `SO101TeleopConfig`.
+`maniguard/teleop/so101_franka_teleop.py` — entry point.
+`maniguard/teleop/so101_teleop.py` — `SO101TeleopAgent` / `SO101TeleopConfig`.

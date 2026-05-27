@@ -1,5 +1,5 @@
 #!/bin/bash
-# Auto-restart wrapper for sentinel.rl.grasps.render_grasps.
+# Auto-restart wrapper for maniguard.rl.grasps.render_grasps.
 #
 # Why: long full-dataset runs accumulate memory in OG / cuRobo / PhysX
 # until the Linux OOM killer steps in (~60-100 objects in our setup).
@@ -21,7 +21,7 @@ cd "$(dirname "$0")/.."
 
 # Required by render_grasps.
 : "${OUTPUT_DIR:=outputs/grasp_datasets/graspgen_full}"
-: "${CSV_PATH:=sentinel/task_generation/utils/franka_graspability_full.csv}"
+: "${CSV_PATH:=maniguard/task_generation/utils/franka_graspability_full.csv}"
 : "${EXCLUDE_STATUSES:=too_large,degenerate_bbox,no_metadata,not_ready}"
 : "${NUM_TARGET_GRASPS:=5}"
 : "${PER_OBJECT_TIMEOUT:=150}"
@@ -44,7 +44,7 @@ count_done() {
 
 kill_run() {
     # conda run -> python; signal both. -9 because hung sim.step ignores SIGTERM.
-    pkill -9 -f "sentinel.rl.grasps.render_grasps" 2>/dev/null || true
+    pkill -9 -f "maniguard.rl.grasps.render_grasps" 2>/dev/null || true
     sleep 2
 }
 
@@ -61,7 +61,7 @@ while true; do
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 \
         conda run -n behavior --no-capture-output \
-            python -u -m sentinel.rl.grasps.render_grasps \
+            python -u -m maniguard.rl.grasps.render_grasps \
                 --csv "$CSV_PATH" \
                 --exclude-statuses "$EXCLUDE_STATUSES" \
                 --output-dir "$OUTPUT_DIR" \
@@ -74,7 +74,7 @@ while true; do
 
     no_growth=0
     last_count=$done_count
-    while kill -0 $BG_PID 2>/dev/null || pgrep -f "sentinel.rl.grasps.render_grasps" >/dev/null; do
+    while kill -0 $BG_PID 2>/dev/null || pgrep -f "maniguard.rl.grasps.render_grasps" >/dev/null; do
         sleep "$POLL_INTERVAL"
         cur=$(count_done)
 

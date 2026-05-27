@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run sentinel.eval.benchmark for each scene in a SEPARATE process.
+# Run maniguard.eval.benchmark for each scene in a SEPARATE process.
 # OmniGibson segfaults on og.clear() between scenes, so one python per scene.
 #
 # Usage:
@@ -67,8 +67,8 @@ echo "[batch] Discovering scenes from: ${BENCHMARK_ROOT}"
 SCENE_LIST=$($PY -c "
 import sys, json
 sys.path.insert(0, '${REPO_ROOT}')
-from sentinel.data.hf_benchmark import resolve_benchmark_root
-from sentinel.eval.scene_discovery import discover_scenes
+from maniguard.data.hf_benchmark import resolve_benchmark_root
+from maniguard.eval.scene_discovery import discover_scenes
 root = resolve_benchmark_root('${BENCHMARK_ROOT}', revision='${BENCHMARK_REVISION}')
 scenes = discover_scenes(str(root))
 scene_filter = '${SCENE_FILTER}'
@@ -113,7 +113,7 @@ for scene_name in "${SCENES[@]}"; do
     OMNI_KIT_ACCEPT_EULA=yes \
     VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/nvidia_icd.json}" \
     CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}" \
-    $PY -m sentinel.eval.benchmark \
+    $PY -m maniguard.eval.benchmark \
         --config "$CONFIG" \
         --benchmark-root "$RESOLVED_ROOT" \
         --scenes "$scene_name" \

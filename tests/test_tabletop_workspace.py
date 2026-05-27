@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def _load_module():
-    mod_path = Path(__file__).resolve().parents[1] / "sentinel" / "utils" / "tabletop_workspace.py"
+    mod_path = Path(__file__).resolve().parents[1] / "maniguard" / "utils" / "tabletop_workspace.py"
     spec = importlib.util.spec_from_file_location("tabletop_workspace", mod_path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module

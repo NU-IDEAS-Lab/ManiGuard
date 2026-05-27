@@ -904,3 +904,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 ### SFT-prior grasp shortcut + sweep driver
 - `ac0458ed` `--phase-a-grasp-from-dataset` loads grasp pose from prior successful HDF5 (eef pose at gripper-transition step → base→world→target-local), uses it as a single OBB candidate; Phase A wall drops ~75s → ~22s with falls-back to OBB on miss
 - `d5912b33` `tools/_pnp_sft_prior_n10.sh` sweep driver — 47 tasks × 10 variants each, appends to outputs/lerobot_pnp_sft_prior_n10/; one prior per task (lowest seed); follow-up will add per-prior loop for 5× more diversity
+
+### Rebrand: SENTINEL-Lite → ManiGuard (2026-05-27)
+- Renamed Python package `sentinel/` → `maniguard/`, all imports, `Sentinel*` identifiers, and branding; pyproject distribution `sentinel-lite` → `maniguard`; `.gitignore`/`_version` paths repointed. Preserved external contracts: `SENTINEL_*` env vars, asset id `sentinel_goblet_pick_place`, HF dataset ids, wandb `sentinel-grasp-reset`, and the `NU-IDEAS-Lab/SENTINEL-Lite` GitHub slug. Verified: `compileall` OK, guarded `import maniguard` OK, 125 tests collect in behavior env. Pre-existing WIP (data/eval refactor) left uncommitted.

@@ -243,7 +243,7 @@ def _reset_runtime(og) -> None:
 
 def _replay_one_task(task_dir: Path, og, *, args) -> bool:
     """Build the empty scene + replay loop for one task. Returns True on success."""
-    from sentinel.envs.frozen_task_runtime import (
+    from maniguard.envs.frozen_task_runtime import (
         ReviewVideoRecorder,
         configure_review_sensors,
         extract_scene_robot_setup,
@@ -251,8 +251,8 @@ def _replay_one_task(task_dir: Path, og, *, args) -> bool:
         save_scene_snapshot,
         step_idle,
     )
-    from sentinel.utils.camera_setup import build_external_camera_configs
-    from sentinel.utils.goal_region import GoalRegionSpec, spawn_goal_region_marker
+    from maniguard.utils.camera_setup import build_external_camera_configs
+    from maniguard.utils.goal_region import GoalRegionSpec, spawn_goal_region_marker
 
     scene_root = task_dir / args.scene_subdir if args.scene_subdir else task_dir
     out_dir = (task_dir / args.output_subdir).resolve()

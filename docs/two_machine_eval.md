@@ -5,7 +5,7 @@ Policy inference runs on **Machine A** (GPU); OmniGibson simulation runs on **Ma
 ```
 Machine A (policy server)          Machine B (simulator + eval client)
 ┌──────────────────────┐           ┌──────────────────────────────┐
-│  serve_policy.py     │◄─ws:8000─►│  sentinel.eval.benchmark     │
+│  serve_policy.py     │◄─ws:8000─►│  maniguard.eval.benchmark     │
 │  (JAX, OpenPI)       │           │  (OmniGibson + Isaac Sim)    │
 │  GPU: ~18 GB VRAM    │           │  GPU: ~8-12 GB VRAM          │
 └──────────────────────┘           └──────────────────────────────┘
@@ -16,7 +16,7 @@ Machine A (policy server)          Machine B (simulator + eval client)
 | Machine | Conda env | Key packages |
 |---------|-----------|-------------|
 | A | `openpi` (or RLinf `.venv`) | openpi, jax, flax |
-| B | `behavior` | omnigibson, sentinel (editable) |
+| B | `behavior` | omnigibson, maniguard (editable) |
 
 Download the checkpoint on Machine A:
 ```bash
@@ -33,9 +33,9 @@ snapshot_download(
 ## Step 1 — Start the policy server (Machine A)
 
 ```bash
-cd /path/to/SENTINEL-Lite/openpi
+cd /path/to/ManiGuard/openpi
 
-CKPT_DIR=/path/to/SENTINEL-Lite/vla_models/pi05_sim_table_lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/25000
+CKPT_DIR=/path/to/ManiGuard/vla_models/pi05_sim_table_lora/checkpoints/pi05_clutter_libero_lora/sim_table_lora/25000
 
 CUDA_VISIBLE_DEVICES=0 .venv/bin/python scripts/serve_policy.py \
   --port 8000 \
@@ -62,7 +62,7 @@ Single-process run (multiple scenes sequentially in one python process):
 OMNI_KIT_ACCEPT_EULA=yes \
 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
 CUDA_VISIBLE_DEVICES=0 \
-conda run -n behavior python -m sentinel.eval.benchmark \
+conda run -n behavior python -m maniguard.eval.benchmark \
   --config configs/eval/sim_table_25k_remote.yaml
 ```
 

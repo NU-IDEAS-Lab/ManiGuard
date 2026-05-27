@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Watchdog wrapper for sentinel.rl.algorithms.ppo: relaunches the training
+# Watchdog wrapper for maniguard.rl.algorithms.ppo: relaunches the training
 # from the latest checkpoint whenever the process exits non-zero. Required
 # because OmniGibson + PhysX has multiple articulation-corruption pathways
 # (AG-fire-during-step, multi-env shared-view invalidation, scene-query
 # NaN inputs) that periodically segfault long-running PPO. See
-# sentinel/_omnigibson_patches.py:_patch_create_joint_skip_render for the
+# maniguard/_omnigibson_patches.py:_patch_create_joint_skip_render for the
 # one we already patched at the source.
 #
 # Usage:
@@ -32,7 +32,7 @@ if [ "$1" != "--" ]; then
 fi
 shift  # drop the --
 
-PROJECT_ROOT="/data/Projects/SENTINEL-Lite"
+PROJECT_ROOT="/data/Projects/ManiGuard"
 PYTHON="/home/simonzhan/anaconda3/envs/behavior/bin/python"
 MAX_RETRIES=100
 COOLDOWN_S=5
@@ -78,7 +78,7 @@ while [ $attempt -lt $MAX_RETRIES ]; do
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 \
     OMNIGIBSON_HEADLESS=1 \
-    "$PYTHON" -m sentinel.rl.algorithms.ppo \
+    "$PYTHON" -m maniguard.rl.algorithms.ppo \
         --output-dir "$OUTPUT_DIR" \
         "$@" \
         "${RESUME_ARGS[@]}"

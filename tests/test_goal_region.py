@@ -1,4 +1,4 @@
-from sentinel.utils.goal_region import (
+from maniguard.utils.goal_region import (
     GoalRegionSpec,
     build_task_prompt,
     object_intersects_goal_region,

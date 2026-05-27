@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sentinel-lite"
+name = "maniguard"
 dynamic = ["version"]
 description = "LTL safety monitoring, task generation, and VLA policy evaluation for BEHAVIOR-1K manipulation tasks"
 readme = "README.md"
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-# Pure-Python runtime deps that sentinel imports directly.
+# Pure-Python runtime deps that maniguard imports directly.
 # Heavy simulator / model deps (omnigibson, bddl, spot) are installed
 # out-of-band by behavior-1k/setup.sh — declaring them here would only
 # cause version conflicts.
@@ -55,7 +55,7 @@ Repository = "https://github.com/NU-IDEAS-Lab/SENTINEL-Lite"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["sentinel*"]
+include = ["maniguard*"]
 exclude = [
     "behavior-1k*",
     "vla_models*",
@@ -69,7 +69,7 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
-sentinel = [
+maniguard = [
     "configs/*.yaml",
     "eval/profiles/*.yaml",
     "task_generation/utils/*.json",
@@ -85,6 +85,6 @@ sentinel = [
 # ``--match v*`` restricts git describe to semver tags and ignores the
 # legacy ``generation-pipeline-v2.0`` label on older commits.
 [tool.setuptools_scm]
-write_to = "sentinel/_version.py"
+write_to = "maniguard/_version.py"
 git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v*"]
 fallback_version = "0.1.0.dev0"

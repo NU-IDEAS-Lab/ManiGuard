@@ -1,6 +1,6 @@
-# Root ruff config for sentinel-lite.
+# Root ruff config for maniguard.
 # The behavior-1k submodule has its own ruff.toml; exclude it here so we
-# only lint sentinel-owned code from the repo root.
+# only lint maniguard-owned code from the repo root.
 
 extend-exclude = [
     "behavior-1k/",

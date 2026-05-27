@@ -22,12 +22,12 @@ This script:
          filesystem → zero data copied, just an inode reference.
        * reads ``state`` + ``action`` from the HDF5 (image arrays ignored —
          LeRobot's video is now the pixel carrier).
-       * commits via :class:`sentinel.data.lerobot_writer.LeRobotEpisodeWriter`
+       * commits via :class:`maniguard.data.lerobot_writer.LeRobotEpisodeWriter`
          which calls ``save_episode`` under the no-PNG / MP4-aware-stats
          patches, so the only disk work is the parquet + meta updates.
   3. Rewrites the source HDF5 in place to drop ``obs/image_*`` datasets.
      The thin HDF5 still carries ``states`` / ``action`` / ``datagen_info`` /
-     ``env_args`` / ``model_file`` — everything sentinel.datagen reads.
+     ``env_args`` / ``model_file`` — everything maniguard.datagen reads.
      The source MP4s are then replaced with symlinks pointing to their
      LeRobot home (so the variant dir still has reviewable artifacts).
 
@@ -42,7 +42,7 @@ Usage::
 
     conda run -n behavior --no-capture-output python tools/lerobot_from_mp4s.py \\
         --input-dir outputs/variants_n10x2_first25 \\
-        --repo-id sentinel/clutter_pickup_n10x2_first25 \\
+        --repo-id maniguard/clutter_pickup_n10x2_first25 \\
         --root outputs/lerobot_pnp_clutter_first25
 """
 from __future__ import annotations
@@ -57,7 +57,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from sentinel.data.lerobot_writer import (
+from maniguard.data.lerobot_writer import (
     LeRobotEpisodeWriter,
     create_or_open_dataset,
     episode_prompt,
@@ -154,7 +154,7 @@ def main() -> int:
     p.add_argument("--input-dir", required=True, type=Path,
                    help="Root containing variant_*/rollout.hdf5 (recursive).")
     p.add_argument("--repo-id", required=True,
-                   help="LeRobot repo id, e.g. sentinel/clutter_pickup_n10x2_first25.")
+                   help="LeRobot repo id, e.g. maniguard/clutter_pickup_n10x2_first25.")
     p.add_argument("--root", required=True, type=Path,
                    help="LeRobot dataset root on disk.")
     p.add_argument("--fps", type=int, default=30)

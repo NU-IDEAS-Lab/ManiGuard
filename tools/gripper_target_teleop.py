@@ -26,7 +26,7 @@ import time
 from pathlib import Path
 
 
-# Franka panda gripper geometry (copied from sentinel/rl/grasps/obb_sampler.py).
+# Franka panda gripper geometry (copied from maniguard/rl/grasps/obb_sampler.py).
 # Coordinate frame: perp = X, closing = Y, approach = Z. Origin = eef_link.
 _FRANKA_MAX_OPENING        = 0.070
 _FRANKA_FINGER_LEN         = 0.145
@@ -261,7 +261,7 @@ def main():
     from tools.pick_up_lid_from_dataset import _place_lid_at_edge
     from tools.lid_transport_from_dataset import _identify_lid_container
     from tools.replay_empty_from_dataset import _load_scene_info
-    from sentinel.utils.lid_attach import LidSnapper
+    from maniguard.utils.lid_attach import LidSnapper
 
     task_dir = args.task_dir.resolve()
     if not (task_dir / "diagnostics.jsonl").is_file():
@@ -289,7 +289,7 @@ def main():
         # injects a wrist VisionSensor when the robot config is loaded).
         from tools._sft_recorder import install_wrist_camera_patch
         install_wrist_camera_patch()
-        from sentinel.data.lerobot_writer import create_or_open_dataset
+        from maniguard.data.lerobot_writer import create_or_open_dataset
         lerobot_dataset = create_or_open_dataset(
             repo_id=args.lerobot_repo_id, root=args.lerobot_root,
             fps=args.video_fps, resolution=args.record_resolution,
@@ -788,7 +788,7 @@ def main():
                     segment_idx = None
                     if saving:
                         from tools._sft_recorder import SFTRecorder
-                        from sentinel.data.lerobot_writer import (
+                        from maniguard.data.lerobot_writer import (
                             LeRobotEpisodeWriter,
                         )
                         segment_idx = (

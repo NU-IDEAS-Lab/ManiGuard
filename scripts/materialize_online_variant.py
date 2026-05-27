@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import sys
 
-from sentinel.data.perturbation_scaling import materialize_online_variant_in_place
+from maniguard.data.perturbation_scaling import materialize_online_variant_in_place
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

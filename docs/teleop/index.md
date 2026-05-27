@@ -1,15 +1,15 @@
 # Teleoperation
 
-SENTINEL-Lite supports two physical leader devices for teleoperating a
+ManiGuard supports two physical leader devices for teleoperating a
 simulated Franka Panda inside OmniGibson, plus a replay tool for recorded
 sessions and a batched grasp-collection mode.
 
 | Leader | Follower control | Entry point |
 |---|---|---|
-| SO-101 (LeRobot, 5-DoF) | EE delta → IK | `sentinel.teleop.so101_franka_teleop` |
-| GELLO (7-DoF Dynamixel) | Joint mirroring (no IK) | `sentinel.teleop.gello_franka_teleop` |
-| GELLO (7-DoF Dynamixel) | Joint mirroring, batched per-object grasp capture | `sentinel.teleop.gello_grasp_batch` |
-| Recorded HDF5 | DataPlaybackWrapper | `sentinel.teleop.so101_franka_playback` |
+| SO-101 (LeRobot, 5-DoF) | EE delta → IK | `maniguard.teleop.so101_franka_teleop` |
+| GELLO (7-DoF Dynamixel) | Joint mirroring (no IK) | `maniguard.teleop.gello_franka_teleop` |
+| GELLO (7-DoF Dynamixel) | Joint mirroring, batched per-object grasp capture | `maniguard.teleop.gello_grasp_batch` |
+| Recorded HDF5 | DataPlaybackWrapper | `maniguard.teleop.so101_franka_playback` |
 
 ## Two-environment architecture (SO-101)
 
@@ -58,11 +58,11 @@ GELLO joints (rad) → DynamixelRobot.get_joint_state()
 | Page | Script | Notes |
 |---|---|---|
 | [SO-101 ZMQ server](so101_server.md) | `teleop_bridge/so101_server.py` | Python 3.12 lerobot venv |
-| [SO-101 → Franka teleop](so101_franka.md) | `sentinel/teleop/so101_franka_teleop.py` | Python 3.10 behavior env |
-| [GELLO → Franka teleop](gello_franka.md) | `sentinel/teleop/gello_franka_teleop.py` | Python 3.10 behavior env |
-| [GELLO grasp batch](gello_grasp_batch.md) | `sentinel/teleop/gello_grasp_batch.py` | Per-object .pt grasp dataset |
-| [Playback](playback.md) | `sentinel/teleop/so101_franka_playback.py` | DataPlaybackWrapper wrapper |
+| [SO-101 → Franka teleop](so101_franka.md) | `maniguard/teleop/so101_franka_teleop.py` | Python 3.10 behavior env |
+| [GELLO → Franka teleop](gello_franka.md) | `maniguard/teleop/gello_franka_teleop.py` | Python 3.10 behavior env |
+| [GELLO grasp batch](gello_grasp_batch.md) | `maniguard/teleop/gello_grasp_batch.py` | Per-object .pt grasp dataset |
+| [Playback](playback.md) | `maniguard/teleop/so101_franka_playback.py` | DataPlaybackWrapper wrapper |
 
-The SO-101 client logic lives in `sentinel/teleop/so101_teleop.py`
+The SO-101 client logic lives in `maniguard/teleop/so101_teleop.py`
 (`SO101TeleopAgent` / `SO101TeleopConfig`); it is imported by
 `so101_franka_teleop.py` and is not a standalone entry point.

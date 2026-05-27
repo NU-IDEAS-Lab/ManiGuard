@@ -36,14 +36,14 @@ Watch in the viewer, no obs dump:
 ```bash
 conda activate behavior
 
-python -m sentinel.teleop.so101_franka_playback \
+python -m maniguard.teleop.so101_franka_playback \
     --input outputs/teleop/demo.hdf5
 ```
 
 Re-render RGB into a new HDF5:
 
 ```bash
-python -m sentinel.teleop.so101_franka_playback \
+python -m maniguard.teleop.so101_franka_playback \
     --input outputs/teleop/demo.hdf5 \
     --output outputs/teleop/demo_obs.hdf5 \
     --record
@@ -71,4 +71,4 @@ the viewer only.
 
 ## Source
 
-`sentinel/teleop/so101_franka_playback.py`
+`maniguard/teleop/so101_franka_playback.py`

@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from sentinel.utils.maxrects_pack import PackInputDescriptor, solve_pack  # noqa: E402
+from maniguard.utils.maxrects_pack import PackInputDescriptor, solve_pack  # noqa: E402
 
 _ROLE_COLORS = {"target": "#d62728", "fragile": "#ff7f0e", "clutter": "#1f77b4"}
 
@@ -91,8 +91,8 @@ def main():
     args = parser.parse_args()
 
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    footprints_path = os.path.join(repo_root, "sentinel/task_generation/utils/object_footprints.json")
-    surfaces_path = os.path.join(repo_root, "sentinel/task_generation/utils/placeable_surfaces_v1.json")
+    footprints_path = os.path.join(repo_root, "maniguard/task_generation/utils/object_footprints.json")
+    surfaces_path = os.path.join(repo_root, "maniguard/task_generation/utils/placeable_surfaces_v1.json")
     footprints = _load_json(footprints_path)
     surfaces = _load_json(surfaces_path)
 

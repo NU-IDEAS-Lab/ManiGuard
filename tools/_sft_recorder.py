@@ -23,7 +23,7 @@ def install_wrist_camera_patch() -> None:
 
     The FrankaPanda USD ships with a wrist Camera at translate=(0.05, 0,
     -0.05) (behind panda_hand origin, toward the wrist joint). With the
-    sentinel longfinger patch the fingers extend further in +Z and the
+    maniguard longfinger patch the fingers extend further in +Z and the
     stock camera ends up framing the back of the gripper. We flip the
     Z to +0.05 so the camera sits between the wrist and the finger
     tips, looking out at the grasping zone. Idempotent.
@@ -177,14 +177,14 @@ class SFTRecorder:
         # consumer that needs to replay the rollout in OG. Set False to
         # suppress (saves ~10% disk on SFT-only runs).
         self.record_sim_states = bool(record_sim_states)
-        # Optional sentinel.data.lerobot_writer.LeRobotEpisodeWriter — when
+        # Optional maniguard.data.lerobot_writer.LeRobotEpisodeWriter — when
         # set, MP4s are streamed directly to the writer's target paths and
         # per-step (state, action) is buffered for commit on success. In
         # this mode the HDF5 no longer stores image arrays (LeRobot owns the
         # pixels) but still carries sim states.
         self._lerobot_writer = lerobot_writer
         self._lerobot_prompt = lerobot_prompt
-        # Optional sentinel.utils.safety_monitor.TaskLTLMonitor — when set,
+        # Optional maniguard.utils.safety_monitor.TaskLTLMonitor — when set,
         # ``record_step`` advances it once per recorded step and ``finalize``
         # surfaces the summary into HDF5 attrs + LeRobot episodes.jsonl. The
         # monitor itself is owned by the caller (one per task, reset per

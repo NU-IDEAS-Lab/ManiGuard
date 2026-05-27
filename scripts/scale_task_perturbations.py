@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 
-from sentinel.data.perturbation_scaling import main
+from maniguard.data.perturbation_scaling import main
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 """Tests for task_spec — LTL generation and object budget, no simulator needed."""
 
-from sentinel.utils.task_spec import (
+from maniguard.utils.task_spec import (
     compute_object_budget,
     generate_ltl_safety_json,
 )
@@ -86,11 +86,11 @@ class TestBackwardCompatShim:
     """Verify that bddl_generator.py shim re-exports task_spec symbols."""
 
     def test_shim_exports_ltl_generator(self):
-        from sentinel.utils.bddl_generator import generate_ltl_safety_json as fn
+        from maniguard.utils.bddl_generator import generate_ltl_safety_json as fn
         assert fn is generate_ltl_safety_json
 
     def test_shim_exports_private_helpers(self):
-        from sentinel.utils.bddl_generator import _make_spawn_spec
+        from maniguard.utils.bddl_generator import _make_spawn_spec
         spec = _make_spawn_spec("cup.n.01", 1, "target")
         assert spec["synset"] == "cup.n.01"
         assert spec["count"] == 1

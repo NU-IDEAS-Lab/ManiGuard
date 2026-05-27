@@ -42,14 +42,14 @@ Clutter on a random surface:
 ```bash
 conda activate behavior
 
-python -m sentinel.task_generation.empty_scene_pipeline \
+python -m maniguard.task_generation.empty_scene_pipeline \
   --setup clutter --episodes 1 --steps 300 --save-video
 ```
 
 Stack on a desk specifically:
 
 ```bash
-python -m sentinel.task_generation.empty_scene_pipeline \
+python -m maniguard.task_generation.empty_scene_pipeline \
   --setup stack --surface-category desk --stack-height medium \
   --episodes 1 --steps 300 --save-video
 ```
@@ -57,7 +57,7 @@ python -m sentinel.task_generation.empty_scene_pipeline \
 Food transfer:
 
 ```bash
-python -m sentinel.task_generation.empty_scene_pipeline \
+python -m maniguard.task_generation.empty_scene_pipeline \
   --setup transfer --episodes 1 --steps 300 --save-video
 ```
 
@@ -81,8 +81,8 @@ There are no setup-specific extra gate checks (unlike the in-scene clutter / tra
 
 ## LTL constraints
 
-Delegated to the same generator as the chosen setup (`generate_clutter_activity` / `generate_stack_activity` / `generate_transfer_activity` in `sentinel.utils.task_spec`). The resulting `ltl_safety.json` is identical in shape to the matching in-scene pipeline; see `clutter.md`, `stack.md`, or `transfer.md` for the constraint set.
+Delegated to the same generator as the chosen setup (`generate_clutter_activity` / `generate_stack_activity` / `generate_transfer_activity` in `maniguard.utils.task_spec`). The resulting `ltl_safety.json` is identical in shape to the matching in-scene pipeline; see `clutter.md`, `stack.md`, or `transfer.md` for the constraint set.
 
 ## Source
 
-`sentinel/task_generation/empty_scene_pipeline.py`
+`maniguard/task_generation/empty_scene_pipeline.py`
