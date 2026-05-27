@@ -4,11 +4,23 @@
   cost-stream rollout buffer, and a ``_compute_adv_surrogate`` hook subclasses
   override to weight the policy gradient.
 * ``Lagrange`` — scalar λ multiplier with gradient updates.
-* ``trpo_utils`` (Phase 4) — conjugate gradient + Fisher-vector product +
-  flat-param helpers for the CPO line search.
+* ``trpo_utils`` — conjugate gradient + flat-param helpers for CPO.
 """
 
 from sentinel.rl.safe.constrained_ppo import ConstrainedPPO
 from sentinel.rl.safe.lagrange import Lagrange
+from sentinel.rl.safe.trpo_utils import (
+    conjugate_gradients,
+    flat_grad,
+    flat_params,
+    set_flat_params,
+)
 
-__all__ = ["ConstrainedPPO", "Lagrange"]
+__all__ = [
+    "ConstrainedPPO",
+    "Lagrange",
+    "conjugate_gradients",
+    "flat_grad",
+    "flat_params",
+    "set_flat_params",
+]

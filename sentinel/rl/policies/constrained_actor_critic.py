@@ -214,6 +214,20 @@ class MultiInputConstrainedActorCriticPolicy(MultiInputActorCriticPolicy):
         latent_vf_cost = self._cost_latent_vf(obs)
         return self.cost_value_net(latent_vf_cost)
 
+    def get_action_distribution(self, obs: PyTorchObs):
+        """Return the action distribution for obs (actor path only).
+
+        Used by CPO's FVP: runs the extractor + policy MLP but skips the
+        value heads, saving ~30% compute per Fisher-vector-product call.
+        """
+        if self.share_features_extractor:
+            features = self.extract_features(obs)
+            latent_pi, _ = self.mlp_extractor(features)
+        else:
+            pi_features, _ = self.extract_features(obs)
+            latent_pi = self.mlp_extractor.forward_actor(pi_features)
+        return self._get_action_dist_from_latent(latent_pi)
+
     def _get_constructor_parameters(self) -> dict[str, Any]:
         data = super()._get_constructor_parameters()
         data["separate_cost_value_extractor"] = self.separate_cost_value_extractor
