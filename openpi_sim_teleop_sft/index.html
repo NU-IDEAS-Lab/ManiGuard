@@ -1,0 +1,3082 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K">
+      
+      
+      
+        <link rel="canonical" href="https://nu-ideas-lab.github.io/SENTINEL-Lite/openpi_sim_teleop_sft/">
+      
+      
+        <link rel="prev" href="../sft/end_to_end/">
+      
+      
+        <link rel="next" href="../openpi_real_teleop_sft/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>OpenPI sim teleop SFT - ManiGuard</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/mg-carousel.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#fine-tuning-pi05-on-omnigibson-sim-teleop-via-openpi" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ManiGuard" class="md-header__button md-logo" aria-label="ManiGuard" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ManiGuard
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              OpenPI sim teleop SFT
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/NU-IDEAS-Lab/SENTINEL-Lite" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    NU-IDEAS-Lab/SENTINEL-Lite
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Concepts & Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../pipelines/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Task Generation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../data_collection/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Data Collection
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../sft/end_to_end/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SFT
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../evaluation/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Evaluation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../rl/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  RL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ManiGuard" class="md-nav__button md-logo" aria-label="ManiGuard" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ManiGuard
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/NU-IDEAS-Lab/SENTINEL-Lite" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    NU-IDEAS-Lab/SENTINEL-Lite
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts & Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts & Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../foundations/env_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environment layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../foundations/ltl_safety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTL safety system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../foundations/omnigibson_patches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OmniGibson patches & configs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../pipelines/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Task Generation
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Task Generation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/data_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/custom_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add a custom pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabletop clutter
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tabletop clutter
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/clutter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clutter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/liquid_transport/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Liquid transport (variant)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack retrieval
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Food transfer
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Food transfer
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/transfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transfer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/dusty_transfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dusty transfer (variant)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/lid_transport/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lid transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/wet_transport/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wet transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/empty_scene/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Empty scene
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/empty_invert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Empty invert
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/cabinet_pickup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cabinet pickup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/jar_transport/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jar transport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../data_collection/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Collection
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data Collection
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../teleop/so101_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SO-101 ZMQ server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../teleop/so101_franka/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SO-101 → Franka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../teleop/gello_franka/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GELLO → Franka
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../teleop/gello_calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GELLO calibration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../teleop/gello_grasp_batch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GELLO grasp batch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../teleop/playback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Playback render
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data_collection/curobo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cuRobo demo collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../graspgen_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GraspGen / cuRobo grasp pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SFT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sft/end_to_end/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Controller, data, action & eval
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenPI sim teleop SFT
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenPI sim teleop SFT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-why-libero-schema-not-droid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Why LIBERO schema (not DROID)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-hardware-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Hardware requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-local-data-conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Local data conversion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Local data conversion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-one-time-env-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 One-time env setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-stage-1-render-obs-from-raw-teleop-skip-if-already-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Stage 1: render obs from raw teleop (skip if already done)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-stage-2-hdf5-lerobot-v21-push-to-hf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Stage 2: HDF5 → LeRobot v2.1 + push to HF
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-sanity-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Sanity check
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cloud-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Cloud setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-register-training-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Register training config
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-train" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Train
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Train">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-smoke-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Smoke test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-full-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Full run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-save-schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Save schedule
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-post-training-upload-serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Post-training (upload + serve)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Post-training (upload + serve)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-upload-kept-ckpts-to-hf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Upload kept ckpts to HF
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-serve-in-sim-eval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Serve in sim eval
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-gotchas-sim-specific" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Gotchas (sim-specific)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-reference-experiments-and-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Reference experiments and datasets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-file-pointers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. File pointers
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openpi_real_teleop_sft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenPI real teleop SFT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../evaluation/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evaluation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../one_machine_pro6000_eval/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single-machine (Pro 6000)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../two_machine_eval/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Two-machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../rl/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rl_training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PPO grasp training
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-why-libero-schema-not-droid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Why LIBERO schema (not DROID)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-hardware-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Hardware requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-local-data-conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Local data conversion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Local data conversion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-one-time-env-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 One-time env setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-stage-1-render-obs-from-raw-teleop-skip-if-already-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Stage 1: render obs from raw teleop (skip if already done)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-stage-2-hdf5-lerobot-v21-push-to-hf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Stage 2: HDF5 → LeRobot v2.1 + push to HF
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-sanity-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Sanity check
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cloud-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Cloud setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-register-training-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Register training config
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-train" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Train
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Train">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-smoke-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Smoke test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-full-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Full run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-save-schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Save schedule
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-post-training-upload-serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Post-training (upload + serve)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Post-training (upload + serve)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-upload-kept-ckpts-to-hf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Upload kept ckpts to HF
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-serve-in-sim-eval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Serve in sim eval
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-gotchas-sim-specific" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Gotchas (sim-specific)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-reference-experiments-and-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Reference experiments and datasets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-file-pointers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. File pointers
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/NU-IDEAS-Lab/SENTINEL-Lite/edit/main/docs/openpi_sim_teleop_sft.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="fine-tuning-pi05-on-omnigibson-sim-teleop-via-openpi">Fine-tuning pi0.5 on OmniGibson sim teleop via openpi<a class="headerlink" href="#fine-tuning-pi05-on-omnigibson-sim-teleop-via-openpi" title="Permanent link">&para;</a></h1>
+<p>End-to-end recipe for SFT of a pi0.5 VLA on <strong>OmniGibson teleop data</strong>
+using openpi's native JAX trainer. Companion to
+<code>docs/openpi_real_teleop_sft.md</code>; the two share most plumbing but
+choose <strong>different LeRobot schemas</strong> because of action/state convention
+mismatches.</p>
+<p><strong>Key difference from the real-teleop path</strong>: sim data uses LIBERO schema
+(EEF-delta actions), not DROID schema (joint-velocity actions). We don't
+have joint-position observations recorded in our sim teleop, and re-playing
+to extract them is more pain than benefit when the LIBERO path already
+matches our data 1:1.</p>
+<div class="admonition tip">
+<p class="admonition-title">Pick controller / action / eval first</p>
+<p>This page is the <strong>delta-EEF (LIBERO)</strong> track. For how that choice ties back
+to data collection and the matching <strong>eval controller</strong> (<code>osc</code> vs
+<code>joint_position_impedance</code> + <code>ik_eef_to_joint</code>), see
+<a href="../sft/end_to_end/">Controller, data, action &amp; eval</a>.</p>
+</div>
+<hr />
+<h2 id="1-overview">1. Overview<a class="headerlink" href="#1-overview" title="Permanent link">&para;</a></h2>
+<p><strong>Input</strong>: rendered HDF5 from <code>maniguard.data.playback</code> over OmniGibson
+teleop, with the standard OmniGibson schema:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>data/demo_0/obs/image        (N+1, 256, 256, 3) uint8   third-person view
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>data/demo_0/obs/wrist_image  (N+1, 256, 256, 3) uint8   wrist camera
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>data/demo_0/obs/state        (N+1, 8)            f32    [eef_pos(3), axisangle(3), grip_L, grip_R]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>data/demo_0/action           (N,   7)            f32    [Δpos(3), Δrot(3), gripper_sign(1)]
+</code></pre></div>
+<p><strong>Output</strong>: LoRA-finetuned pi0.5 ckpt evaluable in sim via
+<code>maniguard/serve/openpi_native.py</code> + the <a href="../one_machine_pro6000_eval/">eval benchmark</a>.</p>
+<p><strong>Pipeline</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>OmniGibson teleop -&gt; Stage1 playback (.hdf5) -&gt; Stage2 lerobot_export -&gt; HF private repo
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                                                                              |
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>cloud: pull dataset + pi05_base ckpt from GCS  -&gt;  openpi train.py  -&gt;  ckpt
+</code></pre></div></p>
+<hr />
+<h2 id="2-why-libero-schema-not-droid">2. Why LIBERO schema (not DROID)<a class="headerlink" href="#2-why-libero-schema-not-droid" title="Permanent link">&para;</a></h2>
+<p><code>LeRobotLiberoDataConfig</code>'s repack expects exactly the LeRobot column
+names our <code>maniguard/data/lerobot/lerobot_export.py</code> already writes:</p>
+<table>
+<thead>
+<tr>
+<th>LIBERO key</th>
+<th>Our column</th>
+<th>Match?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>observation/image</code> ← <code>image</code></td>
+<td><code>image</code> (video, 256²×3)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>observation/wrist_image</code> ← <code>wrist_image</code></td>
+<td><code>wrist_image</code> (video, 256²×3)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>observation/state</code> ← <code>state</code></td>
+<td><code>state</code> (8D)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>actions</code> ← <code>actions</code></td>
+<td><code>actions</code> (7D EEF delta)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>prompt</code> ← <code>prompt</code></td>
+<td>task index + tasks.jsonl</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p>State semantics differ slightly (LIBERO uses Euler angles; we use
+axisangle) but both are 3D continuous orientation reps that pi0.5 learns
+from data via norm_stats. From <code>pi05_base</code> warm start the difference is
+moot — <code>pi05_base</code> has not seen any robot-specific state, so any
+3D rotation parameterization is fine.</p>
+<p><strong>DROID schema would require joint_position(7) + joint_velocity(7)</strong> as
+new LeRobot columns. We don't record these in sim playback, and adding
+them needs a <code>maniguard/data/playback.py</code> modification + 39-episode
+re-playback (~3-4 h on a 4080). Not worth it unless you want to do
+sim+real DROID-format mixed training.</p>
+<hr />
+<h2 id="3-hardware-requirements">3. Hardware requirements<a class="headerlink" href="#3-hardware-requirements" title="Permanent link">&para;</a></h2>
+<p>Same as <code>docs/openpi_real_teleop_sft.md</code> §2 — pi0.5 LoRA finetune from
+<code>pi05_base</code> fits on <strong>A100 40GB</strong> (frees the optimizer-state cliff that
+forces full SFT to A100 80GB). Sim datasets tend to be larger than real
+(our mug-into-bowl: 39 eps × ~1300 steps ≈ 51k frames vs real's 6k
+frames), so plan for <strong>longer wall clock</strong> at the same step count.</p>
+<hr />
+<h2 id="4-local-data-conversion">4. Local data conversion<a class="headerlink" href="#4-local-data-conversion" title="Permanent link">&para;</a></h2>
+<h3 id="41-one-time-env-setup">4.1 One-time env setup<a class="headerlink" href="#41-one-time-env-setup" title="Permanent link">&para;</a></h3>
+<p>Same as the real path — pin lerobot to v2.1 codebase:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.11<span class="w"> </span>.venv-lerobot
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span>.venv-lerobot/bin/python<span class="w"> </span><span class="s1">&#39;lerobot&lt;0.4&#39;</span><span class="w"> </span>h5py<span class="w"> </span>pyarrow<span class="w"> </span>opencv-python
+</code></pre></div>
+<h3 id="42-stage-1-render-obs-from-raw-teleop-skip-if-already-done">4.2 Stage 1: render obs from raw teleop (skip if already done)<a class="headerlink" href="#42-stage-1-render-obs-from-raw-teleop-skip-if-already-done" title="Permanent link">&para;</a></h3>
+<p>Raw OmniGibson teleop HDF5s have only the 184-dim env-state blob and
+actions. To get clean obs (image, wrist_image, 8D state), run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>outputs/jixing_teleop_hdf5/scene_ep*.hdf5<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>conda<span class="w"> </span>run<span class="w"> </span>-n<span class="w"> </span>behavior<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.playback<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--input<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span>--output<span class="w"> </span><span class="s2">&quot;outputs/teleop_rendered_&lt;task&gt;/</span><span class="k">$(</span>basename<span class="w"> </span><span class="nv">$f</span><span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span>--record
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">done</span>
+</code></pre></div>
+<p>Output is in the schema shown in §1. Already done for our <code>mug-into-bowl</code>
+task → <code>outputs/teleop_rendered_mug_into_bowl/</code> (39 eps).</p>
+<h3 id="43-stage-2-hdf5-lerobot-v21-push-to-hf">4.3 Stage 2: HDF5 → LeRobot v2.1 + push to HF<a class="headerlink" href="#43-stage-2-hdf5-lerobot-v21-push-to-hf" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>.venv-lerobot/bin/python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.lerobot.lerobot_export<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/teleop_rendered_&lt;task&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--repo-id<span class="w"> </span>maniguard/&lt;task&gt;_libero<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--prompt<span class="w"> </span><span class="s2">&quot;&lt;natural-language instruction&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>--fps<span class="w"> </span><span class="m">30</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span>--root<span class="w"> </span>outputs/lerobot_datasets/maniguard/&lt;task&gt;_libero<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span>--push-to-hub<span class="w"> </span>IDEAS-Lab-Northwestern/&lt;hf_repo_name&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span>--hub-private
+</code></pre></div>
+<p><code>--push-to-hub</code> calls <code>LeRobotDataset.push_to_hub()</code> internally, which
+<strong>auto-creates the v2.1 codebase-version git tag</strong> required by openpi.
+Plain <code>huggingface_hub.upload_folder</code> does NOT create this tag — never
+use it for openpi-bound datasets.</p>
+<p>Reference: <code>IDEAS-Lab-Northwestern/sim2real-mug-into-bowl</code> was pushed
+this way (39 eps / 51437 frames / 30 fps / 256×256, two av1 video
+streams).</p>
+<h3 id="44-sanity-check">4.4 Sanity check<a class="headerlink" href="#44-sanity-check" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>.venv-lerobot/bin/python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="s2">import json, pyarrow.parquet as pq</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="s2">from pathlib import Path</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="s2">root = Path(&#39;outputs/lerobot_datasets/maniguard/&lt;task&gt;_libero&#39;)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="s2">info = json.loads((root/&#39;meta/info.json&#39;).read_text())</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="s2">assert info[&#39;codebase_version&#39;] == &#39;v2.1&#39;, info[&#39;codebase_version&#39;]</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="s2">print(f&#39;eps={info[\&quot;total_episodes\&quot;]}  frames={info[\&quot;total_frames\&quot;]}  fps={info[\&quot;fps\&quot;]}&#39;)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="s2">t = pq.read_table(next((root/&#39;data&#39;).rglob(&#39;*.parquet&#39;)))</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="s2">print(&#39;parquet cols:&#39;, t.column_names)</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="s2">&quot;</span>
+</code></pre></div>
+<p>Expect:
+- <code>codebase_version == v2.1</code>
+- parquet cols: <code>image, wrist_image, state, actions, timestamp, frame_index, episode_index, index, task_index</code>
+  (single combined <code>state</code> column — distinct from DROID which splits into <code>joint_position</code> + <code>gripper_position</code>)</p>
+<hr />
+<h2 id="5-cloud-setup">5. Cloud setup<a class="headerlink" href="#5-cloud-setup" title="Permanent link">&para;</a></h2>
+<p>Same as real path §4. SSH in, <code>git clone openpi</code>, <code>uv sync</code>,
+<code>huggingface-cli login</code>. Skip if you already have an instance set up
+from a prior run.</p>
+<hr />
+<h2 id="6-register-training-config">6. Register training config<a class="headerlink" href="#6-register-training-config" title="Permanent link">&para;</a></h2>
+<p>Edit <code>src/openpi/training/config.py</code> and add this TrainConfig (a sibling
+to <code>pi0_libero_low_mem_finetune</code> but for pi0.5 + our sim dataset):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">TrainConfig</span><span class="p">(</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;pi05_&lt;task&gt;_libero_lora&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">model</span><span class="o">=</span><span class="n">pi0_config</span><span class="o">.</span><span class="n">Pi0Config</span><span class="p">(</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>        <span class="n">pi05</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>        <span class="n">action_dim</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        <span class="n">action_horizon</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="n">paligemma_variant</span><span class="o">=</span><span class="s2">&quot;gemma_2b_lora&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="n">action_expert_variant</span><span class="o">=</span><span class="s2">&quot;gemma_300m_lora&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="p">),</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">data</span><span class="o">=</span><span class="n">LeRobotLiberoDataConfig</span><span class="p">(</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>        <span class="n">repo_id</span><span class="o">=</span><span class="s2">&quot;IDEAS-Lab-Northwestern/&lt;hf_repo_name&gt;&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>        <span class="n">base_config</span><span class="o">=</span><span class="n">DataConfig</span><span class="p">(</span><span class="n">prompt_from_task</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>        <span class="c1"># Our actions are already EEF delta; do NOT set extra_delta_transform</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="p">),</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">weight_loader</span><span class="o">=</span><span class="n">weight_loaders</span><span class="o">.</span><span class="n">CheckpointWeightLoader</span><span class="p">(</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>        <span class="s2">&quot;gs://openpi-assets/checkpoints/pi05_base/params&quot;</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    <span class="p">),</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    <span class="n">num_train_steps</span><span class="o">=</span><span class="mi">20_000</span><span class="p">,</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>    <span class="n">freeze_filter</span><span class="o">=</span><span class="n">pi0_config</span><span class="o">.</span><span class="n">Pi0Config</span><span class="p">(</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>        <span class="n">pi05</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">action_dim</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">action_horizon</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>        <span class="n">paligemma_variant</span><span class="o">=</span><span class="s2">&quot;gemma_2b_lora&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>        <span class="n">action_expert_variant</span><span class="o">=</span><span class="s2">&quot;gemma_300m_lora&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>    <span class="p">)</span><span class="o">.</span><span class="n">get_freeze_filter</span><span class="p">(),</span>
+<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>    <span class="n">ema_decay</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="p">),</span>
+</code></pre></div>
+<p>Two warm-start choices to register if you want A/B:</p>
+<table>
+<thead>
+<tr>
+<th>Config name</th>
+<th>Weight loader</th>
+<th>Expected behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pi05_&lt;task&gt;_libero_lora</code> (recommended)</td>
+<td><code>gs://openpi-assets/checkpoints/pi05_base/params</code></td>
+<td>Cleanest fit; pi05_base has no robot prior to fight</td>
+</tr>
+<tr>
+<td><code>pi05_droid_&lt;task&gt;_libero_lora</code> (ablation)</td>
+<td><code>gs://openpi-assets/checkpoints/pi05_droid/params</code></td>
+<td>DROID's joint-vel action prior fights LIBERO's EEF-delta target — usually worse, useful as comparison only</td>
+</tr>
+</tbody>
+</table>
+<p>Norm_stats: don't set <code>assets=AssetsConfig(...)</code> for pi05_base — openpi
+will compute them on your dataset on first run (or via
+<code>scripts/compute_norm_stats.py</code>).</p>
+<hr />
+<h2 id="7-train">7. Train<a class="headerlink" href="#7-train" title="Permanent link">&para;</a></h2>
+<h3 id="71-smoke-test">7.1 Smoke test<a class="headerlink" href="#71-smoke-test" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>tmux<span class="w"> </span>new<span class="w"> </span>-s<span class="w"> </span>sft
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>uv<span class="w"> </span>run<span class="w"> </span>scripts/train.py<span class="w"> </span>pi05_&lt;task&gt;_libero_lora<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--exp-name<span class="o">=</span>&lt;task&gt;_smoke<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span>--num_train_steps<span class="o">=</span><span class="m">100</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span>--overwrite
+</code></pre></div>
+<p>Watch for:
+- LeRobot dataset pulled from HF (no <code>RevisionNotFoundError</code> — v2.1 tag works)
+- <code>tokenized_prompt: (N, 200)@int32</code> printed → prompt connected
+- Weights downloaded from <code>gs://openpi-assets/checkpoints/pi05_base/params</code> (~8GB)
+- First step loss prints
+- VRAM steady (not climbing past 85%)</p>
+<h3 id="72-full-run">7.2 Full run<a class="headerlink" href="#72-full-run" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>run<span class="w"> </span>scripts/train.py<span class="w"> </span>pi05_&lt;task&gt;_libero_lora<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--exp-name<span class="o">=</span>&lt;task&gt;_20k<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--overwrite
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Ctrl+b d to detach</span>
+</code></pre></div>
+<p>Default <code>num_train_steps=20_000</code> at <code>batch_size=4</code> on A100 80GB ≈
+<strong>12-18 h</strong> for our sim mug-into-bowl (51k frames per epoch ≈ 1.5
+epochs at this step count).</p>
+<h3 id="73-save-schedule">7.3 Save schedule<a class="headerlink" href="#73-save-schedule" title="Permanent link">&para;</a></h3>
+<p><code>save_interval=5000</code> + <code>keep_period=5000</code> (openpi defaults) keeps steps
+<strong>5000 / 10000 / 15000 / 20000</strong>. All four are useful for ablation —
+some sim tasks overfit by 15k.</p>
+<hr />
+<h2 id="8-post-training-upload-serve">8. Post-training (upload + serve)<a class="headerlink" href="#8-post-training-upload-serve" title="Permanent link">&para;</a></h2>
+<h3 id="81-upload-kept-ckpts-to-hf">8.1 Upload kept ckpts to HF<a class="headerlink" href="#81-upload-kept-ckpts-to-hf" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>~/openpi
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nv">CKPT_DIR</span><span class="o">=</span>checkpoints/pi05_&lt;task&gt;_libero_lora/&lt;exp-name&gt;
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nv">HF_REPO</span><span class="o">=</span>IDEAS-Lab-Northwestern/pi05-&lt;task&gt;-libero-lora
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nv">HF_HUB_DISABLE_XET</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="s2">from huggingface_hub import create_repo, upload_folder</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="s2">create_repo(&#39;</span><span class="nv">$HF_REPO</span><span class="s2">&#39;, repo_type=&#39;model&#39;, private=True, exist_ok=True)</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="s2">upload_folder(</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="s2">    folder_path=&#39;</span><span class="nv">$CKPT_DIR</span><span class="s2">&#39;,</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="s2">    repo_id=&#39;</span><span class="nv">$HF_REPO</span><span class="s2">&#39;,</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="s2">    repo_type=&#39;model&#39;,</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="s2">    commit_message=&#39;LoRA ckpts kept steps (pi05_base warm start, sim &lt;task&gt;)&#39;,</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="s2">    ignore_patterns=[&#39;*/train_state/**&#39;],</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="s2">)</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="s2">&quot;</span>
+</code></pre></div>
+<p>To upload only specific steps add e.g. <code>allow_patterns=['5000/**', '10000/**']</code>.</p>
+<p>See <code>docs/openpi_real_teleop_sft.md</code> §7 for verification commands and
+model-card template.</p>
+<h3 id="82-serve-in-sim-eval">8.2 Serve in sim eval<a class="headerlink" href="#82-serve-in-sim-eval" title="Permanent link">&para;</a></h3>
+<p>Our <code>maniguard/serve/openpi_native.py</code> auto-detects JAX vs PyTorch
+ckpts; openpi-trained ckpts are JAX (orbax <code>params/</code> subdir, no
+<code>model.safetensors</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sudo<span class="w"> </span>openpi/.venv/bin/python<span class="w"> </span>maniguard/serve/openpi_native.py<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span>--config<span class="w"> </span>pi05_&lt;task&gt;_libero_lora<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span>--checkpoint<span class="w"> </span>&lt;local_path&gt;/&lt;step&gt;
+</code></pre></div>
+<p>Then point the eval benchmark (<code>maniguard.eval.benchmark</code>) at <code>localhost:8000</code>.
+The same serve path is used for real-teleop ckpts — backend selection is
+automatic.</p>
+<hr />
+<h2 id="9-gotchas-sim-specific">9. Gotchas (sim-specific)<a class="headerlink" href="#9-gotchas-sim-specific" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>Don't use DROID schema for sim</strong>. Our sim teleop never recorded
+   joint state/velocity, so the DROID converter (<code>real_teleop_to_droid.py</code>)
+   would need fake joint values, which break the model's proprio prior.
+   Use LIBERO schema instead — it matches our existing data 1:1.</p>
+</li>
+<li>
+<p><strong>Don't warm-start sim from <code>pi05_droid</code></strong> unless you're explicitly
+   doing an ablation. pi05_droid's vision encoder is tuned to real
+   camera statistics (lens distortion, sensor noise) that OmniGibson
+   raytracing doesn't reproduce; its action expert is in joint-velocity
+   space, which conflicts with our EEF-delta target. Both priors fight
+   the LoRA. <code>pi05_base</code> is the right choice.</p>
+</li>
+<li>
+<p><strong><code>extra_delta_transform=False</code></strong> for our data. Our actions are
+   already EEF deltas (per-step <code>pos[t+1] - pos[t]</code>), so the additional
+   delta transform would double-difference them and produce nonsense.
+   LIBERO's docstring also notes their data is delta-native.</p>
+</li>
+<li>
+<p><strong>Sim data is much larger than real</strong>. 39 eps × ~1300 frames is 8×
+   the real dataset. Push/pull from HF is mostly mp4 video so it's
+   fine, but training wall clock per epoch is correspondingly longer
+   — budget 12-18 h for 20k steps on A100 80GB.</p>
+</li>
+<li>
+<p><strong>Sim images are out-of-distribution for any vision prior</strong>. pi05_base
+   has no robot prior; pi05_droid has a real-camera prior. Neither has
+   seen OmniGibson raytracing. Expect the vision encoder to need
+   meaningful adaptation — LoRA on <code>paligemma_variant="gemma_2b_lora"</code>
+   covers this, but tasks that depend on subtle texture cues may
+   struggle.</p>
+</li>
+<li>
+<p><strong><code>LeRobotDataset</code> only loads from HF if v2.1 codebase tag exists</strong>.
+   Our older sim datasets (<code>IDEAS-Lab-Northwestern/SFT</code>,
+   <code>IDEAS-Lab-Northwestern/real-mug-into-bowl</code>) were pushed with
+   lerobot 0.4.4 and got v3.0 format, so openpi can't load them. Either
+   re-export with <code>lerobot&lt;0.4</code> and <code>--push-to-hub</code>, or accept they're
+   only useful for the legacy PyTorch path.</p>
+</li>
+</ol>
+<hr />
+<h2 id="10-reference-experiments-and-datasets">10. Reference experiments and datasets<a class="headerlink" href="#10-reference-experiments-and-datasets" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>Source</th>
+<th>Schema</th>
+<th>Training config name</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IDEAS-Lab-Northwestern/sim2real-mug-into-bowl</code></td>
+<td>sim teleop, 39 eps / 51k frames</td>
+<td>LIBERO v2.1</td>
+<td><code>pi05_&lt;task&gt;_libero_lora</code></td>
+<td>Ready ✅</td>
+</tr>
+<tr>
+<td><code>IDEAS-Lab-Northwestern/SFT</code> (goblet)</td>
+<td>sim teleop, 21 eps</td>
+<td>OmniGibson v3.0</td>
+<td>—</td>
+<td>Needs re-push as v2.1 if used</td>
+</tr>
+<tr>
+<td><code>IDEAS-Lab-Northwestern/real-mug-into-bowl-droid</code></td>
+<td>real teleop, 21 eps / 6.6k frames</td>
+<td>DROID v2.1</td>
+<td><code>pi05_droid_finetune_lora</code></td>
+<td>Ready ✅ (real-teleop doc)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="11-file-pointers">11. File pointers<a class="headerlink" href="#11-file-pointers" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>maniguard/data/playback.py</code> — Stage 1: re-renders OmniGibson env from raw teleop, emits image/wrist_image/state HDF5</li>
+<li><code>maniguard/data/lerobot/lerobot_export.py</code> — Stage 2: HDF5 → LeRobot v2.1 (LIBERO-compatible columns), with <code>--push-to-hub</code></li>
+<li><code>maniguard/data/real_teleop/real_teleop_to_droid.py</code> — sister script for real data → DROID schema (different path)</li>
+<li><code>maniguard/serve/openpi_native.py</code> — JAX/PyTorch-auto-detect serve, used for both sim and real evals</li>
+<li><code>docs/openpi_real_teleop_sft.md</code> — companion doc for the real-data DROID path</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../javascripts/mg-carousel.js"></script>
+      
+    
+  </body>
+</html>
