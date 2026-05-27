@@ -173,24 +173,15 @@ class SFTRecorder:
         self.fps = int(fps)
         self._ext_cam_names = list(ext_cam_names)
         # If True, ``og.sim.dump_state(serialized=True)`` is snapshotted per
-        # step and persisted under ``data/demo_0/states`` — required by the
-        # sentinel.datagen pipeline, since it replays sim states to extract
-        # per-step datagen_info. Set False to suppress (saves ~10% disk on
-        # SFT-only runs).
+        # step and persisted under ``data/demo_0/states`` — useful for any
+        # consumer that needs to replay the rollout in OG. Set False to
+        # suppress (saves ~10% disk on SFT-only runs).
         self.record_sim_states = bool(record_sim_states)
-        # Optional sentinel.datagen.OmniGibsonInterface — when set via
-        # ``set_datagen_interface``, ``record_step`` will collect a
-        # ``DatagenInfo`` per step (eef pose, object poses, grasp signal,
-        # target pose, gripper action) and persist it under
-        # ``data/demo_0/datagen_info``. Live collection avoids the
-        # cross-session UUID issue that prevents replay-based baking.
-        self._datagen_iface = None
-        self._datagen_per_step: list = []
         # Optional sentinel.data.lerobot_writer.LeRobotEpisodeWriter — when
         # set, MP4s are streamed directly to the writer's target paths and
         # per-step (state, action) is buffered for commit on success. In
         # this mode the HDF5 no longer stores image arrays (LeRobot owns the
-        # pixels) but still carries states/datagen_info for datagen.
+        # pixels) but still carries sim states.
         self._lerobot_writer = lerobot_writer
         self._lerobot_prompt = lerobot_prompt
         # Optional sentinel.utils.safety_monitor.TaskLTLMonitor — when set,
@@ -219,10 +210,6 @@ class SFTRecorder:
         self.n_video_frames = 0
         self.n_record_steps = 0
 
-    def set_datagen_interface(self, iface) -> None:
-        """Attach a ``sentinel.datagen.OmniGibsonInterface`` so each
-        ``record_step`` also captures a ``DatagenInfo``."""
-        self._datagen_iface = iface
         # Previous eef pose, for FK-derived action recording during Phase A
         # (where the underlying sim step is a kinematic teleport, not an OSC
         # command). First call after reset_eef_history() records action = 0.
@@ -312,10 +299,6 @@ class SFTRecorder:
         if self.record_sim_states:
             sim_state = self._dump_sim_state()
             self._sim_states.append(sim_state)
-        datagen_info = None
-        if self._datagen_iface is not None:
-            datagen_info = self._datagen_iface.get_datagen_info(action=action_arr)
-            self._datagen_per_step.append(datagen_info)
         ap_labels = None
         if self._ltl_monitor is not None:
             try:
@@ -341,7 +324,7 @@ class SFTRecorder:
             self._phase_a_cache.append({
                 "image_left": l, "image_right": r, "wrist_image": w,
                 "state": state, "action": action_arr,
-                "sim_state": sim_state, "datagen_info": datagen_info,
+                "sim_state": sim_state,
                 "ap_labels": ap_labels,
             })
         self._dones.append(bool(done))
@@ -377,8 +360,6 @@ class SFTRecorder:
         self._actions.append(action_arr)
         if self.record_sim_states and cached.get("sim_state") is not None:
             self._sim_states.append(cached["sim_state"])
-        if self._datagen_iface is not None and cached.get("datagen_info") is not None:
-            self._datagen_per_step.append(cached["datagen_info"])
         if self._lerobot_writer is not None:
             self._lerobot_writer.add_step(state, action_arr)
         else:
@@ -391,7 +372,7 @@ class SFTRecorder:
 
     @staticmethod
     def _dump_sim_state() -> np.ndarray:
-        """Serialise the current OG sim state for MimicGen-style replay."""
+        """Serialise the current OG sim state for downstream replay."""
         import omnigibson as og
 
         s = og.sim.dump_state(serialized=True)
@@ -492,16 +473,8 @@ class SFTRecorder:
         return hdf5_path
 
     def _write_hdf5(self, attrs: dict) -> Path:
-        import json
-
         import h5py
         path = self.out_dir / "rollout.hdf5"
-        # ``env_args`` (env_meta JSON) and ``model_file`` (per-demo task
-        # template) are MimicGen-style metadata — store them where the
-        # datagen pipeline expects them (data-group attr / demo-group attr)
-        # rather than the file root.
-        env_args = attrs.pop("env_args", None)
-        model_file = attrs.pop("model_file", None)
         data = {
             "state": np.stack(self._states, axis=0),
             "action": np.stack(self._actions, axis=0),
@@ -519,15 +492,7 @@ class SFTRecorder:
             f.attrs["n_steps"] = int(self.n_record_steps)
             f.attrs["n_video_frames"] = int(self.n_video_frames)
             data_grp = f.create_group("data")
-            if env_args is not None:
-                data_grp.attrs["env_args"] = (
-                    env_args if isinstance(env_args, str) else json.dumps(env_args)
-                )
             grp = data_grp.create_group("demo_0")
-            if model_file is not None:
-                grp.attrs["model_file"] = (
-                    model_file if isinstance(model_file, str) else json.dumps(model_file)
-                )
             obs = grp.create_group("obs")
             if "image_left" in data:
                 obs.create_dataset("image_left", data=data["image_left"],
@@ -538,64 +503,15 @@ class SFTRecorder:
                                    compression="gzip", compression_opts=4)
             obs.create_dataset("state", data=data["state"])
             grp.create_dataset("action", data=data["action"])
-            # Mirror under "actions" so MimicGen-style readers find it
-            # without the legacy alias dance.
-            grp.create_dataset("actions", data=data["action"])
             grp.create_dataset("done", data=data["done"])
             if self.record_sim_states and self._sim_states:
                 sim_states = np.stack(self._sim_states, axis=0)
                 grp.create_dataset("states", data=sim_states,
                                    compression="gzip", compression_opts=4)
-            if self._datagen_per_step:
-                self._write_datagen_info(grp)
         tags = []
         if self.record_sim_states and self._sim_states:
             tags.append("+sim states")
-        if self._datagen_per_step:
-            tags.append(f"+datagen_info({len(self._datagen_per_step)})")
         suffix = " " + " ".join(tags) if tags else ""
         print(f"[sft_recorder] wrote {path}  ({self.n_record_steps} steps){suffix}",
               flush=True)
         return path
-
-    def _write_datagen_info(self, demo_grp) -> None:
-        """Persist live-collected DatagenInfo into the demo group.
-
-        Mirrors the layout that sentinel.datagen.file_utils.parse_source_dataset
-        expects: ``datagen_info/{eef_pose, target_pose, gripper_action,
-        object_poses/<obj>, subtask_term_signals/<sig>}``.
-        """
-        per_step = self._datagen_per_step
-        eef = np.stack([d.eef_pose for d in per_step], axis=0)
-        target = np.stack(
-            [d.target_pose if d.target_pose is not None else d.eef_pose for d in per_step],
-            axis=0,
-        )
-        gripper = np.stack([d.gripper_action for d in per_step], axis=0)
-        obj_keys = list(per_step[0].object_poses.keys()) if per_step[0].object_poses else []
-        object_poses = {
-            k: np.stack([d.object_poses[k] for d in per_step], axis=0) for k in obj_keys
-        }
-        sig_keys = (
-            list(per_step[0].subtask_term_signals.keys())
-            if per_step[0].subtask_term_signals
-            else []
-        )
-        subtask_term_signals = {
-            k: np.array([d.subtask_term_signals[k] for d in per_step]) for k in sig_keys
-        }
-
-        dg_grp = demo_grp.create_group("datagen_info")
-        dg_grp.create_dataset("eef_pose", data=eef)
-        dg_grp.create_dataset("target_pose", data=target)
-        dg_grp.create_dataset("gripper_action", data=gripper)
-        for k, v in object_poses.items():
-            dg_grp.create_dataset(f"object_poses/{k}", data=v)
-        for k, v in subtask_term_signals.items():
-            dg_grp.create_dataset(f"subtask_term_signals/{k}", data=v)
-        dg_grp.attrs["env_interface_name"] = (
-            self._datagen_iface.task_config.name
-            if self._datagen_iface is not None and self._datagen_iface.task_config is not None
-            else "unknown"
-        )
-        dg_grp.attrs["env_interface_type"] = "omnigibson"
