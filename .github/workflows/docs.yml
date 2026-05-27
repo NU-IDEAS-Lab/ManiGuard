@@ -1,0 +1,29 @@
+name: docs
+
+# Build the MkDocs site and publish it to GitHub Pages.
+# Enable once: repo Settings → Pages → Source = "Deploy from a branch" → gh-pages.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: pip install mkdocs-material
+      - run: mkdocs build --strict
+      - run: mkdocs gh-deploy --force
