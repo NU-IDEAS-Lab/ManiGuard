@@ -4,7 +4,6 @@
 
 extend-exclude = [
     "behavior-1k/",
-    "RLinf/",
     "vla_models/",
     "Omnireset/",
     "outputs/",
