@@ -15,7 +15,7 @@ Machine A (policy server)          Machine B (simulator + eval client)
 
 | Machine | Conda env | Key packages |
 |---------|-----------|-------------|
-| A | `openpi` (or RLinf `.venv`) | openpi, jax, flax |
+| A | `openpi` (or vendored `openpi/.venv`) | openpi, jax, flax |
 | B | `behavior` | omnigibson, maniguard (editable) |
 
 Download the checkpoint on Machine A:
@@ -117,14 +117,6 @@ Quick network checks:
 ping <MACHINE_A_IP> -c 20        # latency (each policy query does 1 round-trip)
 iperf3 -c <MACHINE_A_IP>         # bandwidth (~600 KB per observation payload)
 ```
-
-## Output
-
-Results go to `output_dir` (set in the YAML or overridden via `--output-dir`):
-- `eval_config.json` — resolved config snapshot for reproducibility
-- `results.jsonl` — one JSON line per scene (success, steps, goal_detail)
-- `summary.json` — aggregate stats
-- `<scene_name>.mp4` — video if `save_video: true`
 
 ## Common issues
 

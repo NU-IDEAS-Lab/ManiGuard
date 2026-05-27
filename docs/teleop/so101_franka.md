@@ -20,25 +20,6 @@ conda env (Python 3.10).
 | Snapshot | `scene_ep*.json` produced by any `maniguard.task_generation.*_pipeline` run |
 | Optional | `diagnostics.jsonl` next to the snapshot — if present, an auto goal-checker fires success when the recorded goal region is satisfied |
 
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--snapshot` | (required) | Path to a pipeline `scene_ep*.json`. |
-| `--zmq-host` | `127.0.0.1` | SO-101 server host. |
-| `--zmq-port` | `5557` | SO-101 server port. |
-| `--pos-scale` | `5.0` | Position delta scaling (SO-101 reach is ~13 cm; amplify for Franka workspace). |
-| `--rot-scale` | `1.0` | Rotation delta scaling. |
-| `--steps` | `10000` | Max sim steps before forced exit. |
-| `--output-hdf5` | None | If set, wraps env in `DataCollectionWrapper` and writes the trajectory (states + actions, no obs) here. |
-| `--only-successes` | off | Only persist successful episodes to HDF5. |
-| `--gripper-threshold` | `0.5` | SO-101 `gripper` value above which the sim gripper opens. |
-| `--invert-gripper` | off | Flip open/close mapping (use if your leader's calibrated CLOSE is at the high end). |
-| `--debug-gripper` | off | Print raw gripper value each step. |
-| `--grasping-mode` | `physical` | One of `physical`, `assisted`, `sticky`. `assisted` welds with a force-limited FixedJoint when both fingers contact between the AG raycast endpoints; `sticky` welds on any-finger-contact + close. |
-| `--no-lid-snap` | off | Disable the eager (lid/cap → container) snap-attach. |
-| `--lid-snap-range-m` | `0.05` | Max lid↔container distance for the eager snap to fire. |
-
 ## Run
 
 Mock SO-101 (no hardware) + sample snapshot:
@@ -103,13 +84,6 @@ in the scene.
 | C | Save checkpoint (only when recording) |
 | R | Roll back to last checkpoint (only when recording) |
 | S | Toggle manual success override for the current episode (only when recording) |
-
-## Outputs
-
-| Artifact | Notes |
-|---|---|
-| `<snapshot>_teleop.json` | Rewritten snapshot with the IK controller stack — co-located with `--snapshot` |
-| HDF5 at `--output-hdf5` | States + actions + transitions, **no obs** (use `DataPlaybackWrapper` later to materialise obs) — only when `--output-hdf5` is set |
 
 ## Source
 

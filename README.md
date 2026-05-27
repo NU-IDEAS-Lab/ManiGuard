@@ -10,25 +10,20 @@ VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
 ```
 .
 ├── maniguard/            # ManiGuard Python package (all maniguard-owned code)
+│   ├── _omnigibson_patches.py   # runtime patches on vanilla OmniGibson
 │   ├── object_states/   #   Dropped, Upright
-│   ├── utils/           #   ltl_utils, safety_monitor, bddl_generator, …
-│   ├── task_generation/ #   clutter / stack / transfer / cabinet / … pipelines
-│   ├── tasks/           #   ManiGuardGraspTask
-│   ├── envs/            #   ManiGuardEnv
-│   ├── eval/            #   benchmark runner, websocket eval client
-│   ├── serve/           #   pi0.5 / GR00T / websocket policy servers
-│   ├── rl/              #   SB3 PPO grasp training
-│   ├── rlinf/           #   RLinf patches (enum extension, env dispatch)
-│   ├── openpi/          #   OpenPI dataconfig + policy adapters
-│   ├── teleop/          #   SO-101 → Franka teleop
-│   ├── configs/         #   franka_mounted_maniguard.yaml + helpers
-│   └── _omnigibson_patches.py   # runtime patches on vanilla OmniGibson
+│   ├── utils/           #   ltl_utils, safety_monitor, task_spec, geometry
+│   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / cabinet / jar pipelines
+│   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
+│   ├── data/            #   teleop, curobo, lerobot, real_teleop, scene + playback
+│   ├── eval/            #   benchmark runner, goal checker, scene discovery
+│   ├── serve/           #   websocket VLA policy server (openpi_native)
+│   └── rl/              #   SB3 PPO grasp training + GraspGen/cuRobo grasp pipeline
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
-├── RLinf/               # submodule → RLinf/RLinf @ 5714022
 ├── vla_models/          # VLA checkpoints (user-downloaded, .gitignore)
 ├── tests/               # maniguard-side tests
-├── configs/             # RL / SFT training configs
-├── scripts/             # shell entry points (run_rl.sh, prepare_sft_data.sh, …)
+├── configs/             # eval / RL / SFT training configs
+├── scripts/             # shell entry points
 ├── tools/               # one-off utilities
 └── teleop_bridge/       # ZMQ bridge for SO-101 teleop
 ```
@@ -60,18 +55,7 @@ VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
    If you keep the dataset somewhere else (shared HPC storage, etc.)
    set `OMNIGIBSON_DATA_PATH=/abs/path/to/datasets` to override.
 
-3. **Install RLinf** (required for RL training + SFT adapters in
-   `maniguard.rlinf` / `maniguard.openpi`). The RLinf submodule manages
-   its own uv-based virtualenv:
-
-   ```bash
-   cd RLinf
-   # Follow RLinf's own install guide — typically something like:
-   uv sync
-   cd ..
-   ```
-
-4. **Install maniguard** in the conda env (editable, from repo root):
+3. **Install maniguard** in the conda env (editable, from repo root):
 
    ```bash
    conda activate behavior
@@ -79,7 +63,7 @@ VLA-policy eval plumbing for robotic manipulation in simulated household scenes.
    pip install -e ".[rl,serve]"    # with RL + websocket policy server extras
    ```
 
-5. **ManiGuard-generated benchmark scenes** (our own `scene_ep*.json`
+4. **ManiGuard-generated benchmark scenes** (our own `scene_ep*.json`
    + `diagnostics.jsonl` bundles) are distributed separately from the
    BEHAVIOR asset bundle — see
    [`maniguard/task_generation/README.md`](maniguard/task_generation/README.md)
@@ -102,9 +86,9 @@ OmniGibson at runtime).
   [`maniguard/utils/ltl_utils.py`](maniguard/utils/ltl_utils.py)
   (`AtomicPropositionGenerator`).
 - `LTLMonitor` converts LTL formulas to LDBA form and tracks automaton
-  state per `env.step()`.
-- Per-step monitor output is exposed via `info["ltl"]` inside
-  [`maniguard/envs/maniguard_env.py`](maniguard/envs/maniguard_env.py).
+  state per step.
+- A `TaskLTLMonitor` is attached to task-gen / eval rollouts; its `step()`
+  advances the automaton and reports violations each step (no standalone env class).
 - [`maniguard/utils/safety_monitor.py`](maniguard/utils/safety_monitor.py)
   wraps activity-level + scene-level `ltl_safety.json` files into a
   ready-to-use monitor.
@@ -158,26 +142,18 @@ because OmniGibson can't reliably reload scenes in the same process —
 the wrapper spawns one Python per scene and aggregates the
 `results.jsonl` files afterwards.
 
-**Terminal 1 — serve the policy**:
+**Terminal 1 — serve the policy** (`maniguard.serve.openpi_native` auto-detects
+JAX vs PyTorch checkpoints):
 
 ```bash
-conda activate behavior
-
-# Pi0.5 (SFT checkpoint served via native openpi):
-python -m maniguard.serve.pi05_franka --port 8000 \
-    --checkpoint-dir vla_models/RLinf-pi05-SFT-Stack-cube
-
-# GR00T-N1.5 trained by RLinf:
-python -m maniguard.serve.gr00t_server --port 8000 \
-    --checkpoint-dir vla_models/RLinf-Gr00t-SFT-Stack-cube
-
-# GR00T-N1.6 (upstream Isaac-GR00T API, run from vla_models/Isaac-GR00T/.venv):
-python -m maniguard.serve.gr00t_n16_server --port 8000 \
-    --checkpoint-dir vla_models/GR00T-N1.6-DROID
+openpi/.venv/bin/python -m maniguard.serve.openpi_native \
+    --config pi05_clutter_libero_lora \
+    --checkpoint vla_models/<ckpt>/<step>
 ```
 
-Eval profiles describing each policy's observation / action schema live
-under [`maniguard/eval/profiles/`](maniguard/eval/profiles/).
+The observation / action schema is driven by the eval config (`state_mode` /
+`obs_layout`) plus the policy's training config — see
+[`docs/sft/end_to_end.md`](docs/sft/end_to_end.md).
 
 **Terminal 2 — drive the eval loop**:
 
@@ -198,44 +174,28 @@ checking uses real OmniGibson states via
 [`maniguard/eval/goal_checker.py`](maniguard/eval/goal_checker.py) against
 the pipeline-generated `diagnostics.jsonl`.
 
-## RL fine-tuning (SFT + PPO via RLinf)
+## SFT + RL
 
-ManiGuard wraps RLinf (submodule) with Pi0.5 / GR00T adapters. Training
-runs inside RLinf's uv venv; ManiGuard is imported first so its
-TrainConfigs are in RLinf's registry before the entry point dispatches.
-See [`maniguard/rlinf/patches.py`](maniguard/rlinf/patches.py) for how
-the hooks attach.
+**SFT** — supervised fine-tuning of a VLA (pi0.5 / OpenPI) on collected demos
+uses openpi's native trainer. See the end-to-end recipes:
+[`docs/openpi_sim_teleop_sft.md`](docs/openpi_sim_teleop_sft.md) (sim) and
+[`docs/openpi_real_teleop_sft.md`](docs/openpi_real_teleop_sft.md) (real), plus
+[`docs/sft/end_to_end.md`](docs/sft/end_to_end.md) for the controller / action /
+eval consistency that ties collection to evaluation.
 
-**SFT** (supervised fine-tune on teleop demos):
-
-```bash
-# One-time: convert teleop HDF5 demos -> LeRobot dataset + norm_stats.json
-bash scripts/prepare_sft_data.sh
-
-# Train
-export SENTINEL_PI05_BASE=/abs/path/to/pi05_base_or_sft_ckpt
-export SENTINEL_LEROBOT_ROOT=$PWD/outputs/lerobot_datasets
-export SENTINEL_LEROBOT_REPO_ID=maniguard/clutter_pickup_v1
-bash scripts/run_sft.sh maniguard_clutter_sft_openpi
-# Hydra overrides after the config name, e.g.
-bash scripts/run_sft.sh maniguard_goblet_sft_openpi runner.max_steps=1
-```
-
-**PPO post-train** from an SFT checkpoint:
+**RL** — grasp / pick-and-lift policies are trained with Stable-Baselines3 PPO
+directly on OmniGibson (no external distributed-RL dependency):
 
 ```bash
-export SENTINEL_PI05_SFT_CKPT=/abs/path/to/sft/ckpt
-export OMNIGIBSON_DATA_PATH=$PWD/behavior-1k/datasets
-export ISAAC_PATH=/abs/path/to/isaac-sim
-# Optional overrides — defaults point at the checked-in seed corpus:
-#   SENTINEL_BENCHMARK_ROOT=$PWD/datasets/safety-benchmark
-#   SENTINEL_ACTIVITY_ROOT=$PWD/behavior-1k/bddl3/bddl/activity_definitions
-bash scripts/run_rl.sh maniguard_clutter_ppo_openpi_pi05
+conda activate behavior
+python -m maniguard.rl.algorithms.ppo \
+    --diagnostics-file datasets/<benchmark>/<task>/base/diagnostics.jsonl \
+    --num-envs 4 --total-timesteps 200000 --output-dir outputs/rl_ppo_run
 ```
 
-Configs under [`configs/rl/`](configs/rl/) and
-[`configs/sft/`](configs/sft/); the SB3 PPO path (no RLinf) is in
-[`maniguard/rl/training/ppo.py`](maniguard/rl/training/ppo.py).
+See [`docs/rl_training.md`](docs/rl_training.md) for flags + scaling, and
+[`docs/graspgen_pipeline.md`](docs/graspgen_pipeline.md) for the GraspGen /
+cuRobo grasp-reset dataset.
 
 ## Teleoperation (SO-101 / GELLO → Franka)
 

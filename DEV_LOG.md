@@ -913,3 +913,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 
 ### Refactor: data-collection consolidation (2026-05-27)
 - Moved maniguard/teleop/ → data/teleop/ and tools/ cuRobo demo-collection scripts (+_sft_recorder) → data/curobo/; restructured data/ into lerobot/, real_teleop/, scene/ subpackages. Rewrote all imports + path-depth hacks; benchmark.py now imports maniguard.data.curobo._sft_recorder directly. compileall OK, 125 tests collect, strict docs build clean. (Carries pre-existing data/eval WIP.)
+
+### Docs: SFT / Eval / RL sections + RLinf purge + Home gallery (2026-05-27)
+- Added SFT controller/action/eval end-to-end guide, Evaluation overview, RL overview, and a Reference page; removed CLI/Outputs blocks site-wide; deleted the redundant Teleop-overview page (content folded into Data Collection) and documented the interactive ghost-gripper cuRobo collection. Purged all RLinf references from the docs site, README, and CLAUDE.md (RLinf is no longer used) and fixed stale module refs (ManiGuardEnv, maniguard_env.py, tasks/rlinf/openpi subpackages, serve module names). Rebuilt Home around the lifecycle nav with rendered Material icons and a 10×10 gallery of 100 6fam-base thumbnails (left/right overview; cabinet = right only).

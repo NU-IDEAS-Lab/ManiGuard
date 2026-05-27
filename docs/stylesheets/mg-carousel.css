@@ -83,3 +83,25 @@
   border-radius: 0.25rem;
   border: 1px solid var(--md-default-fg-color--lightest);
 }
+
+/* Home gallery — tight 10x10 grid of small square thumbnails. */
+.mg-gallery {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 1px;
+  margin: 1.2em 0 0.3em;
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+.mg-gallery img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+.mg-gallery-cap {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--md-default-fg-color--light);
+  margin: 0 0 1.2em;
+}

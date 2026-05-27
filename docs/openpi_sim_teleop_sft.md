@@ -12,6 +12,12 @@ have joint-position observations recorded in our sim teleop, and re-playing
 to extract them is more pain than benefit when the LIBERO path already
 matches our data 1:1.
 
+!!! tip "Pick controller / action / eval first"
+    This page is the **delta-EEF (LIBERO)** track. For how that choice ties back
+    to data collection and the matching **eval controller** (`osc` vs
+    `joint_position_impedance` + `ik_eef_to_joint`), see
+    [Controller, data, action & eval](sft/end_to_end.md).
+
 ---
 
 ## 1. Overview
@@ -26,8 +32,8 @@ data/demo_0/obs/state        (N+1, 8)            f32    [eef_pos(3), axisangle(3
 data/demo_0/action           (N,   7)            f32    [Δpos(3), Δrot(3), gripper_sign(1)]
 ```
 
-**Output**: LoRA-finetuned pi0.5 ckpt evaluable in our ManiGuardEnv via
-`maniguard/serve/openpi_native.py`.
+**Output**: LoRA-finetuned pi0.5 ckpt evaluable in sim via
+`maniguard/serve/openpi_native.py` + the [eval benchmark](one_machine_pro6000_eval.md).
 
 **Pipeline**:
 ```
@@ -276,13 +282,13 @@ ckpts; openpi-trained ckpts are JAX (orbax `params/` subdir, no
 `model.safetensors`):
 
 ```bash
-sudo RLinf/.venv/bin/python maniguard/serve/openpi_native.py \
+sudo openpi/.venv/bin/python maniguard/serve/openpi_native.py \
   --config pi05_<task>_libero_lora \
   --checkpoint <local_path>/<step>
 ```
 
-Then point your ManiGuardEnv eval client at `localhost:8000`. The same
-serve path is used for real-teleop ckpts — backend selection is
+Then point the eval benchmark (`maniguard.eval.benchmark`) at `localhost:8000`.
+The same serve path is used for real-teleop ckpts — backend selection is
 automatic.
 
 ---
@@ -323,7 +329,7 @@ automatic.
    `IDEAS-Lab-Northwestern/real-mug-into-bowl`) were pushed with
    lerobot 0.4.4 and got v3.0 format, so openpi can't load them. Either
    re-export with `lerobot<0.4` and `--push-to-hub`, or accept they're
-   only useful for the RLinf path.
+   only useful for the legacy PyTorch path.
 
 ---
 

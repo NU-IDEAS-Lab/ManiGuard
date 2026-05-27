@@ -17,18 +17,6 @@ re-render RGB into a new HDF5.
 | Python env | `behavior` conda env (Python 3.10) |
 | Input | HDF5 from `DataCollectionWrapper` (any of the teleop entry points produce these via `--output-hdf5`) |
 
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--input` | (required) | Path to the recorded HDF5. |
-| `--output` | `<input>_playback.hdf5` | Output HDF5 (only used when `--record`). |
-| `--record` | off | Re-render and store RGB observations in the output HDF5. |
-| `--episode` | `0` | Episode id to replay. Ignored when `--all`. |
-| `--all` | off | Replay every episode in the HDF5. |
-| `--n-render-iterations` | `1` | Higher = cleaner frames, lower = faster. |
-| `--with-physics` | off | Keep physics + robot control enabled (live re-simulation). Off by default — objects become visual-only and states are scrubbed frame-by-frame, ~30× faster. |
-
 ## Run
 
 Watch in the viewer, no obs dump:
@@ -62,12 +50,6 @@ states are scrubbed directly each frame (visual-only).
 `playback_episode(episode_id=…)`. With `--record`, observations are
 materialised into the output HDF5; otherwise the playback runs through
 the viewer only.
-
-## Outputs
-
-| Artifact | Notes |
-|---|---|
-| `<output>` | New HDF5 with re-rendered RGB observations. Only when `--record`. |
 
 ## Source
 

@@ -1,7 +1,6 @@
 # Environment layer
 
-`maniguard/envs/` does **not** define a live environment class. The RLinf-bound
-`ManiGuardEnv` was removed when the RLinf integration was excised; the active RL
+`maniguard/envs/` does **not** define a live environment class — the active RL
 stack uses `maniguard.rl.tasks.pick_and_lift.PickAndLiftTask` directly. What
 remains are three building blocks that every downstream stage (task-gen replay,
 eval, RL reset) shares:

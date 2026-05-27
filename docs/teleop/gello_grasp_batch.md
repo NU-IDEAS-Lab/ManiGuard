@@ -26,29 +26,6 @@ and consumed downstream by
 | CSV | `maniguard/task_generation/utils/franka_graspability.csv` (or pass `--targets cat:model …`) |
 | Optional | `gm.DEBUG=True` (`--debug-ag`) renders AG raycast endpoints as small green spheres so you can see whether the rays land inside the object when the gripper closes |
 
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--csv` | `maniguard/task_generation/utils/franka_graspability.csv` | Source of (category, model) rows. |
-| `--output-dir` | `outputs/grasp_datasets/teleop/tensors` | Where `grasps_{cat}_{model}.pt` files land. |
-| `--limit` | `50` | Cap on pending objects (0 = no cap). |
-| `--exclude-statuses` | `too_large` | Comma-separated CSV statuses to skip. |
-| `--targets` | None | Optional `category:model` list overriding the CSV. |
-| `--overwrite` | off | Re-do objects whose `.pt` already exists. |
-| `--object-xyz` | `0.55 0.0 0.55` | Spawn position; Z above tabletop so the object settles. |
-| `--target-rpy` | `0 0 0` | Spawn orientation in degrees (intrinsic ZYX). |
-| `--franka-xy` | `0.0 0.0` | Franka base XY. |
-| `--franka-z` | `0.72` | Franka base Z. |
-| `--table-top-z` | `0.50` | World Z of the tabletop surface (a fixed-base cube object). |
-| `--table-size` | `0.8 0.8` | Tabletop XY plan size. |
-| `--gello-port` | `GELLO_PORT` (see [GELLO → Franka teleop](gello_franka.md)) | USB serial path for the GELLO FTDI. |
-| `--invert-gripper` | off | Swap which SPACE state means open vs close. |
-| `--start-gripper-open` | off | Each object starts with gripper OPEN (default CLOSED). |
-| `--grasping-mode` | `assisted` | Default differs from the other teleop entries — AG-fired holds are what we want to count for grasp capture. |
-| `--gpu-dynamics` | off | Enable `gm.USE_GPU_DYNAMICS` (only needed for fluids). |
-| `--debug-ag` | off | `gm.DEBUG=True`; visualises AG raycast endpoints as green spheres. Side effect: verbose OG logs. |
-
 ## Run
 
 ```bash
@@ -123,12 +100,6 @@ Per object loop:
 If OG's articulation view goes null mid-run (a known OG bug —
 `get_joint_positions()` returns `None` from then on), the script logs
 "FATAL" and `sys.exit(2)`. Re-running resumes from saved `.pt` files.
-
-## Outputs
-
-| Artifact | Notes |
-|---|---|
-| `grasps_{category}_{model}.pt` | Per-object dict list with `rel_position`, `rel_orientation_xyzw`, `gripper_qpos`, `arm_joint_pos`, `approach_traj`. Format identical to `maniguard.rl.grasps.collector.save_grasp_dataset`'s output, so they drop directly into `GraspDatasetResetter`. |
 
 ## Source
 

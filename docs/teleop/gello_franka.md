@@ -29,22 +29,6 @@ Differences from the SO-101 path:
 | `joylo` | The `gello.robots.dynamixel` import resolves to `behavior-1k/joylo/` (added to `sys.path` automatically). `joylo` is intentionally not pip-installed — its `setup.py` pulls in unrelated deps (telemoma / pyglm / joycon / pybullet) |
 | Snapshot | `scene_ep*.json` produced by any `maniguard.task_generation.*_pipeline` run |
 
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--snapshot` | (required) | Path to a pipeline `scene_ep*.json`. |
-| `--output-hdf5` | None | If set, wraps env in `DataCollectionWrapper` and writes trajectory here. |
-| `--only-successes` | off | Only persist successful episodes (toggled with the S key). |
-| `--steps` | `10000` | Max sim steps before forced exit. |
-| `--gello-port` | `/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTB8HNJP-if00-port0` | USB serial path for the GELLO FTDI. |
-| `--invert-gripper` | off | Swap which SPACE state means open vs close. |
-| `--start-gripper-open` | off | Begin with the gripper OPEN (default starts CLOSED). |
-| `--grasping-mode` | `physical` | `physical` / `assisted` / `sticky` — same semantics as the SO-101 entry. |
-| `--no-lid-snap` | off | Disable the eager lid/cap → container snap-attach. |
-| `--lid-snap-range-m` | `0.05` | Max lid↔container distance for the eager snap to fire. |
-| `--gpu-dynamics` | off | Set `gm.USE_GPU_DYNAMICS=True`. Required for fluid / particle / cloth scenes. Costs VRAM; only enable when needed. |
-
 ## Run
 
 ```bash
@@ -104,13 +88,6 @@ When swapping `FrankaMounted → FrankaPanda` from a snapshot, the base is
 lifted by 0.5 m. Saved controller goals are nulled (the snapshot's
 controller stack — typically OperationalSpace — has an incompatible
 goal-state shape).
-
-## Outputs
-
-| Artifact | Notes |
-|---|---|
-| `<snapshot>_gello_teleop.json` | Rewritten snapshot with the JointController stack — co-located with `--snapshot` |
-| HDF5 at `--output-hdf5` | States + actions + transitions, no obs (use `DataPlaybackWrapper` later to materialise obs) |
 
 ## Source
 
