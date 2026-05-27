@@ -101,13 +101,36 @@ def _load_scene_info(task_dir: Path, episode: int) -> dict[str, Any]:
 
 
 _TASK_OBJ_PATTERN = re.compile(r"^[a-z][a-z0-9_]*_\d+$")
+# Scheme B: role-prefixed names ending in "_ep<N>_<idx>" — used by some
+# lid_transport tasks whose env/ scene_ep1.json keeps the full
+# 200+ object scene tree and disambiguates task objects via role/episode.
+_SCHEME_B_PATTERN = re.compile(r"_ep\d+_\d+$")
 
 
 def _is_task_object_name(name: str, category: str) -> bool:
     if not _TASK_OBJ_PATTERN.match(name):
         return False
     prefix, _, tail = name.rpartition("_")
-    return prefix == category and tail.isdigit()
+    if not tail.isdigit():
+        return False
+    # Scheme A: auto-named by category, e.g. ``lid_43`` (category="lid").
+    # Prefix matches category exactly.
+    if prefix == category:
+        return True
+    # Scheme B: ``<role>_<category>_ep<N>_<idx>``, e.g.
+    # ``target_milk_carton_ep1_1`` (category="milk_carton"). The
+    # ``_ep<N>_<idx>`` suffix marks task-object names that the dataset
+    # generator inserts; background furniture never carries it.
+    if _SCHEME_B_PATTERN.search(name):
+        # Verify the category appears as a contiguous token sequence
+        # in the name so we don't match unrelated objects that happen
+        # to end in ``_ep1_1``.
+        cat_toks = category.split("_")
+        name_toks = name.split("_")
+        for i in range(len(name_toks) - len(cat_toks) + 1):
+            if name_toks[i:i + len(cat_toks)] == cat_toks:
+                return True
+    return False
 
 
 def _identify_task_objects(

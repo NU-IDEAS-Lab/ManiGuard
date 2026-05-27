@@ -132,6 +132,12 @@ def _identify_lid_container(scene_info, diagnostics):
     """
     spawn_specs = diagnostics["selection"]["spawn_specs"]
     role_to_cat = {s["role"]: s["category"] for s in spawn_specs}
+    # Some lid_transport scenes use role="target" for the container
+    # (typically when the spawn spec also lists "food" as a third role
+    # for the contained item). Treat "target" as a synonym for
+    # "container" so this helper accepts both schemas.
+    if "container" not in role_to_cat and "target" in role_to_cat:
+        role_to_cat["container"] = role_to_cat["target"]
     if "lid" not in role_to_cat or "container" not in role_to_cat:
         raise RuntimeError(
             f"spawn_specs missing lid or container role: roles={list(role_to_cat)}")
@@ -142,14 +148,34 @@ def _identify_lid_container(scene_info, diagnostics):
     _TASK_OBJ_PATTERN = re.compile(r"^[a-z][a-z0-9_]*_\d+$")
 
     def _find(cat):
-        for n, info in init_info.items():
-            if not _TASK_OBJ_PATTERN.match(n):
-                continue
-            if info.get("args", {}).get("category") == cat:
-                prefix, _, tail = n.rpartition("_")
-                if prefix == cat and tail.isdigit():
-                    return n
-        return None
+        # Two name schemes show up across the dataset:
+        #   (A) Auto-named by category: e.g. ``lid_43`` (category=lid),
+        #       ``tupperware_44`` (category=tupperware). Both the
+        #       prefix and category match.
+        #   (B) Role-prefixed: e.g. ``target_milk_carton_ep1_1``
+        #       (category=milk_carton), ``lid_cap_ep1_1``
+        #       (category=cap). The prefix is the role + category, not
+        #       just the category.
+        # The category attribute from ``info["args"]["category"]`` is
+        # authoritative in both schemes; the prefix check is only
+        # useful as a tiebreaker when several objects share a category.
+        candidates = [
+            n for n, info in init_info.items()
+            if _TASK_OBJ_PATTERN.match(n)
+            and info.get("args", {}).get("category") == cat
+        ]
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return candidates[0]
+        # Multiple matches — prefer one whose name prefix exactly
+        # equals the category (scheme A).
+        for n in candidates:
+            prefix, _, tail = n.rpartition("_")
+            if prefix == cat and tail.isdigit():
+                return n
+        # No prefix-match disambiguates — return the first.
+        return candidates[0]
 
     lid = _find(role_to_cat["lid"])
     container = _find(role_to_cat["container"])
