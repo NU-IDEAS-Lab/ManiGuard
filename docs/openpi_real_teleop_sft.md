@@ -6,9 +6,10 @@ using openpi's native JAX trainer. Documents what we learned getting the
 dataset.
 
 The **openpi path** (this doc) is the canonical community-tested pipeline.
-An alternative **RLinf PyTorch path** (documented separately, uses
-`maniguard/openpi/omnigibson_dataconfig.py`) makes sense only if you need
-to chain sim RL on top of the SFT ckpt — otherwise prefer this doc.
+An alternative **PyTorch training path** (documented separately) makes sense only
+if you need to chain sim RL on top of the SFT ckpt — otherwise prefer this doc.
+For the **sim** SFT story (controller / action / eval consistency) see
+[Controller, data, action & eval](sft/end_to_end.md).
 
 ---
 
@@ -43,7 +44,7 @@ cloud: pull dataset + pi0.5 base ckpt from GCS  ->  openpi train.py  ->  ckpt
 
 **Static cost math for full SFT**: pi0.5 has ~3B params → 6.6GB BF16 weights + 6.6GB BF16 grads + 36GB AdamW FP32 states ≈ **50GB**, independent of batch size. Anything under 50GB HBM requires LoRA.
 
-**System RAM**: 200GB+ recommended. openpi's JAX trainer is light on RAM compared to RLinf (no Ray workers), but activation staging can spike.
+**System RAM**: 200GB+ recommended. openpi's JAX trainer is light on RAM compared to a Ray-based trainer (no Ray workers), but activation staging can spike.
 
 ---
 
@@ -400,14 +401,14 @@ Then run your real-franka eval client against the WebSocket.
 ## 9. Reference file pointers
 
 - `maniguard/data/real_teleop/real_teleop_to_droid.py` — npz → LeRobot (DROID schema) converter
-- `maniguard/data/real_teleop/real_teleop_to_hdf5.py` — npz → sim-compat HDF5 (for the RLinf path, not used here)
-- `maniguard/data/lerobot/lerobot_export.py` — HDF5 → LeRobot (OmniGibson schema, RLinf path)
+- `maniguard/data/real_teleop/real_teleop_to_hdf5.py` — npz → sim-compat HDF5 (for the legacy PyTorch path, not used here)
+- `maniguard/data/lerobot/lerobot_export.py` — HDF5 → LeRobot (OmniGibson schema, legacy PyTorch path)
 - `maniguard/data/lerobot/norm_stats.py` — computes openpi-format norm_stats from a LeRobot dataset (not needed for DROID path since we reuse openpi's official DROID norm_stats)
 
 ## 10. Current datasets on HF
 
 | Task | HF repo | Schema | Used with |
 |---|---|---|---|
-| goblet-pick-place (sim) | `IDEAS-Lab-Northwestern/SFT` | OmniGibson v3.0 | RLinf path |
-| mug-into-bowl (real) | `IDEAS-Lab-Northwestern/real-mug-into-bowl` | OmniGibson v3.0 | RLinf path |
+| goblet-pick-place (sim) | `IDEAS-Lab-Northwestern/SFT` | OmniGibson v3.0 | legacy PyTorch path |
+| mug-into-bowl (real) | `IDEAS-Lab-Northwestern/real-mug-into-bowl` | OmniGibson v3.0 | legacy PyTorch path |
 | mug-into-bowl (real) | `IDEAS-Lab-Northwestern/real-mug-into-bowl-droid` | **DROID v2.1** | **openpi path (this doc)** |

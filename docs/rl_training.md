@@ -76,20 +76,6 @@ The timestep counter is preserved — TB and wandb continue from where the previ
 
 **Dual concurrent runs** work (two separate tasks on the same GPU). VRAM roughly doubles (~16 GB for two 4-env runs). Throughput per run drops ~8%.
 
-## Output Structure
-
-```
-outputs/rl_ppo_run/
-├── ckpts/
-│   ├── ppo_50000_steps.zip
-│   ├── ppo_100000_steps.zip
-│   └── ...
-├── ppo_final.zip          # final checkpoint
-├── monitor.csv            # per-episode reward, length, walltime
-└── tb_YYYYMMDD-HHMMSS/    # TensorBoard events
-    └── PPO_1/
-```
-
 ## Environment Variables
 
 | Variable | Required | Purpose |

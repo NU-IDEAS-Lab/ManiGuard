@@ -17,7 +17,7 @@ foundation layer. The docs are organized the same way.
                                               ▲ (used by every stage)
   Task generation ──► Data collection ──► SFT ──► Evaluation
    (task_generation)   (teleop, cuRobo)   (data/ → openpi)   (eval/, serve/)
-                                  └────────────► RL (rl/, RLinf)
+                                  └────────────► RL (rl/)
 ```
 
 | Stage | Package | What it produces |
@@ -26,7 +26,7 @@ foundation layer. The docs are organized the same way.
 | **Data collection** | `maniguard/data/teleop/`, `maniguard/rl/grasps/` | Teleop / scripted demo HDF5s |
 | **SFT** | `maniguard/data/` → vendored `openpi/` | LeRobot v2.1 datasets + norm stats |
 | **Evaluation** | `maniguard/eval/`, `maniguard/serve/` | Benchmark results, success metrics |
-| **RL** | `maniguard/rl/`, submodule `RLinf/` | Trained grasp policies |
+| **RL** | `maniguard/rl/` | Trained grasp policies |
 
 ## Repo layout
 
@@ -38,14 +38,11 @@ foundation layer. The docs are organized the same way.
 │   ├── utils/           #   LTL (ltl_utils, safety_monitor), task_spec, geometry
 │   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / … pipelines
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
-│   ├── teleop/          #   SO-101 / GELLO → Franka teleop
-│   ├── data/            #   HDF5 → LeRobot export, playback render, norm stats, scene utils
+│   ├── data/            #   teleop, curobo, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery
-│   ├── serve/           #   websocket VLA policy servers
-│   ├── rl/              #   PPO grasp training + GraspGen/cuRobo grasp pipeline
-│   └── configs/         #   franka_mounted_maniguard.yaml + config_path() helper
+│   ├── serve/           #   websocket VLA policy server (openpi_native)
+│   └── rl/              #   SB3 PPO grasp training + GraspGen/cuRobo grasp pipeline
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2 (upstream)
-├── RLinf/               # submodule → RLinf/RLinf (upstream, separate venv)
 ├── tests/               # maniguard-side pytest suites
 ├── configs/             # eval / RL / SFT YAML configs
 ├── scripts/ · tools/    # shell entrypoints / one-off utilities
@@ -53,16 +50,15 @@ foundation layer. The docs are organized the same way.
 ```
 
 !!! note "Stale-doc cleanup"
-    Earlier revisions of this page listed `maniguard/tasks/`, `maniguard/rlinf/`,
-    and `maniguard/openpi/` subpackages. **Those no longer exist.** The RLinf
-    integration was excised; the active RL stack uses
-    `maniguard.rl.tasks.pick_and_lift.PickAndLiftTask` directly, and OpenPI is
-    consumed from the vendored top-level `openpi/` checkout.
+    Earlier revisions listed `maniguard/tasks/`, `maniguard/rlinf/`, and
+    `maniguard/openpi/` subpackages plus an `RLinf/` submodule — **none of those
+    remain.** The active RL stack is self-contained SB3 (`maniguard.rl`), and
+    OpenPI is consumed from the vendored top-level `openpi/` checkout.
 
 ## Upstream boundary
 
-Anything under `behavior-1k/` or `RLinf/` is **upstream** — never edit those
-trees. ManiGuard stays decoupled by:
+Anything under `behavior-1k/` is **upstream** — never edit that tree.
+ManiGuard stays decoupled by:
 
 - **Runtime patching** OmniGibson via `maniguard._omnigibson_patches` (see
   [OmniGibson patches](../foundations/omnigibson_patches.md)). Two upstream files
@@ -83,7 +79,7 @@ BDDL activity + scene  ──►  task_generation pipeline
         ▼                         ▼                              ▼
    teleop / scripted        eval rollout                   RL training
    demo  → playback         (load snapshot,                (rl.tasks +
-   render → HDF5            run VLA policy)                 PPO / RLinf)
+   render → HDF5            run VLA policy)                 PPO)
         │                         ▲
         ▼                         │
    data/ LeRobot export ──► SFT (openpi) ──► policy checkpoint ──┘

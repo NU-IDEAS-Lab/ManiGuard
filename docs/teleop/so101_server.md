@@ -18,16 +18,6 @@ venv. A `--mock` mode emits a sinusoidal trajectory with no hardware.
 | Calibration | run `lerobot-calibrate --teleop.type=so101_leader --teleop.port=/dev/ttyACM0` once per arm |
 | URDF | clone `https://github.com/TheRobotStudio/SO-ARM100.git` to get `Simulation/SO101/so101_new_calib.urdf` and the `assets/*.stl` meshes (URDF references meshes via relative paths, so run from the URDF's parent directory or pass an absolute path) |
 
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--port` | `/dev/ttyACM0` | Serial port for the SO-101 control board. |
-| `--zmq-port` | `5557` | TCP port for `zmq.PUB`. Must match the consumer. |
-| `--hz` | `60.0` | Publish rate. |
-| `--mock` | off | Use `SO101MockReader` + `SO101MockFK` (sinusoidal motion, no hardware, no URDF). |
-| `--urdf` | None | Path to `so101_new_calib.urdf`. Without it, real-hardware runs fall back to the planar mock FK and print a warning. |
-
 ## Run
 
 Mock mode (no hardware):
@@ -76,11 +66,6 @@ Message schema (pickled Python dict):
 | `gripper` | `float` | normalised 0-1 |
 | `joints_deg` | `np.ndarray (5,)` | raw arm joints (debugging) |
 | `timestamp` | `float` | `time.time()` at publish |
-
-## Outputs
-
-A single ZMQ PUB socket on `tcp://*:<zmq-port>` (default `5557`). One
-message per tick, no on-disk artifacts.
 
 ## Source
 

@@ -56,17 +56,5 @@ scripts and deployments.
 | `SENTINEL_SKIP_LONGFINGER=1` | skip the long-finger Franka asset patch |
 | `SENTINEL_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps (`10` ≈ once per env step at 300/30) |
 
-## Config helpers (`maniguard/configs/`)
-
-ManiGuard-owned OmniGibson/RL config files that used to live under
-`OmniGibson/omnigibson/configs/`. Resolve one to an absolute path with:
-
-```python
-from maniguard.configs import config_path
-
-cfg_file = config_path("franka_mounted_maniguard.yaml")
-```
-
-`config_path(filename)` simply returns the absolute path of a file shipped
-inside the `maniguard.configs` package — register new pipeline configs here
-rather than hard-coding paths.
+These variables are read at runtime by the patch module; nothing else needs to
+be configured to enable the patches.

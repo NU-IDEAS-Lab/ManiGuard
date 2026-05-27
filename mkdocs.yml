@@ -51,6 +51,9 @@ markdown_extensions:
       anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_css:
   - stylesheets/mg-carousel.css
@@ -90,19 +93,24 @@ nav:
       - Cabinet pickup: pipelines/cabinet_pickup.md
       - Jar transport: pipelines/jar_transport.md
   - Data Collection:
-      - Teleop overview: teleop/index.md
+      - Overview: data_collection/index.md
       - SO-101 ZMQ server: teleop/so101_server.md
       - SO-101 → Franka: teleop/so101_franka.md
       - GELLO → Franka: teleop/gello_franka.md
       - GELLO calibration: teleop/gello_calibration.md
       - GELLO grasp batch: teleop/gello_grasp_batch.md
       - Playback render: teleop/playback.md
-      - GraspGen / cuRobo pipeline: graspgen_pipeline.md
+      - cuRobo demo collection: data_collection/curobo.md
+      - GraspGen / cuRobo grasp pipeline: graspgen_pipeline.md
   - SFT:
+      - Controller, data, action & eval: sft/end_to_end.md
       - OpenPI sim teleop SFT: openpi_sim_teleop_sft.md
       - OpenPI real teleop SFT: openpi_real_teleop_sft.md
   - Evaluation:
+      - Overview: evaluation/index.md
       - Single-machine (Pro 6000): one_machine_pro6000_eval.md
       - Two-machine: two_machine_eval.md
   - RL:
+      - Overview: rl/index.md
       - PPO grasp training: rl_training.md
+  - Reference: reference.md

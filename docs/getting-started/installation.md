@@ -1,10 +1,8 @@
 # Installation
 
-ManiGuard uses **two separate Python environments**:
-
-1. **`behavior` conda env** — for OmniGibson simulation, BDDL, teleoperation.
-2. **RLinf `.venv`** — uv-managed venv for distributed RL training (kept separate
-   due to dependency conflicts with OmniGibson).
+ManiGuard runs in the **`behavior` conda env** — OmniGibson simulation, BDDL,
+teleop, task generation, RL, and eval. Policy training/serving via openpi uses
+its own venv (see the [SFT](../openpi_sim_teleop_sft.md) pages).
 
 ## 1. Clone with submodules
 
@@ -31,15 +29,7 @@ Available flags: `--omnigibson`, `--bddl`, `--joylo`, `--dataset`, `--eval`,
 `--asset-pipeline`, `--primitives`, `--dev`.
 Dependencies: `--omnigibson` requires `--bddl`; `--primitives` requires `--omnigibson`.
 
-## 3. Install RLinf (separate venv)
-
-```bash
-cd RLinf
-uv sync
-cd ..
-```
-
-## 4. Install ManiGuard (editable)
+## 3. Install ManiGuard (editable)
 
 ```bash
 conda activate behavior
@@ -58,7 +48,7 @@ export OMNIGIBSON_DATA_PATH=/abs/path/to/datasets
 
 ## Other environment variables
 
-For RLinf / headless deployment:
+For headless deployment:
 
 | Variable | Purpose |
 |---|---|

@@ -16,26 +16,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) that adds LTL (Linear Temporal Logic) safety checking, task-generation pipelines, and VLA policy eval for robotic manipulation in simulated household environments. It integrates physics simulation (OmniGibson/NVIDIA Omniverse), formal task specification (BDDL), safety verification (LTL/Spot), and distributed RL training (RLinf with Ray).
+ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) that adds LTL (Linear Temporal Logic) safety checking, task-generation pipelines, and VLA policy eval for robotic manipulation in simulated household environments. It integrates physics simulation (OmniGibson/NVIDIA Omniverse), formal task specification (BDDL), safety verification (LTL/Spot), and RL training (Stable-Baselines3 PPO).
 
 ## Architecture
 
 ```
 .
 ├── maniguard/            # ManiGuard Python package (all maniguard-owned code)
+│   ├── _omnigibson_patches.py   # runtime OmniGibson patches (applied on import)
 │   ├── object_states/   #   Dropped, Upright
-│   ├── utils/           #   ltl_utils, safety_monitor, bddl_generator, …
-│   ├── task_generation/ #   clutter / stack / transfer / cabinet / … pipelines
-│   ├── tasks/           #   ManiGuardGraspTask
-│   ├── envs/            #   ManiGuardEnv
-│   ├── eval/            #   benchmark runner, websocket eval client
-│   ├── serve/           #   pi0.5 / GR00T / websocket policy servers
-│   ├── rl/              #   SB3 PPO grasp training
-│   ├── rlinf/           #   RLinf enum extension + env dispatch patches
-│   ├── openpi/          #   OpenPI dataconfig + policy adapters
-│   ├── teleop/          #   SO-101 → Franka teleop
-│   ├── configs/         #   franka_mounted_maniguard.yaml + helpers
-│   └── _omnigibson_patches.py   # runtime OmniGibson patches
+│   ├── utils/           #   ltl_utils, safety_monitor, task_spec, geometry
+│   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / cabinet / jar pipelines
+│   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
+│   ├── data/            #   teleop, curobo, lerobot, real_teleop, scene + playback
+│   ├── eval/            #   benchmark runner, goal checker, scene discovery, snapshot validator
+│   ├── serve/           #   websocket VLA policy server (openpi_native)
+│   └── rl/              #   SB3 PPO grasp training + GraspGen/cuRobo grasp pipeline
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
 │                        #   contains OmniGibson/, bddl3/, joylo/, docs/,
 │                        #   asset_pipeline/, knowledgebase/, eval-jobqueue/
@@ -48,15 +44,15 @@ ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/S
 └── datasets/            # BEHAVIOR dataset (user-downloaded, gitignored)
 ```
 
-**Upstream boundary**: anything under `behavior-1k/` or `RLinf/` is upstream. Do not modify those trees — patch behaviors via `maniguard._omnigibson_patches`, subclass via `maniguard.tasks.*`, or extend via `maniguard.rlinf.patches`.
+**Upstream boundary**: anything under `behavior-1k/` is upstream. Do not modify that tree — patch behaviors via `maniguard._omnigibson_patches` instead.
 
-**Key data flow**: BDDL task definition → OmniGibson scene sampling → Environment reset/step → LTL safety monitoring → Agent observation → Policy action → Physics simulation → Reward signal → RL training (RLinf)
+**Key data flow**: BDDL task definition → OmniGibson scene sampling → Environment reset/step → LTL safety monitoring → Agent observation → Policy action → Physics simulation → Reward signal → RL training (SB3 PPO)
 
 ### LTL Safety System
 
 - Atomic propositions generated from BDDL scope: `maniguard/utils/ltl_utils.py` (`AtomicPropositionGenerator`)
 - `LTLMonitor` (same module) converts LTL formulas to LDBA form and tracks automaton state per step
-- Per-step LTL info exposed via `info["ltl"]` from `maniguard/envs/maniguard_env.py`
+- Per-step monitoring: `TaskLTLMonitor.step()` advances the automaton each step; attached to task-gen / eval rollouts (there is no standalone env class)
 - High-level wrapper that loads task + scene `ltl_safety.json` files: `maniguard/utils/safety_monitor.py`
 - Spot library is optional — if unavailable, safety monitoring is skipped with a warning
 - Task-level constraints: `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
@@ -121,7 +117,7 @@ All pipelines live in `maniguard/task_generation/` and share a `BasePipeline` cl
 python -m maniguard.task_generation.run_benchmark \
   --pipeline table --steps 300 --episodes 1 --timeout 300 --save-video
 
-# Pipeline choices: table, cabinet, transfer, stack
+# Pipeline choices: table, cabinet_pickup, transfer, dusty_transfer, stack, lid_transport, jar_transport, wet_transport, liquid_transport
 # Restrict to specific scenes:
 python -m maniguard.task_generation.run_benchmark \
   --pipeline transfer --scenes Benevolence_1_int Rs_int --steps 300
@@ -156,11 +152,11 @@ End-to-end install + server + run instructions for the
 
 ## Environment Setup
 
-Two separate Python environments exist:
-1. **`behavior` conda env** — for OmniGibson simulation, BDDL, teleoperation
-2. **RLinf `.venv`** — uv-managed venv for distributed RL training (separate due to dependency conflicts)
+Primary env: **`behavior` conda env** — OmniGibson simulation, BDDL, teleop,
+task generation, RL, and eval. Policy SFT/serving via openpi uses its own venv
+(see `docs/openpi_sim_teleop_sft.md`).
 
-Key environment variables (for RLinf/headless deployment):
+Key environment variables (headless deployment):
 - `ISAAC_PATH` — path to Isaac Sim package
 - `OMNIGIBSON_DATA_PATH` — path to BEHAVIOR datasets
 - `BEHAVIOR_PATH` — path to ManiGuard root
