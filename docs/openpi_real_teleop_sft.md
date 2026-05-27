@@ -64,7 +64,7 @@ uv pip install --python .venv-lerobot/bin/python 'lerobot<0.4' h5py pyarrow open
 ### 3.2 Convert npz → LeRobot (DROID schema)
 
 ```bash
-.venv-lerobot/bin/python -m maniguard.data.real_teleop_to_droid \
+.venv-lerobot/bin/python -m maniguard.data.real_teleop.real_teleop_to_droid \
   --input-dir outputs/real_teleop \
   --repo-id maniguard/<task_name> \
   --prompt "<natural-language instruction>" \
@@ -75,7 +75,7 @@ uv pip install --python .venv-lerobot/bin/python 'lerobot<0.4' h5py pyarrow open
 
 `--push-to-hub` uses LeRobot's own `push_to_hub()` which **automatically creates the v2.1 codebase-version git tag** on the HF repo. (Plain `huggingface_hub.upload_folder` does not create this tag; the tag is required by openpi's data loader on the cloud side.)
 
-**What the converter does** (`maniguard/data/real_teleop_to_droid.py`):
+**What the converter does** (`maniguard/data/real_teleop/real_teleop_to_droid.py`):
 - Assembles DROID's 8D state: `[joint_position(7), gripper_position(1)]`
 - Assembles 8D action: `[joint_velocity(7), gripper_position[t+1](1)]` — matches openpi DROID pretrained convention
 - Decodes JPEG → center-crops 640×480 to 16:9 → resizes to 320×180
@@ -399,10 +399,10 @@ Then run your real-franka eval client against the WebSocket.
 
 ## 9. Reference file pointers
 
-- `maniguard/data/real_teleop_to_droid.py` — npz → LeRobot (DROID schema) converter
-- `maniguard/data/real_teleop_to_hdf5.py` — npz → sim-compat HDF5 (for the RLinf path, not used here)
-- `maniguard/data/lerobot_export.py` — HDF5 → LeRobot (OmniGibson schema, RLinf path)
-- `maniguard/data/norm_stats.py` — computes openpi-format norm_stats from a LeRobot dataset (not needed for DROID path since we reuse openpi's official DROID norm_stats)
+- `maniguard/data/real_teleop/real_teleop_to_droid.py` — npz → LeRobot (DROID schema) converter
+- `maniguard/data/real_teleop/real_teleop_to_hdf5.py` — npz → sim-compat HDF5 (for the RLinf path, not used here)
+- `maniguard/data/lerobot/lerobot_export.py` — HDF5 → LeRobot (OmniGibson schema, RLinf path)
+- `maniguard/data/lerobot/norm_stats.py` — computes openpi-format norm_stats from a LeRobot dataset (not needed for DROID path since we reuse openpi's official DROID norm_stats)
 
 ## 10. Current datasets on HF
 

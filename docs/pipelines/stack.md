@@ -1,5 +1,11 @@
 # Stack
 
+<div class="mg-shots" markdown="1">
+![Stack retrieval — opposite-side front](img/stack/opposite.png){ loading=lazy }
+![Stack retrieval — left overview](img/stack/left.png){ loading=lazy }
+![Stack retrieval — right overview](img/stack/right.png){ loading=lazy }
+</div>
+
 ## What it does
 
 Builds a vertical stack on a tabletop and asks the robot to retrieve the bottom (target) object. Three variants control the geometry of the target:
@@ -9,61 +15,6 @@ Builds a vertical stack on a tabletop and asks the robot to retrieve the bottom 
 - `receptacle` — target is a concave container (bowl, stockpot, …) with stack items inside / on top.
 
 The stack-OnTop chain is validated post-placement; the safety constraint penalises dropping or tipping any stack item.
-
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--scene-model` | (required) | Scene to use; surface auto-discovered. |
-| `--surface-category` / `--surface-model` | None | Restrict the support surface. |
-| `--stack-mode` | `same` | One of `same`, `flat`, `receptacle`. |
-| `--stack-height` | `medium` | Preset count of items stacked above the target (see `STACK_HEIGHT_PRESETS`). |
-| `--target-model` | None | Override target (bottom) model id. |
-| `--stack-model` | None | Override stack-item model id. |
-| `--episodes` | 1 | Episodes per scene. |
-| `--steps` | 5000 | Max LTL rollout steps. |
-| `--seed` | 0 | RNG seed. |
-| `--mount-gap-m` | 0.10 | Robot-mount gap from table edge. |
-| `--strict-gate` / `--no-strict-gate` | strict | Abort on gate failure. |
-| `--save-video` | off | Emit `rollout_ep*.mp4`. |
-| `--video-fps` | 30 | Recording frame rate. |
-| `--dry-run` | off | Generate BDDL + LTL only. |
-| `--run-dir` / `--debug-jsonl` | auto / None | Output directory + extra diagnostics sink. |
-
-## Run
-
-Same-type stack (homogeneous):
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.stack_scene_pipeline \
-  --stack-mode same --scene-model Benevolence_1_int \
-  --episodes 1 --steps 300 --save-video
-```
-
-Flat target under the stack:
-
-```bash
-python -m maniguard.task_generation.stack_scene_pipeline \
-  --stack-mode flat --stack-height medium \
-  --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
-```
-
-Concave receptacle target:
-
-```bash
-python -m maniguard.task_generation.stack_scene_pipeline \
-  --stack-mode receptacle --scene-model Benevolence_1_int \
-  --episodes 1 --steps 300 --save-video
-```
-
-## Outputs
-
-- `diagnostics.jsonl` — gate result, LTL outcome, `stack_mode`, `stack_height`, `ontop_valid`.
-- `scene_ep1.json` — frozen scene snapshot.
-- `stdout.log` — runtime trace.
-- `rollout_ep*.mp4` — rollout video (if `--save-video`).
 
 ## Gate checks
 

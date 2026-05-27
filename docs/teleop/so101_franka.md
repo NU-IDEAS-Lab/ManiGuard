@@ -49,14 +49,14 @@ python teleop_bridge/so101_server.py --mock
 
 # Terminal 2: behavior env
 conda activate behavior
-python -m maniguard.teleop.so101_franka_teleop \
+python -m maniguard.data.teleop.so101_franka_teleop \
     --snapshot outputs/pipeline_runs/<run>/scene_ep1.json
 ```
 
 Real hardware + record to HDF5, only saving successes:
 
 ```bash
-python -m maniguard.teleop.so101_franka_teleop \
+python -m maniguard.data.teleop.so101_franka_teleop \
     --snapshot outputs/pipeline_runs/<run>/scene_ep1.json \
     --output-hdf5 outputs/teleop/<name>.hdf5 \
     --only-successes
@@ -74,7 +74,7 @@ match IK). When swapping `FrankaMounted → FrankaPanda`, the base is lifted
 by 0.5 m so the arm doesn't sit on the floor.
 
 The main loop calls `SO101TeleopAgent.get_action(robot)` from
-`maniguard/teleop/so101_teleop.py`:
+`maniguard/data/teleop/so101_teleop.py`:
 
 1. Pull the latest ZMQ message (CONFLATE=1, RCVTIMEO=100 ms).
 2. Compute `delta_pos = (ee_pos - prev_ee_pos) * position_scale` (gated by
@@ -113,5 +113,5 @@ in the scene.
 
 ## Source
 
-`maniguard/teleop/so101_franka_teleop.py` — entry point.
-`maniguard/teleop/so101_teleop.py` — `SO101TeleopAgent` / `SO101TeleopConfig`.
+`maniguard/data/teleop/so101_franka_teleop.py` — entry point.
+`maniguard/data/teleop/so101_teleop.py` — `SO101TeleopAgent` / `SO101TeleopConfig`.

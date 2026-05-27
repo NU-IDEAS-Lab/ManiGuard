@@ -54,7 +54,7 @@ and consumed downstream by
 ```bash
 conda activate behavior
 
-python -m maniguard.teleop.gello_grasp_batch \
+python -m maniguard.data.teleop.gello_grasp_batch \
     --csv maniguard/task_generation/utils/franka_graspability.csv \
     --limit 50 \
     --output-dir outputs/grasp_datasets/teleop/tensors
@@ -63,7 +63,7 @@ python -m maniguard.teleop.gello_grasp_batch \
 Run on an explicit list:
 
 ```bash
-python -m maniguard.teleop.gello_grasp_batch \
+python -m maniguard.data.teleop.gello_grasp_batch \
     --targets bowl_abc1234 mug_xyz5678 \
     --output-dir outputs/grasp_datasets/teleop/tensors
 ```
@@ -132,4 +132,4 @@ If OG's articulation view goes null mid-run (a known OG bug —
 
 ## Source
 
-`maniguard/teleop/gello_grasp_batch.py`
+`maniguard/data/teleop/gello_grasp_batch.py`

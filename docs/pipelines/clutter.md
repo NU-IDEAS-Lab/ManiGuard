@@ -1,70 +1,14 @@
 # Clutter
 
+<div class="mg-shots" markdown="1">
+![Tabletop clutter — opposite-side front](img/clutter/opposite.png){ loading=lazy }
+![Tabletop clutter — left overview](img/clutter/left.png){ loading=lazy }
+![Tabletop clutter — right overview](img/clutter/right.png){ loading=lazy }
+</div>
+
 ## What it does
 
 Auto-discovers a tabletop in any scene, generates a BDDL activity plus matching `ltl_safety.json`, packs a target object together with fragile and clutter obstacles onto the surface, places the Franka mount at a reachable edge, and runs an LTL-monitored rollout. The robot's task is to retrieve the target from a cluttered tabletop without dropping or tipping any of the fragile items around it.
-
-## CLI flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--scene-model` | (required) | Scene to use; surface is auto-discovered. |
-| `--surface-category` | None | Restrict surface to a single category (e.g. `breakfast_table`). |
-| `--surface-model` | None | Pin a specific surface asset model id. |
-| `--activity-name` | auto | Override generated activity name. |
-| `--episodes` | 1 | Episodes to run per scene. |
-| `--steps` | 5000 | Max simulation steps per LTL rollout. |
-| `--seed` | 0 | RNG seed (object selection + pack jitter + per-episode goal sphere). |
-| `--clutter-density` | `medium` | One of `low`, `medium`, `high`, `ultra`; selects target/fragile/clutter counts. |
-| `--randomize` | off | Randomize target / fragile / clutter types each episode. |
-| `--pack-jitter-xy` | 0.022 | XY jitter applied during pack retries. |
-| `--pack-min-clearance` | 0.008 | Minimum inter-object clearance during packing (m). |
-| `--mount-gap-m` | 0.10 | Robot-mount gap from the table edge. |
-| `--strict-gate` / `--no-strict-gate` | strict | Abort the episode on a gate failure. |
-| `--save-video` | off | Emit `rollout_ep*.mp4`. |
-| `--video-fps` | 30 | Recording frame rate. |
-| `--dry-run` | off | Generate BDDL + LTL only, no simulator load. |
-| `--run-dir` | auto | Override output directory. |
-| `--debug-jsonl` | None | Append diagnostics to a chosen JSONL. |
-
-## Run
-
-Generate BDDL + LTL only, no sim:
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.clutter_scene_pipeline \
-  --scene-model Benevolence_1_int --dry-run
-```
-
-Single rollout with video and stricter density:
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.clutter_scene_pipeline \
-  --scene-model Benevolence_1_int \
-  --clutter-density high --episodes 1 --steps 300 --save-video
-```
-
-Density presets (target / fragile / clutter):
-
-| level | target | fragile | clutter | nominal total |
-|---|---|---|---|---|
-| `low` | 1 | 2 | 1 | 4 |
-| `medium` | 1 | 4 | 2 | 7 |
-| `high` | 1 | 6 | 4 | 11 |
-| `ultra` | 1 | 8 | 6 | 15 |
-
-The preset is the requested starting budget; the pack solver may cull objects to fit the surface.
-
-## Outputs
-
-- `diagnostics.jsonl` — gate result, LTL outcome, density preset, pack attempt used, active object summary, removed-area / robot-base objects.
-- `scene_ep1.json` — frozen Omniverse snapshot for replay and re-render.
-- `stdout.log` — full runtime trace.
-- `rollout_ep*.mp4` — canonical rollout video (if `--save-video`).
 
 ## Gate checks
 

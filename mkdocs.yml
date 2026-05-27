@@ -52,6 +52,12 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
 
+extra_css:
+  - stylesheets/mg-carousel.css
+
+extra_javascript:
+  - javascripts/mg-carousel.js
+
 # Files / globs to ignore when building.
 exclude_docs: |
   graspability_classified.csv
@@ -61,34 +67,42 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: getting-started/installation.md
-  - Architecture:
-      - Overview: architecture/overview.md
+  - Concepts & Foundations:
+      - Architecture overview: architecture/overview.md
+      - Environment layer: foundations/env_layer.md
+      - LTL safety system: foundations/ltl_safety.md
+      - OmniGibson patches & configs: foundations/omnigibson_patches.md
   - Task Generation:
       - Pipelines overview: pipelines/index.md
       - Data flow: pipelines/data_flow.md
-      - Tabletop clutter: pipelines/clutter.md
+      - Add a custom pipeline: pipelines/custom_pipeline.md
+      - Tabletop clutter:
+          - pipelines/clutter.md
+          - "Liquid transport (variant)": pipelines/liquid_transport.md
       - Stack retrieval: pipelines/stack.md
-      - Food transfer: pipelines/transfer.md
+      - Food transfer:
+          - pipelines/transfer.md
+          - "Dusty transfer (variant)": pipelines/dusty_transfer.md
+      - Lid transport: pipelines/lid_transport.md
+      - Wet transport: pipelines/wet_transport.md
       - Empty scene: pipelines/empty_scene.md
       - Empty invert: pipelines/empty_invert.md
-      - Lid transport: pipelines/lid_transport.md
-      - Liquid transport: pipelines/liquid_transport.md
-      - Wet transport: pipelines/wet_transport.md
-  - Grasps:
-      - GraspGen pipeline: graspgen_pipeline.md
-  - RL Training:
-      - PPO grasp training: rl_training.md
-  - Teleop:
-      - Overview: teleop/index.md
+      - Cabinet pickup: pipelines/cabinet_pickup.md
+      - Jar transport: pipelines/jar_transport.md
+  - Data Collection:
+      - Teleop overview: teleop/index.md
       - SO-101 ZMQ server: teleop/so101_server.md
       - SO-101 → Franka: teleop/so101_franka.md
       - GELLO → Franka: teleop/gello_franka.md
       - GELLO calibration: teleop/gello_calibration.md
       - GELLO grasp batch: teleop/gello_grasp_batch.md
-      - Playback: teleop/playback.md
+      - Playback render: teleop/playback.md
+      - GraspGen / cuRobo pipeline: graspgen_pipeline.md
   - SFT:
       - OpenPI sim teleop SFT: openpi_sim_teleop_sft.md
       - OpenPI real teleop SFT: openpi_real_teleop_sft.md
   - Evaluation:
       - Single-machine (Pro 6000): one_machine_pro6000_eval.md
       - Two-machine: two_machine_eval.md
+  - RL:
+      - PPO grasp training: rl_training.md

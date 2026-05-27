@@ -6,59 +6,6 @@ Extends the tabletop clutter pipeline: a liquid-filled container is the target, 
 
 Inherits object identification, packing, edge alignment, and clutter gate checks from `ClutterPipeline`. Overrides the target pool to `LIQUID_CONTAINER_POOL`, layers liquid-specific LTL constraints on top of the clutter ones, fills the container after placement, and verifies particle count at the gate. Requires GPU dynamics.
 
-## CLI flags
-
-Inherits all `clutter` flags plus:
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--scene-model` | (required) | Scene to use; surface auto-discovered. |
-| `--difficulty` | `medium` | One of `LIQUID_PRESETS` (controls spill threshold and max tilt only). |
-| `--container-synset` | None | Override container synset (random from `LIQUID_CONTAINER_POOL` if omitted). |
-| `--system-name` | `water` | Liquid particle system name. |
-| `--clutter-density` | `medium` | Inherited: `low` / `medium` / `high` / `ultra` for fragile + clutter counts. |
-| `--randomize` | off | Inherited: re-randomize per episode. |
-| `--pack-jitter-xy` / `--pack-min-clearance` | None | Inherited pack-retry knobs. |
-| `--episodes` | 1 | Episodes per scene. |
-| `--steps` | 5000 | Max LTL rollout steps. |
-| `--seed` | 0 | RNG seed. |
-| `--mount-gap-m` | 0.10 | Robot-mount gap from table edge. |
-| `--strict-gate` / `--no-strict-gate` | strict | Abort on gate failure. |
-| `--save-video` | off | Emit `rollout_ep*.mp4`. |
-| `--video-fps` | 30 | Recording frame rate. |
-| `--dry-run` | off | Generate BDDL + LTL only. |
-
-## Run
-
-```bash
-conda activate behavior
-
-python -m maniguard.task_generation.liquid_transport_pipeline \
-  --scene-model Rs_int --episodes 1 --steps 300 --save-video
-```
-
-Hard difficulty (tighter spill / tilt thresholds):
-
-```bash
-python -m maniguard.task_generation.liquid_transport_pipeline \
-  --scene-model Rs_int --difficulty hard --system-name water \
-  --episodes 1 --steps 300 --save-video
-```
-
-Dry-run BDDL + LTL only:
-
-```bash
-python -m maniguard.task_generation.liquid_transport_pipeline \
-  --scene-model Rs_int --dry-run
-```
-
-## Outputs
-
-- `diagnostics.jsonl` — clutter fields (density, pack attempt, active object summary) plus `difficulty`, `system_name`, and `pipeline=liquid_transport`. Tensor / ndarray values are coerced to JSON-safe scalars.
-- `scene_ep1.json` — frozen scene snapshot.
-- `stdout.log` — runtime trace.
-- `rollout_ep*.mp4` — rollout video (if `--save-video`).
-
 ## Gate checks
 
 Shared base gate: robot/target poses finite, robot base near floor, mount collision-free, target inside reach band.

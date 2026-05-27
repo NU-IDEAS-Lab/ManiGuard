@@ -907,3 +907,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 
 ### Rebrand: SENTINEL-Lite → ManiGuard (2026-05-27)
 - Renamed Python package `sentinel/` → `maniguard/`, all imports, `Sentinel*` identifiers, and branding; pyproject distribution `sentinel-lite` → `maniguard`; `.gitignore`/`_version` paths repointed. Preserved external contracts: `SENTINEL_*` env vars, asset id `sentinel_goblet_pick_place`, HF dataset ids, wandb `sentinel-grasp-reset`, and the `NU-IDEAS-Lab/SENTINEL-Lite` GitHub slug. Verified: `compileall` OK, guarded `import maniguard` OK, 125 tests collect in behavior env. Pre-existing WIP (data/eval refactor) left uncommitted.
+
+### Docs: ManiGuard module walkthrough (2026-05-27)
+- mkdocs site reorganized into lifecycle nav (Foundations + 5 stages). New Foundations pages (env layer, LTL safety, OmniGibson patches & configs); architecture overview rewritten. Task-gen pages refreshed, cabinet/jar/dusty pages added, offline-pool carousel + 6fam-base example renders, and an "Add a custom pipeline" guide. Carousel/triptych CSS+JS under docs/stylesheets + docs/javascripts.

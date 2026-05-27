@@ -41,7 +41,7 @@ cloud: pull dataset + pi05_base ckpt from GCS  ->  openpi train.py  ->  ckpt
 ## 2. Why LIBERO schema (not DROID)
 
 `LeRobotLiberoDataConfig`'s repack expects exactly the LeRobot column
-names our `maniguard/data/lerobot_export.py` already writes:
+names our `maniguard/data/lerobot/lerobot_export.py` already writes:
 
 | LIBERO key | Our column | Match? |
 |---|---|---|
@@ -106,7 +106,7 @@ task → `outputs/teleop_rendered_mug_into_bowl/` (39 eps).
 ### 4.3 Stage 2: HDF5 → LeRobot v2.1 + push to HF
 
 ```bash
-.venv-lerobot/bin/python -m maniguard.data.lerobot_export \
+.venv-lerobot/bin/python -m maniguard.data.lerobot.lerobot_export \
   --input-dir outputs/teleop_rendered_<task> \
   --repo-id maniguard/<task>_libero \
   --prompt "<natural-language instruction>" \
@@ -338,7 +338,7 @@ automatic.
 ## 11. File pointers
 
 - `maniguard/data/playback.py` — Stage 1: re-renders OmniGibson env from raw teleop, emits image/wrist_image/state HDF5
-- `maniguard/data/lerobot_export.py` — Stage 2: HDF5 → LeRobot v2.1 (LIBERO-compatible columns), with `--push-to-hub`
-- `maniguard/data/real_teleop_to_droid.py` — sister script for real data → DROID schema (different path)
+- `maniguard/data/lerobot/lerobot_export.py` — Stage 2: HDF5 → LeRobot v2.1 (LIBERO-compatible columns), with `--push-to-hub`
+- `maniguard/data/real_teleop/real_teleop_to_droid.py` — sister script for real data → DROID schema (different path)
 - `maniguard/serve/openpi_native.py` — JAX/PyTorch-auto-detect serve, used for both sim and real evals
 - `docs/openpi_real_teleop_sft.md` — companion doc for the real-data DROID path

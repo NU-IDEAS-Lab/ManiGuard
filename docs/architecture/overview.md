@@ -1,72 +1,102 @@
 # Architecture overview
 
+ManiGuard is a thin, **maniguard-owned** layer on top of an unmodified
+[BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) / OmniGibson install. It
+adds LTL safety monitoring, task-generation pipelines, teleop + scripted data
+collection, SFT data export, policy evaluation, and RL training.
+
+## The pipeline lifecycle
+
+Everything in the package falls into one of five lifecycle stages plus a shared
+foundation layer. The docs are organized the same way.
+
+```
+                 ┌─────────────────────────── Foundations ───────────────────────────┐
+                 │  env layer · LTL safety · object states · OmniGibson patches        │
+                 └─────────────────────────────────────────────────────────────────────┘
+                                              ▲ (used by every stage)
+  Task generation ──► Data collection ──► SFT ──► Evaluation
+   (task_generation)   (teleop, cuRobo)   (data/ → openpi)   (eval/, serve/)
+                                  └────────────► RL (rl/, RLinf)
+```
+
+| Stage | Package | What it produces |
+|---|---|---|
+| **Task generation** | `maniguard/task_generation/` | Frozen scene snapshots + BDDL + `ltl_safety.json` |
+| **Data collection** | `maniguard/data/teleop/`, `maniguard/rl/grasps/` | Teleop / scripted demo HDF5s |
+| **SFT** | `maniguard/data/` → vendored `openpi/` | LeRobot v2.1 datasets + norm stats |
+| **Evaluation** | `maniguard/eval/`, `maniguard/serve/` | Benchmark results, success metrics |
+| **RL** | `maniguard/rl/`, submodule `RLinf/` | Trained grasp policies |
+
 ## Repo layout
 
 ```
 .
-├── maniguard/            # ManiGuard Python package (all maniguard-owned code)
+├── maniguard/            # ManiGuard package (all maniguard-owned code)
+│   ├── _omnigibson_patches.py   # runtime OmniGibson patches (applied on import)
 │   ├── object_states/   #   Dropped, Upright
-│   ├── utils/           #   ltl_utils, safety_monitor, bddl_generator, …
-│   ├── task_generation/ #   clutter / stack / transfer / cabinet / … pipelines
-│   ├── tasks/           #   ManiGuardGraspTask
-│   ├── envs/            #   ManiGuardEnv
-│   ├── eval/            #   benchmark runner, websocket eval client
-│   ├── serve/           #   pi0.5 / GR00T / websocket policy servers
-│   ├── rl/              #   SB3 PPO grasp training
-│   ├── rlinf/           #   RLinf enum extension + env dispatch patches
-│   ├── openpi/          #   OpenPI dataconfig + policy adapters
-│   ├── teleop/          #   SO-101 → Franka teleop
-│   ├── configs/         #   franka_mounted_maniguard.yaml + helpers
-│   └── _omnigibson_patches.py   # runtime OmniGibson patches
-├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
-├── RLinf/               # submodule → RLinf/RLinf
-├── vla_models/          # VLA checkpoints (gitignored)
+│   ├── utils/           #   LTL (ltl_utils, safety_monitor), task_spec, geometry
+│   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / … pipelines
+│   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
+│   ├── teleop/          #   SO-101 / GELLO → Franka teleop
+│   ├── data/            #   HDF5 → LeRobot export, playback render, norm stats, scene utils
+│   ├── eval/            #   benchmark runner, goal checker, scene discovery
+│   ├── serve/           #   websocket VLA policy servers
+│   ├── rl/              #   PPO grasp training + GraspGen/cuRobo grasp pipeline
+│   └── configs/         #   franka_mounted_maniguard.yaml + config_path() helper
+├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2 (upstream)
+├── RLinf/               # submodule → RLinf/RLinf (upstream, separate venv)
 ├── tests/               # maniguard-side pytest suites
-├── configs/             # RL / SFT training configs
-├── scripts/             # shell entrypoints
-├── tools/               # one-off utilities
-├── teleop_bridge/       # ZMQ bridge for SO-101 teleop
-└── datasets/            # BEHAVIOR dataset (gitignored)
+├── configs/             # eval / RL / SFT YAML configs
+├── scripts/ · tools/    # shell entrypoints / one-off utilities
+└── docs/                # this site
 ```
+
+!!! note "Stale-doc cleanup"
+    Earlier revisions of this page listed `maniguard/tasks/`, `maniguard/rlinf/`,
+    and `maniguard/openpi/` subpackages. **Those no longer exist.** The RLinf
+    integration was excised; the active RL stack uses
+    `maniguard.rl.tasks.pick_and_lift.PickAndLiftTask` directly, and OpenPI is
+    consumed from the vendored top-level `openpi/` checkout.
 
 ## Upstream boundary
 
-Anything under `behavior-1k/` or `RLinf/` is **upstream**. Never modify those trees.
-Instead:
+Anything under `behavior-1k/` or `RLinf/` is **upstream** — never edit those
+trees. ManiGuard stays decoupled by:
 
-- Patch OmniGibson behaviors via `maniguard._omnigibson_patches`.
-- Subclass tasks via `maniguard.tasks.*`.
-- Extend RLinf via `maniguard.rlinf.patches`.
+- **Runtime patching** OmniGibson via `maniguard._omnigibson_patches` (see
+  [OmniGibson patches](../foundations/omnigibson_patches.md)). Two upstream files
+  still carry local edits on this branch (`utils/bddl_utils.py`,
+  `tasks/grasp_task.py`); extracting them is tracked follow-up work.
+- Building env configs from **frozen scene snapshots** rather than subclassing
+  the env (see [Environment layer](../foundations/env_layer.md)).
 
 ## Data flow
 
 ```
-BDDL task definition
-   ↓
-OmniGibson scene sampling
-   ↓
-Environment reset / step  ──► LTL safety monitoring
-   ↓                              ↓
-Agent observation         info["ltl"]
-   ↓
-Policy action
-   ↓
-Physics simulation
-   ↓
-Reward signal
-   ↓
-RL training (RLinf)
+BDDL activity + scene  ──►  task_generation pipeline
+                                  │  spawns objects, runs LTL-monitored rollout
+                                  ▼
+              frozen snapshot (scene_ep1.json + diagnostics.jsonl)
+                                  │
+        ┌─────────────────────────┼─────────────────────────────┐
+        ▼                         ▼                              ▼
+   teleop / scripted        eval rollout                   RL training
+   demo  → playback         (load snapshot,                (rl.tasks +
+   render → HDF5            run VLA policy)                 PPO / RLinf)
+        │                         ▲
+        ▼                         │
+   data/ LeRobot export ──► SFT (openpi) ──► policy checkpoint ──┘
 ```
 
-## LTL safety system
+LTL safety monitoring runs *alongside* the rollout at every stage: a
+[`TaskLTLMonitor`](../foundations/ltl_safety.md) is attached to the env and
+steps an automaton derived from the task/scene `ltl_safety.json`.
 
-| Component | Location |
+## Foundation layer
+
+| Component | Page |
 |---|---|
-| Atomic-proposition generator (`AtomicPropositionGenerator`) | `maniguard/utils/ltl_utils.py` |
-| LTL → LDBA monitor (`LTLMonitor`) | `maniguard/utils/ltl_utils.py` |
-| Per-step LTL info (`info["ltl"]`) | `maniguard/envs/maniguard_env.py` |
-| High-level wrapper that loads task + scene `ltl_safety.json` | `maniguard/utils/safety_monitor.py` |
-| Task-level constraints | `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json` |
-| Scene-level constraints | `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json` |
-
-The Spot library is **optional** — if unavailable, safety monitoring is skipped with a warning.
+| Scene registry + frozen-snapshot env builder + controller presets | [Environment layer](../foundations/env_layer.md) |
+| Atomic propositions, LTL → automaton monitoring, `Dropped`/`Upright` states | [LTL safety system](../foundations/ltl_safety.md) |
+| Runtime OmniGibson patches + config helpers | [OmniGibson patches & configs](../foundations/omnigibson_patches.md) |
