@@ -64,6 +64,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-05-27 — `feat/omnisafe-integration`: Phase 0 — cost-function base + cost-injecting vec env wrapper
+
+New `sentinel/rl/costs/` package — `BaseCostFunction` ABC mirrors OG's `BaseRewardFunction` lifecycle (`reset(task, env)` + `_step(task, env, action) → (cost, info)`). `ZeroCost` is the MVP stub; `ConstantCost` exists so unit tests can exercise the cost path. New `sentinel/rl/envs/cost_wrapper.py:CostInjectingVecEnvWrapper` sits between `SentinelSB3VectorEnvironment` and SB3, sums per-env cost functions on each step, writes `info["cost"]` + `info["cost_breakdown"]`. Handles sim-fault recovery (zero cost on skipped steps) and episode boundaries (reset cost-fn state across all parallel slots). `tests/test_cost_wrapper.py` covers per-env isolation, sim-fault, and validation — 6/6 pass under `SENTINEL_SKIP_OMNIGIBSON_PATCH=1`. No algorithm consumes the cost channel yet; vanilla PPO path bit-for-bit unchanged. Branch base: `4ca7ed8c` (`feat/behavior-main-isaac5`).
+
 ## 2026-05-05 — `refactor/remove-bddl-curation`: GELLO grasp-teleop batch + AG fixes (uncommitted)
 
 New `sentinel/teleop/gello_grasp_batch.py`: per-object teleop loop driven by `sentinel/utils/franka_graspability.csv`. Mash-up of `render_grasps`'s spawn pattern (floor + tabletop, `DatasetObject(...).add_object()`, init pose + target_rpy, `release_grasp_immediately` cleanup) and `gello_franka_teleop`'s GELLO joint mirroring (`DynamixelRobot` leader + `GELLO_CALIBRATION_FRANKA_POSE` ramp + SPACE-toggle gripper). Hotkeys: `S` save grasp pose to in-memory buffer, `N` next (writes `grasps_{cat}_{model}.pt` if buffer non-empty, format consumed by `GraspDatasetResetter`), `R` retry current object, `K` skip, `Q` quit. Watchdog wrapper `scripts/gello_grasp_batch_loop.sh` relaunches on rc ∈ {2, 139, 134} so the OG `articulation_view` corruption bug (~7-15 add/remove cycles) doesn't end the session — resume skips already-written `.pt`'s.
