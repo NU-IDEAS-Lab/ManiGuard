@@ -34,26 +34,65 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import glob
 import json
-import os
+import re
+from collections import defaultdict
 from pathlib import Path
 
 import h5py
 import numpy as np
 import torch
 
+# Flat rendered-file naming: ``task_NNNN_traj_MMM.hdf5`` (one episode per file,
+# as produced by maniguard.data.playback). The captured group is the task id
+# used to look up the prompt in the diagnostics tree.
+_FLAT_RE = re.compile(r"^(task_\d+)_traj_\d+$")
+
 
 def _load_prompt(diag_path: Path) -> str:
-    """Read the first line of diagnostics.jsonl, extract `prompt`."""
-    with diag_path.open() as f:
-        first = f.readline()
-    if not first.strip():
+    """Extract ``prompt`` from a diagnostics file.
+
+    Handles two on-disk shapes: a pretty-printed single JSON object (the
+    6fam-base benchmark tasks, multi-line) and JSONL (one compact record per
+    line). Tries whole-file JSON first, then falls back to the first line.
+    """
+    text = diag_path.read_text()
+    if not text.strip():
         raise RuntimeError(f"{diag_path} is empty")
-    rec = json.loads(first)
+    try:
+        rec = json.loads(text)
+    except json.JSONDecodeError:
+        rec = json.loads(text.splitlines()[0])
     if "prompt" not in rec:
-        raise KeyError(f"{diag_path} first line lacks 'prompt'; keys={list(rec.keys())}")
+        raise KeyError(f"{diag_path} lacks 'prompt'; keys={list(rec.keys())}")
     return rec["prompt"]
+
+
+def _discover_episodes(input_root: Path, subdir: str) -> list[tuple[str, Path]]:
+    """Find rendered episode HDF5s and map each to its task id.
+
+    Supports two layouts (auto-detected):
+      flat:   ``<input_root>/task_NNNN_traj_MMM.hdf5``   (one ep per file)
+      nested: ``<input_root>/task_NNNN/<subdir>/scene_ep*.hdf5``
+
+    Returns a list of ``(task_id, episode_path)`` pairs.
+    """
+    flat = sorted(input_root.glob("task_*_traj_*.hdf5"))
+    if flat:
+        pairs = []
+        for p in flat:
+            m = _FLAT_RE.match(p.stem)
+            if m:
+                pairs.append((m.group(1), p))
+        return pairs
+
+    pairs = []
+    for d in sorted(input_root.iterdir()):
+        if not (d.is_dir() and d.name.startswith("task_")):
+            continue
+        for p in sorted((d / subdir).glob("scene_ep*.hdf5")):
+            pairs.append((d.name, p))
+    return pairs
 
 
 def _axisangle_to_rotmat(aa: np.ndarray) -> np.ndarray:
@@ -183,11 +222,15 @@ def main():
     if args.eef_delta_actions:
         args.action_dim = 7
 
-    # ----- discover tasks -----
-    task_dirs = sorted([p for p in args.input_root.iterdir() if p.is_dir() and p.name.startswith("task_")])
-    if not task_dirs:
-        raise SystemExit(f"No task_* subdirs under {args.input_root}")
-    print(f"[Multitask] {len(task_dirs)} task directories under {args.input_root}")
+    # ----- discover episodes (flat or nested layout) -----
+    episodes = _discover_episodes(args.input_root, args.subdir)
+    if not episodes:
+        raise SystemExit(f"No rendered episodes found under {args.input_root}")
+    by_task: dict[str, list[Path]] = defaultdict(list)
+    for tid, ep_path in episodes:
+        by_task[tid].append(ep_path)
+    print(f"[Multitask] {len(episodes)} episodes across {len(by_task)} tasks "
+          f"under {args.input_root}")
 
     # ----- prepare LeRobot dataset -----
     state_names = [f"state_{i}" for i in range(args.state_dim)]
@@ -238,38 +281,30 @@ def main():
     total_frames = 0
     prompts_seen: set[str] = set()
 
-    for task_dir in task_dirs:
-        ep_dir = task_dir / args.subdir
-        diag_path = args.diag_root / task_dir.name / args.subdir / "diagnostics.jsonl"
-
-        if not ep_dir.exists():
-            print(f"[Multitask] SKIP {task_dir.name}: no {args.subdir}/ subdir")
-            continue
+    for tid in sorted(by_task):
+        diag_path = args.diag_root / tid / "diagnostics.jsonl"
         if not diag_path.exists():
-            print(f"[Multitask] SKIP {task_dir.name}: no diagnostics at {diag_path}")
+            print(f"[Multitask] SKIP {tid}: no diagnostics at {diag_path}")
             continue
 
         try:
             prompt = _load_prompt(diag_path)
         except Exception as e:
-            print(f"[Multitask] SKIP {task_dir.name}: prompt parse failed -- {e}")
+            print(f"[Multitask] SKIP {tid}: prompt parse failed -- {e}")
             continue
 
-        ep_files = sorted(ep_dir.glob("scene_ep*.hdf5"))
+        ep_files = by_task[tid]
         if args.limit_per_task is not None:
             ep_files = ep_files[: args.limit_per_task]
-        if not ep_files:
-            print(f"[Multitask] SKIP {task_dir.name}: no scene_ep*.hdf5 in {ep_dir}")
-            continue
 
         prompts_seen.add(prompt)
-        print(f"[{task_dir.name}] {len(ep_files)} eps  prompt='{prompt[:60]}...'")
+        print(f"[{tid}] {len(ep_files)} eps  prompt='{prompt[:60]}...'")
 
         for ep_path in ep_files:
             frames, n = _load_episode_from_hdf5(ep_path, eef_delta=args.eef_delta_actions)
             for frame in frames:
-                frame["task"] = prompt
-                dataset.add_frame(frame)
+                # lerobot >=0.3 takes the task as a separate arg, not a frame key.
+                dataset.add_frame(frame, task=prompt)
             dataset.save_episode()
             total_eps += 1
             total_frames += n
