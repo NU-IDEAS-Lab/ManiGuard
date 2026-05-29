@@ -204,6 +204,20 @@ def _dump_mp4s(hdf5_path: str, fps: int = 30) -> None:
         print(f"[Playback] MP4: {path}  ({len(frames)} frames)")
 
 
+def _stamp_metadata(hdf5_path: str, controller_mode: str, n_cams: int) -> None:
+    """Fingerprint the playback config into the output HDF5's `data` group.
+
+    The LeRobot export stage reads this to auto-select the schema: eef and joint
+    `obs/state` are both 8D float, indistinguishable from the array alone, so the
+    controller mode must be recorded explicitly. n_cams is stored too (though it
+    is also inferable from the obs image keys) to keep the record self-describing.
+    """
+    import h5py
+    with h5py.File(hdf5_path, "a") as f:
+        f["data"].attrs["controller_mode"] = controller_mode
+        f["data"].attrs["n_cams"] = int(n_cams)
+
+
 def _setup_cameras_from_scene(env) -> None:
     """Position cam_opposite like teleop did.
 
@@ -385,7 +399,9 @@ def main():
         env.playback_episode(episode_id=args.episode, record_data=True)
 
     env.save_data()
-    print(f"[Playback] Wrote: {args.output}")
+    _stamp_metadata(args.output, args.controller, args.cams)
+    print(f"[Playback] Wrote: {args.output}  "
+          f"(controller={args.controller}, n_cams={args.cams})")
 
     if args.save_mp4:
         _dump_mp4s(args.output)
