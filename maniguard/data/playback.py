@@ -31,6 +31,7 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch as th
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -181,22 +182,61 @@ def _setup_cameras_from_scene(env) -> None:
     scene = env.scene
     robot = env.robots[0]
     support_obj = scene.object_registry("name", "support_surface")
-    if support_obj is None:
-        print("[Playback] WARNING: scene has no 'support_surface' object; "
-              "cam_opposite stays at default pose (teleop placement needs it).")
+
+    if support_obj is not None:
+        # Pick any non-robot, non-support object as the "target" for the lookat.
+        target_obj = next(
+            (obj for obj in scene.objects if obj is not robot and obj is not support_obj),
+            support_obj,
+        )
+        views = build_video_view_specs(
+            None, robot, target_obj, support_obj=support_obj,
+        )
+        setup_cameras(env, views)
+        print(f"[Playback] Camera mode = support_surface "
+              f"(target={target_obj.name}, support={support_obj.name}).")
         return
 
-    # Pick any non-robot, non-support object as the "target" for the lookat.
-    target_obj = next(
-        (obj for obj in scene.objects if obj is not robot and obj is not support_obj),
-        support_obj,
-    )
-    views = build_video_view_specs(
-        None, robot, target_obj, support_obj=support_obj,
-    )
+    # Robot-frame fallback for HF furnished scenes that ship no 'support_surface'
+    # (e.g. the 6fam-base benchmark scenes). Mirrors gello_franka_teleop's
+    # _setup_cameras_for_scene fallback verbatim so the re-rendered camera poses
+    # match the teleop-time poses. setup_cameras positions whichever of
+    # cam_opposite / cam_left / cam_right actually exist in the env, so this
+    # works unchanged for both the 2-cam and 3-cam external-sensor sets.
+    import omnigibson.utils.transform_utils as _T
+
+    rp_t, rq_t = robot.get_position_orientation()
+    rp = np.asarray(rp_t.cpu().numpy() if hasattr(rp_t, "cpu") else rp_t,
+                    dtype=np.float32)
+    rmat_t = _T.quat2mat(rq_t)
+    rmat = np.asarray(rmat_t.cpu().numpy() if hasattr(rmat_t, "cpu") else rmat_t,
+                      dtype=np.float32)
+    forward = rmat[:, 0].copy()
+    forward[2] = 0.0
+    n = float(np.linalg.norm(forward))
+    forward = forward / n if n > 1e-6 else np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    left = np.cross(np.array([0.0, 0.0, 1.0], dtype=np.float32), forward)
+
+    cam_height_off = 0.9
+    back_off = 1.2
+    side_off = 1.0
+    side_forward_off = 0.2
+
+    workspace = rp + forward * 0.45 + np.array([0, 0, 0.05], dtype=np.float32)
+    opp_eye = rp - forward * back_off + np.array([0, 0, cam_height_off], dtype=np.float32)
+    left_eye = rp + left * side_off + forward * side_forward_off \
+                  + np.array([0, 0, cam_height_off], dtype=np.float32)
+    right_eye = rp - left * side_off + forward * side_forward_off \
+                   + np.array([0, 0, cam_height_off], dtype=np.float32)
+    views = [
+        {"label": "opposite_side_front", "eye": opp_eye.tolist(),  "lookat": workspace.tolist()},
+        {"label": "left_overview",       "eye": left_eye.tolist(), "lookat": workspace.tolist()},
+        {"label": "right_overview",      "eye": right_eye.tolist(),"lookat": workspace.tolist()},
+    ]
     setup_cameras(env, views)
-    print(f"[Playback] Positioned cam_opposite via setup_cameras "
-          f"(target={target_obj.name}, support={support_obj.name}).")
+    print(f"[Playback] Camera mode = robot-frame; "
+          f"robot_pos=({rp[0]:.2f},{rp[1]:.2f},{rp[2]:.2f}), "
+          f"forward=({forward[0]:.2f},{forward[1]:.2f})")
 
 
 def _force_sensor_resolution(env, resolution: int) -> None:
