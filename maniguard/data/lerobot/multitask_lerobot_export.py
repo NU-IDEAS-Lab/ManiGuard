@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
-"""Multi-task Stage 2: per-task rendered HDF5 -> single LeRobot v2.1 dataset.
+"""Multi-task Stage 2: rendered teleop HDF5s -> one LeRobot v2.1 dataset.
 
-Walks a directory tree of the form
+Discovers rendered episodes under --input-root (both layouts auto-detected):
+    flat:   <input_root>/task_NNNN_traj_MMM.hdf5      (maniguard.data.playback)
+    nested: <input_root>/task_NNNN/<subdir>/scene_ep*.hdf5
 
-    <input_root>/<category>/<task_id>/<base>/scene_ep*.hdf5
+and looks up each task's language prompt at
+    <diag_root>/<task_id>/diagnostics.jsonl
 
-(e.g. ``outputs/gello_teleop_rendered/table/task_0000/base/scene_ep1.hdf5``)
-and looks up the per-task language prompt from a parallel diagnostics tree
+All episodes merge into ONE dataset whose meta/tasks.jsonl enumerates the unique
+prompts; each frame's task_index resolves to the right prompt at train time.
 
-    <diag_root>/<category>/<task_id>/<base>/diagnostics.jsonl
-
-(each line has ``"prompt": "..."`` among other fields).
-
-All episodes from all tasks are merged into ONE LeRobot dataset whose
-``meta/tasks.jsonl`` enumerates the unique prompt strings, and each
-frame's ``task_index`` resolves to the right prompt at training time.
-
-Schema written matches ``maniguard/data/lerobot/lerobot_export.py`` (LIBERO-compatible
-columns), so openpi's ``LeRobotLiberoDataConfig`` can repack it directly
-IF action is 7D. For 8D action (e.g. gello joint-target + gripper), see
-the action_dim flag below.
+The schema is auto-selected from the playback fingerprint stamped on each HDF5
+(controller_mode + n_cams) -- no per-run schema flags:
+    controller=joint -> state [joint_0..6, gripper_pos] (8),
+                        actions [joint_*_target, gripper_cmd] (8, passthrough)
+    controller=eef   -> state eef_8d, actions [dpos, drot, gripper] (7, delta)
+    n_cams=3         -> image_left + image_right + wrist_image
+    n_cams=2         -> image + wrist_image
+(joint + 3-cam matches IDEAS-Lab-Northwestern/sentinel-pnp-clutter-joint.)
 
 Usage:
     .venv-lerobot/bin/python -m maniguard.data.lerobot.multitask_lerobot_export \\
-        --input-root outputs/gello_teleop_rendered/table \\
-        --diag-root datasets/final_unique_accepted-goal_region_sphere-full-perturbed_with_base-20260426/table \\
-        --repo-id maniguard/clutter_pickup_libero \\
-        --root outputs/lerobot_datasets/maniguard/clutter_pickup_libero \\
-        --action-dim 8 \\
-        --push-to-hub IDEAS-Lab-Northwestern/sim-clutter-pickup \\
+        --input-root outputs/teleop_rendered_maniguard-demo/dusty_transfer \\
+        --diag-root outputs/benchmark_base_task_sets_reviewed/05_HF_6fam-base/dusty_transfer \\
+        --repo-id IDEAS-Lab-Northwestern/sim-dusty-transfer-joint \\
+        --root outputs/lerobot_datasets/sim-dusty-transfer-joint \\
+        --push-to-hub IDEAS-Lab-Northwestern/sim-dusty-transfer-joint \\
         --hub-private
 """
 from __future__ import annotations
@@ -141,46 +139,83 @@ def _compute_eef_delta_actions(
     return actions
 
 
+# Schema tables, indexed by the playback fingerprint. These ARE the
+# "hardcoded per-config" mappings -- the export reads the stamp and looks the
+# schema up here, no per-run flags. Image obs keys are in dataset column order
+# (rendered HDF5 stores them under obs/<key>); state is always 8D.
+_IMAGE_KEYS = {
+    2: ["image", "wrist_image"],
+    3: ["image_left", "image_right", "wrist_image"],
+}
+_STATE_NAMES = {
+    "joint": [f"joint_{i}" for i in range(7)] + ["gripper_pos"],
+    "eef": ["eef_x", "eef_y", "eef_z",
+            "axisangle_x", "axisangle_y", "axisangle_z",
+            "gripper_l", "gripper_r"],
+}
+_ACTION_NAMES = {
+    "joint": [f"joint_{i}_target" for i in range(7)] + ["gripper_cmd"],
+    "eef": ["dpos_x", "dpos_y", "dpos_z", "drot_x", "drot_y", "drot_z", "gripper"],
+}
+
+
+def _read_stamp(path: Path) -> tuple[str, int]:
+    """Read the playback fingerprint (controller_mode, n_cams) from a rendered
+    HDF5's ``data`` group. Raises if absent -- the schema can't be inferred from
+    the arrays alone (eef and joint state are both 8D float)."""
+    with h5py.File(path, "r") as f:
+        attrs = f["data"].attrs
+        if "controller_mode" not in attrs or "n_cams" not in attrs:
+            raise SystemExit(
+                f"{path}: missing controller_mode/n_cams stamp. Re-render with the "
+                f"current maniguard.data.playback (it fingerprints the output)."
+            )
+        return str(attrs["controller_mode"]), int(attrs["n_cams"])
+
+
+def _build_features(controller: str, n_cams: int, resolution: int) -> dict:
+    """LeRobot feature schema for a (controller, n_cams) combination."""
+    feats = {
+        k: {"dtype": "video", "shape": (resolution, resolution, 3),
+            "names": ["height", "width", "channel"]}
+        for k in _IMAGE_KEYS[n_cams]
+    }
+    feats["state"] = {"dtype": "float32", "shape": (8,),
+                      "names": _STATE_NAMES[controller]}
+    feats["actions"] = {"dtype": "float32", "shape": (len(_ACTION_NAMES[controller]),),
+                        "names": _ACTION_NAMES[controller]}
+    return feats
+
+
 def _load_episode_from_hdf5(
-    path: Path, eef_delta: bool = False
+    path: Path, controller: str, n_cams: int
 ) -> tuple[list[dict], int]:
-    """Read one rendered HDF5 -> list of per-frame dicts (frame['task'] is set later).
+    """Read one rendered HDF5 -> list of per-frame dicts (task set later).
 
-    Returns (frames, n_action) where N+1 frames of state are paired with
-    N actions (last state dropped -- no action follows it).
-
-    If eef_delta=True, replaces the raw joint-target actions with 7D
-    EEF-delta actions computed from consecutive states.
+    N+1 obs frames pair with N actions (last obs dropped). For ``eef`` the raw
+    joint-target action is converted to a 7D EEF-delta from consecutive eef
+    states; for ``joint`` the raw 8D joint-target action passes through.
     """
+    img_keys = _IMAGE_KEYS[n_cams]
     with h5py.File(path, "r") as f:
         demo_keys = sorted(f["data"].keys())
         if len(demo_keys) != 1:
             raise RuntimeError(f"{path}: expected 1 demo, got {demo_keys}")
         demo = f["data"][demo_keys[0]]
-        image = np.asarray(demo["obs/image"])
-        wrist_image = np.asarray(demo["obs/wrist_image"])
+        images = {k: np.asarray(demo[f"obs/{k}"]) for k in img_keys}
         state = np.asarray(demo["obs/state"], dtype=np.float32)
         action = np.asarray(demo["action"], dtype=np.float32)
 
     n_action = len(action)
-
-    if eef_delta:
-        action = _compute_eef_delta_actions(
-            state[: n_action + 1], action[:, -1]
-        )
-
-    image = image[:n_action]
-    wrist_image = wrist_image[:n_action]
-    state = state[:n_action]
+    if controller == "eef":
+        action = _compute_eef_delta_actions(state[: n_action + 1], action[:, -1])
 
     frames = []
     for t in range(n_action):
-        frames.append({
-            "image": torch.from_numpy(image[t]),
-            "wrist_image": torch.from_numpy(wrist_image[t]),
-            "state": torch.from_numpy(state[t]),
-            "actions": torch.from_numpy(action[t]),
-        })
+        frame = {k: torch.from_numpy(images[k][t]) for k in img_keys}
+        frame["state"] = torch.from_numpy(state[t])
+        frame["actions"] = torch.from_numpy(action[t])
+        frames.append(frame)
     return frames, n_action
 
 
@@ -198,12 +233,6 @@ def main():
     p.add_argument("--root", type=Path, required=True, help="Local LeRobot dataset root")
     p.add_argument("--fps", type=int, default=30)
     p.add_argument("--resolution", type=int, default=256)
-    p.add_argument("--state-dim", type=int, default=8)
-    p.add_argument("--action-dim", type=int, default=7,
-                   help="7 for EEF-delta (matches LIBERO out-of-the-box); 8 for joint-target style.")
-    p.add_argument("--eef-delta-actions", action="store_true",
-                   help="Convert joint-target actions to 7D EEF-delta (dpos+drot+gripper) "
-                        "computed from consecutive EEF states. Forces action-dim=7.")
     p.add_argument("--push-to-hub", default=None,
                    help="HF repo id to push to (auto-creates v2.1 codebase tag).")
     p.add_argument("--hub-private", action="store_true")
@@ -219,9 +248,6 @@ def main():
         except ModuleNotFoundError as e:
             raise SystemExit(f"lerobot not importable: {e}")
 
-    if args.eef_delta_actions:
-        args.action_dim = 7
-
     # ----- discover episodes (flat or nested layout) -----
     episodes = _discover_episodes(args.input_root, args.subdir)
     if not episodes:
@@ -229,43 +255,15 @@ def main():
     by_task: dict[str, list[Path]] = defaultdict(list)
     for tid, ep_path in episodes:
         by_task[tid].append(ep_path)
+
+    # Auto-detect the schema from the playback fingerprint (one run = one family,
+    # homogeneous controller/cams -- read it off the first episode).
+    controller, n_cams = _read_stamp(episodes[0][1])
     print(f"[Multitask] {len(episodes)} episodes across {len(by_task)} tasks "
-          f"under {args.input_root}")
+          f"under {args.input_root}  (controller={controller}, n_cams={n_cams})")
 
     # ----- prepare LeRobot dataset -----
-    state_names = [f"state_{i}" for i in range(args.state_dim)]
-    if args.state_dim == 8:
-        state_names = ["eef_x", "eef_y", "eef_z",
-                       "axisangle_x", "axisangle_y", "axisangle_z",
-                       "gripper_l", "gripper_r"]
-    if args.eef_delta_actions:
-        action_names = ["dpos_x", "dpos_y", "dpos_z",
-                        "drot_x", "drot_y", "drot_z", "gripper"]
-    else:
-        action_names = [f"action_{i}" for i in range(args.action_dim)]
-
-    features = {
-        "image": {
-            "dtype": "video",
-            "shape": (args.resolution, args.resolution, 3),
-            "names": ["height", "width", "channel"],
-        },
-        "wrist_image": {
-            "dtype": "video",
-            "shape": (args.resolution, args.resolution, 3),
-            "names": ["height", "width", "channel"],
-        },
-        "state": {
-            "dtype": "float32",
-            "shape": (args.state_dim,),
-            "names": state_names,
-        },
-        "actions": {
-            "dtype": "float32",
-            "shape": (args.action_dim,),
-            "names": action_names,
-        },
-    }
+    features = _build_features(controller, n_cams, args.resolution)
 
     dataset = LeRobotDataset.create(
         repo_id=args.repo_id,
@@ -301,7 +299,7 @@ def main():
         print(f"[{tid}] {len(ep_files)} eps  prompt='{prompt[:60]}...'")
 
         for ep_path in ep_files:
-            frames, n = _load_episode_from_hdf5(ep_path, eef_delta=args.eef_delta_actions)
+            frames, n = _load_episode_from_hdf5(ep_path, controller, n_cams)
             for frame in frames:
                 # lerobot >=0.3 takes the task as a separate arg, not a frame key.
                 dataset.add_frame(frame, task=prompt)
