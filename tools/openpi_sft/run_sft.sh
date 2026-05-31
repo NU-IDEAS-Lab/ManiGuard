@@ -130,6 +130,16 @@ mkdir -p "$LOG_DIR"
 # pi05_base (and other GCS) warm-start downloads cached here, shared across runs.
 export OPENPI_DATA_HOME="${OPENPI_DATA_HOME:-$REPO_ROOT/outputs/openpi_cache}"
 mkdir -p "$OPENPI_DATA_HOME"
+# HF caches: force into outputs/hf (gitignored, shared across runs). Forced (not
+# :-) because a host shell rc may point these at a path the container can't write
+# (e.g. /projects vs the bound /gpfs/projects). The training dataset is fetched
+# into HF_LEROBOT_HOME. HF_TOKEN still comes from the environment, so overriding
+# HF_HOME does not affect auth. Process-local only -- never touches your rc, so
+# other projects on this box are unaffected.
+export HF_LEROBOT_HOME="$REPO_ROOT/outputs/hf/lerobot"
+export HF_HOME="$REPO_ROOT/outputs/hf/home"
+export HF_DATASETS_CACHE="$REPO_ROOT/outputs/hf/datasets"
+mkdir -p "$HF_LEROBOT_HOME" "$HF_HOME" "$HF_DATASETS_CACHE"
 
 # openpi composes checkpoints as <checkpoint_base_dir>/<config_name>/<exp_name>/.
 CKPT_DIR="$CKPT_BASE/$CONFIG/$EXP"

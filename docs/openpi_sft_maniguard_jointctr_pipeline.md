@@ -188,11 +188,17 @@ ManiGuard/outputs/
     assets/<config_name>/...                  # computed norm stats
     logs/{normstats,smoke,train,watcher}.log
   openpi_cache/                               # pi05_base warm-start download (shared across runs)
+  hf/{lerobot,home,datasets}/                 # HF caches incl. the training dataset (shared)
 ```
 
-`run_sft.sh` passes `--checkpoint-base-dir` / `--assets-base-dir` into openpi and
-sets `OPENPI_DATA_HOME` to the shared cache, so nothing is written outside
-`outputs/` (which is gitignored). The HF-push watcher reads
+`run_sft.sh` passes `--checkpoint-base-dir` / `--assets-base-dir` into openpi,
+sets `OPENPI_DATA_HOME` for the GCS warm-start download, and force-sets the HF
+caches (`HF_LEROBOT_HOME` / `HF_HOME` / `HF_DATASETS_CACHE`) into `outputs/hf/`
+so the training dataset and HF cache land in the gitignored run tree -- and so a
+host shell rc pointing these at an unwritable path (e.g. `/projects` vs a bound
+`/gpfs/projects` inside a container) can't break the run. These exports are
+process-local (they never touch your rc), so other projects on the box are
+unaffected. The HF-push watcher reads
 `outputs/sft_runs/<exp>/checkpoints/<config_name>/<exp>/`.
 
 ### Manual building blocks
