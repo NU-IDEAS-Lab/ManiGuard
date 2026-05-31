@@ -141,7 +141,9 @@ echo "[run_sft] openpi_root=$OPENPI_ROOT data_home=$OPENPI_DATA_HOME"
                       || echo "[run_sft] push disabled"
 
 BASE_ARGS=( --assets-base-dir "$ASSETS_BASE" --checkpoint-base-dir "$CKPT_BASE" )
-CMD_NORM=( python "$HERE/compute_norm_stats.py" "$CONFIG" )
+# norm-stats writes into the SAME assets dir training reads (--assets-base-dir),
+# else training silently runs unnormalized (openpi swallows missing norm stats).
+CMD_NORM=( python "$HERE/compute_norm_stats.py" "$CONFIG" --assets-base-dir "$ASSETS_BASE" )
 TRAIN_ARGS=( "$CONFIG" --exp-name "$EXP" "${BASE_ARGS[@]}" )
 [[ -n "$STEPS" ]] && TRAIN_ARGS+=( --num-train-steps "$STEPS" )
 [[ -n "$BATCH" ]] && TRAIN_ARGS+=( --batch-size "$BATCH" )
@@ -152,6 +154,12 @@ TRAIN_ARGS=( "$CONFIG" --exp-name "$EXP" "${BASE_ARGS[@]}" )
 if [[ "$NORM_STATS" == "1" ]]; then
   echo "[run_sft] computing norm stats for $CONFIG ..."
   "${CMD_NORM[@]}" 2>&1 | tee "$LOG_DIR/normstats.log"
+  # Fail loud if nothing landed where training will look (guards the silent
+  # unnormalized-training failure mode).
+  if [[ -z "$(find "$ASSETS_BASE/$CONFIG" -type f 2>/dev/null | head -1)" ]]; then
+    echo "ERROR: norm stats not found under $ASSETS_BASE/$CONFIG after compute." >&2
+    exit 1
+  fi
 fi
 
 if [[ "$SMOKE" == "1" || "$SMOKE_ONLY" == "1" ]]; then
