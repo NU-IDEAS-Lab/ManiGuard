@@ -48,6 +48,18 @@ def _build_configs() -> list[TrainConfig]:
         #   peak_lr 2.5e-5 @ batch 4 (sqrt-scale up if you raise batch_size).
         TrainConfig(
             name="pi05_base_dusty_transfer_joint_2cam_lora",
+            project_name="maniguard-sft",  # wandb project for all ManiGuard SFT
+            # Handoff metadata: openpi never interprets policy_metadata, so we use
+            # it to carry the run's HF target + default experiment name. run_sft.sh
+            # reads these (via _config_meta.py) as defaults, so launching only
+            # needs --config -- the HF repo, visibility, and exp/run name all come
+            # from here. CLI flags still override. default_exp also becomes the
+            # wandb run name and the outputs/sft_runs/<exp>/ folder name.
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-dusty-transfer-joint-2cam-lora",
+                "hf_private": False,  # public model repo (datasets stay private)
+                "default_exp": "dusty_transfer_joint_2cam",
+            },
             model=pi0_config.Pi0Config(
                 pi05=True,
                 action_dim=32,

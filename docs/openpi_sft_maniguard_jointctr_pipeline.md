@@ -126,6 +126,26 @@ the TrainConfigs into openpi. The reference config is
   keep `decay_steps == num_train_steps`, `keep_period = steps // 5`, and
   sqrt-scale `peak_lr` if you raise the batch size.
 
+### Handoff: naming + targets live in the config
+
+So that a fresh box / another person / an agent can launch from the doc with
+just `--config`, the run's identity is carried by the config and not invented on
+the command line:
+
+- `project_name="maniguard-sft"` — the wandb project for all ManiGuard SFT.
+- `policy_metadata` (openpi never interprets it; we use it as a handoff carrier):
+  - `default_exp` — the experiment / wandb run name and the
+    `outputs/sft_runs/<exp>/` folder name (here `dusty_transfer_joint_2cam`).
+  - `hf_repo` — the model repo checkpoints are pushed to
+    (`IDEAS-Lab-Northwestern/pi05-base-dusty-transfer-joint-2cam-lora`).
+  - `hf_private` — push visibility (`False` = public model repo; datasets stay
+    private). Flip it here to change visibility for every future run.
+
+`run_sft.sh` reads these via `tools/openpi_sft/_config_meta.py`, so launching
+needs only `--config`; any CLI flag still overrides. **Each SFT run should get
+its own uniquely-named config** (no timestamps are added), so distinct runs stay
+distinguishable by their config / `default_exp`.
+
 ---
 
 ## 5. Run
@@ -135,27 +155,53 @@ the TrainConfigs into openpi. The reference config is
 smoke and deletes it, launches the HF-push watcher in the background, then runs
 the full training and waits for the watcher to finish uploading the final ckpt.
 
+Because exp name, HF repo and visibility all default from the config
+(see §4 Handoff), the minimal launch is just `--config`:
+
 ```bash
 cd ManiGuard
 tools/openpi_sft/run_sft.sh \
   --config pi05_base_dusty_transfer_joint_2cam_lora \
-  --exp    dusty_joint_2cam \
-  --norm-stats \
-  --push-repo IDEAS-Lab-Northwestern/<model-repo> --push-private \
-  [--steps 10000] [--batch 4] [--keep-period 2000]
+  --norm-stats
+# -> exp=dusty_transfer_joint_2cam, push -> .../pi05-base-dusty-transfer-joint-2cam-lora (public),
+#    artifacts under outputs/sft_runs/dusty_transfer_joint_2cam/
 ```
 
 Run it inside a tmux session (training is long); detach with `Ctrl+b d`.
 
-Options: `--no-smoke`, `--smoke-only`, `--resume`, `--overwrite`,
-`--poll-interval N` (watcher scan seconds, default 30). `OPENPI_ROOT`,
-`HF_TOKEN`, `WANDB_API_KEY` come from the environment; a missing `WANDB_API_KEY`
-(or `HF_TOKEN` with `--push-repo`) is a hard error.
+Override anything from the CLI: `--exp NAME`, `--steps N`, `--batch N`,
+`--keep-period N`, `--push-repo REPO`, `--push-private`, `--no-push` (disable
+HF push even if the config sets `hf_repo`), `--no-smoke`, `--smoke-only`,
+`--resume`, `--overwrite`, `--poll-interval N` (watcher scan seconds, default
+30). `OPENPI_ROOT`, `HF_TOKEN`, `WANDB_API_KEY` come from the environment; a
+missing `WANDB_API_KEY` (or `HF_TOKEN` when pushing) is a hard error.
+
+### Run layout (everything under outputs/, gitignored)
+
+All artifacts of one run live in a single self-contained folder, so it looks the
+same no matter where you launch from:
+
+```
+ManiGuard/outputs/
+  sft_runs/<exp>/
+    checkpoints/<config_name>/<exp>/<step>/   # orbax ckpts (params/ assets/ train_state/)
+    assets/<config_name>/...                  # computed norm stats
+    logs/{normstats,smoke,train,watcher}.log
+  openpi_cache/                               # pi05_base warm-start download (shared across runs)
+```
+
+`run_sft.sh` passes `--checkpoint-base-dir` / `--assets-base-dir` into openpi and
+sets `OPENPI_DATA_HOME` to the shared cache, so nothing is written outside
+`outputs/` (which is gitignored). The HF-push watcher reads
+`outputs/sft_runs/<exp>/checkpoints/<config_name>/<exp>/`.
 
 ### Manual building blocks
 
 The launchers can also be run directly (each imports `maniguard.openpi_sft`
-first, then delegates to the pristine openpi script):
+first, then delegates to the pristine openpi script). Note these bypass
+`run_sft.sh`, so they do NOT set the `outputs/sft_runs/<exp>/` layout — pass
+`--checkpoint-base-dir` / `--assets-base-dir` yourself, or they default to
+`./checkpoints` / `./assets` under the cwd:
 
 ```bash
 # norm stats (config name is positional, per openpi's script)
@@ -163,7 +209,7 @@ python tools/openpi_sft/compute_norm_stats.py pi05_base_dusty_transfer_joint_2ca
 
 # training (all openpi train.py flags pass through)
 python tools/openpi_sft/train.py pi05_base_dusty_transfer_joint_2cam_lora \
-  --exp-name dusty_joint_2cam [--overwrite]
+  --exp-name dusty_transfer_joint_2cam [--overwrite]
 ```
 
 ---
@@ -187,10 +233,11 @@ authoritative source), not a local marker. Both upload `params/` + `assets/`
   watcher missed; it skips whatever is already complete on HF.
 
 ```bash
-# backfill / verify after the run (skips everything already up)
+# backfill / verify after the run (skips everything already up).
+# run_sft.sh prints this exact command at the end; ckpt-dir is the run's folder:
 python tools/openpi_sft/hf_push.py \
-  --ckpt-dir "$OPENPI_ROOT/checkpoints/pi05_base_dusty_transfer_joint_2cam_lora/dusty_joint_2cam" \
-  --repo IDEAS-Lab-Northwestern/<model-repo> \
+  --ckpt-dir outputs/sft_runs/dusty_transfer_joint_2cam/checkpoints/pi05_base_dusty_transfer_joint_2cam_lora/dusty_transfer_joint_2cam \
+  --repo IDEAS-Lab-Northwestern/pi05-base-dusty-transfer-joint-2cam-lora \
   --num-train-steps 10000 [--readme docs/cards/<card>.md] [--private]
 ```
 
@@ -224,6 +271,7 @@ python tools/openpi_sft/hf_push.py \
 | Train configs + `register()` | `maniguard/openpi_sft/train_configs.py` |
 | Train / norm-stats launchers | `tools/openpi_sft/{train,compute_norm_stats}.py` |
 | Run orchestration | `tools/openpi_sft/run_sft.sh` |
+| Config-metadata reader (run_sft defaults) | `tools/openpi_sft/_config_meta.py` |
 | HF uploaders + shared de-dup | `tools/openpi_sft/{hf_push_watcher,hf_push,_hf_push_common}.py` |
 | Dataset render → LeRobot (upstream of SFT) | `maniguard/data/playback.py`, `maniguard/data/lerobot/multitask_lerobot_export.py` |
 | EEF/LIBERO track (sibling) | `docs/openpi_sim_teleop_sft.md` |
