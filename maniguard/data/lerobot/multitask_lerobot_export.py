@@ -280,7 +280,13 @@ def main():
     prompts_seen: set[str] = set()
 
     for tid in sorted(by_task):
-        diag_path = args.diag_root / tid / "diagnostics.jsonl"
+        # Prompt lookup honours --subdir: flat-rendered families (task_*_traj_*.hdf5)
+        # still keep their per-task diagnostics under <tid>/<subdir>/ in the base-task
+        # tree (e.g. 6fam-base/<family>/task_NNNN/base/diagnostics.jsonl). Fall back
+        # to <tid>/diagnostics.jsonl for trees that store it flat at the task level.
+        diag_path = args.diag_root / tid / args.subdir / "diagnostics.jsonl"
+        if not diag_path.exists():
+            diag_path = args.diag_root / tid / "diagnostics.jsonl"
         if not diag_path.exists():
             print(f"[Multitask] SKIP {tid}: no diagnostics at {diag_path}")
             continue
