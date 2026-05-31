@@ -143,7 +143,9 @@ echo "[run_sft] openpi_root=$OPENPI_ROOT data_home=$OPENPI_DATA_HOME"
 BASE_ARGS=( --assets-base-dir "$ASSETS_BASE" --checkpoint-base-dir "$CKPT_BASE" )
 # norm-stats writes into the SAME assets dir training reads (--assets-base-dir),
 # else training silently runs unnormalized (openpi swallows missing norm stats).
-CMD_NORM=( python "$HERE/compute_norm_stats.py" "$CONFIG" --assets-base-dir "$ASSETS_BASE" )
+# openpi's compute_norm_stats is tyro.cli(main) -> config name is the FLAG
+# --config-name (not positional, unlike train.py).
+CMD_NORM=( python "$HERE/compute_norm_stats.py" --config-name "$CONFIG" --assets-base-dir "$ASSETS_BASE" )
 TRAIN_ARGS=( "$CONFIG" --exp-name "$EXP" "${BASE_ARGS[@]}" )
 [[ -n "$STEPS" ]] && TRAIN_ARGS+=( --num-train-steps "$STEPS" )
 [[ -n "$BATCH" ]] && TRAIN_ARGS+=( --batch-size "$BATCH" )

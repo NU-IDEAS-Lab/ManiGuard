@@ -204,8 +204,8 @@ first, then delegates to the pristine openpi script). Note these bypass
 `./checkpoints` / `./assets` under the cwd:
 
 ```bash
-# norm stats (config name is positional, per openpi's script)
-python tools/openpi_sft/compute_norm_stats.py pi05_base_dusty_transfer_joint_2cam_lora
+# norm stats (openpi's script is tyro.cli -> config name is the --config-name flag)
+python tools/openpi_sft/compute_norm_stats.py --config-name pi05_base_dusty_transfer_joint_2cam_lora
 
 # training (all openpi train.py flags pass through)
 python tools/openpi_sft/train.py pi05_base_dusty_transfer_joint_2cam_lora \
