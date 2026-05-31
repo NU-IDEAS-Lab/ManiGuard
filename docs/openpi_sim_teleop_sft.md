@@ -37,10 +37,15 @@ data/demo_0/action           (N,   7)            f32    [Δpos(3), Δrot(3), gri
 
 **Pipeline**:
 ```
-OmniGibson teleop -> Stage1 playback (.hdf5) -> Stage2 lerobot_export -> HF private repo
-                                                                              |
+GELLO teleop -> Stage1 playback (joint+3cam .hdf5) -> Stage2 multitask_lerobot_export -> HF private repo
+   (§4, template scripts/render_teleop_to_lerobot.sh)                                          |
 cloud: pull dataset + pi05_base ckpt from GCS  ->  openpi train.py  ->  ckpt
 ```
+
+(The §5+ sections below describe the older single-prompt 2-cam EEF/LIBERO path
+for `mug-into-bowl`. The current joint + 3-cam multitask flow is §4 above; SFT
+on it is driven by `tools/openpi_sft/` — see
+[openpi_sft_maniguard_jointctr_pipeline.md](openpi_sft_maniguard_jointctr_pipeline.md).)
 
 ---
 
@@ -83,73 +88,132 @@ frames), so plan for **longer wall clock** at the same step count.
 
 ## 4. Local data conversion
 
+Two stages — re-render raw teleop into joint + 3-cam HDF5, then export to a
+LeRobot v2.1 **multitask** dataset (one prompt per task, per-frame
+`task_index`). Both are driven by the reusable template script
+**`scripts/render_teleop_to_lerobot.sh`** — to run a new family you edit only its
+CONFIG block (paths + repo id), the body is family-agnostic. Live example below
+is `jar_transport`.
+
 ### 4.1 One-time env setup
 
-Same as the real path — pin lerobot to v2.1 codebase:
+Stage 2 runs in a dedicated lerobot uv venv (pinned to the v2.1 codebase),
+separate from the `behavior` conda env that Stage 1 (OmniGibson) needs:
 
 ```bash
 uv venv --python 3.11 .venv-lerobot
 uv pip install --python .venv-lerobot/bin/python 'lerobot<0.4' h5py pyarrow opencv-python
 ```
 
-### 4.2 Stage 1: render obs from raw teleop (skip if already done)
+This is 1:1 with SENTINEL-Lite's `.venv-lerobot` (core packages — lerobot 0.3.3,
+av, numpy, pyarrow, h5py — match). `.venv-lerobot/` is gitignored.
 
-Raw OmniGibson teleop HDF5s have only the 184-dim env-state blob and
-actions. To get clean obs (image, wrist_image, 8D state), run:
+### 4.2 The template script
 
 ```bash
-for f in outputs/jixing_teleop_hdf5/scene_ep*.hdf5; do
-  conda run -n behavior python -m maniguard.data.playback \
-    --input "$f" \
-    --output "outputs/teleop_rendered_<task>/$(basename $f)" \
-    --record
-done
+# scripts/render_teleop_to_lerobot.sh — edit the CONFIG block per family:
+FAMILY=jar_transport
+IN_DIR="outputs/teleop_collected/${FAMILY}"                  # raw GELLO teleop HDF5s
+RENDER_DIR="outputs/teleop_rendered_joint_3cam/${FAMILY}"    # Stage 1 output (flat)
+DIAG_ROOT="outputs/lerobot_datasets/6fam-base/${FAMILY}"     # <task>/base/diagnostics.jsonl (per-task prompt)
+REPO_ID="IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam"
+LEROBOT_ROOT="outputs/lerobot_datasets/sim-jar-transport-30-joint-3cam"
+LEROBOT_PY=".venv-lerobot/bin/python"
+GPU=0
 ```
 
-Output is in the schema shown in §1. Already done for our `mug-into-bowl`
-task → `outputs/teleop_rendered_mug_into_bowl/` (39 eps).
-
-### 4.3 Stage 2: HDF5 → LeRobot v2.1 + push to HF
+Run both stages, or one at a time:
 
 ```bash
-.venv-lerobot/bin/python -m maniguard.data.lerobot.lerobot_export \
-  --input-dir outputs/teleop_rendered_<task> \
-  --repo-id maniguard/<task>_libero \
-  --prompt "<natural-language instruction>" \
-  --fps 30 \
-  --root outputs/lerobot_datasets/maniguard/<task>_libero \
-  --push-to-hub IDEAS-Lab-Northwestern/<hf_repo_name> \
-  --hub-private
+conda activate behavior                              # Stage 1 needs it for `conda run`
+bash scripts/render_teleop_to_lerobot.sh             # both stages
+bash scripts/render_teleop_to_lerobot.sh --stage1    # render only
+bash scripts/render_teleop_to_lerobot.sh --stage2    # convert only (local build, no push)
 ```
 
-`--push-to-hub` calls `LeRobotDataset.push_to_hub()` internally, which
-**auto-creates the v2.1 codebase-version git tag** required by openpi.
-Plain `huggingface_hub.upload_folder` does NOT create this tag — never
-use it for openpi-bound datasets.
+### 4.3 Stage 1: re-render raw teleop → joint + 3-cam HDF5
 
-Reference: `IDEAS-Lab-Northwestern/sim2real-mug-into-bowl` was pushed
-this way (39 eps / 51437 frames / 30 fps / 256×256, two av1 video
-streams).
+Per trajectory, one process: `maniguard.data.playback --input <raw> --output
+<rendered>` (defaults `--controller joint --cams 3`, no flags needed). Records
+8D joint state/action + `image_left`/`image_right`/`wrist_image` at 256×256.
 
-### 4.4 Sanity check
+- **Resume**: a trajectory whose rendered HDF5 already exists is skipped.
+- **Teardown segfault is expected & harmless** — OmniGibson segfaults at
+  `og.clear()` *after* the HDF5 is fully written (Isaac syntheticdata USD-node
+  bug). Success is judged by a non-empty `action` dataset, not the exit code.
+  Occasionally a render segfaults *before* the write completes (no output file)
+  — just re-run that one trajectory; it's transient.
+
+### 4.4 Stage 2: rendered HDF5 → LeRobot v2.1 multitask dataset
+
+`multitask_lerobot_export` discovers `task_*_traj_*.hdf5` under `--input-root`,
+looks up each task's language prompt at
+`<diag-root>/<task>/<subdir>/diagnostics.jsonl` (`--subdir base` default; falls
+back to `<diag-root>/<task>/diagnostics.jsonl` for flat trees), and writes one
+dataset with per-frame `task_index`. Schema (controller × cam-count) is
+auto-detected from the playback fingerprint stamped into each HDF5 — no schema
+flags. The template runs this **without** `--push-to-hub` (local build only).
+
+### 4.5 Push to HF (separate, explicit step)
+
+> **Do NOT re-run the exporter with `--push-to-hub` once Stage 2 has already
+> built the dataset locally.** The exporter's `--push-to-hub` builds *then*
+> pushes in one shot, but `LeRobotDataset.create()` does `mkdir(exist_ok=False)`
+> and aborts with `FileExistsError` on the already-built `--root`. Instead, push
+> the existing local dataset directly:
 
 ```bash
-.venv-lerobot/bin/python -c "
-import json, pyarrow.parquet as pq
-from pathlib import Path
-root = Path('outputs/lerobot_datasets/maniguard/<task>_libero')
-info = json.loads((root/'meta/info.json').read_text())
-assert info['codebase_version'] == 'v2.1', info['codebase_version']
-print(f'eps={info[\"total_episodes\"]}  frames={info[\"total_frames\"]}  fps={info[\"fps\"]}')
-t = pq.read_table(next((root/'data').rglob('*.parquet')))
-print('parquet cols:', t.column_names)
-"
+.venv-lerobot/bin/python - <<'PY'
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+rid = "IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam"
+ds = LeRobotDataset(rid, root="outputs/lerobot_datasets/sim-jar-transport-30-joint-3cam")
+ds.push_to_hub(
+    tags=["panda", "omnigibson", "sim", "maniguard", "multitask"],
+    license="apache-2.0",
+    private=True,
+    push_videos=True,   # upload the already-encoded mp4s — no re-encode
+    tag_version=True,   # auto-create the v2.1 codebase-version git tag openpi requires
+)
+PY
+```
+
+`tag_version=True` is what creates the `v2.1` git tag that openpi needs when it
+pulls the dataset from HF. Plain `huggingface_hub.upload_folder` does NOT create
+this tag — never use it for openpi-bound datasets. `push_videos=True` uploads the
+existing mp4s rather than re-encoding. (This is the same `push_to_hub` call the
+exporter's `--push-to-hub` makes — we just invoke it on the already-built
+dataset.)
+
+The auto-generated dataset card is a bare stub; replace `README.md` in the repo
+with a hand-written card (task table, schema, provenance) modelled on
+[`sim-dusty-transfer-30-joint-3cam`](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/sim-dusty-transfer-30-joint-3cam)
+— keep the YAML frontmatter's `configs:` block so the HF viewer finds the
+parquet. Uploading the README is a new commit on `main`; the `v2.1` tag stays on
+its own commit.
+
+### 4.6 Sanity check
+
+```bash
+.venv-lerobot/bin/python - <<'PY'
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+rid = "IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam"
+ds = LeRobotDataset(rid, root="outputs/lerobot_datasets/sim-jar-transport-30-joint-3cam")
+print("episodes:", ds.num_episodes, "frames:", ds.num_frames)
+print("sample task_index 0 & N-1:", int(ds[0]["task_index"]), int(ds[ds.num_frames-1]["task_index"]))
+PY
 ```
 
 Expect:
-- `codebase_version == v2.1`
-- parquet cols: `image, wrist_image, state, actions, timestamp, frame_index, episode_index, index, task_index`
-  (single combined `state` column — distinct from DROID which splits into `joint_position` + `gripper_position`)
+- `codebase_version == v2.1` (in `meta/info.json`)
+- features: `image_left, image_right, wrist_image` (256×256×3 video) + `state`,
+  `actions` (8D float32) + the standard LeRobot index columns
+- per-frame `task_index` spanning all prompts (multitask)
+
+Live reference: `IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam` (private,
+30 eps / 12967 frames / 30 fps / 2 prompts) and the sibling
+`sim-dusty-transfer-30-joint-3cam` (30 eps / 20265 frames / 3 prompts) were both
+built and pushed this way. Their features are byte-for-byte identical, so one
+JointController SFT config consumes either.
 
 ---
 
@@ -343,8 +407,10 @@ automatic.
 
 ## 11. File pointers
 
-- `maniguard/data/playback.py` — Stage 1: re-renders OmniGibson env from raw teleop, emits image/wrist_image/state HDF5
-- `maniguard/data/lerobot/lerobot_export.py` — Stage 2: HDF5 → LeRobot v2.1 (LIBERO-compatible columns), with `--push-to-hub`
+- `scripts/render_teleop_to_lerobot.sh` — §4 template: both stages for one family; edit the CONFIG block per family
+- `maniguard/data/playback.py` — Stage 1: re-renders OmniGibson env from raw teleop, emits joint+3cam image_left/image_right/wrist_image/state HDF5 (default `--controller joint --cams 3`)
+- `maniguard/data/lerobot/multitask_lerobot_export.py` — Stage 2 (current): flat `task_*_traj_*.hdf5` → LeRobot v2.1 multitask, per-task prompt from `<diag>/<task>/<subdir>/diagnostics.jsonl`, schema auto-detected from playback fingerprint
+- `maniguard/data/lerobot/lerobot_export.py` — Stage 2 (legacy single-prompt path, §5+ mug-into-bowl), with `--push-to-hub`
 - `maniguard/data/real_teleop/real_teleop_to_droid.py` — sister script for real data → DROID schema (different path)
 - `maniguard/serve/openpi_native.py` — JAX/PyTorch-auto-detect serve, used for both sim and real evals
 - `docs/openpi_real_teleop_sft.md` — companion doc for the real-data DROID path
