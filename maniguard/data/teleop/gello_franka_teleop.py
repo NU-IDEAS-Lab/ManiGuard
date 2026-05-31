@@ -423,6 +423,12 @@ def main():
         "gripper_open": bool(args.start_gripper_open),
         "success": False,            # authoritative success flag (auto OR manual)
         "manual_override": False,    # operator-forced success via S key
+        # When recording, the trajectory only begins once the operator presses
+        # B. Until then the loop still steps (physics/viewport stay live and
+        # GELLO mirroring works while you reposition the camera), but every
+        # frame is discarded so the saved trajectory has no idle lead-in.
+        # Nothing to trim when not writing an HDF5 -> treat as already started.
+        "recording_started": recorder is None,
     }
 
     # Auto-success: if a sibling diagnostics.jsonl exists (HF furnished
@@ -480,6 +486,23 @@ def main():
             tag = "FORCE-SUCCESS" if state["manual_override"] else "auto-checker"
             print(f"[Gello] Success mode -> {tag}")
 
+        def _on_begin():
+            if state["recording_started"]:
+                print("[Gello] Recording already started.")
+                return
+            state["recording_started"] = True
+            # Drop the pre-warm frames so the saved trajectory's first frame is
+            # this instant. Keep step_count in sync (mirrors rollback's
+            # bookkeeping) and clear any checkpoint taken before the real start.
+            dropped = len(recorder.current_traj_history)
+            recorder.step_count -= dropped
+            recorder.current_traj_history.clear()
+            if hasattr(recorder, "checkpoint_states"):
+                recorder.checkpoint_states.clear()
+            if hasattr(recorder, "checkpoint_step_idxs"):
+                recorder.checkpoint_step_idxs.clear()
+            print(f"[Gello] ▶ Recording STARTED (discarded {dropped} pre-warm frames).")
+
         KeyboardEventHandler.add_keyboard_callback(
             key=lazy.carb.input.KeyboardInput.C, callback_fn=_on_checkpoint,
         )
@@ -488,6 +511,9 @@ def main():
         )
         KeyboardEventHandler.add_keyboard_callback(
             key=lazy.carb.input.KeyboardInput.S, callback_fn=_on_success,
+        )
+        KeyboardEventHandler.add_keyboard_callback(
+            key=lazy.carb.input.KeyboardInput.B, callback_fn=_on_begin,
         )
 
     # ----- Action assembly -----
@@ -506,6 +532,7 @@ def main():
     print("Move the GELLO arm to drive Franka joints 1:1")
     print("SPACE = toggle gripper   Q = clean exit")
     if recorder is not None:
+        print("B = begin recording (discards idle lead-in)")
         print("S = mark success   C = checkpoint   R = rollback")
     print("=" * 50 + "\n")
 
@@ -544,6 +571,18 @@ def main():
 
             if lid_snapper is not None:
                 lid_snapper.try_snap(robot=robot)
+
+            # Pre-warm: until B is pressed, discard every recorded frame so the
+            # saved trajectory starts the instant the operator begins. Steps
+            # still run (viewport + GELLO mirroring stay live for repositioning
+            # the camera). Skipping the rest also blocks any premature success.
+            if not state["recording_started"]:
+                if recorder is not None:
+                    recorder.step_count -= len(recorder.current_traj_history)
+                    recorder.current_traj_history.clear()
+                if step % 150 == 0:
+                    print("[Gello] (pre-warm — press B to begin recording)")
+                continue
 
             # Auto-success — break the loop the moment the goal region fires.
             if success_checker is not None:
