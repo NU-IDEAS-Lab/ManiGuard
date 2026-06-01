@@ -105,6 +105,64 @@ def _build_configs() -> list[TrainConfig]:
             ).get_freeze_filter(),
             ema_decay=None,
         ),
+        # Sim jar-transport (close a hinged jar's lid, then carry the closed jar
+        # into the green goal sphere on the table), LIBERO 2-cam, JOINT controller.
+        #
+        # Dataset: IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam
+        #   3-cam rendered (image_left/image_right/wrist) but consumed 2-cam
+        #   (image_left + wrist; image_right dropped, third slot black). 8-D joint
+        #   state + 8-D absolute-joint action; use_delta_joint_actions=True.
+        # warm-start = pi05_base.
+        #
+        # Training scale: ~2 epochs over the 12,967-frame set at batch 12
+        #   (12_967 * 2 / 12 = 2161 -> 2160 steps; keep_period = steps // 5).
+        # dtype=float32 + fsdp_devices=4: see the dusty-transfer config above for
+        # the rationale (FSDP-sharded bf16 diverges to NaN; float32 is stable).
+        TrainConfig(
+            name="pi05_base_jar_transport_joint_2cam_lora",
+            project_name="maniguard-sft",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-jar-transport-joint-2cam-lora",
+                "hf_private": False,
+                "default_exp": "jar_transport_joint_2cam",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="float32",
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,  # JointController: MUST be True
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            # ~2 epochs @ batch 12; sqrt-LR recipe (base 2.5e-5 @ batch 8):
+            #   peak_lr = 2.5e-5 * sqrt(12/8) ~= 3e-5; decay_lr = peak/10; warmup ~10%
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=216,  # ~10% of 2160
+                peak_lr=3e-5,  # 2.5e-5 * sqrt(12/8)
+                decay_steps=2_160,  # == num_train_steps
+                decay_lr=3e-6,  # peak/10
+            ),
+            num_train_steps=2_160,  # ~2 epochs @ batch 12
+            batch_size=12,
+            num_workers=8,  # CPU dataloader prefetch workers
+            log_interval=25,  # loss logging cadence
+            fsdp_devices=4,  # shard across 4 GPUs (see dusty-transfer config note)
+            keep_period=432,  # steps // 5 -> 5 evenly-spaced checkpoints
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
     ]
 
 
