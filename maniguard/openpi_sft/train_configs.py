@@ -40,12 +40,9 @@ def _build_configs() -> list[TrainConfig]:
         #   JointController, no eef->joint IK).
         # warm-start = pi05_base.
         #
-        # Training scale below is a PLACEHOLDER sized to ~2 epochs at batch 4
-        # with 5 evenly-spaced checkpoints; the user retunes for the actual
-        # compute box. Keep these in lockstep when rescaling:
-        #   ~2 epochs: 20_265 frames * 2 / batch 4 ~= 10_134 -> 10_000 steps
-        #   decay_steps == num_train_steps; keep_period = steps // 5 (5 ckpts);
-        #   peak_lr 2.5e-5 @ batch 4 (sqrt-scale up if you raise batch_size).
+        # Training scale: ~2 epochs over the 20,265-frame set at batch 12.
+        # Keep in lockstep when rescaling: decay_steps == num_train_steps;
+        # keep_period = steps // 5; peak_lr sqrt-scaled from 2.5e-5 @ batch 8.
         TrainConfig(
             name="pi05_base_dusty_transfer_joint_2cam_lora",
             project_name="maniguard-sft",  # wandb project for all ManiGuard SFT
@@ -66,6 +63,12 @@ def _build_configs() -> list[TrainConfig]:
                 action_horizon=16,
                 paligemma_variant="gemma_2b_lora",
                 action_expert_variant="gemma_300m_lora",
+                # float32 params/compute -- required for numerical stability when
+                # training under FSDP parameter sharding (fsdp_devices > 1): in bf16
+                # the sharded gather/scatter can overflow and diverge to NaN early in
+                # training. On large-memory GPUs in full data-parallel (fsdp_devices=1,
+                # no sharding), bf16 is stable and faster.
+                dtype="float32",
             ),
             data=Sim2CamLiberoDataConfig(
                 repo_id="IDEAS-Lab-Northwestern/sim-dusty-transfer-30-joint-3cam",
@@ -73,15 +76,26 @@ def _build_configs() -> list[TrainConfig]:
                 use_delta_joint_actions=True,  # JointController: MUST be True
             ),
             weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            # ~2 epochs @ batch 12; sqrt-LR recipe (base 2.5e-5 @ batch 8):
+            #   2 epochs = 20_265 frames * 2 / batch 12 = 3377.5 -> 3380 steps
+            #   peak_lr = 2.5e-5 * sqrt(12/8) ~= 3e-5; decay_lr = peak/10; warmup ~10%
             lr_schedule=_optimizer.CosineDecaySchedule(
-                warmup_steps=1_000,
-                peak_lr=2.5e-5,
-                decay_steps=10_000,  # == num_train_steps
-                decay_lr=2.5e-6,
+                warmup_steps=340,  # ~10% of 3380
+                peak_lr=3e-5,  # 2.5e-5 * sqrt(12/8)
+                decay_steps=3_380,  # == num_train_steps
+                decay_lr=3e-6,  # peak/10
             ),
-            num_train_steps=10_000,  # placeholder: ~2 epochs @ batch 4
-            batch_size=4,
-            keep_period=2_000,  # steps // 5 -> 5 evenly-spaced checkpoints
+            num_train_steps=3_380,  # ~2 epochs @ batch 12
+            batch_size=12,
+            num_workers=8,  # CPU dataloader prefetch workers
+            log_interval=25,  # loss logging cadence
+            # Shard the model across GPUs with FSDP: pi0.5 params are fp32
+            # (~10-12 GB), so the full model doesn't fit replicated on a
+            # memory-constrained GPU. Set to 1 for single-GPU / full data-parallel
+            # on large-memory GPUs. (batch_size % num_devices == 0 and
+            # num_devices % fsdp_devices == 0.)
+            fsdp_devices=4,
+            keep_period=676,  # steps // 5 -> 5 evenly-spaced checkpoints
             freeze_filter=pi0_config.Pi0Config(
                 pi05=True,
                 action_dim=32,
