@@ -13,18 +13,42 @@ log = logging.getLogger(__name__)
 
 
 class SafetyCallback(BaseCallback):
-    """Record per-step LTL violations from env info dicts into the SB3 logger."""
+    """Record per-step LTL violations and cost signals into the SB3 logger.
+
+    Reads two signals from env info dicts:
+    * ``info["ltl_violation"]`` — boolean, produced by the LTL monitor.
+    * ``info["cost"]``          — float, produced by CostInjectingVecEnvWrapper.
+      Accumulated into a rolling sum so ``safety/ep_cost_mean`` and
+      ``safety/ep_cost_max`` reflect the last rollout (same convention as
+      ``rollout/ep_cost_mean`` logged by ConstrainedPPO.collect_rollouts).
+    """
+
+    def __init__(self, verbose: int = 0):
+        super().__init__(verbose)
+        self._cost_accum: list[float] = []  # per-step cost sums across envs
 
     def _on_step(self) -> bool:
         try:
-            infos = self.locals.get("infos")
+            infos = self.locals.get("infos") or []
             if infos:
                 violations = sum(1 for info in infos if info.get("ltl_violation"))
                 self.logger.record("safety/ltl_violations", violations)
+
+                step_cost = sum(
+                    float(info.get("cost", 0.0)) for info in infos
+                )
+                self._cost_accum.append(step_cost)
         except Exception as exc:
-            log.warning("sb3 callback info dict access failed: %s", exc)
-            pass
+            log.warning("SafetyCallback info dict access failed: %s", exc)
         return True
+
+    def _on_rollout_end(self) -> None:
+        if self._cost_accum:
+            self.logger.record(
+                "safety/ep_cost_mean", float(sum(self._cost_accum)) / len(self._cost_accum)
+            )
+            self.logger.record("safety/ep_cost_max", float(max(self._cost_accum)))
+            self._cost_accum = []
 
 
 class SimFaultCallback(BaseCallback):

@@ -1,0 +1,45 @@
+# PPO-Lag starter hyperparameters for PickAndLiftPrivilegedTask.
+#
+# Derived from omnisafe's PPOLag defaults
+# (omnisafe/configs/on-policy/PPOLag.yaml, Apache-2.0) and adapted for the
+# SENTINEL grasp-reset task (shorter episodes, smaller obs space).
+#
+# Usage:
+#   python -m sentinel.rl.algorithms.ppo_lag \
+#     --scene-file <scene.json> \
+#     --num-envs 8 --total-timesteps 5_000_000 \
+#     --wandb
+#
+# Tune cost_limit and lambda_lr first; all other knobs are secondary.
+
+# --- env ----------------------------------------------------------------
+num_envs: 8
+max_steps: 200           # episode length (task timeout)
+reset_mode: cached
+arm_controller: joint
+
+# --- training -----------------------------------------------------------
+total_timesteps: 5_000_000
+n_steps: 128             # rollout steps per env per update
+batch_size: 256
+learning_rate: 3.0e-4
+seed: 0
+output_dir: outputs/safe_rl/ppo_lag
+
+# --- lagrange -----------------------------------------------------------
+cost_limit: 1.0          # J_C budget (per rollout; tune to task severity)
+lambda_init: 0.0
+lambda_lr: 0.035         # omnisafe default; increase if λ converges slowly
+lambda_upper_bound: 1000.0
+lambda_optimizer: Adam
+
+# --- cost ---------------------------------------------------------------
+cost_source: zero        # 'zero' for plumbing validation; set 'real' when
+                         # LTL/collision cost sources are wired
+cost_gamma: 0.99
+cost_gae_lambda: 0.95
+vf_cost_coef: 0.5
+
+# --- video (optional) ---------------------------------------------------
+video_freq: 500_000
+video_length: 200

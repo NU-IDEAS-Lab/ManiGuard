@@ -113,6 +113,37 @@ def add_video_args(parser: argparse.ArgumentParser) -> None:
                    help="Frames per clip (≈ one episode at max_steps=200).")
 
 
+def add_lagrange_args(parser: argparse.ArgumentParser) -> None:
+    """Lagrange multiplier knobs (PPO-Lag and FOCOPS)."""
+    g = parser.add_argument_group("lagrange")
+    g.add_argument("--cost-limit", type=float, default=25.0,
+                   help="Per-rollout cost budget J_C. λ increases when exceeded.")
+    g.add_argument("--lambda-init", type=float, default=0.0,
+                   help="Initial Lagrange multiplier λ₀.")
+    g.add_argument("--lambda-lr", type=float, default=0.035,
+                   help="Learning rate for the Lagrange multiplier optimizer.")
+    g.add_argument("--lambda-upper-bound", type=float, default=1000.0,
+                   help="Hard cap on λ (prevents runaway penalties).")
+    g.add_argument("--lambda-optimizer", type=str, default="Adam",
+                   choices=["Adam", "SGD", "RMSprop"],
+                   help="Torch optimizer for the Lagrange multiplier.")
+
+
+def add_cost_args(parser: argparse.ArgumentParser) -> None:
+    """Cost source selection (currently only 'zero' is wired up)."""
+    g = parser.add_argument_group("cost")
+    g.add_argument("--cost-source", type=str, default="zero",
+                   choices=["zero", "constant"],
+                   help="Cost function to inject. 'zero': ZeroCost stub. "
+                        "'constant': ConstantCost(1.0) for testing.")
+    g.add_argument("--cost-gamma", type=float, default=0.99,
+                   help="Discount factor for the cost value function.")
+    g.add_argument("--cost-gae-lambda", type=float, default=0.95,
+                   help="GAE λ for the cost advantage estimation.")
+    g.add_argument("--vf-cost-coef", type=float, default=0.5,
+                   help="Coefficient for the cost-critic MSE loss term.")
+
+
 def validate_env_args(args) -> None:
     """Reject combinations the env builder can't satisfy.
 
@@ -153,5 +184,7 @@ __all__ = [
     "add_training_args",
     "add_wandb_args",
     "add_video_args",
+    "add_lagrange_args",
+    "add_cost_args",
     "validate_env_args",
 ]
