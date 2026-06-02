@@ -17,6 +17,10 @@ that gracefully no-ops when OmniGibson is absent — exactly the case on an
 SFT-only compute box.
 """
 
+from maniguard.openpi_sft._augmax_patch import apply as _apply_augmax_guard
 from maniguard.openpi_sft.train_configs import register
 
+# Neutralize the rare non-finite output of openpi's training-time image
+# augmentation (augmax) before any training runs. See _augmax_patch for details.
+_apply_augmax_guard()
 register()
