@@ -163,6 +163,67 @@ def _build_configs() -> list[TrainConfig]:
             ).get_freeze_filter(),
             ema_decay=None,
         ),
+        # Sim cabinet-pickup (place the paper towel holder into the cabinet's open
+        # drawer and close it, without knocking anything over), LIBERO 2-cam,
+        # JOINT controller.
+        #
+        # Dataset: IDEAS-Lab-Northwestern/sim-cabinet-pickup-30-joint-3cam
+        #   3-cam rendered (image_left/image_right/wrist) but consumed 2-cam
+        #   (image_left + wrist; image_right dropped, third slot black). 8-D joint
+        #   state + 8-D absolute-joint action; use_delta_joint_actions=True.
+        # warm-start = pi05_base.
+        #
+        # Training scale: ~2 epochs over the 22,684-frame set at batch 12, rounded
+        #   up to a clean 4000 steps. keep_period = 1000 matches the 1000-step
+        #   save_interval, so checkpoints land at 1000/2000/3000/4000.
+        # dtype=float32 + fsdp_devices=4: see the dusty-transfer config above for
+        # the rationale (FSDP-sharded bf16 diverges to NaN; float32 is stable).
+        TrainConfig(
+            name="pi05_base_cabinet_pickup_joint_2cam_lora",
+            project_name="maniguard-sft",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-cabinet-pickup-joint-2cam-lora",
+                "hf_private": False,
+                "default_exp": "cabinet_pickup_joint_2cam",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="float32",
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim-cabinet-pickup-30-joint-3cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,  # JointController: MUST be True
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            # ~2 epochs @ batch 12 rounded up to a clean 4000 steps; sqrt-LR recipe
+            # (base 2.5e-5 @ batch 8): peak_lr = 2.5e-5 * sqrt(12/8) ~= 3e-5;
+            # decay_lr = peak/10; warmup ~10%.
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=400,  # ~10% of 4000
+                peak_lr=3e-5,  # 2.5e-5 * sqrt(12/8)
+                decay_steps=4_000,  # == num_train_steps
+                decay_lr=3e-6,  # peak/10
+            ),
+            num_train_steps=4_000,  # ~2 epochs @ batch 12 (22,684 frames, rounded up)
+            batch_size=12,
+            num_workers=8,  # CPU dataloader prefetch workers
+            log_interval=25,  # loss logging cadence
+            fsdp_devices=4,  # shard across 4 GPUs (see dusty-transfer config note)
+            keep_period=1_000,  # matches the 1000-step save cadence -> ckpts at 1000/2000/3000/4000
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
     ]
 
 
