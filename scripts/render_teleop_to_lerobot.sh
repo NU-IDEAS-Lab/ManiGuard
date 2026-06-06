@@ -34,6 +34,9 @@ cd "$REPO_ROOT"
 FAMILY=jar_transport
 IN_DIR="outputs/teleop_collected/${FAMILY}"                  # raw teleop HDF5s
 RENDER_DIR="outputs/teleop_rendered_joint_3cam/${FAMILY}"    # Stage 1 output (flat)
+# NOTE: a family's raw dir name may differ from its 6fam-base diag-tree name
+# (e.g. raw 'lid_transport_food' vs diag 'lid_transport'). When they differ,
+# write DIAG_ROOT out explicitly instead of reusing ${FAMILY}.
 DIAG_ROOT="outputs/lerobot_datasets/6fam-base/${FAMILY}"     # <task_id>/base/diagnostics.jsonl (per-task prompt)
 REPO_ID="IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam"   # LeRobot repo id (metadata)
 LEROBOT_ROOT="outputs/lerobot_datasets/sim-jar-transport-30-joint-3cam"   # local dataset dir
@@ -67,7 +70,9 @@ if [ "$DO_STAGE1" -eq 1 ]; then
     echo "[stage1] ($i/$n) $base"
     if [ -f "$out" ]; then echo "         -> exists, skip"; skip=$((skip + 1)); continue; fi
     # default controller=joint, cams=3 (no flags). Teardown segfault rc ignored.
-    CUDA_VISIBLE_DEVICES="$GPU" conda run -n behavior python -m maniguard.data.playback \
+    # OMNIGIBSON_HEADLESS=1: playback renders via offscreen external VisionSensors
+    # (not the GUI viewport), so re-render runs fully headless on any box.
+    OMNIGIBSON_HEADLESS=1 CUDA_VISIBLE_DEVICES="$GPU" conda run -n behavior python -m maniguard.data.playback \
       --input "$f" --output "$out"
     # Judge success by output existing + non-empty action dataset, not rc.
     n_act=$("$LEROBOT_PY" - "$out" <<'PY' 2>/dev/null
