@@ -93,6 +93,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-06-06 — `feat/teleop_joint_config`: scene_discovery per-family target/prompt resolution (`0302cb8c`)
+
+`scene_discovery` only knew the old `transfer`/`lid`/`table` pipelines via a generic `else`, so the new 6fam-base families (`jar_transport`, `cabinet_pickup`, `dusty_transfer`) resolved no target object and every scene was skipped (0 discoverable → eval had nothing to run). Rewrote target resolution as one explicit branch per 6fam-base family keyed on the diagnostics `pipeline` field, grouping each family's sub-variants (clutter: `liquid_transport`+`table`, lid: `food`+`liquid`, stack: `same`+`flat`); dropped the old `transfer` branch and the `active_object_summary`/`target_synset` else compat, so `else` is now a safety skip for unrecognised pipelines only. Extracted `_match_category` / `_category_from_synset` helpers. dusty's un-dustified `food_transfer` merge remnants (empty categories, no synset/prompt — see `incomplete_source_note.txt`) skip with a clear log. Discovers 295 scenes (jar 27, cabinet 37, dusty 23, clutter 100, lid 64, stack 44); the 3 already-resolving families are unchanged.
+
 ## 2026-05-25 — `refactor/remove-bddl-curation`: misc cleanup + sim_table eval config (`c104e861`)
 
 `CLAUDE.md` no longer references the deleted RLinf submodule (removed in `d817eb3d`); `cabinet_pickup_pipeline` strips comments pointing at the deleted `test_open_drawer_tall_object.py`. `replay_empty_from_dataset` now falls back to `scene_ep<N>_replay.json` when the primary `scene_ep<N>.json` is missing — covers the LidTransport-pipeline outputs that only emit the `_replay` variant. New `configs/eval/sim_table_base.yaml`: eval config for the sim_table base benchmark against `pi05_base` via OpenPI.
