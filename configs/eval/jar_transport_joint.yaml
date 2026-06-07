@@ -1,0 +1,43 @@
+# Eval config — jar-transport JointController checkpoint
+# (pi05-base-jar-transport-joint-2cam-lora). Mirrors its train config so the
+# policy stays in distribution: joint state/action, single left overview + wrist,
+# JointController fed the server-reconstructed absolute joint targets (no IK).
+#
+# Run (two processes; see docs/evaluation):
+#   1. policy server: serve the checkpoint with config
+#      pi05_base_jar_transport_joint_2cam_lora on port 8000
+#   2. python -m maniguard.eval.benchmark --config configs/eval/jar_transport_joint.yaml
+name: eval_jar_transport_joint
+
+# -- Benchmark source: every task_*/base scene under the jar family --
+benchmark_root: outputs/lerobot_datasets/6fam-base/jar_transport
+scene_filter: "*/base"
+
+# -- Policy server --
+host: 127.0.0.1
+port: 8000
+use_openpi_client: true
+
+# -- Observation / action (match the train config) --
+state_mode: joint          # 8-D [arm_q(7), gripper_pos(1)]
+external_cam: left         # single overview = cam_left (train external_cam=left)
+action_dim: 8              # absolute joint target (server reconstructs from delta)
+execute_horizon: 8         # execute 8 of the 16-step chunk, then re-infer (closed loop)
+gripper_binarize: true
+
+# -- Controller: exact teleop/playback JointController (raw radians, no impedance) --
+controller_preset: joint_position_raw
+ik_eef_to_joint: false     # server already outputs absolute joint targets; feed straight
+
+# -- Sim / eval --
+max_steps: 2000            # hard cap; ends early on success / safety termination
+camera_resolution: 256
+save_video: true
+longfinger: true
+
+output_dir: outputs/eval_jar_transport_joint
+
+# Informational (not read by benchmark.py; the server is launched separately).
+# Point the server at the local checkpoint dir for this config:
+serve_config_name: pi05_base_jar_transport_joint_2cam_lora
+checkpoint: ""             # local checkpoint dir/step, set when launching the server

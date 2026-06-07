@@ -145,6 +145,29 @@ CONTROLLER_PRESETS: dict[str, dict[str, dict[str, Any]]] = {
         },
         "gripper_0": _gripper_cfg_default(),
     },
+    # Joint-space, absolute position, raw radians, NO impedance — the exact
+    # controller GELLO teleop collection + playback re-render used (see
+    # gello_franka_teleop._build_from_snapshot): JointController position with
+    # command_input/output_limits=None (raw radians pass through un-clipped;
+    # "default" would clip to (-1, 1) and wreck the ±2 rad joint targets) and
+    # use_impedances=False (OmniGibson JointController's default). gripper is
+    # binary (open/close), also matching teleop. Use this to EVAL the
+    # JointController VLA checkpoints so the realized arm path matches training.
+    "joint_position_raw": {
+        "arm_0": {
+            "name": "JointController",
+            "motor_type": "position",
+            "command_input_limits": None,
+            "command_output_limits": None,
+            "use_delta_commands": False,
+            "use_impedances": False,
+        },
+        "gripper_0": {
+            "name": "MultiFingerGripperController",
+            "command_input_limits": None,
+            "mode": "binary",
+        },
+    },
     # Operational-space (pose-delta-ori) control in raw meters/radians.
     # action_normalize=False is REQUIRED so command_input matches
     # command_output. Used by pnp Phase B replay and by VLA policies that
