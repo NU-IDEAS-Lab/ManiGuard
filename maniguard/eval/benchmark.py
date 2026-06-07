@@ -110,34 +110,6 @@ def build_og_config(scene_info: dict, cfg: EvalConfig):
     }
 
 
-def _setup_eval_cameras(env, scene_info: dict) -> None:
-    import omnigibson as og
-    from maniguard.task_generation.utils.video import eye_lookat_to_quat
-
-    cameras = scene_info.get("cameras", [])
-    if not cameras:
-        print("[Eval] WARNING: no cameras in scene_info; frames will be default pose.")
-        return
-
-    ext_sensors = env.external_sensors or {}
-    placed = 0
-    for cam_info in cameras:
-        sensor_name = cam_info.get("sensor_name")
-        sensor = ext_sensors.get(sensor_name)
-        if sensor is None:
-            continue
-        eye = cam_info["eye"]
-        lookat = cam_info["lookat"]
-        orientation = cam_info.get("orientation") or eye_lookat_to_quat(eye, lookat).tolist()
-        sensor.set_position_orientation(position=eye, orientation=orientation, frame="world")
-        placed += 1
-
-    opp = next((c for c in cameras if c.get("sensor_name") == "cam_opposite"), cameras[0])
-    ori = opp.get("orientation") or eye_lookat_to_quat(opp["eye"], opp["lookat"]).tolist()
-    og.sim.viewer_camera.set_position_orientation(position=opp["eye"], orientation=ori)
-    print(f"[Eval] Positioned {placed} cameras from diagnostics.")
-
-
 # ---------------------------------------------------------------------------
 # Observation extraction
 # ---------------------------------------------------------------------------
@@ -414,7 +386,14 @@ def main():
             if _resized:
                 env.load_observation_space()
             env.reset()
-            _setup_eval_cameras(env, scene_info=scene_info)
+            # Place external cameras at the SAME robot-frame poses used during
+            # teleop collection + playback re-render (shared single source of
+            # truth in camera_setup), so eval image_left / image_right match the
+            # training views exactly. Replaces the old diagnostics-pose reader
+            # (_setup_eval_cameras) — those stored poses were a different, stale
+            # set and would put the policy out of distribution.
+            from maniguard.utils.camera_setup import setup_external_cameras_robot_frame
+            setup_external_cameras_robot_frame(env)
 
             # Reload the eval controller AFTER env.reset(): reset restores the
             # scene snapshot's (JointController) controller-state into the
