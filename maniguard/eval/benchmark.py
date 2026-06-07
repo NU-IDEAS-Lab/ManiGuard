@@ -272,6 +272,104 @@ def query_policy(policy, obs, client_type, cfg):
 
 
 # ---------------------------------------------------------------------------
+# LTL safety
+# ---------------------------------------------------------------------------
+
+_OBJECT_TAXONOMY = None
+
+
+def _category_synset_lemma(category: str) -> str:
+    """OmniGibson category -> its BDDL synset lemma (e.g. ``roasting_pan`` ->
+    ``roaster``, ``milk_carton`` -> ``milk__carton``).
+
+    LTL patterns name objects by synset lemma, which is NOT always the OG
+    category; bridging via the object taxonomy lets those patterns resolve.
+    Returns ``""`` if unavailable (taxonomy missing or category has no synset).
+    """
+    global _OBJECT_TAXONOMY
+    if not category:
+        return ""
+    try:
+        if _OBJECT_TAXONOMY is None:
+            from bddl.object_taxonomy import ObjectTaxonomy
+            _OBJECT_TAXONOMY = ObjectTaxonomy()
+        syn = _OBJECT_TAXONOMY.get_synset_from_category(category)
+        return syn.split(".n.")[0] if syn else ""
+    except Exception:
+        return ""
+
+
+def _build_active_objects_for_ltl(env, ltl_safety, surface_name):
+    """Reconstruct ``{inst_id: obj}`` so the diagnostics LTL patterns resolve to
+    loaded scene objects.
+
+    6fam-base scenes carry no ``inst_to_name`` / ``active_object_summary``, so
+    the per-scene LTL spec (embedded in diagnostics) references objects only by
+    glob pattern, e.g. ``teacup_*`` (category), ``roaster_*`` (synset lemma of a
+    ``roasting_pan``), ``desk.n.01_*`` (synset), ``target_paper_towel_holder_*``
+    (role+category). Map each pattern to the matching loaded objects under a key
+    that fnmatches it:
+
+      * ``agent.*``        -> the robot
+      * else               -> objects whose category OR synset lemma == the
+                              pattern prefix (synset base ``.split('.n.')[0]``
+                              stripped), plus any whose name fnmatches the
+                              pattern (role+category)
+      * unresolved synset  -> the diagnostics ``surface`` object (support
+                              backstop, e.g. ``breakfast_table.n.01_*`` filled by
+                              an OG ``desk`` — a task role substitution the
+                              taxonomy does not link)
+    """
+    import fnmatch
+
+    patterns = set()
+    for pdef in ((ltl_safety or {}).get("propositions") or {}).values():
+        for key in ("over", "relative_to"):
+            v = pdef.get(key)
+            if isinstance(v, list):
+                patterns.update(v)
+            elif isinstance(v, str):
+                patterns.add(v)
+
+    robot = env.robots[0] if env.robots else None
+    objs = list(env.scene.objects)
+    # category -> synset lemma, so synset-lemma-named patterns resolve too.
+    cat2lemma = {}
+    for o in objs:
+        c = getattr(o, "category", "")
+        if c and c not in cat2lemma:
+            cat2lemma[c] = _category_synset_lemma(c)
+    surface_obj = (
+        env.scene.object_registry("name", surface_name) if surface_name else None
+    )
+
+    active = {}
+    for pat in patterns:
+        prefix = pat[:-2] if pat.endswith("_*") else pat
+        if prefix.startswith("agent"):
+            if robot is not None:
+                active[f"{prefix}_0"] = robot
+            continue
+        base = prefix.split(".n.")[0]
+        matched = [
+            o for o in objs
+            if getattr(o, "category", "") == base
+            or cat2lemma.get(getattr(o, "category", "")) == base
+        ]
+        matched += [
+            o for o in objs
+            if o not in matched and fnmatch.fnmatch(getattr(o, "name", ""), pat)
+        ]
+        if not matched and ".n." in prefix and surface_obj is not None:
+            print(f"  [LTL] pattern {pat!r} unresolved by category/synset; "
+                  f"using diagnostics surface {surface_name!r}")
+            matched = [surface_obj]
+        for i, obj in enumerate(matched):
+            active[f"{prefix}_{i}"] = obj
+    return active
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -314,6 +412,24 @@ def main():
         import fnmatch
         scenes = [s for s in scenes if fnmatch.fnmatch(s["name"], cfg.scene_filter)]
     print(f"Discovered {len(scenes)} valid scenes")
+
+    # LTL safety monitoring is mandatory whenever the benchmark carries a spec —
+    # fail fast if the Spot runtime is missing/broken rather than silently
+    # producing results with no safety data. (Real Spot: conda-forge, NOT pip.)
+    if any(s.get("ltl_safety") for s in scenes):
+        from maniguard.utils.ltl_utils import (
+            get_spot_runtime_status,
+            spot_runtime_available,
+        )
+        if not spot_runtime_available(require_buddy=True):
+            status = get_spot_runtime_status(require_buddy=True)
+            raise RuntimeError(
+                "LTL safety monitoring is required for this benchmark but the "
+                f"Spot runtime is not functional: {status.get('error')}.\n"
+                "Install the real Spot in this env:\n"
+                "  conda install -c conda-forge spot   (do NOT 'pip install spot')"
+            )
+        print("LTL safety: Spot runtime OK — monitoring enabled")
 
     policy, client_type = connect_policy(cfg)
     if client_type == "random":
@@ -451,6 +567,25 @@ def main():
         main_frames = [obs["overview_image"]] if cfg.save_video else []
         wrist_frames = [obs["wrist_images"]] if cfg.save_video else []
 
+        # LTL safety monitor — records throughout the rollout but NEVER ends it
+        # (success / max_steps govern termination). scene_model=None: evaluate
+        # exactly the task-level spec embedded in this scene's diagnostics.
+        ltl_safety = scene_info.get("ltl_safety") or {}
+        monitor = None
+        if ltl_safety:
+            from maniguard.utils.safety_monitor import TaskLTLMonitor
+            monitor = TaskLTLMonitor(
+                env,
+                ltl_safety=ltl_safety,
+                activity_name=scene_info.get("activity_name", ""),
+                scene_model=None,
+                active_objects_by_inst=_build_active_objects_for_ltl(
+                    env, ltl_safety, scene_info.get("surface_name"),
+                ),
+            )
+            monitor.reset()
+            monitor.step(0)
+
         step_idx = 0
         done = False
         success = False
@@ -510,6 +645,15 @@ def main():
                     step_idx += 1
                     total_reward += float(reward)
 
+                    # Safety: advance the LTL monitor every executed step. It
+                    # only records (no early-stop); a transient monitor hiccup
+                    # must not abort an otherwise-fine rollout.
+                    if monitor is not None:
+                        try:
+                            monitor.step(step_idx)
+                        except Exception as _ltl_e:  # noqa: BLE001
+                            print(f"  [LTL] monitor.step failed at {step_idx}: {_ltl_e}")
+
                     if goal_checker is not None:
                         success, goal_detail = goal_checker.check(env)
                     if success:
@@ -524,6 +668,7 @@ def main():
             print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
             print(_tb.format_exc(), flush=True)
 
+        ltl_summary = monitor.summary() if monitor is not None else None
         result = {
             "scene_name": scene_info["name"],
             "prompt": scene_info["prompt"],
@@ -535,9 +680,15 @@ def main():
             "success": success,
             "goal_detail": goal_detail,
             "total_reward": total_reward,
+            "ltl_monitored": monitor is not None,
+            "ltl_violated": (monitor.violated if monitor is not None else None),
+            "ltl_violation_step": (monitor.violation_step if monitor is not None else None),
+            "ltl_violation_count": (monitor.violation_count if monitor is not None else 0),
+            "ltl_formula": (ltl_summary.get("formula", "") if ltl_summary else ""),
         }
         all_results.append(result)
-        print(f"  Result: success={success}, steps={step_idx}, status={status}", flush=True)
+        _ltl_str = "" if monitor is None else f", ltl_violated={monitor.violated}"
+        print(f"  Result: success={success}, steps={step_idx}, status={status}{_ltl_str}", flush=True)
 
         with results_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=True) + "\n")
@@ -549,6 +700,14 @@ def main():
             (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
             imageio.mimsave(str(output_dir / f"{scene_info['name']}_main.mp4"), main_frames, fps=30)
             imageio.mimsave(str(output_dir / f"{scene_info['name']}_wrist.mp4"), wrist_frames, fps=30)
+
+        # Full per-step LTL log to a sidecar (kept out of the main results to
+        # avoid bloating them with thousands of per-step AP dicts).
+        if ltl_summary is not None:
+            (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
+            (output_dir / f"{scene_info['name']}_ltl.json").write_text(
+                json.dumps(ltl_summary, ensure_ascii=True, indent=2), encoding="utf-8",
+            )
 
     # Summary
     print(f"\n{'='*60}")
@@ -562,6 +721,10 @@ def main():
     print(f"Success rate: {n_success}/{n_total} ({n_success/max(n_total,1)*100:.1f}%)")
     if n_total > 0:
         print(f"Avg steps: {np.mean([r['steps'] for r in completed]):.1f}")
+    n_ltl = sum(1 for r in completed if r.get("ltl_monitored"))
+    n_violated = sum(1 for r in completed if r.get("ltl_violated"))
+    if n_ltl:
+        print(f"Safety (LTL): {n_violated}/{n_ltl} scenes had a violation")
     print(f"Results: {results_path}")
 
     summary_path = output_dir / "summary.json"
@@ -570,6 +733,8 @@ def main():
         "n_success": n_success,
         "n_failed_load": n_failed_load,
         "success_rate": n_success / max(n_total, 1),
+        "n_ltl_monitored": n_ltl,
+        "n_ltl_violated": n_violated,
         "results": all_results,
     }, indent=2, ensure_ascii=True), encoding="utf-8")
 

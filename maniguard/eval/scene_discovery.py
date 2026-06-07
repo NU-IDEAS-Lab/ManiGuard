@@ -182,6 +182,7 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             "cameras": diag.get("cameras", []),
             "goal_conditions": diag.get("goal_conditions", []),
             "goal_region": diag.get("goal_region"),
+            "ltl_safety": diag.get("ltl_safety") or {},
         })
 
     if max_scenes:
