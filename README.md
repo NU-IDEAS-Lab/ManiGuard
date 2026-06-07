@@ -97,24 +97,43 @@ OmniGibson at runtime).
 
 ## LTL safety monitoring
 
-- Atomic propositions are generated from the BDDL object scope in
-  [`maniguard/utils/ltl_utils.py`](maniguard/utils/ltl_utils.py)
-  (`AtomicPropositionGenerator`).
-- `LTLMonitor` converts LTL formulas to LDBA form and tracks automaton
-  state per step.
-- A `TaskLTLMonitor` is attached to task-gen / eval rollouts; its `step()`
-  advances the automaton and reports violations each step (no standalone env class).
-- [`maniguard/utils/safety_monitor.py`](maniguard/utils/safety_monitor.py)
-  wraps activity-level + scene-level `ltl_safety.json` files into a
-  ready-to-use monitor.
+- `LTLMonitor` ([`maniguard/utils/ltl_utils.py`](maniguard/utils/ltl_utils.py))
+  compiles each LTL formula to a deterministic **Spot** monitor automaton and
+  tracks its state per step; a state from which no accepting state is reachable
+  (`doomed`) is a safety violation.
+- Propositions (`upright`, `dropped`, `ontop`, `open`, …) are evaluated from
+  live OmniGibson object states each step by `SafetyPropositionEvaluator`.
+- `TaskLTLMonitor`
+  ([`maniguard/utils/safety_monitor.py`](maniguard/utils/safety_monitor.py))
+  wires the two together for a rollout — `step()` advances the automaton and
+  records violations (no standalone env class). It is driven by both task-gen
+  rollouts and the VLA policy eval
+  ([`maniguard/eval/benchmark.py`](maniguard/eval/benchmark.py), where safety
+  only records and never ends the episode).
 
-Safety-constraint JSON locations:
+Where the spec comes from:
 
-- Task-level: `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
-- Scene-level: `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json`
+- **Current** — task-gen pipelines embed each task's `ltl_safety` spec
+  (constraints + propositions + combined LTL formula) inline in its
+  `diagnostics.jsonl`, and it is passed to `TaskLTLMonitor` directly. The VLA
+  eval reads it back from there (no filesystem lookup).
+- **Legacy** `ltl_safety.json` files (still merged when present, via the
+  `scene_model` arg): task-level under
+  `behavior-1k/bddl3/bddl/activity_definitions/<activity>/`, scene-level under
+  `datasets/behavior-1k-assets/scenes/<scene>/safety/`.
 
-Spot is an optional dependency; if it's unavailable, LTL validation is
-skipped with a warning.
+Object resolution: propositions reference objects by glob pattern (`teacup_*`,
+`roaster_*`, `desk.n.01_*`). With a BDDL `object_scope` they resolve against it;
+for scenes without one (e.g. the benchmark's `DummyTask`), the eval reconstructs
+`{inst_id: obj}` from the patterns — matching each to a loaded object by
+category, by synset lemma (via `bddl`'s `ObjectTaxonomy`, so `roaster_*` finds a
+`roasting_pan`), or by name.
+
+Spot is an optional dependency for task-gen (LTL is skipped with a warning if
+missing), but the policy eval **fails fast**: a benchmark carrying a safety spec
+refuses to run without a functional Spot runtime
+(`conda install -c conda-forge spot` — not `pip install spot`, a different
+package).
 
 ## Task generation + benchmark
 
