@@ -43,14 +43,16 @@ class EvalConfig:
     # the target name (same as training: {target_clean} strips the trailing
     # _NNN and underscores). Use to match the SFT prompt distribution.
     prompt_template: Optional[str] = None
-    # How camera RGB is packed into the policy-server observation:
-    #   "single_plus_wrist" (default): policy_cameras composed into one
-    #       observation/image + observation/wrist_image (2 pi0 slots).
-    #   "three_cam": policy_cameras[0]/[1] + wrist -> observation/image_left,
-    #       observation/image_right, observation/wrist_image (3 pi0 slots).
-    #       Requires exactly the cameras the model was trained on, in order.
-    obs_layout: str = "single_plus_wrist"
-    policy_cameras: List[str] = field(default_factory=lambda: ["cam_opposite"])
+    # Which third-person overview the policy consumes. The model is fed exactly
+    # ONE external overview + the wrist (LIBERO 2-cam convention): the policy
+    # server reads observation/image_left + observation/wrist_image (+ state).
+    # This selects which physical camera supplies that single overview, and MUST
+    # match the checkpoint's training config (Sim2CamLiberoDataConfig.external_cam)
+    # so the policy stays in distribution:
+    #   "left"  -> render cam_left,  send as observation/image_left
+    #   "right" -> render cam_right, send as observation/image_left
+    # Only that one external camera is rendered (the other is never created).
+    external_cam: str = "left"
     action_dim: int = 7
     execute_horizon: int = 5
     gripper_binarize: bool = True
@@ -150,7 +152,7 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--headless", action="store_true", default=None)
     p.add_argument("--output-dir", type=str, default=None)
     p.add_argument("--save-video", action="store_true", default=None)
-    p.add_argument("--policy-cameras", nargs="+", default=None)
+    p.add_argument("--external-cam", type=str, default=None, choices=["left", "right"])
     p.add_argument("--camera-resolution", type=int, default=None)
 
     args = p.parse_args()
@@ -173,7 +175,7 @@ def config_from_cli() -> EvalConfig:
         "headless": "headless",
         "output_dir": "output_dir",
         "save_video": "save_video",
-        "policy_cameras": "policy_cameras",
+        "external_cam": "external_cam",
         "camera_resolution": "camera_resolution",
     }
     for cli_name, cfg_name in cli_map.items():

@@ -51,13 +51,33 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
     # mis-interpret them as 7-D EEF-delta.
     use_delta_joint_actions: bool = True
 
+    # Which third-person overview to feed the policy. The dataset always ships
+    # BOTH external views (image_left + image_right); exactly one is consumed as
+    # the policy's single overview (the other is dropped, third pi0.5 slot stays
+    # zero+masked — see sim_2cam_policy). Per task/scene one side may be higher
+    # quality, so this picks the good one at train time; eval must read the same
+    # choice back from the checkpoint's train config to stay in distribution.
+    # The policy's input key is ALWAYS ``observation/image_left`` (a fixed
+    # contract); this only changes WHICH dataset stream feeds that key:
+    #   "left"  -> dataset ``image_left``  -> observation/image_left
+    #   "right" -> dataset ``image_right`` -> observation/image_left
+    external_cam: str = "left"
+
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        if self.external_cam not in ("left", "right"):
+            raise ValueError(
+                f"external_cam must be 'left' or 'right', got {self.external_cam!r}"
+            )
+        # Route the chosen dataset overview into the fixed policy key. The key
+        # name stays observation/image_left regardless, so the policy + server
+        # (Sim2CamInputs) are unchanged; only the source stream differs.
+        overview_stream = "image_left" if self.external_cam == "left" else "image_right"
         repack_transform = _transforms.Group(
             inputs=[
                 _transforms.RepackTransform(
                     {
-                        "observation/image_left": "image_left",
+                        "observation/image_left": overview_stream,
                         "observation/wrist_image": "wrist_image",
                         "observation/state": "state",
                         "actions": "actions",

@@ -42,31 +42,27 @@ def _init_omnigibson(cfg: EvalConfig):
     if cfg.headless:
         gm.HEADLESS = True
 
-    # three_cam models consume the wrist view (right_wrist_0_rgb, unmasked).
-    # SFT data was recorded with the wrist Camera relocated to a canonical
-    # pose; reuse that exact patch so the eval wrist matches training.
-    if getattr(cfg, "obs_layout", "single_plus_wrist") == "three_cam":
-        from maniguard.data.curobo._sft_recorder import install_wrist_camera_patch
-        install_wrist_camera_patch()
-        print("[Eval] three_cam: installed canonical wrist-camera patch.")
-
 
 # ---------------------------------------------------------------------------
 # Environment helpers
 # ---------------------------------------------------------------------------
 
+def _overview_cam_name(cfg: EvalConfig) -> str:
+    """Physical external camera that supplies the policy's single overview,
+    selected by cfg.external_cam (must match the checkpoint's train config)."""
+    if cfg.external_cam not in ("left", "right"):
+        raise ValueError(f"external_cam must be 'left' or 'right', got {cfg.external_cam!r}")
+    return "cam_left" if cfg.external_cam == "left" else "cam_right"
+
+
 def _build_eval_external_sensors(cfg: EvalConfig):
-    from maniguard.utils.camera_setup import (
-        EXTERNAL_CAMERA_NAMES,
-        build_external_camera_configs,
-        normalize_policy_cameras,
+    """Build ONLY the one external overview camera the policy consumes
+    (cam_left or cam_right per cfg.external_cam) — matching the 2-cam training
+    convention. The wrist camera comes from the robot USD; no cam_opposite."""
+    from maniguard.utils.camera_setup import build_external_camera_configs
+    return build_external_camera_configs(
+        names=[_overview_cam_name(cfg)], resolution=cfg.camera_resolution
     )
-    policy_cams = normalize_policy_cameras(cfg.policy_cameras)
-    names = []
-    for name in list(policy_cams) + [EXTERNAL_CAMERA_NAMES[0]]:
-        if name not in names:
-            names.append(name)
-    return build_external_camera_configs(names=names, resolution=cfg.camera_resolution)
 
 
 def build_og_config(scene_info: dict, cfg: EvalConfig):
@@ -170,16 +166,12 @@ def eef_delta_to_joint_action(robot, eef_delta, action_space):
 
 
 def extract_obs(env, robot, prompt, cfg: EvalConfig):
-    from maniguard.utils.camera_setup import compose_main_image, normalize_policy_cameras
-
     raw_obs, _ = env.get_obs()
     external = raw_obs.get("external", {})
-    cams = normalize_policy_cameras(cfg.policy_cameras)
-    rgb_by_cam = {
-        name: external[name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
-        for name in cams
-    }
-    main_rgb = compose_main_image(rgb_by_cam, cams)
+    # Single external overview = the one camera selected by cfg.external_cam
+    # (cam_left or cam_right); it is the only external camera built/rendered.
+    overview_name = _overview_cam_name(cfg)
+    overview_rgb = external[overview_name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
 
     robot_obs = raw_obs.get(robot.name, {})
     wrist_rgb = None
@@ -191,7 +183,7 @@ def extract_obs(env, robot, prompt, cfg: EvalConfig):
         if not getattr(extract_obs, "_wrist_warned", False):
             print(f"[Eval] WARNING: no wrist camera found in robot obs keys={list(robot_obs.keys())}; using black image")
             extract_obs._wrist_warned = True
-        wrist_rgb = np.zeros_like(main_rgb)
+        wrist_rgb = np.zeros_like(overview_rgb)
 
     eef_pos = robot.get_relative_eef_position().cpu().numpy().astype(np.float32)
     eef_quat = robot.get_relative_eef_orientation().cpu().numpy().astype(np.float32)
@@ -217,8 +209,7 @@ def extract_obs(env, robot, prompt, cfg: EvalConfig):
         raise ValueError(f"Unknown state_mode: {cfg.state_mode}")
 
     return {
-        "main_images": main_rgb,
-        "images_by_cam": rgb_by_cam,
+        "overview_image": overview_rgb,
         "wrist_images": wrist_rgb,
         "states": state,
         "task_descriptions": prompt,
@@ -252,27 +243,13 @@ def connect_policy(cfg: EvalConfig):
 
 
 def _remap_obs_for_openpi(obs: dict, cfg: EvalConfig) -> dict:
-    layout = getattr(cfg, "obs_layout", "single_plus_wrist")
-    if layout == "three_cam":
-        from maniguard.utils.camera_setup import normalize_policy_cameras
-        cams = normalize_policy_cameras(cfg.policy_cameras)
-        if len(cams) < 2:
-            raise ValueError(
-                "obs_layout='three_cam' needs 2 external policy_cameras in order "
-                f"(e.g. [cam_left, cam_right]); got {cams}"
-            )
-        # ManiGuardInputs assigns slots: cams[0]/image_left -> base_0_rgb,
-        # wrist -> left_wrist_0_rgb, cams[1]/image_right -> right_wrist_0_rgb
-        # (matches openpi pi05_pnp_clutter_3cam_lora).
-        return {
-            "observation/image_left": obs["images_by_cam"][cams[0]],
-            "observation/image_right": obs["images_by_cam"][cams[1]],
-            "observation/wrist_image": obs["wrist_images"],
-            "observation/state": obs["states"],
-            "prompt": obs["task_descriptions"],
-        }
+    """Pack the 2-cam policy observation (LIBERO convention). The single external
+    overview (cam_left or cam_right per cfg.external_cam) goes to the fixed key
+    observation/image_left; the server (Sim2CamInputs) maps image_left->base_0,
+    wrist->left_wrist_0, and zero-fills+masks the third slot. Matches every
+    ManiGuard joint checkpoint's train config."""
     return {
-        "observation/image": obs["main_images"],
+        "observation/image_left": obs["overview_image"],
         "observation/wrist_image": obs["wrist_images"],
         "observation/state": obs["states"],
         "prompt": obs["task_descriptions"],
@@ -469,7 +446,10 @@ def main():
             og.sim.render()
 
         obs = extract_obs(env, robot, scene_info["prompt"], cfg)
-        frames = [obs["main_images"]] if cfg.save_video else []
+        # Two separate streams recorded as two mp4s: the policy's overview
+        # (cam_left/right) and the wrist — same resolution the policy sees.
+        main_frames = [obs["overview_image"]] if cfg.save_video else []
+        wrist_frames = [obs["wrist_images"]] if cfg.save_video else []
 
         step_idx = 0
         done = False
@@ -486,8 +466,7 @@ def main():
             while step_idx < cfg.max_steps and not done:
                 chunk = query_policy(policy, obs, client_type, cfg)
                 if os.environ.get("EVAL_DEBUG_IMG") and step_idx == 0:
-                    for _nm, _im in obs.get("images_by_cam", {}).items():
-                        imageio.imwrite(f"outputs/dbg_{_nm}.png", np.asarray(_im))
+                    imageio.imwrite("outputs/dbg_overview.png", np.asarray(obs["overview_image"]))
                     imageio.imwrite("outputs/dbg_wrist.png", np.asarray(obs["wrist_images"]))
                     print("[img] dumped policy input images to outputs/dbg_*.png", flush=True)
                 if os.environ.get("EVAL_DEBUG_IO"):
@@ -526,7 +505,8 @@ def main():
                                 "eef_after": _eef_after.tolist(),
                             }) + "\n")
                     if cfg.save_video:
-                        frames.append(obs["main_images"])
+                        main_frames.append(obs["overview_image"])
+                        wrist_frames.append(obs["wrist_images"])
                     step_idx += 1
                     total_reward += float(reward)
 
@@ -562,10 +542,13 @@ def main():
         with results_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=True) + "\n")
 
-        if cfg.save_video and frames:
-            video_path = output_dir / f"{scene_info['name']}.mp4"
-            video_path.parent.mkdir(parents=True, exist_ok=True)
-            imageio.mimsave(str(video_path), frames, fps=10)
+        if cfg.save_video and main_frames:
+            # Two separate mp4s — the policy's overview stream and the wrist
+            # stream — at the training data's 30 fps, same 256-res the policy
+            # sees (no upscaling: keeps the saved video faithful to the input).
+            (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
+            imageio.mimsave(str(output_dir / f"{scene_info['name']}_main.mp4"), main_frames, fps=30)
+            imageio.mimsave(str(output_dir / f"{scene_info['name']}_wrist.mp4"), wrist_frames, fps=30)
 
     # Summary
     print(f"\n{'='*60}")
