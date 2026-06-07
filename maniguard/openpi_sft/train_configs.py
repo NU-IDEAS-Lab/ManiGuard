@@ -350,7 +350,7 @@ def _build_configs() -> list[TrainConfig]:
             num_train_steps=2_050,  # ~2 epochs @ batch 12 (12,312 frames)
             batch_size=12,
             num_workers=8,  # CPU dataloader prefetch workers
-            log_interval=25,  # loss logging cadence
+            log_interval=5,  # dense loss logging to catch NaN early (prior run NaN'd ~step 25)
             fsdp_devices=4,  # shard across 4 GPUs (see dusty-transfer config note)
             keep_period=410,  # steps // 5 -> 5 evenly-spaced checkpoints
             freeze_filter=pi0_config.Pi0Config(
