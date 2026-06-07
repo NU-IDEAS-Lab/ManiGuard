@@ -198,6 +198,8 @@ def _build_configs() -> list[TrainConfig]:
                 repo_id="IDEAS-Lab-Northwestern/sim-cabinet-pickup-30-joint-3cam",
                 base_config=DataConfig(prompt_from_task=True),
                 use_delta_joint_actions=True,  # JointController: MUST be True
+                # cab's left overview is low-quality; train (and eval) on image_right instead.
+                external_cam="right",
             ),
             weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
             # ~2 epochs @ batch 12 rounded up to a clean 4000 steps; sqrt-LR recipe
