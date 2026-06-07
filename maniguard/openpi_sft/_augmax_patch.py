@@ -49,6 +49,32 @@ def apply() -> None:
             "update maniguard.openpi_sft._augmax_patch."
         )
 
+    # Root-cause guard: augmax's geometric path projects coordinates with
+    # ``utils.apply_perspective``, whose final step divides by the homogeneous
+    # ``z`` (``yx / z``). A degenerate random perspective matrix can drive ``z``
+    # to ~0, yielding inf/NaN that not only poisons the augmented image but also
+    # backprops NaN gradients (the outer __call__ guard below sanitizes the
+    # forward value, but ``jnp.where``'s unselected branch still passes NaN grads
+    # -> grad_norm=nan -> divergence). Patch the division at the source so the
+    # NaN never forms. geometric.py calls it as ``utils.apply_perspective`` (a
+    # module-attribute lookup), so replacing the module attribute covers every
+    # call site. Behaviour-preserving: ``z`` is ~1 for normal transforms, so the
+    # 1e-6 floor only engages on the pathological near-singular case.
+    import augmax.utils as _au
+
+    if not getattr(_au.apply_perspective, "_maniguard_safe", False):
+        def _safe_apply_perspective(xy, M):
+            xyz = jnp.concatenate([xy, jnp.ones([1, *xy.shape[1:]])])
+            xyz = jnp.tensordot(M, xyz, axes=1)
+            yx, z = jnp.split(xyz, [2])
+            # Floor |z| away from 0 to avoid div-by-zero -> inf/NaN. Preserve
+            # z's sign (z is ~1 normally; the floor only bites near-singular z).
+            safe_z = jnp.where(jnp.abs(z) < 1e-6, jnp.where(z < 0, -1e-6, 1e-6), z)
+            return yx / safe_z
+
+        _safe_apply_perspective._maniguard_safe = True
+        _au.apply_perspective = _safe_apply_perspective
+
     # Idempotent: never double-wrap (re-import / re-register is safe).
     if getattr(_ab.Transformation.__call__, "_maniguard_guarded", False):
         return
