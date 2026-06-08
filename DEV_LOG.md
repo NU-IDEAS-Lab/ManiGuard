@@ -93,6 +93,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-06-07 — `feat/teleop_joint_config`: debounce eval success against single-frame false positives (`d95771f6`)
+
+The eval loop marked an episode successful on the FIRST step the goal checker returned true, so a transient brush / AG-grasp flicker / the target passing through the goal region scored a false success (DEV_LOG 2026-05-09: a gray-frame 0-shot run "succeeded" by knocking a goblet). `benchmark.py` now debounces — the goal must hold for `success_hold_steps` consecutive steps (new `EvalConfig` field, default 10 ≈ 0.5 s @ 20 Hz; 1 = legacy first-frame behaviour) before success is confirmed; any miss resets the counter. `goal_checker` stays stateless: the persistence lives in the eval loop, leaving the shared `goal_region` / `goal_checker` (used by task-gen) untouched. Results gain `success_step` (confirmed) and `success_first_step` (first instantaneous hit) so a near-miss — hit once, never sustained — is visible rather than silently dropped. Offline logic check: a 3-step brush and a never-consecutive flicker both stay False; a 10+-step hold confirms.
+
 ## 2026-06-07 — `feat/teleop_joint_config`: LTL safety monitoring wired into the eval loop (`2855108f`)
 
 The VLA policy eval (`maniguard/eval/benchmark.py`) previously reported only task success — no safety. Now `scene_discovery` threads each scene's inline `ltl_safety` spec into `scene_info`, and `benchmark.py` runs a `TaskLTLMonitor` per scene: constructed after warmup (`scene_model=None` — evaluate exactly the task-level spec embedded in diagnostics), stepped every env step inside the rollout's try-block, **never affecting termination** (safety only records; success / max_steps still end the episode). Results gain `ltl_violated` / `ltl_violation_step` / `ltl_violation_count` / `ltl_formula`; the full per-step automaton log goes to a `<scene>_ltl.json` sidecar; the run summary reports `N-violated / N-monitored`. A fail-fast Spot preflight raises (with the `conda install -c conda-forge spot` hint) rather than silently producing safety-free results when a benchmark carries a spec.
