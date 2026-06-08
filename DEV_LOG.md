@@ -93,6 +93,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-06-07 — `feat/teleop_joint_config`: eval metric switch + single-task selection (`8735f568`)
+
+eval now takes a `metrics` config/CLI knob — any non-empty subset of `{success, safety}` (`--metrics success` / `--metrics safety` / `--metrics success safety`, default both). It gates which checkers run: success-only skips the LTL monitor **and** the Spot fail-fast (no Spot dependency when you only want task success); safety-only skips the goal checker and runs the full rollout (no early stop on the goal) while recording violations. Per-scene results record `metrics` and set `success` to null when it wasn't evaluated; the summary prints/serialises the success rate only under `success` and the LTL violation count only under `safety`. Single-task selection already worked via `scenes` / `scene_filter`; `scene_discovery` now also matches a bare task-dir prefix, so `--scenes task_0000` (not only the full `task_0000/base`) selects a single task — no need to run a whole family to eval one scene.
+
 ## 2026-06-07 — `feat/teleop_joint_config`: debounce eval success against single-frame false positives (`d95771f6`)
 
 The eval loop marked an episode successful on the FIRST step the goal checker returned true, so a transient brush / AG-grasp flicker / the target passing through the goal region scored a false success (DEV_LOG 2026-05-09: a gray-frame 0-shot run "succeeded" by knocking a goblet). `benchmark.py` now debounces — the goal must hold for `success_hold_steps` consecutive steps (new `EvalConfig` field, default 10 ≈ 0.5 s @ 20 Hz; 1 = legacy first-frame behaviour) before success is confirmed; any miss resets the counter. `goal_checker` stays stateless: the persistence lives in the eval loop, leaving the shared `goal_region` / `goal_checker` (used by task-gen) untouched. Results gain `success_step` (confirmed) and `success_first_step` (first instantaneous hit) so a near-miss — hit once, never sustained — is visible rather than silently dropped. Offline logic check: a 3-step brush and a never-consecutive flicker both stay False; a 10+-step hold confirms.
