@@ -593,18 +593,25 @@ def main():
         else:
             print(f"  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
 
-        # Warm up by stepping a hold command, initializing the freshly-reloaded
-        # controller's goal from the current pose and settling physics. For the
-        # JointController (ik_eef_to_joint), "hold" is the current joint targets
-        # (a zero action would command joints to 0 and fling the arm); a zero
-        # eef-delta maps to current joints. For a delta controller, zeros hold.
+        # Warm up by stepping a HOLD command, initializing the freshly-reloaded
+        # controller's goal from the current pose and settling physics. The hold
+        # must keep the arm where it is: for an absolute JointController
+        # (ik_eef_to_joint=False) a ZERO action would command every joint to 0
+        # and FLING the arm, so hold the CURRENT arm joints (action layout is
+        # [arm_q(n), ..., gripper(last)]); the ik path maps a zero eef-delta to
+        # the current joints. Gripper open throughout.
         _hold_eef = np.zeros(7, dtype=np.float32)
         _hold_eef[-1] = 1.0  # gripper open during warmup
+        _hold_arm = robot.get_joint_positions()[
+            robot.arm_control_idx[robot.default_arm]
+        ].cpu().numpy().astype(np.float32)
         for _ in range(10):
             if cfg.ik_eef_to_joint:
                 wa = eef_delta_to_joint_action(robot, _hold_eef, action_space)
             else:
                 wa = np.zeros(action_space.shape[0], dtype=np.float32)
+                wa[:_hold_arm.shape[0]] = _hold_arm
+                wa[-1] = 1.0  # gripper open
             wa = np.clip(wa, action_space.low, action_space.high)
             env.step(torch.from_numpy(wa).unsqueeze(0))
         for _ in range(2):
