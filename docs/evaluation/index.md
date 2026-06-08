@@ -36,6 +36,11 @@ spawns one eval-client process per scene and aggregates the results.
    (`ik_eef_to_joint`), checking success each step.
 5. **Record** — write `results.jsonl` (one line/scene), `summary.json`
    (`success_rate`), `eval_config.json`, and an optional per-scene MP4.
+   Each run lands in its own subfolder `output_dir/<run_name>` (auto
+   `YYYYmmdd_HHMMSS`, or `..._<TAG>` with `--tag`), so runs never overwrite —
+   always `--tag smoke` throwaway runs. A multi-scene batch
+   (`run_benchmark_all_scenes.sh`) shares one subfolder across its per-scene
+   processes.
 
 ## Configuring a run (`EvalConfig`)
 
@@ -49,7 +54,7 @@ Key knobs:
 | Obs / action | `state_mode` (`eef_8d_axisangle`), `obs_layout` (`single_plus_wrist` / `three_cam`), `policy_cameras`, `action_dim`, `execute_horizon`, `gripper_binarize` |
 | Controller | `controller_preset`, `override_controller_config`, `ik_eef_to_joint`, `joint_pos_kp` |
 | Sim | `action_frequency`, `rendering_frequency`, `physics_frequency`, `headless`, `longfinger` |
-| Eval | `max_steps`, `camera_resolution`, `save_video`, `output_dir` |
+| Eval | `max_steps`, `camera_resolution`, `save_video`, `output_dir` (base), `run_name` / `tag` (per-run subfolder) |
 
 !!! warning "Match training"
     `state_mode`, `obs_layout`, `action_dim`, and especially the **controller**
