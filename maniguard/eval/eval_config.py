@@ -63,6 +63,15 @@ class EvalConfig:
     # dict) takes precedence if both are set.
     controller_preset: Optional[str] = None
     override_controller_config: Optional[Dict[str, Any]] = None
+    # Robot grasping semantics, forced on the eval robot AFTER scene load (the
+    # 6fam-base scene's baked grasping_mode is overridden). MUST match the grasp
+    # mode used to COLLECT the training data, or the policy's learned gripper
+    # behaviour won't grasp: "sticky" welds an object on ANY single-finger
+    # contact, "assisted" requires two fingers, "physical" is pure friction.
+    # The training datasets do NOT record this, so it is set explicitly here —
+    # the joint teleop families were collected in "sticky".
+    #   choices: "sticky" | "assisted" | "physical"
+    grasping_mode: str = "sticky"
     # When true, treat the policy output as a 6-D eef delta (+ gripper) and
     # convert it to absolute joint targets via a Jacobian IK step, then feed
     # those to a JointController (PD position tracking). This matches how the
@@ -100,7 +109,21 @@ class EvalConfig:
     save_video: bool = True
 
     # -- Output --
+    # Per-CONFIG base directory. Each run writes to <output_dir>/<run_name> so
+    # successive runs never overwrite each other (results, videos, LTL/summary
+    # sidecars all land in the run subfolder).
     output_dir: str = ""
+    # Per-RUN subfolder leaf under output_dir. Empty (default) -> benchmark.py
+    # auto-generates a "YYYYmmdd_HHMMSS" timestamp, loud-suffixed with `tag`.
+    # Set explicitly (e.g. --run-name baseline_v2) to name a run, or to make a
+    # multi-scene batch share ONE folder (run_benchmark_all_scenes.sh generates
+    # one run_name and passes the same --run-name to every per-scene process).
+    run_name: str = ""
+    # Free-form label folded UPPERCASED into the auto-generated run_name, e.g.
+    # --tag smoke -> "20260607_143000_SMOKE". Always tag smoke/test runs so a
+    # throwaway folder can never be mistaken for a real eval. Ignored when
+    # run_name is set explicitly.
+    tag: str = ""
 
     # -- Informational (not used by benchmark.py directly) --
     checkpoint: str = ""
@@ -163,8 +186,13 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--physics-frequency", type=int, default=None)
     p.add_argument("--headless", action="store_true", default=None)
     p.add_argument("--output-dir", type=str, default=None)
+    p.add_argument("--run-name", type=str, default=None,
+                   help="Explicit run subfolder leaf under output_dir (skips timestamp).")
+    p.add_argument("--tag", type=str, default=None,
+                   help="Label folded UPPERCASED into the auto run_name, e.g. --tag smoke.")
     p.add_argument("--save-video", action="store_true", default=None)
     p.add_argument("--external-cam", type=str, default=None, choices=["left", "right"])
+    p.add_argument("--grasping-mode", type=str, default=None, choices=["physical", "assisted", "sticky"])
     p.add_argument("--camera-resolution", type=int, default=None)
 
     args = p.parse_args()
@@ -188,8 +216,11 @@ def config_from_cli() -> EvalConfig:
         "physics_frequency": "physics_frequency",
         "headless": "headless",
         "output_dir": "output_dir",
+        "run_name": "run_name",
+        "tag": "tag",
         "save_video": "save_video",
         "external_cam": "external_cam",
+        "grasping_mode": "grasping_mode",
         "camera_resolution": "camera_resolution",
     }
     for cli_name, cfg_name in cli_map.items():

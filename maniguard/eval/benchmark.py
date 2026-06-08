@@ -397,8 +397,28 @@ def main():
     run_safety = "safety" in metrics
     print(f"[Eval] metrics: success={run_success}, safety={run_safety}")
 
-    output_dir = Path(cfg.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Each run gets its own subfolder under output_dir so successive runs never
+    # overwrite each other. run_name is an explicit leaf when given (the batch
+    # runner passes one shared name so all per-scene processes land together);
+    # otherwise it is a timestamp, loud-suffixed with the tag for smoke/test
+    # runs and uniquified on the (near-impossible) same-second collision.
+    base_dir = Path(cfg.output_dir)
+    run_name = (cfg.run_name or "").strip()
+    if run_name:
+        output_dir = base_dir / run_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        from datetime import datetime
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if (cfg.tag or "").strip():
+            stamp += "_" + cfg.tag.strip().upper()
+        output_dir = base_dir / stamp
+        n = 2
+        while output_dir.exists():
+            output_dir = base_dir / f"{stamp}_{n}"
+            n += 1
+        output_dir.mkdir(parents=True)
+    print(f"[Eval] Run dir: {output_dir}")
     results_path = output_dir / "results.jsonl"
 
     cfg.save_json(output_dir / "eval_config.json")
@@ -531,6 +551,22 @@ def main():
                 print(f"  Overriding controllers ({cfg.controller_preset or 'custom'}): "
                       f"{list(override_cc.keys())}", flush=True)
                 robot.reload_controllers(override_cc)
+
+            # Force grasping semantics to match the training data's grasp mode.
+            # The 6fam-base scene bakes its own grasping_mode (often 'assisted'),
+            # but the policy was trained under the teleop mode (joint families =
+            # 'sticky'); a mismatch means the learned gripper actions never grasp.
+            # OmniGibson reads grasping_mode per step, so setting it now takes
+            # effect immediately (the per-mode _ag_* state is created at init for
+            # all modes, so switching post-load is safe).
+            if cfg.grasping_mode not in ("physical", "assisted", "sticky"):
+                raise ValueError(
+                    f"grasping_mode must be physical/assisted/sticky, got "
+                    f"{cfg.grasping_mode!r}"
+                )
+            if robot.grasping_mode != cfg.grasping_mode:
+                print(f"  Grasping mode: {robot.grasping_mode} -> {cfg.grasping_mode}", flush=True)
+                robot._grasping_mode = cfg.grasping_mode
         except Exception as e:
             print(f"  FAILED to load scene: {e}")
             all_results.append({

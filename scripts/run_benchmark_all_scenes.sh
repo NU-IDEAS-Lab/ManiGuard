@@ -11,12 +11,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Parse --config from args; pass rest through as CLI overrides.
+# Parse --config / --tag / --run-name; pass the rest through as CLI overrides.
+# --tag / --run-name are consumed here (not forwarded) so the whole batch shares
+# ONE run subfolder: we compute the run_name once and hand the same one to every
+# per-scene benchmark.py process.
 CONFIG=""
+TAG=""
+RUN_NAME=""
 EXTRA_ARGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --config) CONFIG="$2"; shift 2 ;;
+        --tag) TAG="$2"; shift 2 ;;
+        --run-name) RUN_NAME="$2"; shift 2 ;;
         *) EXTRA_ARGS+=("$1"); shift ;;
     esac
 done
@@ -56,8 +63,19 @@ fi
 [[ "$BENCHMARK_ROOT" = /* ]] || BENCHMARK_ROOT="${REPO_ROOT}/${BENCHMARK_ROOT}"
 [[ "$OUTPUT_DIR" = /* ]] || OUTPUT_DIR="${REPO_ROOT}/${OUTPUT_DIR}"
 
-mkdir -p "$OUTPUT_DIR"
-RESULTS_FILE="${OUTPUT_DIR}/results.jsonl"
+# One run subfolder for the whole batch: every per-scene process gets the same
+# --run-name so they all write into <output_dir>/<run_name> instead of each
+# stamping its own. Auto-generate a timestamp (loud-suffixed with --tag) unless
+# an explicit --run-name was given.
+if [[ -z "$RUN_NAME" ]]; then
+    RUN_NAME="$(date +%Y%m%d_%H%M%S)"
+    if [[ -n "$TAG" ]]; then
+        RUN_NAME="${RUN_NAME}_$(echo "$TAG" | tr '[:lower:]' '[:upper:]')"
+    fi
+fi
+RUN_DIR="${OUTPUT_DIR}/${RUN_NAME}"
+mkdir -p "$RUN_DIR"
+RESULTS_FILE="${RUN_DIR}/results.jsonl"
 > "$RESULTS_FILE"
 
 # Discover scenes.
@@ -97,7 +115,7 @@ done <<< "$SCENE_LIST"
 
 TOTAL=${#SCENES[@]}
 echo "[batch] Found ${TOTAL} scenes"
-echo "[batch] Output: ${OUTPUT_DIR}"
+echo "[batch] Run dir: ${RUN_DIR}"
 echo ""
 
 SUCCESS=0
@@ -119,6 +137,7 @@ for scene_name in "${SCENES[@]}"; do
         --scenes "$scene_name" \
         --max-scenes 1 \
         --output-dir "$OUTPUT_DIR" \
+        --run-name "$RUN_NAME" \
         "${EXTRA_ARGS[@]}" 2>&1 | tail -5 || true
 
     if [[ -f "$RESULTS_FILE" ]]; then

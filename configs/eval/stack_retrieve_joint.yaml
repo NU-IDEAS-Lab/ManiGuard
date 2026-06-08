@@ -28,6 +28,7 @@ gripper_binarize: true
 # -- Controller: exact teleop/playback JointController (raw radians, no impedance) --
 controller_preset: joint_position_raw
 ik_eef_to_joint: false     # server already outputs absolute joint targets; feed straight
+grasping_mode: assisted      # MUST match training/teleop grasp mode (NOT recorded in dataset)
 
 # -- Sim / eval --
 max_steps: 2000            # hard cap; ends early on success / safety termination
@@ -36,7 +37,7 @@ camera_resolution: 256
 save_video: true
 longfinger: true
 
-output_dir: outputs/eval_stack_retrieve_joint
+output_dir: outputs/eval_logs/stack_retrieve_joint   # base; each run -> a timestamped subfolder here (smoke/test: pass --tag)
 
 # Informational (not read by benchmark.py; the server is launched separately).
 # Point the server at the local checkpoint dir for this config:
