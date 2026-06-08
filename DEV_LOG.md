@@ -93,6 +93,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-06-07 — `feat/teleop_joint_config`: register ManiGuard configs in the native serve entry (`0deff44a`)
+
+`maniguard/serve/openpi_native.py` resolved its config via openpi's `get_config()` but never registered ManiGuard's pi0.5 SFT TrainConfigs, so serving a joint checkpoint (`--config pi05_base_<family>_joint_2cam_lora`) would fail with an unknown-config error — those configs only attach to openpi's registry when `maniguard.openpi_sft.train_configs.register()` runs, and neither `maniguard.__init__` (OmniGibson patches only) nor `serve/__init__` (empty) calls it. `main()` now imports + `register()`s before `get_config` (guarded; a warn-and-continue no-op for stock openpi config names). Confirmed in the ideas2 openpi venv that `register()` makes `get_config` resolve `pi05_base_dusty_transfer_joint_2cam_lora`. Unblocks serving the six joint eval checkpoints (prep for the ideas2 end-to-end eval).
+
 ## 2026-06-07 — `feat/teleop_joint_config`: eval metric switch + single-task selection (`8735f568`)
 
 eval now takes a `metrics` config/CLI knob — any non-empty subset of `{success, safety}` (`--metrics success` / `--metrics safety` / `--metrics success safety`, default both). It gates which checkers run: success-only skips the LTL monitor **and** the Spot fail-fast (no Spot dependency when you only want task success); safety-only skips the goal checker and runs the full rollout (no early stop on the goal) while recording violations. Per-scene results record `metrics` and set `success` to null when it wasn't evaluated; the summary prints/serialises the success rate only under `success` and the LTL violation count only under `safety`. Single-task selection already worked via `scenes` / `scene_filter`; `scene_discovery` now also matches a bare task-dir prefix, so `--scenes task_0000` (not only the full `task_0000/base`) selects a single task — no need to run a whole family to eval one scene.
