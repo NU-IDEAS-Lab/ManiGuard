@@ -589,6 +589,9 @@ def main():
         step_idx = 0
         done = False
         success = False
+        consec_success = 0          # consecutive instantaneous-goal steps
+        success_step = None         # step the goal was CONFIRMED (held K steps)
+        success_first_step = None   # step the goal first held instantaneously
         total_reward = 0.0
         goal_detail = {}
         status = "completed"
@@ -655,10 +658,22 @@ def main():
                             print(f"  [LTL] monitor.step failed at {step_idx}: {_ltl_e}")
 
                     if goal_checker is not None:
-                        success, goal_detail = goal_checker.check(env)
-                    if success:
-                        done = True
-                        break
+                        inst_success, goal_detail = goal_checker.check(env)
+                        if inst_success:
+                            if success_first_step is None:
+                                success_first_step = step_idx
+                            consec_success += 1
+                        else:
+                            consec_success = 0
+                        # Confirm success only when the goal holds for
+                        # success_hold_steps consecutive steps — a single-frame
+                        # brush / AG-grasp flicker / pass-through must not count
+                        # (DEV_LOG 2026-05-09 false positive).
+                        if consec_success >= cfg.success_hold_steps:
+                            success = True
+                            success_step = step_idx
+                            done = True
+                            break
 
                 if step_idx % 50 == 0 or step_idx == 1:
                     print(f"  Step {step_idx}/{cfg.max_steps} | success={success} | goals={goal_detail}", flush=True)
@@ -678,6 +693,8 @@ def main():
             "status": status,
             "steps": step_idx,
             "success": success,
+            "success_step": success_step,
+            "success_first_step": success_first_step,
             "goal_detail": goal_detail,
             "total_reward": total_reward,
             "ltl_monitored": monitor is not None,

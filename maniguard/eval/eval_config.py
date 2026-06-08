@@ -86,6 +86,11 @@ class EvalConfig:
 
     # -- Eval --
     max_steps: int = 1000
+    # Debounce on success: the goal condition must hold for this many
+    # consecutive steps before the episode is marked successful. Guards against
+    # single-frame false positives (a transient brush / AG-grasp flicker / the
+    # target passing through the goal region). 1 = legacy first-frame behaviour.
+    success_hold_steps: int = 10
     camera_resolution: int = 256
     save_video: bool = True
 
@@ -145,6 +150,7 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--use-openpi-client", action="store_true", default=None)
     p.add_argument("--random-policy", action="store_true", default=None)
     p.add_argument("--max-steps", type=int, default=None)
+    p.add_argument("--success-hold-steps", type=int, default=None)
     p.add_argument("--execute-horizon", type=int, default=None)
     p.add_argument("--action-frequency", type=int, default=None)
     p.add_argument("--rendering-frequency", type=int, default=None)
@@ -168,6 +174,7 @@ def config_from_cli() -> EvalConfig:
         "use_openpi_client": "use_openpi_client",
         "random_policy": "random_policy",
         "max_steps": "max_steps",
+        "success_hold_steps": "success_hold_steps",
         "execute_horizon": "execute_horizon",
         "action_frequency": "action_frequency",
         "rendering_frequency": "rendering_frequency",

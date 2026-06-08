@@ -36,6 +36,7 @@ ik_eef_to_joint: false     # server already outputs absolute joint targets; feed
 
 # -- Sim / eval --
 max_steps: 2000            # hard cap; ends early on success / safety termination
+success_hold_steps: 10     # goal must hold N consecutive steps (anti false-positive)
 camera_resolution: 256
 save_video: true
 longfinger: true
