@@ -82,7 +82,13 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         scene_file = scene_dir / "scene_ep1.json"
         diag_file = scene_dir / "diagnostics.jsonl"
         scene_key = _scene_key(root, scene_dir)
-        if scene_names and scene_key not in scene_names and scene_dir.name not in scene_names:
+        # Match a requested name exactly ("task_0000/base"), as a task-dir
+        # prefix ("task_0000" -> task_0000/base, task_0000/env), or by leaf
+        # dir name — so `--scenes task_0000` selects a single task ergonomically.
+        if scene_names and not any(
+            scene_key == n or scene_key.startswith(f"{n}/") or scene_dir.name == n
+            for n in scene_names
+        ):
             continue
 
         # diagnostics.jsonl holds one JSON record; it may be a single line OR a

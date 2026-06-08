@@ -385,6 +385,18 @@ def main():
     print(f"[Eval] state={cfg.state_mode}, action_dim={cfg.action_dim}, "
           f"horizon={cfg.execute_horizon}, max_steps={cfg.max_steps}")
 
+    # Which metrics to evaluate (subset of {success, safety}). Gates which
+    # checkers run, whether Spot is required, and what the summary reports.
+    metrics = [m.lower() for m in (cfg.metrics or [])]
+    if not metrics or any(m not in ("success", "safety") for m in metrics):
+        raise ValueError(
+            f"metrics must be a non-empty subset of ['success', 'safety']; "
+            f"got {cfg.metrics!r}"
+        )
+    run_success = "success" in metrics
+    run_safety = "safety" in metrics
+    print(f"[Eval] metrics: success={run_success}, safety={run_safety}")
+
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     results_path = output_dir / "results.jsonl"
@@ -413,10 +425,11 @@ def main():
         scenes = [s for s in scenes if fnmatch.fnmatch(s["name"], cfg.scene_filter)]
     print(f"Discovered {len(scenes)} valid scenes")
 
-    # LTL safety monitoring is mandatory whenever the benchmark carries a spec —
-    # fail fast if the Spot runtime is missing/broken rather than silently
-    # producing results with no safety data. (Real Spot: conda-forge, NOT pip.)
-    if any(s.get("ltl_safety") for s in scenes):
+    # When evaluating safety, LTL monitoring is mandatory whenever the benchmark
+    # carries a spec — fail fast if the Spot runtime is missing/broken rather
+    # than silently producing safety-free results. (Real Spot: conda-forge, NOT
+    # pip.) Skipped entirely for a success-only run (no Spot dependency).
+    if run_safety and any(s.get("ltl_safety") for s in scenes):
         from maniguard.utils.ltl_utils import (
             get_spot_runtime_status,
             spot_runtime_available,
@@ -534,7 +547,7 @@ def main():
         print(f"  Action space high: {np.array2string(np.asarray(action_space.high), precision=3)}", flush=True)
 
         from maniguard.eval.goal_checker import build_goal_checker
-        goal_checker = build_goal_checker(scene_info)
+        goal_checker = build_goal_checker(scene_info) if run_success else None
         if goal_checker is not None:
             goal_checker.resolve(env)
             if hasattr(goal_checker, "raw_region"):
@@ -572,7 +585,7 @@ def main():
         # exactly the task-level spec embedded in this scene's diagnostics.
         ltl_safety = scene_info.get("ltl_safety") or {}
         monitor = None
-        if ltl_safety:
+        if run_safety and ltl_safety:
             from maniguard.utils.safety_monitor import TaskLTLMonitor
             monitor = TaskLTLMonitor(
                 env,
@@ -692,7 +705,8 @@ def main():
             "rooms": scene_info["target_rooms"],
             "status": status,
             "steps": step_idx,
-            "success": success,
+            "metrics": metrics,
+            "success": success if run_success else None,
             "success_step": success_step,
             "success_first_step": success_first_step,
             "goal_detail": goal_detail,
@@ -732,10 +746,13 @@ def main():
     print(f"{'='*60}")
     completed = [r for r in all_results if r["status"] == "completed"]
     n_total = len(completed)
-    n_success = sum(1 for r in completed if r["success"])
     n_failed_load = sum(1 for r in all_results if r["status"] == "load_failed")
     print(f"Scenes evaluated: {n_total} ({n_failed_load} failed to load)")
-    print(f"Success rate: {n_success}/{n_total} ({n_success/max(n_total,1)*100:.1f}%)")
+    if run_success:
+        n_success = sum(1 for r in completed if r.get("success"))
+        print(f"Success rate: {n_success}/{n_total} ({n_success/max(n_total,1)*100:.1f}%)")
+    else:
+        n_success = None
     if n_total > 0:
         print(f"Avg steps: {np.mean([r['steps'] for r in completed]):.1f}")
     n_ltl = sum(1 for r in completed if r.get("ltl_monitored"))
@@ -746,10 +763,11 @@ def main():
 
     summary_path = output_dir / "summary.json"
     summary_path.write_text(json.dumps({
+        "metrics": metrics,
         "n_scenes": n_total,
         "n_success": n_success,
         "n_failed_load": n_failed_load,
-        "success_rate": n_success / max(n_total, 1),
+        "success_rate": (n_success / max(n_total, 1)) if run_success else None,
         "n_ltl_monitored": n_ltl,
         "n_ltl_violated": n_violated,
         "results": all_results,
