@@ -63,6 +63,18 @@ def main() -> None:
     from openpi.serving import websocket_policy_server
     from openpi.training import config as train_config
 
+    # Register ManiGuard's pi0.5 SFT TrainConfigs into openpi's registry so
+    # get_config() resolves the joint-controller names (e.g.
+    # pi05_base_dusty_transfer_joint_2cam_lora). openpi_native runs in the openpi
+    # venv where maniguard is installed; the configs attach at import time via
+    # register() (a no-op if already registered). Harmless for stock openpi
+    # config names (they stay resolvable).
+    try:
+        import maniguard.openpi_sft.train_configs as _mg_train_configs
+        _mg_train_configs.register()
+    except Exception as _mg_exc:  # noqa: BLE001 - stock openpi configs still work
+        logger.warning(f"ManiGuard config registration skipped: {_mg_exc}")
+
     cfg = train_config.get_config(args.config)
     logger.info(f"Loaded config: {args.config}")
 
