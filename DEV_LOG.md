@@ -953,3 +953,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 
 ### Docs hero montage + README polish + Pages workflow (2026-05-27)
 - Combined the 100 6fam-base thumbnails into a single 10×10 montage (docs/index_gallery/montage.jpg); Home and README now use it as a hero image (dropped the 100 individual files + the .mg-gallery grid). Polished the README header (centered montage, tagline, nav links, Documentation link). Added site_url + a GitHub Actions workflow (.github/workflows/docs.yml) that builds --strict and gh-deploys the MkDocs site to GitHub Pages on push to main.
+
+### Safety: jar_closed hinge-angle fix (2026-06-08)
+- `f8dae056` `maniguard/utils/safety_monitor.py` — hinged_jar ships abilities={} so OmniGibson never attaches the Open state (KeyError every step) and `_build_unary` ignored `negated`; jar_closed was stuck False, firing a false-positive close_before_lift on any lift. Added `_is_open_via_joints` (joint-angle open-check, OmniGibson 5%-of-range convention) as the Open fallback + per-element `negated`; scope = jar_closed only (sole user of state:open/negated). Validated on the teleop'd jar scenes: task_0005 (lid closes) jar_closed flips True @ step 417 (0->1584 True), no false violation; task_0001 (lid never closes) stays False, real jar_upright tip-over still fires; 3972->0 "Open check failed" warnings.
