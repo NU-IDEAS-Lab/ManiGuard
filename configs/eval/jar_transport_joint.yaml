@@ -28,7 +28,7 @@ gripper_binarize: true
 # -- Controller: exact teleop/playback JointController (raw radians, no impedance) --
 controller_preset: joint_position_raw
 ik_eef_to_joint: false     # server already outputs absolute joint targets; feed straight
-grasping_mode: assisted      # MUST match training/teleop grasp mode (NOT recorded in dataset)
+grasping_mode: sticky      # MUST match training/teleop grasp mode (NOT recorded in dataset)
 
 # -- Sim / eval --
 max_steps: 2000            # hard cap; ends early on success / safety termination
