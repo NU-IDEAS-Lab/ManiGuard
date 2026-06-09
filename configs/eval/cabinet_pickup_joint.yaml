@@ -20,7 +20,7 @@ use_openpi_client: true
 
 # -- Observation / action (match the train config) --
 state_mode: joint          # 8-D [arm_q(7), gripper_pos(1)]
-external_cam: left         # single overview = cam_left (train external_cam=left)
+external_cam: right        # single overview = cam_right (train external_cam=right; cab's left overview is low-quality)
 action_dim: 8              # absolute joint target (server reconstructs from delta)
 execute_horizon: 8         # execute 8 of the 16-step chunk, then re-infer (closed loop)
 gripper_binarize: true
