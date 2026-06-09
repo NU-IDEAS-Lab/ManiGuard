@@ -360,10 +360,20 @@ def _build_active_objects_for_ltl(env, ltl_safety, surface_name):
             o for o in objs
             if o not in matched and fnmatch.fnmatch(getattr(o, "name", ""), pat)
         ]
-        if not matched and ".n." in prefix and surface_obj is not None:
-            print(f"  [LTL] pattern {pat!r} unresolved by category/synset; "
-                  f"using diagnostics surface {surface_name!r}")
-            matched = [surface_obj]
+        if not matched and ".n." in prefix:
+            # Synset pattern (e.g. lid.n.02_*) whose object is spawned under a
+            # ROLE name (lid_cap_ep1_1, category 'cap') rather than the synset
+            # category — match the synset lemma as a role-name prefix before
+            # falling back to the support surface.
+            role_matched = [
+                o for o in objs if getattr(o, "name", "").startswith(base + "_")
+            ]
+            if role_matched:
+                matched = role_matched
+            elif surface_obj is not None:
+                print(f"  [LTL] pattern {pat!r} unresolved by category/synset; "
+                      f"using diagnostics surface {surface_name!r}")
+                matched = [surface_obj]
         for i, obj in enumerate(matched):
             active[f"{prefix}_{i}"] = obj
     return active
