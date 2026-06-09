@@ -192,7 +192,7 @@ def _build_configs() -> list[TrainConfig]:
                 action_horizon=16,
                 paligemma_variant="gemma_2b_lora",
                 action_expert_variant="gemma_300m_lora",
-                dtype="float32",
+                dtype="bfloat16",
             ),
             data=Sim2CamLiberoDataConfig(
                 repo_id="IDEAS-Lab-Northwestern/sim-cabinet-pickup-30-joint-3cam",
@@ -206,16 +206,16 @@ def _build_configs() -> list[TrainConfig]:
             # (base 2.5e-5 @ batch 8): peak_lr = 2.5e-5 * sqrt(12/8) ~= 3e-5;
             # decay_lr = peak/10; warmup ~10%.
             lr_schedule=_optimizer.CosineDecaySchedule(
-                warmup_steps=400,  # ~10% of 4000
-                peak_lr=3e-5,  # 2.5e-5 * sqrt(12/8)
-                decay_steps=4_000,  # == num_train_steps
-                decay_lr=3e-6,  # peak/10
+                warmup_steps=200,  # ~10% of 2000
+                peak_lr=4.3e-5,  # 2.5e-5 * sqrt(24/8)
+                decay_steps=2_000,  # == num_train_steps
+                decay_lr=4.3e-6,  # peak/10
             ),
-            num_train_steps=4_000,  # ~2 epochs @ batch 12 (22,684 frames, rounded up)
-            batch_size=12,
-            num_workers=8,  # CPU dataloader prefetch workers
-            log_interval=25,  # loss logging cadence
-            fsdp_devices=4,  # shard across 4 GPUs (see dusty-transfer config note)
+            num_train_steps=2_000,  # ~2 epochs @ batch 24 (22,684 frames)
+            batch_size=24,
+            num_workers=12,  # CPU dataloader prefetch workers (pyav decode is CPU-bound)
+            log_interval=5,  # loss logging cadence
+            fsdp_devices=1,  # single GPU: full data-parallel, no sharding
             keep_period=1_000,  # matches the 1000-step save cadence -> ckpts at 1000/2000/3000/4000
             freeze_filter=pi0_config.Pi0Config(
                 pi05=True,
