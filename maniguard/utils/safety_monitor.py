@@ -89,6 +89,32 @@ _STATE_CONFIGURABLE_PARAMS: Dict[Any, list] = {
 }
 
 
+def _is_open_via_joints(obj, frac: float = 0.05) -> bool:
+    """Open-check computed straight from joint angles.
+
+    Used as a fallback for objects that have no ``openable`` ability
+    (``hinged_jar`` ships with ``abilities={}``), so OmniGibson never
+    attaches an ``Open`` state and ``obj.states[Open]`` raises ``KeyError``.
+
+    Mirrors ``open_state``'s default convention (no metadata): a joint is
+    "open" once it moves past ``frac`` of its range away from the lower
+    (closed) limit, and the object is open if *any* joint is open. Joint
+    positions are read per-joint via ``joint.get_state()[0]`` exactly as
+    OmniGibson's ``Open._get_value`` does, to avoid any DOF-ordering skew.
+    """
+    for joint in obj.joints.values():
+        lo, hi = float(joint.lower_limit), float(joint.upper_limit)
+        if hi <= lo:  # continuous / unlimited joint -> open/closed undefined
+            continue
+        try:
+            pos = float(joint.get_state()[0])
+        except Exception:
+            continue
+        if pos > (1.0 - frac) * lo + frac * hi:  # closed=lo, open=hi
+            return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 #  ObjectResolver
 # ---------------------------------------------------------------------------
@@ -195,25 +221,35 @@ class SafetyPropositionEvaluator:
         subjects = self._resolver.resolve_patterns(prop_def.get("over", []))
         check = prop_def.get("check", "any")
         params = prop_def.get("params", {})
+        negated = bool(prop_def.get("negated", False))
 
         print(
             f"[LTL] unary {state_cls.__name__} over "
             f"{prop_def.get('over', [])} -> {len(subjects)} subject(s): "
-            f"{sorted(subjects.keys())}",
+            f"{sorted(subjects.keys())}{' (negated)' if negated else ''}",
             flush=True,
         )
 
         # Apply configurable params from JSON onto each object's state instance.
         self._apply_state_params(subjects, state_cls, params)
 
-        def eval_fn(_subj=subjects, _cls=state_cls, _chk=check):
+        def eval_fn(_subj=subjects, _cls=state_cls, _chk=check, _neg=negated):
             results = []
             for name, obj in _subj.items():
                 try:
-                    results.append(bool(obj.states[_cls].get_value()))
+                    val = bool(obj.states[_cls].get_value())
                 except Exception as exc:
-                    log.warning("unary %s check failed for %s: %s", _cls.__name__, name, exc)
-                    results.append(False)
+                    if _cls is Open:
+                        # Object has no `openable` ability (e.g. hinged_jar with
+                        # abilities={}) so its Open state is never attached —
+                        # read the hinge angle directly instead of failing.
+                        val = _is_open_via_joints(obj)
+                    else:
+                        log.warning("unary %s check failed for %s: %s", _cls.__name__, name, exc)
+                        val = False
+                if _neg:
+                    val = not val
+                results.append(val)
             if not results:
                 return False if _chk == "any" else True
             return any(results) if _chk == "any" else all(results)

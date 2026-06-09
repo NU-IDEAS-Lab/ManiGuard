@@ -1445,6 +1445,10 @@ def generate_jar_transport_ltl_safety_json(
             "state": "ontop",
             "relative_to": [f"{support_synset}_*"],
         },
+        # jar_closed = NOT(open). The safety evaluator honours `negated` and,
+        # because hinged_jar ships with abilities={} (no `openable` ability, so
+        # OmniGibson never attaches the Open state), falls back to the raw hinge
+        # angle. See maniguard.utils.safety_monitor._is_open_via_joints.
         "jar_closed": {
             "check": "all",
             "over": jar_patterns,
