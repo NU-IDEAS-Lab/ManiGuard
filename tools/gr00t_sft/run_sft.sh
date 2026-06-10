@@ -56,6 +56,9 @@ done
 
 [ -n "$DATASET" ] || { echo "Missing --dataset" >&2; exit 1; }
 [ -n "$OUTPUT" ]  || { echo "Missing --output" >&2; exit 1; }
+# Absolutize before we cd into GR00T_HOME, else relative paths resolve there.
+DATASET="$(realpath -m "$DATASET")"
+OUTPUT="$(realpath -m "$OUTPUT")"
 [ -f "$DATASET/meta/modality.json" ] || {
     echo "ERROR: $DATASET/meta/modality.json missing — run prepare_dataset.py first." >&2
     exit 1
