@@ -26,15 +26,15 @@ MANIGUARD_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GR00T_HOME="${GR00T_HOME:-$HOME/projects/Isaac-GR00T}"
 MODALITY_CONFIG="$MANIGUARD_HOME/maniguard/gr00t_sft/maniguard_embodiment.py"
 BASE_MODEL="${BASE_MODEL:-nvidia/GR00T-N1.6-3B}"
-WANDB_PROJECT="${WANDB_PROJECT:-maniguard-gr00t-sft}"
+WANDB_PROJECT="${WANDB_PROJECT:-gr00t-n16-base-joint-3cam}"
 
 DATASET=""
 OUTPUT=""
 STEPS=3000
-BATCH=32
+BATCH=64
 SAVE_STEPS=1000
 SAVE_LIMIT=3
-WORKERS=8
+WORKERS=16
 EXP_NAME=""
 EXTRA=()
 
@@ -72,6 +72,9 @@ export GLOBAL_BATCH_SIZE="$BATCH"
 export SAVE_STEPS="$SAVE_STEPS"
 export DATALOADER_NUM_WORKERS="$WORKERS"
 export USE_WANDB="${USE_WANDB:-1}"
+# wandb live (online) streaming drops history on this HPC node; record offline and
+# sync after the run (see the wandb sync block below) for reliable loss curves.
+export WANDB_MODE="${WANDB_MODE:-offline}"
 
 echo "[run_sft] family=$EXP_NAME steps=$STEPS batch=$BATCH save_steps=$SAVE_STEPS save_limit=$SAVE_LIMIT"
 echo "[run_sft] dataset=$DATASET"
@@ -86,7 +89,7 @@ if [ "${#EXTRA[@]}" -gt 0 ]; then
 fi
 
 cd "$GR00T_HOME"
-exec bash examples/finetune.sh \
+bash examples/finetune.sh \
     --base-model-path "$BASE_MODEL" \
     --dataset-path "$DATASET" \
     --embodiment-tag NEW_EMBODIMENT \
@@ -95,3 +98,14 @@ exec bash examples/finetune.sh \
     --experiment-name "$EXP_NAME" \
     --wandb-project "$WANDB_PROJECT" \
     -- "${PASSTHRU[@]}"
+rc=$?
+
+# Upload the offline-recorded wandb run (full history) now that training finished.
+if [ "$rc" = "0" ] && [ "${USE_WANDB:-1}" = "1" ] && [ "${WANDB_MODE:-}" = "offline" ]; then
+    latest=$(ls -dt "$GR00T_HOME"/wandb/offline-run-* 2>/dev/null | head -1)
+    if [ -n "$latest" ]; then
+        echo "[run_sft] syncing wandb offline run: $latest"
+        wandb sync "$latest" || echo "[run_sft] wandb sync failed (training itself completed OK)"
+    fi
+fi
+exit "$rc"

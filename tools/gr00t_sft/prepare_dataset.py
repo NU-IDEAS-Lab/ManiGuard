@@ -88,12 +88,16 @@ def prepare(src: Path, out: Path, crf: int, mod) -> None:
     # 2. transcode every video AV1 -> H.264.
     src_videos = src / "videos"
     mp4s = sorted(src_videos.rglob("*.mp4")) if src_videos.is_dir() else []
-    print(f"[prepare] transcoding {len(mp4s)} videos AV1->H.264 (crf={crf}) ...")
+    print(f"[prepare] processing {len(mp4s)} videos (transcode AV1->H.264, crf={crf}; copy if already H.264) ...")
     for i, src_mp4 in enumerate(mp4s, 1):
         dst_mp4 = out / src_mp4.relative_to(src)
         if dst_mp4.exists() and _video_codec(dst_mp4) == "h264":
-            continue  # idempotent: already transcoded
-        transcode_to_h264(src_mp4, dst_mp4, crf)
+            continue  # idempotent: already done
+        dst_mp4.parent.mkdir(parents=True, exist_ok=True)
+        if _video_codec(src_mp4) == "h264":
+            shutil.copy2(src_mp4, dst_mp4)  # already H.264 (e.g. clutter) — no re-encode
+        else:
+            transcode_to_h264(src_mp4, dst_mp4, crf)
         if i % 25 == 0 or i == len(mp4s):
             print(f"[prepare]   {i}/{len(mp4s)}")
 
