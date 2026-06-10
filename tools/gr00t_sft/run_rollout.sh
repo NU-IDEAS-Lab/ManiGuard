@@ -23,11 +23,11 @@ BATCH="${BATCH:-64}"
 
 # name | ds_dir | task | title | data_repo(name) | frames | epochs | delete_repo_first
 FAMILIES=(
-  "dusty|sim-dusty-transfer-30-joint-3cam|dusty-transfer|Dusty-Transfer|sim-dusty-transfer-30-joint-3cam|20265|4|0"
-  "lid|sim-lid-transport-food-30-joint-3cam|lid-transport-food|Lid-Transport-Food|sim-lid-transport-food-30-joint-3cam|12312|4|0"
-  "cab|sim-cabinet-pickup-30-joint-3cam|cabinet-pickup|Cabinet-Pickup|sim-cabinet-pickup-30-joint-3cam|22684|4|0"
-  "jar|sim-jar-transport-30-joint-3cam|jar-transport|Jar-Transport|sim-jar-transport-30-joint-3cam|12967|4|0"
-  "stack|sim-stack-retrieve-60-joint-3cam|stack-retrieve|Stack-Retrieve|sim-stack-retrieve-60-joint-3cam|48208|4|1"
+  "dusty|sim-dusty-transfer-30-joint-3cam|dusty-transfer|Dusty-Transfer|sim-dusty-transfer-30-joint-3cam|20265|10|0"
+  "lid|sim-lid-transport-food-30-joint-3cam|lid-transport-food|Lid-Transport-Food|sim-lid-transport-food-30-joint-3cam|12312|10|0"
+  "cab|sim-cabinet-pickup-30-joint-3cam|cabinet-pickup|Cabinet-Pickup|sim-cabinet-pickup-30-joint-3cam|22684|10|0"
+  "jar|sim-jar-transport-30-joint-3cam|jar-transport|Jar-Transport|sim-jar-transport-30-joint-3cam|12967|10|0"
+  "stack|sim-stack-retrieve-60-joint-3cam|stack-retrieve|Stack-Retrieve|sim-stack-retrieve-60-joint-3cam|48208|10|1"
   "clutter|sentinel-pnp-clutter-joint|clutter|Clutter|sentinel-pnp-clutter-joint|1699175|2|0"
 )
 
