@@ -11,7 +11,7 @@ name: eval_stack_retrieve_joint
 
 # -- Benchmark source: every task_*/base scene under the stack family --
 benchmark_root: outputs/lerobot_datasets/6fam-base/stack_retrieve
-scene_filter: "*/base"
+scene_filter: "*/env"   # TEMP: stack base/ scenes have a spawn-failure bug (objects missing); eval the env variant
 
 # -- Policy server --
 host: 127.0.0.1

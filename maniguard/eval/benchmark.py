@@ -666,11 +666,15 @@ def main():
         total_reward = 0.0
         goal_detail = {}
         status = "completed"
+        nan_terminated = False       # robot state went non-finite mid-rollout
+        nan_terminated_step = None
 
         # A flailing policy can drive the arm into a PhysX blowup that
         # invalidates the articulation mid-rollout (get_joint_positions ->
-        # None). Catch it so the partial video + result are still saved and
-        # the batch moves on to the next scene instead of dying.
+        # None). The NaN guard below ends such a rollout cleanly as a failure
+        # at the non-finite onset; this try/except remains a backstop for any
+        # other uncaught crash, so the partial video + result are still saved
+        # and the batch moves on to the next scene instead of dying.
         try:
             while step_idx < cfg.max_steps and not done:
                 chunk = query_policy(policy, obs, client_type, cfg)
@@ -719,6 +723,26 @@ def main():
                     step_idx += 1
                     total_reward += float(reward)
 
+                    # NaN guard: a failed/OOD rollout can drive the arm (raw
+                    # JointController, no impedance) into a degenerate pose ->
+                    # PhysX emits NaN -> the robot state goes non-finite. Left
+                    # alone, ~hundreds of steps later the GPU articulation tensor
+                    # read returns None and the rollout HARD-crashes (losing the
+                    # row). Detect the non-finite state at its onset and end the
+                    # episode cleanly as a FAILURE (success=False) -- the policy
+                    # did not succeed; the crash was only the symptom. Controller
+                    # and physics are untouched, so the eval condition is unchanged.
+                    if not np.all(np.isfinite(obs["states"])):
+                        nan_terminated = True
+                        nan_terminated_step = step_idx
+                        done = True
+                        print(
+                            f"  ROLLOUT NaN-TERMINATED at step {step_idx}: robot state "
+                            f"non-finite (OOD failure cascade); recording success=False",
+                            flush=True,
+                        )
+                        break
+
                     # Safety: advance the LTL monitor every executed step. It
                     # only records (no early-stop); a transient monitor hiccup
                     # must not abort an otherwise-fine rollout.
@@ -749,10 +773,28 @@ def main():
                 if step_idx % 50 == 0 or step_idx == 1:
                     print(f"  Step {step_idx}/{cfg.max_steps} | success={success} | goals={goal_detail}", flush=True)
         except Exception as e:  # noqa: BLE001 - want the partial video regardless of cause
-            status = "crashed"
             import traceback as _tb
-            print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
-            print(_tb.format_exc(), flush=True)
+            # The OOD-failure cascade (a flailing policy drives the arm into a
+            # PhysX NaN -> the robot's GPU articulation view is invalidated)
+            # surfaces as get_joint_positions() returning None ->
+            # "'NoneType' object has no attribute 'view'", raised inside
+            # extract_obs before the proactive finiteness guard above can see it.
+            # That is a not-success OUTCOME, not an infrastructure failure: record
+            # it as a clean failure (success stays False, counts in the
+            # denominator) instead of a "crashed" row that gets excluded.
+            if "object has no attribute 'view'" in str(e):
+                status = "completed"
+                nan_terminated = True
+                nan_terminated_step = step_idx
+                print(
+                    f"  ROLLOUT NaN-TERMINATED at step {step_idx} (articulation "
+                    f"invalidated; OOD failure cascade); recording success=False",
+                    flush=True,
+                )
+            else:
+                status = "crashed"
+                print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
+                print(_tb.format_exc(), flush=True)
 
         ltl_summary = monitor.summary() if monitor is not None else None
         result = {
@@ -763,6 +805,8 @@ def main():
             "rooms": scene_info["target_rooms"],
             "status": status,
             "steps": step_idx,
+            "nan_terminated": nan_terminated,
+            "nan_terminated_step": nan_terminated_step,
             "metrics": metrics,
             "success": success if run_success else None,
             "success_step": success_step,
@@ -819,16 +863,22 @@ def main():
         print(f"Safety (LTL): {n_violated}/{n_ltl} scenes had a violation")
     print(f"Results: {results_path}")
 
+    # Whole-run summary recomputed from results.jsonl, which accumulates across
+    # per-task batch processes -> a batch run gets a real aggregate instead of
+    # the last process's single-task stats. results.jsonl stays the per-task
+    # source of truth; summary.json no longer duplicates it.
+    _rows = [json.loads(_l) for _l in results_path.read_text(encoding="utf-8").splitlines() if _l.strip()]
+    _done = [r for r in _rows if r.get("status") == "completed"]
+    _succ = sum(1 for r in _done if r.get("success"))
     summary_path = output_dir / "summary.json"
     summary_path.write_text(json.dumps({
         "metrics": metrics,
-        "n_scenes": n_total,
-        "n_success": n_success,
-        "n_failed_load": n_failed_load,
-        "success_rate": (n_success / max(n_total, 1)) if run_success else None,
-        "n_ltl_monitored": n_ltl,
-        "n_ltl_violated": n_violated,
-        "results": all_results,
+        "n_scenes": len(_done),
+        "n_success": _succ if run_success else None,
+        "n_failed_load": sum(1 for r in _rows if r.get("status") == "load_failed"),
+        "success_rate": (_succ / max(len(_done), 1)) if run_success else None,
+        "n_ltl_monitored": sum(1 for r in _done if r.get("ltl_monitored")),
+        "n_ltl_violated": sum(1 for r in _done if r.get("ltl_violated")),
     }, indent=2, ensure_ascii=True), encoding="utf-8")
 
     sys.stdout.flush()
