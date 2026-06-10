@@ -39,6 +39,11 @@ def _init_omnigibson(cfg: EvalConfig):
     from omnigibson.macros import gm
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
+    # Liquid/particle scenes (clutter liquid_transport) need PhysX GPU dynamics
+    # to initialize their water system. MUST be set before physx init (here),
+    # gated by env so the default (CPU dynamics) is unchanged.
+    if os.environ.get("EVAL_USE_GPU_DYNAMICS"):
+        gm.USE_GPU_DYNAMICS = True
     if cfg.headless:
         gm.HEADLESS = True
 
