@@ -974,3 +974,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 
 ### Tooling: eval_family.sh — dusty taxonomy + robust parsing (2026-06-11)
 - `d22bf319` `scripts/eval_family.sh` — added the dusty_transfer classifier branch (ID = the 3 teleop'd (food,source,dest) triples, food always potato; else OOD/by-object), switched diagnostics parsing to raw_decode (dusty's are pretty-printed multi-line), and a generic skip for unusable tasks (empty prompt / scene=None; dusty has 25 broken-source tasks, only 23 usable). One script now drives clutter OR dusty by the family arg. Validated: dusty 23/23 completed, 0 crashes.
+
+### Tooling: eval_family.sh — lid taxonomy + ID_REPEAT (2026-06-12)
+- `03b65d2b` `scripts/eval_family.sh` — lid_transport classifier branch (ID = teleop'd containers, only milk_carton in 6fam-base; food+novel -> OOD/by-object_novel; liquid -> OOD/by-target_liquid). New `ID_REPEAT=N` env (repeat each ID task N times for a stable rate when ID is tiny — lid ID=1, run 20x). gpu gate widened to `"liquid" in pipe`. Validated: lid 51/51 completed, 0 crashes. Result: lid 1/51 success; Probe-C (open-loop replay) ~3% err -> fit the data, closed-loop drift / data-quantity bottleneck (same as dusty).
