@@ -59,13 +59,24 @@ LID_SFT = {"milk_carton", "pitcher"}
 # => ID; any novel content => OOD by content (a soft visual/language shift only, since
 # the motion never changes).
 JAR_SFT = {"jar_of_cumin", "can_of_bay_leaves"}
+# stack: motion = slide a target out from under/within a stack. SFT (60 eps) covered both
+# pipelines: stack_flat (generic "the flat object" prompt) + stack_same with 2 named bottom
+# objects. stack_flat -> ID/flat (trained task; object is a soft axis); stack_same target in
+# this set => ID/same; novel bottom object => OOD/by-object_novel.
+STACK_SAME_SFT = {"bowl", "bottle_of_chili_pepper"}
+# cabinet: SFT (30 eps) teleop'd ONLY target=paper_towel_holder (obstacle=can_of_bay_leaves);
+# place into the open drawer + close. Trained target => ID; any novel target => OOD by object.
+CABINET_SFT = {"paper_towel_holder"}
+# Per-family scene subdir: most families eval task_*/base, but stack's base/ scenes have a
+# spawn-failure bug (objects missing) so stack evals the re-rendered task_*/env variant.
+sub = "env" if family == "stack_retrieve" else "base"
 tasks = sorted(p.name for p in fam_root.iterdir()
-               if p.name.startswith("task_") and (p/"base"/"diagnostics.jsonl").exists())
+               if p.name.startswith("task_") and (p/sub/"diagnostics.jsonl").exists())
 plan = []
 for t in tasks:
     # diagnostics may be single-line OR pretty-printed multi-line (dusty) -> raw_decode
     r = json.JSONDecoder().raw_decode(
-        (fam_root/t/"base"/"diagnostics.jsonl").read_text().lstrip())[0]
+        (fam_root/t/sub/"diagnostics.jsonl").read_text().lstrip())[0]
     prompt = (r.get("prompt") or "").strip()
     scene = r.get("scene_model")
     if not prompt:
@@ -96,11 +107,17 @@ for t in tasks:
     elif family == "jar_transport":
         food = cat("food")
         bucket = "ID" if food in JAR_SFT else "OOD/by-content_novel"
+    elif family == "stack_retrieve":
+        if pipe == "stack_flat":              bucket = "ID/flat"
+        elif cat("target") in STACK_SAME_SFT: bucket = "ID/same"
+        else:                                 bucket = "OOD/by-object_novel"
+    elif family == "cabinet_pickup":
+        bucket = "ID" if cat("target") in CABINET_SFT else "OOD/by-object_novel"
     else:
         # TODO: specialize this family's ID/OOD taxonomy. Until then, everything -> ID.
         sys.stderr.write(f"WARNING: taxonomy not specialized for '{family}'; all -> ID\n")
         bucket = "ID"
-    plan.append((f"{t}/base", bucket, gpu))
+    plan.append((f"{t}/{sub}", bucket, gpu))
 for key, bucket, gpu in sorted(plan, key=lambda x: x[2]):   # gpu=0 first
     print(f"{key}\t{bucket}\t{gpu}")
 PYEOF
