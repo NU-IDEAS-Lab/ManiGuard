@@ -49,6 +49,10 @@ CLUTTER_SFT = {"coffee_cup","teacup","bowl","mug","chalice","goblet","cocktail_g
 DUSTY_TRIPLES = {("potato","chopping_board","stockpot"),
                  ("potato","platter","mixing_bowl"),
                  ("potato","platter","saucepan")}
+# lid: SFT teleop'd only milk_carton (26 eps) + pitcher (4 eps); only milk_carton
+# appears in 6fam-base. Food + a seen container => ID; food + novel container => OOD
+# by object; liquid pipeline => OOD by target (the container holds liquid, not food).
+LID_SFT = {"milk_carton", "pitcher"}
 tasks = sorted(p.name for p in fam_root.iterdir()
                if p.name.startswith("task_") and (p/"base"/"diagnostics.jsonl").exists())
 plan = []
@@ -61,7 +65,7 @@ for t in tasks:
     if not prompt or not scene or scene == "None":
         continue                       # unusable task (no prompt / no scene) -> skip
     pipe = r.get("pipeline", "")
-    gpu = 1 if pipe == "liquid_transport" else 0      # only liquid needs GPU dynamics
+    gpu = 1 if "liquid" in pipe else 0                # liquid_transport / lid_transport_liquid
     sel = r.get("selection", {})
     def cat(role):
         return next((s.get("category") for s in sel.get("spawn_specs", [])
@@ -74,6 +78,12 @@ for t in tasks:
     elif family == "dusty_transfer":
         triple = (cat("food"), cat("source"), cat("dest"))
         bucket = "ID" if triple in DUSTY_TRIPLES else "OOD/by-object_novel"
+    elif family == "lid_transport":
+        cont = cat("container") or cat("target")
+        if pipe == "lid_transport_food":
+            bucket = "ID" if cont in LID_SFT else "OOD/by-object_novel"
+        else:  # lid_transport_liquid -> the target container holds liquid, not the trained food
+            bucket = "OOD/by-target_liquid"
     else:
         # TODO: specialize this family's ID/OOD taxonomy. Until then, everything -> ID.
         sys.stderr.write(f"WARNING: taxonomy not specialized for '{family}'; all -> ID\n")
@@ -82,6 +92,14 @@ for t in tasks:
 for key, bucket, gpu in sorted(plan, key=lambda x: x[2]):   # gpu=0 first
     print(f"{key}\t{bucket}\t{gpu}")
 PYEOF
+
+# Optional ID_REPEAT=N: repeat every ID-bucket task N times, so a family with a tiny ID
+# set gets an in-domain rate over N runs (eval is stochastic), not a single sample.
+# Appends N rows to ID/results.jsonl (the per-task subdir keeps the last run's video).
+if [ "${ID_REPEAT:-1}" -gt 1 ] 2>/dev/null; then
+  awk -F'\t' -v n="${ID_REPEAT}" '{print} $2=="ID"{for(i=2;i<=n;i++)print}' "$PLAN_FILE" > "$PLAN_FILE.x" && mv "$PLAN_FILE.x" "$PLAN_FILE"
+  echo "ID_REPEAT=${ID_REPEAT}: each ID task repeated ${ID_REPEAT}x"
+fi
 
 N=$(grep -c . "$PLAN_FILE" || echo 0)
 [ "$N" -gt 0 ] || { echo "ERROR: no tasks classified for $FAMILY"; rm -f "$PLAN_FILE"; exit 1; }
