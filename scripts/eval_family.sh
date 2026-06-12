@@ -44,20 +44,36 @@ family, fam_root = sys.argv[1], pathlib.Path(sys.argv[2])
 # => novel-object OOD; in this set + liquid scene => OOD by scene; dry => in-domain.
 CLUTTER_SFT = {"coffee_cup","teacup","bowl","mug","chalice","goblet","cocktail_glass",
                "beaker","gravy_boat","water_glass","beer_glass","decanter"}
+# dusty: the 3 teleop'd (food, source, dest) triples (food is always potato). Any other
+# usable task => OOD by object (novel source/dest container, or a new combo of seen ones).
+DUSTY_TRIPLES = {("potato","chopping_board","stockpot"),
+                 ("potato","platter","mixing_bowl"),
+                 ("potato","platter","saucepan")}
 tasks = sorted(p.name for p in fam_root.iterdir()
                if p.name.startswith("task_") and (p/"base"/"diagnostics.jsonl").exists())
 plan = []
 for t in tasks:
-    r = json.loads((fam_root/t/"base"/"diagnostics.jsonl").read_text().splitlines()[0])
+    # diagnostics may be single-line OR pretty-printed multi-line (dusty) -> raw_decode
+    r = json.JSONDecoder().raw_decode(
+        (fam_root/t/"base"/"diagnostics.jsonl").read_text().lstrip())[0]
+    prompt = (r.get("prompt") or "").strip()
+    scene = r.get("scene_model")
+    if not prompt or not scene or scene == "None":
+        continue                       # unusable task (no prompt / no scene) -> skip
     pipe = r.get("pipeline", "")
     gpu = 1 if pipe == "liquid_transport" else 0      # only liquid needs GPU dynamics
+    sel = r.get("selection", {})
+    def cat(role):
+        return next((s.get("category") for s in sel.get("spawn_specs", [])
+                     if s.get("role") == role), "")
     if family == "clutter_pickup":
-        sel = r.get("selection", {})
-        cat = next((s.get("category") for s in sel.get("spawn_specs", [])
-                    if s.get("role") == "target"), "")
+        c = cat("target")
         if pipe == "table":          bucket = "ID"
-        elif cat in CLUTTER_SFT:     bucket = "OOD/by-scene_liquid-filled"
+        elif c in CLUTTER_SFT:       bucket = "OOD/by-scene_liquid-filled"
         else:                        bucket = "OOD/by-object_novel"
+    elif family == "dusty_transfer":
+        triple = (cat("food"), cat("source"), cat("dest"))
+        bucket = "ID" if triple in DUSTY_TRIPLES else "OOD/by-object_novel"
     else:
         # TODO: specialize this family's ID/OOD taxonomy. Until then, everything -> ID.
         sys.stderr.write(f"WARNING: taxonomy not specialized for '{family}'; all -> ID\n")
