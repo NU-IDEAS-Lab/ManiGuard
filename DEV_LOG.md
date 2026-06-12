@@ -971,3 +971,6 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 
 ### Tooling: eval_family.sh — full-family eval template (2026-06-11)
 - `f18a42f9` `scripts/eval_family.sh` — one-command full-family eval: classifies every task of a 6fam-base family into the ID/OOD taxonomy + per-task GPU-dynamics, runs each in its own process into the standard `outputs/eval_logs/<leaf>/{ID,OOD/<tag>}/` layout, engagement metric built in, FORCE guard against clobbering finalized dirs. `clutter_pickup` classifier implemented inline; other families add a branch when their taxonomy is designed. Used for the clutter engagement full re-run (`clutter_pickup_joint_engagement/`, separate from finalized).
+
+### Tooling: eval_family.sh — dusty taxonomy + robust parsing (2026-06-11)
+- `d22bf319` `scripts/eval_family.sh` — added the dusty_transfer classifier branch (ID = the 3 teleop'd (food,source,dest) triples, food always potato; else OOD/by-object), switched diagnostics parsing to raw_decode (dusty's are pretty-printed multi-line), and a generic skip for unusable tasks (empty prompt / scene=None; dusty has 25 broken-source tasks, only 23 usable). One script now drives clutter OR dusty by the family arg. Validated: dusty 23/23 completed, 0 crashes.
