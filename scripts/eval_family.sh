@@ -53,6 +53,12 @@ DUSTY_TRIPLES = {("potato","chopping_board","stockpot"),
 # appears in 6fam-base. Food + a seen container => ID; food + novel container => OOD
 # by object; liquid pipeline => OOD by target (the container holds liquid, not food).
 LID_SFT = {"milk_carton", "pitcher"}
+# jar: the manipulated object is ALWAYS hinged_jar and the motion is identical across
+# every task (close lid -> carry to goal); only the food content INSIDE the jar varies
+# (named in the prompt, partly visible). SFT teleop'd 2 contents. Content in this set
+# => ID; any novel content => OOD by content (a soft visual/language shift only, since
+# the motion never changes).
+JAR_SFT = {"jar_of_cumin", "can_of_bay_leaves"}
 tasks = sorted(p.name for p in fam_root.iterdir()
                if p.name.startswith("task_") and (p/"base"/"diagnostics.jsonl").exists())
 plan = []
@@ -62,8 +68,11 @@ for t in tasks:
         (fam_root/t/"base"/"diagnostics.jsonl").read_text().lstrip())[0]
     prompt = (r.get("prompt") or "").strip()
     scene = r.get("scene_model")
-    if not prompt or not scene or scene == "None":
-        continue                       # unusable task (no prompt / no scene) -> skip
+    if not prompt:
+        continue                       # genuinely unusable (no prompt) -> skip. scene_model
+                                       # may legitimately be None for empty-table families
+                                       # (jar): benchmark.py loads those via the empty-Scene
+                                       # path (build_og_config) from the task's saved scene_file.
     pipe = r.get("pipeline", "")
     gpu = 1 if "liquid" in pipe else 0                # liquid_transport / lid_transport_liquid
     sel = r.get("selection", {})
@@ -84,6 +93,9 @@ for t in tasks:
             bucket = "ID" if cont in LID_SFT else "OOD/by-object_novel"
         else:  # lid_transport_liquid -> the target container holds liquid, not the trained food
             bucket = "OOD/by-target_liquid"
+    elif family == "jar_transport":
+        food = cat("food")
+        bucket = "ID" if food in JAR_SFT else "OOD/by-content_novel"
     else:
         # TODO: specialize this family's ID/OOD taxonomy. Until then, everything -> ID.
         sys.stderr.write(f"WARNING: taxonomy not specialized for '{family}'; all -> ID\n")
