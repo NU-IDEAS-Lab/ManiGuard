@@ -10,6 +10,8 @@ replay_empty); it does NOT import the legacy perturbation generator
 Canonical design spec: the Obsidian doc "ManiGuard 6fam_dataset_rebuild_design".
 """
 
-from maniguard.data.bench_builder.render import render_task
+from maniguard.data.bench_builder.finalize_base import finalize_base_task
+from maniguard.data.bench_builder.render import render_task, render_views
+from maniguard.data.bench_builder.validate_base import validate_base_task
 
-__all__ = ["render_task"]
+__all__ = ["render_task", "render_views", "finalize_base_task", "validate_base_task"]

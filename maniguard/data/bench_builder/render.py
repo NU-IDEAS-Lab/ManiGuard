@@ -1,10 +1,14 @@
 """Shared render step for the ManiGuard-Bench builder.
 
-Loads a finalized task's `scene_ep*.json` into OmniGibson (the snapshot already holds
-FrankaPanda+longfinger + the task objects), positions the 4 canonical robot-frame
-external cameras via the shared ``camera_setup``, RE-STAMPS ``diagnostics['cameras']``
-with the live-computed poses, idles the sim, and writes the 4 review MP4s
-(opposite_side_front / left_overview / right_overview / left_shoulder).
+``render_views`` is the SINGLE shared render entry point: given a live env (robot already
+at the canonical pose), it positions the 4 canonical robot-frame external cameras via the
+shared ``camera_setup``, RE-STAMPS ``diagnostics['cameras']`` with the live-computed poses,
+records the 4 review MP4s (opposite_side_front / left_overview / right_overview /
+left_shoulder), and returns stability stats. Recording is **idle-step**: each frame advances
+physics (``og.sim.step()``) while the arm is held at the init pose by the stiff Isaac drive,
+so the clip shows whether the scene is physically stable after init (objects settle, nothing
+falls). ``render_task`` is a thin wrapper that loads a snapshot, sets the canonical pose, and
+calls ``render_views``.
 
 This is the single place every base + perturbation task gets its videos + valid camera
 metadata, so the viewpoints are identical end-to-end (task-def -> collection -> SFT -> eval).
@@ -16,7 +20,7 @@ import json
 from pathlib import Path
 
 DEFAULT_FPS = 30
-DEFAULT_N_FRAMES = 60        # 60 frames @ 30 fps = a ~2 s static scene-showcase clip
+DEFAULT_N_FRAMES = 60        # 60 frames @ 30 fps = a ~2 s idle-step stability clip
 DEFAULT_RESOLUTION = 256
 
 
@@ -59,8 +63,21 @@ def _build_og_config(scene_file: Path, diagnostics: dict, resolution: int) -> di
     }
 
 
-def render_task(
-    scene_file,
+def _object_positions(env, robot):
+    """World-XYZ of every non-robot scene object, keyed by name (for obj-displacement stats)."""
+    import numpy as np
+
+    out = {}
+    for obj in env.scene.objects:
+        if obj is robot:
+            continue
+        p, _ = obj.get_position_orientation()
+        out[obj.name] = np.asarray(p.cpu().numpy() if hasattr(p, "cpu") else p, dtype=np.float32)
+    return out
+
+
+def render_views(
+    env,
     diagnostics: dict,
     out_dir,
     *,
@@ -68,52 +85,43 @@ def render_task(
     n_frames: int = DEFAULT_N_FRAMES,
     fps: int = DEFAULT_FPS,
     resolution: int = DEFAULT_RESOLUTION,
-) -> dict:
-    """Render a task's 4 canonical review videos + return diagnostics with refreshed cameras.
+    mode: str = "idle_step",
+) -> tuple[dict, dict]:
+    """Render the 4 canonical review videos from a LIVE env + return (diagnostics, stats).
 
-    The robot is put at the canonical natural init pose and the scene is rendered STATICALLY
-    (no physics step) — a short scene-showcase clip, not a rollout.
+    The caller is responsible for putting the env in its final state first (robot at the
+    canonical pose, mount enforced, snapshot saved). This function only places the cameras,
+    records, and reports stability — it is the single shared render entry point reused by
+    ``render_task`` and the bench finalizer for base + every perturbation level.
 
     Args:
-        scene_file: path to the task's ``scene_ep{episode}.json`` snapshot.
-        diagnostics: the task's diagnostics dict (read for ``scene_model``; its
-            ``cameras`` field is REPLACED with the live-computed poses).
+        env: a live ``og.Environment`` (already reset + robot posed).
+        diagnostics: task diagnostics; a COPY is returned with ``cameras`` REPLACED by the
+            live-computed 4-view poses. All other fields are left untouched.
         out_dir: directory to write ``rollout_<label>_ep{episode}.mp4`` into.
-        episode: 1-indexed episode number (matches scene_ep{episode}.json / _ep{episode}.mp4).
-        n_frames: number of (identical, static) frames to write (60 @ 30fps = ~2 s).
+        n_frames: frames to record (60 @ 30fps ≈ 2 s).
+        mode: ``"idle_step"`` advances physics each frame (``og.sim.step()``) while the arm is
+            held at its set pose by the stiff Isaac position drive — so the clip shows physical
+            stability. ``"frozen"`` only re-renders (no physics) — a static showcase.
 
-    Returns the updated diagnostics dict (caller persists it). MP4s are written to out_dir.
+    Returns ``(diagnostics, stats)`` where ``stats`` = ``{"arm_drift", "obj_disp"}``: the max
+    joint drift and the max non-robot object displacement over the clip (for the finalizer's
+    hold + stability self-check).
     """
     import av
     import numpy as np
     import omnigibson as og
-    import torch as th
 
     from maniguard.utils.camera_setup import compute_robot_frame_views
-    from maniguard.utils.robot_pose import BENCH_INIT_QPOS
     from maniguard.task_generation.utils.video import (
         close_video_writer,
         init_video_writer,
         setup_cameras,
     )
 
-    scene_file = Path(scene_file)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    # --- load the snapshot into a fresh env ---
-    og_cfg = _build_og_config(scene_file, diagnostics, resolution)
-    if og.sim is not None:
-        og.sim.stop()
-        og.clear()
-    env = og.Environment(configs=og_cfg)
-    env.reset()
-
-    # --- canonical natural init pose (folded "ready"; wrist cam looks down at the pack).
-    #     Static showcase => no physics step below, so the arm stays exactly here. ---
     robot = env.robots[0]
-    robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
-    robot.keep_still()
 
     # --- place the 4 canonical robot-frame cameras; setup_cameras applies AND returns
     #     the posed specs (eye/orientation/sensor_name) we stamp into diagnostics ---
@@ -131,9 +139,12 @@ def render_task(
         for v in posed
     ]
 
+    # --- baseline for the stability/hold stats (frame-0 joint + object state) ---
+    q0 = robot.get_joint_positions().cpu().numpy()
+    obj0 = _object_positions(env, robot)
+
     # --- probe one frame to size the writers from the ACTUAL rgb (sensor-kwarg resolution
-    #     is unreliable in OmniGibson; sizing from the real frame avoids a swscale mismatch).
-    #     No physics step: arm + scene stay frozen at the init pose (static showcase). ---
+    #     is unreliable in OmniGibson; sizing from the real frame avoids a swscale mismatch). ---
     og.sim.render()
     raw_obs, _ = env.get_obs()
     external = raw_obs.get("external", {})
@@ -148,9 +159,14 @@ def render_task(
         )
         writers.append((wr, v["sensor_name"]))
 
-    # --- static render loop (frozen scene, no physics step) ---
+    # --- record loop. idle_step: og.sim.step() advances physics while the arm is held at its
+    #     set pose by the Isaac drive (NOT env.step(zero_action) — for an absolute JointController
+    #     a zero action commands all joints to 0 and flings the arm). frozen: render only. ---
     for _ in range(n_frames):
-        og.sim.render()
+        if mode == "idle_step":
+            og.sim.step()
+        else:
+            og.sim.render()
         raw_obs, _ = env.get_obs()
         external = raw_obs.get("external", {})
         for wr, sensor_name in writers:
@@ -165,4 +181,56 @@ def render_task(
     for wr, _sensor_name in writers:
         close_video_writer(wr)
 
+    # --- stability/hold stats: max joint drift + max non-robot object displacement ---
+    q1 = robot.get_joint_positions().cpu().numpy()
+    arm_drift = float(np.abs(q1 - q0).max()) if len(q0) else 0.0
+    obj1 = _object_positions(env, robot)
+    obj_disp = 0.0
+    for name, p0 in obj0.items():
+        p1 = obj1.get(name)
+        if p1 is not None:
+            obj_disp = max(obj_disp, float(np.linalg.norm(p1 - p0)))
+    return diagnostics, {"arm_drift": arm_drift, "obj_disp": obj_disp}
+
+
+def render_task(
+    scene_file,
+    diagnostics: dict,
+    out_dir,
+    *,
+    episode: int = 1,
+    n_frames: int = DEFAULT_N_FRAMES,
+    fps: int = DEFAULT_FPS,
+    resolution: int = DEFAULT_RESOLUTION,
+    mode: str = "idle_step",
+) -> dict:
+    """Load a snapshot, set the canonical init pose, and render its 4 review videos.
+
+    Thin wrapper around ``render_views`` for ad-hoc rendering of an existing snapshot (it does
+    NOT enforce the mount — that is the finalizer's job). Returns the updated diagnostics dict
+    (with refreshed ``cameras``); MP4s are written to ``out_dir``.
+    """
+    import omnigibson as og
+    import torch as th
+
+    from maniguard.utils.robot_pose import BENCH_INIT_QPOS
+
+    scene_file = Path(scene_file)
+    out_dir = Path(out_dir)
+
+    og_cfg = _build_og_config(scene_file, diagnostics, resolution)
+    if og.sim is not None:
+        og.sim.stop()
+        og.clear()
+    env = og.Environment(configs=og_cfg)
+    env.reset()
+
+    robot = env.robots[0]
+    robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
+    robot.keep_still()
+
+    diagnostics, _stats = render_views(
+        env, diagnostics, out_dir,
+        episode=episode, n_frames=n_frames, fps=fps, resolution=resolution, mode=mode,
+    )
     return diagnostics
