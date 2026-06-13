@@ -29,10 +29,16 @@ N_FRAMES = 60
 NO_GOAL_MARKER_FAMILIES = {"dusty_transfer"}
 # Per-family diagnostics fields that finalize must preserve (besides the universal ones).
 FAMILY_DIAG_FIELDS = {
+    "jar_transport": ["jar_info", "item_info"],
+    "cabinet_pickup": ["cabinet_info"],
     "stack_retrieve": ["stack_mode"],
-    "jar_transport": ["jar_info"],
+    "dusty_transfer": ["dust_system"],
+    "clutter_pickup": ["clutter_info"],   # derived in finalize
+    "lid_transport": ["lid_info"],        # derived in finalize
 }
-UNIVERSAL_DIAG_FIELDS = ["surface", "prompt", "selection", "ltl_safety", "cameras", "goal_region"]
+# Owned-schema fields the finalizer always writes (task-def carried + fresh in-sim).
+UNIVERSAL_DIAG_FIELDS = ["surface", "prompt", "selection", "ltl_safety", "cameras", "goal_region",
+                         "surface_info", "gate_pass", "ltl_violated", "steps_executed", "bench"]
 
 
 def _load_diag(base_dir: Path) -> dict:
@@ -201,13 +207,19 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     if not checks["object_count"]:
         warnings.append(f"non-robot objs {len(non_robot)} != expected {expected_non_robot} (surface+{n_task}+marker)")
     reg = header.get("state", {}).get("registry", {}).get("object_registry", {})
+    # The support surface and the goal marker are NOT manipulands: a surface's origin can sit
+    # well below its own top plane (a tall bar's centre is ~0.6 m under its top), so exclude
+    # them from the "fallen task object" check — only real task objects must stay on the surface.
+    structural = {c for c in (surface, gr_support, diag.get("goal_region", {}).get("marker_name"))
+                  if c and c in init}
     if support_top is not None:
         fallen = [n for n in non_robot
-                  if reg.get(n, {}).get("root_link", {}).get("pos")
+                  if n not in structural
+                  and reg.get(n, {}).get("root_link", {}).get("pos")
                   and float(reg[n]["root_link"]["pos"][2]) < support_top - 0.3]
         checks["no_fallen"] = not fallen
         if fallen:
-            fails.append(f"objects fallen below surface: {fallen}")
+            fails.append(f"task objects fallen below surface: {fallen}")
     else:
         checks["no_fallen"] = True
 
@@ -261,6 +273,14 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     checks["diag_fields"] = not missing_fields
     if missing_fields:
         fails.append(f"diagnostics missing fields: {missing_fields}")
+
+    # 11. fresh bench in-sim verdicts: spawn-gate passed + init scene not already LTL-violating
+    checks["gate_pass"] = bool(diag.get("gate_pass"))
+    if not checks["gate_pass"]:
+        fails.append(f"gate_pass=False ({(diag.get('bench') or {}).get('gate')})")
+    checks["ltl_not_violated"] = not bool(diag.get("ltl_violated"))
+    if not checks["ltl_not_violated"]:
+        fails.append("ltl_violated=True (init scene violates LTL over the idle-step)")
 
     status = "fail" if fails else ("warn" if warnings else "ok")
     return {

@@ -86,6 +86,7 @@ def render_views(
     fps: int = DEFAULT_FPS,
     resolution: int = DEFAULT_RESOLUTION,
     mode: str = "idle_step",
+    ltl_monitor=None,
 ) -> tuple[dict, dict]:
     """Render the 4 canonical review videos from a LIVE env + return (diagnostics, stats).
 
@@ -103,10 +104,14 @@ def render_views(
         mode: ``"idle_step"`` advances physics each frame (``og.sim.step()``) while the arm is
             held at its set pose by the stiff Isaac position drive — so the clip shows physical
             stability. ``"frozen"`` only re-renders (no physics) — a static showcase.
+        ltl_monitor: optional already-``reset()``+``step(0)``'d ``TaskLTLMonitor``. When given,
+            it is stepped once per recorded frame so the bench can read its OWN fresh
+            ``ltl_violated`` over the same idle-step the video shows (the analog of the
+            generation-time jitter rollout). The caller reads the monitor afterwards.
 
-    Returns ``(diagnostics, stats)`` where ``stats`` = ``{"arm_drift", "obj_disp"}``: the max
-    joint drift and the max non-robot object displacement over the clip (for the finalizer's
-    hold + stability self-check).
+    Returns ``(diagnostics, stats)`` where ``stats`` = ``{"arm_drift", "obj_disp",
+    "steps_executed"}``: the max joint drift, the max non-robot object displacement, and the
+    number of in-sim steps recorded (for the finalizer's fresh stability/LTL self-check).
     """
     import av
     import numpy as np
@@ -162,7 +167,7 @@ def render_views(
     # --- record loop. idle_step: og.sim.step() advances physics while the arm is held at its
     #     set pose by the Isaac drive (NOT env.step(zero_action) — for an absolute JointController
     #     a zero action commands all joints to 0 and flings the arm). frozen: render only. ---
-    for _ in range(n_frames):
+    for i in range(n_frames):
         if mode == "idle_step":
             og.sim.step()
         else:
@@ -177,6 +182,9 @@ def render_views(
             vframe = av.VideoFrame.from_ndarray(frame, format="rgb24")
             for packet in wr["stream"].encode(vframe):
                 wr["container"].mux(packet)
+        # step the LTL monitor over the SAME idle-step the video shows (caller reads it after)
+        if ltl_monitor is not None:
+            ltl_monitor.step(i + 1)
 
     for wr, _sensor_name in writers:
         close_video_writer(wr)
@@ -190,7 +198,7 @@ def render_views(
         p1 = obj1.get(name)
         if p1 is not None:
             obj_disp = max(obj_disp, float(np.linalg.norm(p1 - p0)))
-    return diagnostics, {"arm_drift": arm_drift, "obj_disp": obj_disp}
+    return diagnostics, {"arm_drift": arm_drift, "obj_disp": obj_disp, "steps_executed": int(n_frames)}
 
 
 def render_task(
