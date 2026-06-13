@@ -17,8 +17,24 @@ from typing import Iterable, Sequence
 
 
 CAMERA_RESOLUTION = 256
-EXTERNAL_CAMERA_NAMES = ("cam_opposite", "cam_left", "cam_right")
+EXTERNAL_CAMERA_NAMES = ("cam_opposite", "cam_left", "cam_right", "cam_left_shoulder")
 POLICY_EXTERNAL_CAMERAS_DEFAULT = ("cam_opposite",)
+
+
+def left_shoulder_eye(opp_eye, left_eye) -> tuple:
+    """Canonical left-shoulder camera eye, computed identically in both camera modes.
+
+    A blend of the opposite + left camera eyes (0.55*left + 0.45*opposite in XY), kept
+    at the left camera's height. Centralizing just the eye math (not the whole view dict)
+    lets each mode write its 4 view dicts in a uniform explicit style while
+    cam_left_shoulder stays a single first-class definition (no jar/cabinet copy-paste).
+    ``opp_eye``/``left_eye`` are 3-vectors (list, tuple, or np array — index access only).
+    """
+    return (
+        float(0.55 * left_eye[0] + 0.45 * opp_eye[0]),
+        float(0.55 * left_eye[1] + 0.45 * opp_eye[1]),
+        float(left_eye[2]),
+    )
 
 
 def build_external_camera_configs(
@@ -171,6 +187,7 @@ def setup_external_cameras_robot_frame(env) -> None:
         {"label": "opposite_side_front", "eye": opp_eye.tolist(),  "lookat": workspace.tolist()},
         {"label": "left_overview",       "eye": left_eye.tolist(), "lookat": workspace.tolist()},
         {"label": "right_overview",      "eye": right_eye.tolist(),"lookat": workspace.tolist()},
+        {"label": "left_shoulder",       "eye": list(left_shoulder_eye(opp_eye, left_eye)), "lookat": workspace.tolist()},
     ]
     setup_cameras(env, views)
     print(f"[camera_setup] mode = robot-frame; "
