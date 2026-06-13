@@ -210,6 +210,11 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
     print(f"[Camera] opp_eye={opp_eye}, left_eye={left_eye}, right_eye={right_eye}")
     print(f"[Camera] lookat=({lookat[0]:.2f}, {lookat[1]:.2f}, {lookat[2]:.2f})")
     from maniguard.utils.camera_setup import left_shoulder_eye  # lazy: avoid circular import
+    fwd = np.array([lookat[0] - rp[0], lookat[1] - rp[1], 0.0], dtype=np.float32)
+    nf = float(np.linalg.norm(fwd))
+    fwd = fwd / nf if nf > 1e-6 else np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    lft = np.cross(np.array([0.0, 0.0, 1.0], dtype=np.float32), fwd)
+    ls_eye = left_shoulder_eye(rp, fwd, lft, cam_z)
     return [
         {
             "label": "opposite_side_front",
@@ -231,7 +236,7 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
         },
         {
             "label": "left_shoulder",
-            "eye": left_shoulder_eye(opp_eye, left_eye),
+            "eye": ls_eye,
             "lookat": tuple(float(v) for v in lookat),
             "canonical": False,
         },

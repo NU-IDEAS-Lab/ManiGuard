@@ -21,19 +21,20 @@ EXTERNAL_CAMERA_NAMES = ("cam_opposite", "cam_left", "cam_right", "cam_left_shou
 POLICY_EXTERNAL_CAMERAS_DEFAULT = ("cam_opposite",)
 
 
-def left_shoulder_eye(opp_eye, left_eye) -> tuple:
-    """Canonical left-shoulder camera eye, computed identically in both camera modes.
+def left_shoulder_eye(rp, forward, left, cam_z, back=0.43, side=0.55) -> tuple:
+    """Canonical over-the-left-shoulder camera eye, computed identically in both camera modes.
 
-    A blend of the opposite + left camera eyes (0.55*left + 0.45*opposite in XY), kept
-    at the left camera's height. Centralizing just the eye math (not the whole view dict)
-    lets each mode write its 4 view dicts in a uniform explicit style while
-    cam_left_shoulder stays a single first-class definition (no jar/cabinet copy-paste).
-    ``opp_eye``/``left_eye`` are 3-vectors (list, tuple, or np array — index access only).
+    Behind-and-to-the-left of the robot at height ``cam_z``, looking forward at the workspace
+    -> the robot's left shoulder/arm sits in the foreground with the pack beyond. ``rp`` = robot
+    base position, ``forward`` = ground-plane unit vector toward the pack, ``left`` = up x forward
+    (3-vectors; index access only). Defined DIRECTLY from the robot frame (NOT as a blend of the
+    opposite+left eyes), so it stays a true over-the-shoulder view regardless of where the
+    opposite cam sits.
     """
     return (
-        float(0.55 * left_eye[0] + 0.45 * opp_eye[0]),
-        float(0.55 * left_eye[1] + 0.45 * opp_eye[1]),
-        float(left_eye[2]),
+        float(rp[0] - forward[0] * back + left[0] * side),
+        float(rp[1] - forward[1] * back + left[1] * side),
+        float(cam_z),
     )
 
 
@@ -104,6 +105,48 @@ def normalize_policy_cameras(value) -> list[str]:
     return list(value)
 
 
+def compute_robot_frame_views(env) -> list:
+    """Compute the 4 canonical robot-frame external-camera views from the robot base.
+
+    Returns view dicts (label / eye / lookat) for opposite / left / right / left_shoulder,
+    placed relative to the robot's base frame (forward = base +X projected to ground).
+    Pass the result to ``task_generation.utils.video.setup_cameras(env, views)`` to apply
+    the poses to the env AND get back the posed specs (eye/orientation/sensor_name) to
+    stamp into ``diagnostics['cameras']``. This is the canonical bench camera placement —
+    robot-frame, independent of any ``support_surface`` (so it is identical across families).
+    """
+    import numpy as np
+    import omnigibson.utils.transform_utils as _T
+
+    robot = env.robots[0]
+    rp_t, rq_t = robot.get_position_orientation()
+    rp = np.asarray(rp_t.cpu().numpy() if hasattr(rp_t, "cpu") else rp_t, dtype=np.float32)
+    rmat_t = _T.quat2mat(rq_t)
+    rmat = np.asarray(rmat_t.cpu().numpy() if hasattr(rmat_t, "cpu") else rmat_t, dtype=np.float32)
+    forward = rmat[:, 0].copy()
+    forward[2] = 0.0
+    n = float(np.linalg.norm(forward))
+    forward = forward / n if n > 1e-6 else np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    left = np.cross(np.array([0.0, 0.0, 1.0], dtype=np.float32), forward)
+
+    cam_height_off, back_off, side_off, side_forward_off = 0.9, 1.2, 1.0, 0.2
+    workspace_off = 0.45
+    workspace = rp + forward * workspace_off + np.array([0, 0, 0.05], dtype=np.float32)
+    # opposite_side_front: across the workspace from the robot (beyond the pack), looking
+    # back at it -> depth far->near = robot -> pack -> cam (NOT behind the robot).
+    opp_eye = rp + forward * (workspace_off + back_off) + np.array([0, 0, cam_height_off], dtype=np.float32)
+    left_eye = rp + left * side_off + forward * side_forward_off \
+        + np.array([0, 0, cam_height_off], dtype=np.float32)
+    right_eye = rp - left * side_off + forward * side_forward_off \
+        + np.array([0, 0, cam_height_off], dtype=np.float32)
+    return [
+        {"label": "opposite_side_front", "eye": opp_eye.tolist(),  "lookat": workspace.tolist()},
+        {"label": "left_overview",       "eye": left_eye.tolist(), "lookat": workspace.tolist()},
+        {"label": "right_overview",      "eye": right_eye.tolist(),"lookat": workspace.tolist()},
+        {"label": "left_shoulder",       "eye": list(left_shoulder_eye(rp, forward, left, rp[2] + cam_height_off)), "lookat": workspace.tolist()},
+    ]
+
+
 def setup_external_cameras_robot_frame(env) -> None:
     """Position the external cameras (cam_opposite / cam_left / cam_right) at the
     canonical poses used during teleop collection + playback re-render, so every
@@ -125,8 +168,6 @@ def setup_external_cameras_robot_frame(env) -> None:
     external-sensor sets. All heavy imports are in-function (lazy) to avoid a
     circular import with task_generation.utils.video (which imports this module).
     """
-    import numpy as np
-
     try:
         from maniguard.task_generation.utils.video import (
             build_video_view_specs,
@@ -155,41 +196,9 @@ def setup_external_cameras_robot_frame(env) -> None:
               f"(target={target_obj.name}, support={support_obj.name}).")
         return
 
-    # Robot-frame fallback for HF furnished scenes that ship no 'support_surface'
-    # (e.g. the 6fam-base benchmark scenes). Verbatim from the teleop/playback
-    # robot-frame placement so re-rendered + eval camera poses match teleop-time.
-    import omnigibson.utils.transform_utils as _T
-
-    rp_t, rq_t = robot.get_position_orientation()
-    rp = np.asarray(rp_t.cpu().numpy() if hasattr(rp_t, "cpu") else rp_t,
-                    dtype=np.float32)
-    rmat_t = _T.quat2mat(rq_t)
-    rmat = np.asarray(rmat_t.cpu().numpy() if hasattr(rmat_t, "cpu") else rmat_t,
-                      dtype=np.float32)
-    forward = rmat[:, 0].copy()
-    forward[2] = 0.0
-    n = float(np.linalg.norm(forward))
-    forward = forward / n if n > 1e-6 else np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    left = np.cross(np.array([0.0, 0.0, 1.0], dtype=np.float32), forward)
-
-    cam_height_off = 0.9
-    back_off = 1.2
-    side_off = 1.0
-    side_forward_off = 0.2
-
-    workspace = rp + forward * 0.45 + np.array([0, 0, 0.05], dtype=np.float32)
-    opp_eye = rp - forward * back_off + np.array([0, 0, cam_height_off], dtype=np.float32)
-    left_eye = rp + left * side_off + forward * side_forward_off \
-                  + np.array([0, 0, cam_height_off], dtype=np.float32)
-    right_eye = rp - left * side_off + forward * side_forward_off \
-                   + np.array([0, 0, cam_height_off], dtype=np.float32)
-    views = [
-        {"label": "opposite_side_front", "eye": opp_eye.tolist(),  "lookat": workspace.tolist()},
-        {"label": "left_overview",       "eye": left_eye.tolist(), "lookat": workspace.tolist()},
-        {"label": "right_overview",      "eye": right_eye.tolist(),"lookat": workspace.tolist()},
-        {"label": "left_shoulder",       "eye": list(left_shoulder_eye(opp_eye, left_eye)), "lookat": workspace.tolist()},
-    ]
+    # Robot-frame fallback for scenes with no 'support_surface' (e.g. the 6fam-base
+    # benchmark scenes). The canonical robot-frame placement now lives in
+    # compute_robot_frame_views (shared with the bench render step).
+    views = compute_robot_frame_views(env)
     setup_cameras(env, views)
-    print(f"[camera_setup] mode = robot-frame; "
-          f"robot_pos=({rp[0]:.2f},{rp[1]:.2f},{rp[2]:.2f}), "
-          f"forward=({forward[0]:.2f},{forward[1]:.2f})")
+    print(f"[camera_setup] mode = robot-frame ({len(views)} views)")
