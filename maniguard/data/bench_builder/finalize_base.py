@@ -188,7 +188,10 @@ def _compute_gate(env, robot, diag: dict, support_top: float, base_z: float,
     rp = [float(v) for v in robot.get_position_orientation()[0][:3]]
     finite = all(math.isfinite(v) for v in rp)
     mount_ok = abs(base_z - (support_top + mount_offset)) <= 1e-3
-    target_name = (diag.get("goal_region") or {}).get("target_name")
+    # the task's target object: goal_region.target_name (jar/clutter/...) or target_info.name
+    # (cabinet, whose goal is inside-cabinet+closed with no goal_region). None -> skip reachability.
+    target_name = ((diag.get("goal_region") or {}).get("target_name")
+                   or (diag.get("target_info") or {}).get("name"))
     tdist = None
     reach_ok = True
     if target_name:

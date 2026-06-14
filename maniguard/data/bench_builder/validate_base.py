@@ -25,8 +25,6 @@ POSE_TOL = 1e-2          # rad
 BASE_Z_TOL = 5e-3        # m
 RESOLUTION = 256
 N_FRAMES = 60
-# Families that carry a goal-region green-sphere marker (all but dusty, design doc §8 P1.2).
-NO_GOAL_MARKER_FAMILIES = {"dusty_transfer"}
 # Per-family diagnostics fields that finalize must preserve (besides the universal ones).
 FAMILY_DIAG_FIELDS = {
     "jar_transport": ["jar_info", "item_info"],
@@ -36,8 +34,10 @@ FAMILY_DIAG_FIELDS = {
     "clutter_pickup": ["clutter_info"],   # derived in finalize
     "lid_transport": ["lid_info"],        # derived in finalize
 }
-# Owned-schema fields the finalizer always writes (task-def carried + fresh in-sim).
-UNIVERSAL_DIAG_FIELDS = ["surface", "prompt", "selection", "ltl_safety", "cameras", "goal_region",
+# Owned-schema fields the finalizer always writes (task-def carried + fresh in-sim). The goal spec
+# is goal_conditions (universal); goal_region (the sphere marker) is conditional — cabinet has none
+# (goal = inside-cabinet + closed) so it is NOT required here (the data-driven marker check handles it).
+UNIVERSAL_DIAG_FIELDS = ["surface", "prompt", "selection", "ltl_safety", "cameras", "goal_conditions",
                          "surface_info", "gate_pass", "ltl_violated", "steps_executed", "bench"]
 
 
@@ -201,7 +201,11 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
         warnings.append(f"surface {surface!r} not resolvable in snapshot")
     spawn = diag.get("selection", {}).get("spawn_specs", []) or []
     n_task = sum(int(s.get("count", 1)) for s in spawn)
-    marker_expected = family not in NO_GOAL_MARKER_FAMILIES
+    # data-driven: a task has a goal marker iff its goal_region declares one (clutter/lid/jar/stack
+    # do; cabinet's goal is inside-cabinet+closed with NO marker, dusty has none) — no hardcoded list.
+    goal_region = diag.get("goal_region") or {}
+    marker_name = goal_region.get("marker_name")
+    marker_expected = bool(marker_name)
     expected_non_robot = 1 + n_task + (1 if marker_expected else 0)  # surface + task objs + marker
     checks["object_count"] = len(non_robot) == expected_non_robot
     if not checks["object_count"]:
@@ -210,8 +214,7 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     # The support surface and the goal marker are NOT manipulands: a surface's origin can sit
     # well below its own top plane (a tall bar's centre is ~0.6 m under its top), so exclude
     # them from the "fallen task object" check — only real task objects must stay on the surface.
-    structural = {c for c in (surface, gr_support, diag.get("goal_region", {}).get("marker_name"))
-                  if c and c in init}
+    structural = {c for c in (surface, gr_support, marker_name) if c and c in init}
     if support_top is not None:
         fallen = [n for n in non_robot
                   if n not in structural
@@ -223,17 +226,14 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     else:
         checks["no_fallen"] = True
 
-    # 6. goal-region marker present (5 fams) / absent (dusty)
-    marker_name = diag.get("goal_region", {}).get("marker_name")
-    has_marker = marker_name in init if marker_name else False
+    # 6. goal-region marker: required iff the task declares one (data-driven, see marker_expected)
+    has_marker = bool(marker_name) and marker_name in init
     if marker_expected:
         checks["goal_marker"] = has_marker
         if not has_marker:
-            fails.append(f"goal marker {marker_name!r} missing")
+            fails.append(f"declared goal marker {marker_name!r} missing from scene")
     else:
-        checks["goal_marker"] = not has_marker
-        if has_marker:
-            warnings.append("dusty unexpectedly has a goal marker")
+        checks["goal_marker"] = True  # no marker declared (cabinet/dusty) -> nothing to check
 
     # 7. cameras (invariant #4): 4 canonical poses, correct sensor names, lookat above the surface
     cams = diag.get("cameras", []) or []
