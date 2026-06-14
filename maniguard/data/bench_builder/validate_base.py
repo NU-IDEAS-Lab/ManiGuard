@@ -214,7 +214,17 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     # The support surface and the goal marker are NOT manipulands: a surface's origin can sit
     # well below its own top plane (a tall bar's centre is ~0.6 m under its top), so exclude
     # them from the "fallen task object" check — only real task objects must stay on the surface.
+    # The surface entity may be named anything (jar: "desk_ep1_1", cabinet: "support_surface"), and
+    # the goal-marker families resolve it via gr_support. For the "category/model" surface form
+    # (jar/cabinet) with no goal_region (cabinet), resolve the entity by BOTH category and model so
+    # a same-category manipuland is never excluded by accident.
     structural = {c for c in (surface, gr_support, marker_name) if c and c in init}
+    if surf_cat:
+        surf_model = surface.split("/", 1)[1] if "/" in surface else None
+        for n, info in init.items():
+            a = info.get("args", {})
+            if a.get("category") == surf_cat and (surf_model is None or a.get("model") == surf_model):
+                structural.add(n)
     if support_top is not None:
         fallen = [n for n in non_robot
                   if n not in structural
