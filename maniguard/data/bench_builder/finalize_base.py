@@ -107,10 +107,15 @@ def _fresh_surface_info(surf, support_top: float, init: dict) -> dict:
     }
 
 
-def _derive_family_info(family: str, diag: dict) -> dict:
+def _derive_family_info(family: str, diag: dict, n_task_objects: int | None = None) -> dict:
     """Convenience family-info for families whose source pipeline never wrote one (clutter/lid),
     summarised from ``selection``/``spawn_specs`` in the {name/category/model + family attrs} style
     of jar_info/cabinet_info. Returns ``{}`` for families that already carry a source info field.
+
+    ``n_task_objects`` (target + clutter/fragile) is the ACTUAL count of task objects present in the
+    finalized scene; when given, clutter's ``n_clutter_objects`` is derived from it (minus the one
+    target) rather than from ``spawn_specs`` — the source pipeline drops objects it cannot place at
+    generation time, so ``spawn_specs`` over-counts the real layout.
     """
     sel = diag.get("selection") or {}
     specs = sel.get("spawn_specs") or []
@@ -118,7 +123,10 @@ def _derive_family_info(family: str, diag: dict) -> dict:
         target = next((s for s in specs if s.get("role") == "target"), None)
         if target is None:
             return {}
-        n_clutter = sum(int(s.get("count", 1)) for s in specs if s.get("role") != "target")
+        if n_task_objects is not None:
+            n_clutter = max(0, n_task_objects - 1)  # actual task objects minus the single target
+        else:
+            n_clutter = sum(int(s.get("count", 1)) for s in specs if s.get("role") != "target")
         return {"clutter_info": {
             "target": {
                 "name": (diag.get("goal_region") or {}).get("target_name"),
@@ -135,6 +143,17 @@ def _derive_family_info(family: str, diag: dict) -> dict:
             "mode": sel.get("lid_mode"),
         }}
     return {}
+
+
+def _needs_gpu_dynamics(diag: dict) -> bool:
+    """True if the task carries a PhysX particle/fluid system that only simulates under the GPU
+    dynamics pipeline. Clutter-liquid tasks declare ``selection.system_name`` (e.g. ``"water"``);
+    under the default CPU pipeline the fluid particles deterministically NaN-segfault on the first
+    physics step. Mirrors the source pipeline's GPU-dynamics gating (``liquid_transport_pipeline``
+    always sets ``gm.USE_GPU_DYNAMICS=True``; ``pipeline_common.needs_gpu_dynamics_from_specs`` for
+    substance spawns). Dry tasks return False and run unchanged on the default CPU pipeline.
+    """
+    return bool((diag.get("selection") or {}).get("system_name"))
 
 
 def _build_active_objects(env, ltl_safety: dict, surface_name: str | None) -> dict:
@@ -257,6 +276,17 @@ def finalize_base_task(
     scene_file = _source_scene_file(src_base_dir, episode)
     scene_info = json.loads(scene_file.read_text(encoding="utf-8"))
 
+    # --- GPU dynamics: fluid/particle tasks (clutter-liquid carry selection.system_name) only
+    # simulate under the PhysX GPU pipeline; the default CPU pipeline NaN-segfaults on the first
+    # physics step. Must be set BEFORE the env is built (cannot toggle mid-session). Dry tasks are
+    # left on the default CPU pipeline so their behaviour is unchanged. Subprocess-per-task isolates
+    # this per task. Mirrors the source pipeline's GPU-dynamics gating. ---
+    needs_gpu = _needs_gpu_dynamics(diag)
+    if needs_gpu:
+        from omnigibson.macros import gm
+        gm.USE_GPU_DYNAMICS = True
+        gm.ENABLE_FLATCACHE = False
+
     # --- build env: scene from snapshot, source robot stripped + replaced by ONE canonical robot ---
     og_cfg = build_env_config(
         scene_info, diag,
@@ -328,13 +358,26 @@ def finalize_base_task(
     src_init = scene_info.get("objects_info", {}).get("init_info", {})
     surface_info = _fresh_surface_info(surf, support_top, src_init)
 
+    # --- actual object inventory: count what is ACTUALLY in the finalized snapshot, not what
+    # spawn_specs intended (the source pipeline drops objects it cannot place at generation time, so
+    # spawn_specs over-counts). Counted from the just-saved bench snapshot so it matches validate. ---
+    bench_init = json.loads(out_scene.read_text(encoding="utf-8")).get("objects_info", {}).get("init_info", {})
+    robot_names = {r.name for r in env.robots}
+    scene_names = set(bench_init) - robot_names
+    marker_name = (diag.get("goal_region") or {}).get("marker_name")
+    n_structural = sum(1 for nm in (getattr(surf, "name", None), marker_name) if nm and nm in scene_names)
+    n_task_objects = len(scene_names) - n_structural  # target + clutter/fragile, actually placed
+    n_task_intended = sum(int(s.get("count", 1)) for s in (diag.get("selection") or {}).get("spawn_specs", []) or [])
+    n_src_objects = len(src_init) - sum(  # source snapshot non-robot count (excludes the 1 source robot)
+        1 for info in src_init.values() if "Franka" in (info.get("class_name") or ""))
+
     # --- build the OWNED diagnostics (explicit; NOT dict(diag)) ---
     carried = set(_CARRY_UNIVERSAL) | set(_CARRY_FAMILY.get(family, []))
     out_diag: dict = {f: diag[f] for f in (_CARRY_UNIVERSAL + _CARRY_FAMILY.get(family, []))
                       if f in diag}
     unexpected = sorted(f for f in diag if f not in carried and f not in _DROP)
     # derived convenience family-info for clutter/lid (source pipeline never wrote one)
-    out_diag.update(_derive_family_info(family, diag))
+    out_diag.update(_derive_family_info(family, diag, n_task_objects))
     out_diag["cameras"] = cameras
     out_diag["surface_info"] = surface_info
     out_diag["gate_pass"] = bool(gate_pass)
@@ -346,6 +389,10 @@ def finalize_base_task(
         "finalized": True,
         "controller_preset": BENCH_CONTROLLER_PRESET,
         "grasping_mode": BENCH_GRASPING_MODE,
+        "gpu_dynamics": needs_gpu,
+        "n_src_objects": n_src_objects,
+        "n_task_objects": n_task_objects,
+        "n_task_intended": n_task_intended,
         "mount_offset": ROBOT_MOUNT_OFFSET,
         "support_top": round(support_top, 4),
         "base_z": round(base_z_after, 4),
@@ -405,6 +452,9 @@ def finalize_base_task(
         "arm_drift": stats["arm_drift"],
         "obj_disp": stats["obj_disp"],
         "n_mp4": n_mp4,
+        # placed vs designed task objects, shown only when the source dropped some at generation time
+        # (e.g. "7 -> 5"); empty when fully placed — scan the manifest to spot under-placed tasks.
+        "object_spawn_num": f"{n_task_intended} -> {n_task_objects}" if n_task_intended != n_task_objects else "",
         "status": status,
         "warnings": warnings,
     }

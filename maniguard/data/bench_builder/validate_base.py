@@ -25,6 +25,7 @@ POSE_TOL = 1e-2          # rad
 BASE_Z_TOL = 5e-3        # m
 RESOLUTION = 256
 N_FRAMES = 60
+SHORTFALL_FRAC = 0.6     # FAIL if actually-placed task objects < this fraction of the designed count
 # Per-family diagnostics fields that finalize must preserve (besides the universal ones).
 FAMILY_DIAG_FIELDS = {
     "jar_transport": ["jar_info", "item_info"],
@@ -199,17 +200,41 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     checks["surface_present"] = surf_present
     if not surf_present:
         warnings.append(f"surface {surface!r} not resolvable in snapshot")
-    spawn = diag.get("selection", {}).get("spawn_specs", []) or []
-    n_task = sum(int(s.get("count", 1)) for s in spawn)
     # data-driven: a task has a goal marker iff its goal_region declares one (clutter/lid/jar/stack
     # do; cabinet's goal is inside-cabinet+closed with NO marker, dusty has none) — no hardcoded list.
     goal_region = diag.get("goal_region") or {}
     marker_name = goal_region.get("marker_name")
     marker_expected = bool(marker_name)
-    expected_non_robot = 1 + n_task + (1 if marker_expected else 0)  # surface + task objs + marker
-    checks["object_count"] = len(non_robot) == expected_non_robot
-    if not checks["object_count"]:
-        warnings.append(f"non-robot objs {len(non_robot)} != expected {expected_non_robot} (surface+{n_task}+marker)")
+    # object_count = PRESERVATION: the bench must carry exactly the source snapshot's non-robot
+    # objects (finalize only swaps the robot). Compare to the recorded source count, NOT spawn_specs
+    # — the source pipeline drops unplaceable objects at generation time, so spawn_specs over-counts
+    # the real layout and would false-warn. ``bench.n_src_objects`` = source snapshot non-robot count.
+    n_src_objects = bench.get("n_src_objects")
+    if n_src_objects is not None:
+        checks["object_count"] = len(non_robot) == n_src_objects
+        if not checks["object_count"]:
+            warnings.append(f"non-robot objs {len(non_robot)} != source {n_src_objects} "
+                            f"(finalize dropped/added objects)")
+    else:  # legacy fallback (pre-inventory finalize, e.g. jar/cabinet not yet re-run)
+        spawn = diag.get("selection", {}).get("spawn_specs", []) or []
+        n_task = sum(int(s.get("count", 1)) for s in spawn)
+        expected_non_robot = 1 + n_task + (1 if marker_expected else 0)
+        checks["object_count"] = len(non_robot) == expected_non_robot
+        if not checks["object_count"]:
+            warnings.append(f"non-robot objs {len(non_robot)} != expected {expected_non_robot} (legacy spawn_specs)")
+
+    # spawn shortfall: a minor 1-2 object drop at generation time is normal, but a SEVERE under-placement
+    # (< SHORTFALL_FRAC of the designed task objects) FAILS the task so it surfaces in the manifest as a
+    # drop candidate instead of needing per-task video review. The manifest's ``object_spawn_num`` field
+    # shows the "designed -> placed" counts (bench.n_task_intended -> bench.n_task_objects).
+    n_intended = bench.get("n_task_intended")
+    n_placed = bench.get("n_task_objects")
+    if n_intended and n_placed is not None:
+        checks["spawn_shortfall"] = n_placed >= SHORTFALL_FRAC * n_intended
+        if not checks["spawn_shortfall"]:
+            fails.append(f"severe spawn shortfall: {n_placed}/{n_intended} task objects placed "
+                         f"(< {SHORTFALL_FRAC:.0%} of designed)")
+
     reg = header.get("state", {}).get("registry", {}).get("object_registry", {})
     # The support surface and the goal marker are NOT manipulands: a surface's origin can sit
     # well below its own top plane (a tall bar's centre is ~0.6 m under its top), so exclude
