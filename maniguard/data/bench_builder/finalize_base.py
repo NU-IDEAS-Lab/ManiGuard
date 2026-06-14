@@ -49,8 +49,12 @@ _CARRY_FAMILY = {
 # gate_pass/ltl_violated/steps_executed/ltl_summary are recomputed fresh in-sim; snapshots/
 # videos/robot_base are stale cruft. (Listing them keeps the "unexpected source field" warning
 # precise — anything in the source that is neither carried nor here is flagged for review.)
+# The lid pipeline additionally writes top-level *_category/*_model/n_objects_*/system_name dups of
+# its selection block (already carried via `selection` + derived `lid_info`) — drop them explicitly.
 _DROP = {"cameras", "surface_info", "gate_pass", "ltl_violated", "steps_executed", "ltl_summary",
-         "snapshots", "videos", "robot_base"}
+         "snapshots", "videos", "robot_base",
+         "container_category", "container_model", "food_category", "food_model",
+         "item_category", "item_model", "n_objects_active", "n_objects_requested", "system_name"}
 
 
 def _load_diagnostics(base_dir: Path) -> dict:
@@ -154,6 +158,44 @@ def _needs_gpu_dynamics(diag: dict) -> bool:
     substance spawns). Dry tasks return False and run unchanged on the default CPU pipeline.
     """
     return bool((diag.get("selection") or {}).get("system_name"))
+
+
+def _patch_lid_ltl(family: str, ltl_safety: dict, spawn_specs: list, surface_name: str | None = None) -> dict:
+    """Fix the lid family's two hardcoded-synset LTL bugs (both: source LTL spec doesn't match the
+    actual task object, but resolves only via a fallback / goes vacuous). No-op for non-lid families
+    and for tasks whose spec already matches. Applied BEFORE the monitor is built so the monitor + the
+    carried LTL spec stay consistent; both rewrites resolve to the SAME object, so the monitor outcome
+    (ltl_violated / gate) is unchanged — only the spec text + the validate warn/fail change.
+
+      1. ``lid_on_container.over``: hardcoded ``lid.n.02_*``, but some tasks use a ``cap.n.02``
+         (bottle/carton screw-cap) → resolves to 0 objects, the ``check: all`` AP goes vacuously TRUE
+         and ``lid_before_lift`` is silently unenforced. Rewrite to the spawned lid's synset
+         (``spawn_specs`` role=lid).
+      2. ``container_on_support.relative_to``: hardcoded ``breakfast_table.n.01_*`` on some tasks
+         regardless of the real surface (desk/countertop/...), resolving only via the surface fallback
+         (a validate warn, §9-5). Rewrite to the actual surface's category prefix ``<category>_*`` (the
+         form the correctly-generated tasks already use), derived from the ``surface`` object name.
+    """
+    if family != "lid_transport" or not ltl_safety:
+        return ltl_safety
+    lid_spec = next((s for s in spawn_specs if s.get("role") == "lid"), None)
+    lid_syn = (lid_spec or {}).get("synset")
+    fix_lid = bool(lid_syn) and lid_syn != "lid.n.02"
+    # surface object name is "<category>_<model>_<index>" (model = 6-char hash, index = digit)
+    surf_cat = surface_name.rsplit("_", 2)[0] if surface_name and surface_name.count("_") >= 2 else None
+    import copy
+    patched = copy.deepcopy(ltl_safety)
+    changed = False
+    for pdef in (patched.get("propositions") or {}).values():
+        over = pdef.get("over")
+        if fix_lid and isinstance(over, list) and "lid.n.02_*" in over:
+            pdef["over"] = [f"{lid_syn}_*" if o == "lid.n.02_*" else o for o in over]
+            changed = True
+        rel = pdef.get("relative_to")
+        if surf_cat and isinstance(rel, list) and "breakfast_table.n.01_*" in rel:
+            pdef["relative_to"] = [f"{surf_cat}_*" if r == "breakfast_table.n.01_*" else r for r in rel]
+            changed = True
+    return patched if changed else ltl_safety
 
 
 def _build_active_objects(env, ltl_safety: dict, surface_name: str | None) -> dict:
@@ -322,7 +364,11 @@ def finalize_base_task(
     env.scene.save(json_path=str(out_scene))
 
     # --- build a FRESH LTL monitor on the finalized scene; step(0) feeds the gate's init-doomed ---
-    ltl_safety = diag.get("ltl_safety") or {}
+    # patch the lid family's hardcoded lid synset to the actual spawned object (no-op otherwise), so
+    # the monitor AND the carried out_diag below both use the corrected spec.
+    ltl_safety = _patch_lid_ltl(family, diag.get("ltl_safety") or {},
+                                (diag.get("selection") or {}).get("spawn_specs") or [],
+                                diag.get("surface"))
     monitor = None
     init_doomed = False
     if ltl_safety:
@@ -376,6 +422,8 @@ def finalize_base_task(
     out_diag: dict = {f: diag[f] for f in (_CARRY_UNIVERSAL + _CARRY_FAMILY.get(family, []))
                       if f in diag}
     unexpected = sorted(f for f in diag if f not in carried and f not in _DROP)
+    if "ltl_safety" in diag:
+        out_diag["ltl_safety"] = ltl_safety  # carry the PATCHED spec (no-op unless lid cap-fix applied)
     # derived convenience family-info for clutter/lid (source pipeline never wrote one)
     out_diag.update(_derive_family_info(family, diag, n_task_objects))
     out_diag["cameras"] = cameras
