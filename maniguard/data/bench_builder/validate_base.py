@@ -190,7 +190,7 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     # surface is either an object name (clutter/lid/stack/dusty, e.g. "desk_qpuflh_2") or a
     # "category/model" string (jar/cabinet, e.g. "desk/obvwds"); resolve via name, the
     # goal_region's support_name, or a category match.
-    gr_support = diag.get("goal_region", {}).get("support_name")
+    gr_support = (diag.get("goal_region") or {}).get("support_name")  # dusty has goal_region present-as-None
     surf_cat = surface.split("/")[0] if surface and "/" in surface else None
     surf_present = bool(
         (surface in init)

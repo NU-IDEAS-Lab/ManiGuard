@@ -80,7 +80,15 @@ def parse_args() -> argparse.Namespace:
 
 def _load_diagnostics_row(task_dir: Path, episode: int) -> dict[str, Any]:
     path = task_dir / "diagnostics.jsonl"
-    for line in path.read_text().splitlines():
+    txt = path.read_text()
+    # dusty diagnostics are a single pretty-printed JSON object; others are one-per-line JSONL.
+    try:
+        row = json.loads(txt)
+        if isinstance(row, dict):
+            return row
+    except json.JSONDecodeError:
+        pass
+    for line in txt.splitlines():
         line = line.strip()
         if not line:
             continue
@@ -117,19 +125,17 @@ def _is_task_object_name(name: str, category: str) -> bool:
     # Prefix matches category exactly.
     if prefix == category:
         return True
-    # Scheme B: ``<role>_<category>_ep<N>_<idx>``, e.g.
-    # ``target_milk_carton_ep1_1`` (category="milk_carton"). The
-    # ``_ep<N>_<idx>`` suffix marks task-object names that the dataset
-    # generator inserts; background furniture never carries it.
-    if _SCHEME_B_PATTERN.search(name):
-        # Verify the category appears as a contiguous token sequence
-        # in the name so we don't match unrelated objects that happen
-        # to end in ``_ep1_1``.
-        cat_toks = category.split("_")
-        name_toks = name.split("_")
-        for i in range(len(name_toks) - len(cat_toks) + 1):
-            if name_toks[i:i + len(cat_toks)] == cat_toks:
-                return True
+    # Scheme B/C: role-prefixed names where the category appears as a contiguous token run before the
+    # trailing ``_<idx>``, e.g. ``target_milk_carton_ep1_1`` (category="milk_carton") or dusty's
+    # ``dust_sponge_0`` (category="sponge", role-prefix "dust", NO ``_ep`` segment). The name already
+    # matched the task-object pattern (ends ``_<digit>``); requiring the category tokens to appear
+    # contiguously avoids matching unrelated objects. (Callers further gate on the object's category
+    # being in the task's spawn-spec categories, so scene furniture is already excluded.)
+    cat_toks = category.split("_")
+    name_toks = name.split("_")
+    for i in range(len(name_toks) - len(cat_toks) + 1):
+        if name_toks[i:i + len(cat_toks)] == cat_toks:
+            return True
     return False
 
 
@@ -270,6 +276,21 @@ def _replay_one_task(task_dir: Path, og, *, args) -> bool:
     object_cfgs = [_build_object_cfg(task_names[0], scene_info, fixed_base=True)]
     object_cfgs += [_build_object_cfg(n, scene_info, fixed_base=False) for n in task_names[1:]]
 
+    # dusty: snap the sponge to the source/dest XY midpoint (the spec's ideal placement). The source
+    # spawn occasionally flung the sponge out of the robot's reach (a mis-fired "move to the side"
+    # fallback); the two containers sit far enough apart that the midpoint always fits — 19/23 tasks
+    # already place it there. Keeps the sponge's own z (surface height). No-op for non-dusty families.
+    if diagnostics.get("dust_system"):
+        role2cat = {s.get("role"): s.get("category")
+                    for s in ((diagnostics.get("selection") or {}).get("spawn_specs") or [])}
+        cfg_by_cat = {c["category"]: c for c in object_cfgs}
+        src_c, dst_c, spg_c = (cfg_by_cat.get(role2cat.get(r)) for r in ("source", "dest", "sponge"))
+        if src_c and dst_c and spg_c:
+            mx = (src_c["position"][0] + dst_c["position"][0]) / 2.0
+            my = (src_c["position"][1] + dst_c["position"][1]) / 2.0
+            spg_c["position"] = [mx, my, spg_c["position"][2]]
+            print(f"[Replay]   sponge -> source/dest midpoint ({mx:.3f}, {my:.3f})", flush=True)
+
     robot_setup = extract_scene_robot_setup(scene_info)
     if robot_setup is None:
         raise RuntimeError("No robot found in scene snapshot")
@@ -327,6 +348,39 @@ def _replay_one_task(task_dir: Path, og, *, args) -> bool:
         if gr_payload is not None:
             spawn_goal_region_marker(env, GoalRegionSpec.from_json(gr_payload))
             og.sim.step()
+
+        # dusty: RESTORE the source snapshot's dust particle group onto the destination container.
+        # replay_empty rebuilds only the rigid object_registry, so the source's system_registry (the
+        # dust group) is dropped. We must NOT re-generate fresh dust (OmniGibson's default covers the
+        # whole object and loses the generation-time bottom-concentrated filter) — instead reload the
+        # EXACT saved group (positions are relative to the dest, concentrated at the container bottom)
+        # via the system's own load_state, repointing the group's attached-object uuid to the rebuilt
+        # dest (the source uuid no longer exists). Gated on dust_system → no-op for every other family.
+        if diagnostics.get("dust_system"):
+            import copy
+            import torch as th
+            dust_name = diagnostics["dust_system"]
+            dust_src = ((scene_info.get("state", {}).get("registry", {})
+                         .get("system_registry", {}) or {}).get(dust_name))
+            specs = (diagnostics.get("selection") or {}).get("spawn_specs") or []
+            dest_cat = next((s.get("category") for s in specs if s.get("role") == "dest"), None)
+            dest_obj = next((o for o in env.scene.objects
+                             if getattr(o, "category", "") == dest_cat), None) if dest_cat else None
+            if dust_src and dest_obj is not None:
+                system = env.scene.get_system(dust_name, force_init=True)
+                st = copy.deepcopy(dust_src)
+                for g in (st.get("groups") or {}).values():   # repoint the group at the rebuilt dest
+                    g["particle_attached_obj_uuid"] = dest_obj.uuid
+                for k in ("positions", "orientations", "scales"):
+                    if k in st:
+                        st[k] = th.tensor(st[k], dtype=th.float32)
+                system.load_state(st, serialized=False)
+                og.sim.step()
+                print(f"[Replay]   restored {st.get('n_particles')} {dust_name} particles onto "
+                      f"{dest_obj.name} (from source, bottom-filter preserved)", flush=True)
+            else:
+                print(f"[Replay]   WARN: dust restore skipped (have_src={bool(dust_src)}, "
+                      f"dest_cat={dest_cat!r}) — task would be dust-free", flush=True)
 
         configure_review_sensors(env)
         position_diagnostics_cameras(env, og, diagnostics, set_viewer=True)
