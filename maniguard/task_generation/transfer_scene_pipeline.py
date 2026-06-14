@@ -338,11 +338,23 @@ class TransferPipeline(BasePipeline):
     def place_objects(self, ctx):
         import omnigibson as og
 
-        cx = 0.5 * (ctx.surface_bounds_xy[0][0] + ctx.surface_bounds_xy[1][0])
-        cy = 0.5 * (ctx.surface_bounds_xy[0][1] + ctx.surface_bounds_xy[1][1])
+        (sx0, sy0), (sx1, sy1) = ctx.surface_bounds_xy
+        cx = 0.5 * (sx0 + sx1)
+        cy = 0.5 * (sy0 + sy1)
+
+        # Lay the source/dest pair out along the surface zone's LONGER axis.
+        # ``select_best_table_edge`` mounts the robot on the zone's short
+        # edge facing the long axis, so placing the two containers along that
+        # same long axis keeps the source/dest line perpendicular to the
+        # robot's heading — one container to the arm's left, one to its right
+        # (the canonical transfer layout). The old code hardcoded the line to
+        # world-X, which only looked right when the zone happened to be
+        # X-longer; on a Y-longer zone the robot faced ±X and the containers
+        # ended up nose-to-tail in front of the arm (a 90°-rotated layout).
+        along_x = (sx1 - sx0) >= (sy1 - sy0)
 
         # Compute AABB-aware spread. Each object lives at
-        #   center = cx ± (own_half_x + 0.5 * gap_m)
+        #   center = c ± (own_half_along_axis + 0.5 * gap_m)
         # so the resulting world AABBs have ``gap_m`` clearance between
         # them — preventing source/dest interpenetration when they have
         # different sizes (e.g. small wineglass + large bowl).
@@ -350,29 +362,27 @@ class TransferPipeline(BasePipeline):
         src = ctx._source_obj
         dest_obj = get_spawned_obj(ctx.spawned_objects, ctx._dest_ids[0]) if ctx._dest_ids else None
 
-        # Single set_position_orientation call: position + identity orientation
-        # in one shot. Height comes from native_bbox*scale (asset's authored
-        # upright Z), not the current world AABB which would shrink if the
-        # object is currently tilted from physics drift.
-        if src is not None:
-            half_x = 0.5 * float(src.native_bbox[0] * src.scale[0])
-            half_z = _upright_half_height(src)
-            src.set_position_orientation(
-                position=(cx - half_x - 0.5 * gap_m, cy,
-                          ctx.table_top_z + half_z + 0.002),
+        def _place_along_axis(obj, sign):
+            # ``sign`` = -1 → source (lower side of the axis), +1 → dest.
+            # Offset uses the object's own half-extent ALONG the chosen axis.
+            # Height comes from native_bbox*scale (asset's authored upright
+            # Z), not the current world AABB which would shrink if the object
+            # is currently tilted from physics drift.
+            axis = 0 if along_x else 1
+            half_along = 0.5 * float(obj.native_bbox[axis] * obj.scale[axis])
+            half_z = _upright_half_height(obj)
+            off = sign * (half_along + 0.5 * gap_m)
+            x, y = (cx + off, cy) if along_x else (cx, cy + off)
+            obj.set_position_orientation(
+                position=(x, y, ctx.table_top_z + half_z + 0.002),
                 orientation=(0, 0, 0, 1),
             )
-            src.keep_still()
+            obj.keep_still()
 
+        if src is not None:
+            _place_along_axis(src, -1)
         if dest_obj is not None:
-            half_x = 0.5 * float(dest_obj.native_bbox[0] * dest_obj.scale[0])
-            half_z = _upright_half_height(dest_obj)
-            dest_obj.set_position_orientation(
-                position=(cx + half_x + 0.5 * gap_m, cy,
-                          ctx.table_top_z + half_z + 0.002),
-                orientation=(0, 0, 0, 1),
-            )
-            dest_obj.keep_still()
+            _place_along_axis(dest_obj, +1)
 
         og.sim.step()
 
