@@ -214,10 +214,30 @@ def _driver(args: argparse.Namespace) -> int:
     mf.close()
     counts = Counter(r["status"] for r in rows)
     print(f"=== {args.family}: {dict(counts)} ({len(rows)} tasks) -> {manifest}", flush=True)
-    bad = [r["task"] for r in rows if r["status"] == "fail"]
-    if bad:
-        print(f"    FAILED: {bad}", flush=True)
-    return 1 if bad else 0
+
+    # drop_list.json: written ONLY when there are fails — a CANDIDATE list for human review
+    # (NOT an auto-drop). The user reviews each against the manifest + videos: tool bugs get
+    # FIXED (then re-validate, not dropped); genuinely-unreasonable tasks get pruned via
+    # prune_reindex.py. Deleted clean once pruned (the deterministic checks re-flag bad tasks
+    # on any re-run, so the list never needs to persist). Not written when everything passes.
+    drop_path = out_fam / "drop_list.json"
+    fail_rows = [r for r in rows if r["status"] == "fail"]
+    if fail_rows:
+        drop_path.write_text(json.dumps({
+            "family": args.family,
+            "note": "CANDIDATES for review — not an auto-drop. Fix tool bugs (re-validate); "
+                    "prune only genuinely-unreasonable tasks via prune_reindex.py.",
+            "candidates": [{
+                "task": r["task"],
+                "fails": r.get("validate", {}).get("fails") or [],
+                "warnings": r.get("validate", {}).get("warnings") or [],
+                "error": r.get("error"),
+            } for r in fail_rows],
+        }, indent=2) + "\n", encoding="utf-8")
+        print(f"    FAILED: {[r['task'] for r in fail_rows]}  -> {drop_path}", flush=True)
+    elif drop_path.exists():
+        drop_path.unlink()  # a prior run's stale candidate list; this run is clean
+    return 1 if fail_rows else 0
 
 
 # ---------------------------------------------------------------------------- cli
