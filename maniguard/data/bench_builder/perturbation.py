@@ -51,15 +51,17 @@ APPEARANCE_COLOR_PALETTE: tuple[tuple[float, float, float], ...] = (
 )
 
 # Per-family "target" object — the manipuland whose appearance the `target`
-# level recolors (your §4b definitions). Resolved to a spawn-spec ROLE; the
-# concrete scene object is then found by that role's category.
-TARGET_ROLE: dict[str, str] = {
-    "jar_transport": "target",      # hinged_jar
-    "cabinet_pickup": "target",     # place target
-    "clutter_pickup": "target",     # grasp target
-    "stack_retrieve": "target",     # bottom object
-    "lid_transport": "container",   # the container being capped
-    "dusty_transfer": "source",     # source container
+# level recolors (your §4b definitions). Each family lists the candidate
+# spawn-spec ROLE(s) (first that resolves wins); the concrete scene object is
+# then found by that role's category. lid carries two provenances — the capped
+# container is role "container" in older tasks, "target" in newer ones.
+TARGET_ROLE: dict[str, tuple[str, ...]] = {
+    "jar_transport": ("target",),            # hinged_jar
+    "cabinet_pickup": ("target",),           # place target
+    "clutter_pickup": ("target",),           # grasp target
+    "stack_retrieve": ("target",),           # bottom object
+    "lid_transport": ("container", "target"),  # the container being capped
+    "dusty_transfer": ("source",),           # source container
 }
 
 
@@ -81,11 +83,14 @@ def _spawn_role_category(diag: dict) -> dict[str, str]:
 
 
 def resolve_target_category(diag: dict, family: str) -> str | None:
-    """The category of the family's recolor target (role → category)."""
-    role = TARGET_ROLE.get(family)
-    if role is None:
-        return None
-    return _spawn_role_category(diag).get(role)
+    """The category of the family's recolor target — the first candidate role
+    (per ``TARGET_ROLE``) that resolves to a spawned category."""
+    r2c = _spawn_role_category(diag)
+    for role in TARGET_ROLE.get(family) or ():
+        cat = r2c.get(role)
+        if cat:
+            return cat
+    return None
 
 
 def find_object_by_category(env, category: str):
