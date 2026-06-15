@@ -536,6 +536,25 @@ def main():
             from maniguard.utils.camera_setup import setup_external_cameras_robot_frame
             setup_external_cameras_robot_frame(env)
 
+            # Apply any perturbation declared in the instance's diagnostics (the
+            # uniform task-instance load hook). For a `target/` variant this
+            # re-applies the recolor (diffuse_tint isn't serialized into the
+            # snapshot, so it must be set on load); a no-op for base and the
+            # other levels. Loading any instance is the same: build -> reset ->
+            # apply_perturbation, no base-vs-perturbation branching.
+            from maniguard.data.bench_builder.perturbation import apply_perturbation
+            _diag_path = Path(scene_info["scene_file"]).parent / "diagnostics.jsonl"
+            if _diag_path.is_file():
+                _txt = _diag_path.read_text(encoding="utf-8")
+                try:
+                    _diag = json.loads(_txt)
+                    _diag = _diag if isinstance(_diag, dict) else _diag[0]
+                except json.JSONDecodeError:
+                    _diag = json.loads([ln for ln in _txt.splitlines() if ln.strip()][0])
+                _pert = apply_perturbation(env, _diag)
+                if _pert.get("applied"):
+                    print(f"[perturbation] {_pert}")
+
             # Reload the eval controller AFTER env.reset(): reset restores the
             # scene snapshot's (JointController) controller-state into the
             # matching baked controller; reloading after avoids loading that
