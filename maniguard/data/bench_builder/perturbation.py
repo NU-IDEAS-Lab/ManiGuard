@@ -94,14 +94,63 @@ def resolve_target_category(diag: dict, family: str) -> str | None:
 
 
 def find_object_by_category(env, category: str):
-    """The single live scene object whose ``category`` matches (targets are
-    unique per task, so the first match is the one)."""
+    """First live scene object whose ``category`` matches."""
     if not category:
         return None
     for obj in env.scene.objects:
         if getattr(obj, "category", "") == category:
             return obj
     return None
+
+
+def _grasp_reference(diag: dict):
+    """The object name the goal grasps (``grasping robot <ref>``), searched
+    recursively through goal_conditions. For stack-retrieve this is the BOTTOM
+    object being pulled out; for clutter the grasp target."""
+    def scan(node):
+        if isinstance(node, dict):
+            if node.get("predicate") == "grasping" and node.get("subject") == "robot":
+                return node.get("reference")
+            for v in node.values():
+                r = scan(v)
+                if r:
+                    return r
+        elif isinstance(node, list):
+            for v in node:
+                r = scan(v)
+                if r:
+                    return r
+        return None
+    return scan(diag.get("goal_conditions"))
+
+
+def _obj_z(obj) -> float:
+    p = obj.get_position_orientation()[0]
+    return float(p[2].item() if hasattr(p[2], "item") else p[2])
+
+
+def resolve_target_object(env, diag: dict, family: str):
+    """The SPECIFIC live target object to recolor. Resolves the target category
+    (per family role), then the concrete object. When several objects share that
+    category — stack-SAME tasks stack identical objects, so target and stack are
+    the same category — disambiguate to the actual manipuland: the goal's grasp
+    reference (e.g. the bottom bowl ``bowl_45``), else the BOTTOM of the stack
+    (lowest z, the retrieved object). Picking the first category match recolored
+    the TOP of the stack instead of the bottom."""
+    cat = resolve_target_category(diag, family)
+    if not cat:
+        return None
+    matches = [o for o in env.scene.objects if getattr(o, "category", "") == cat]
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    ref = _grasp_reference(diag)
+    if ref:
+        by_name = {o.name: o for o in matches}
+        if ref in by_name:
+            return by_name[ref]
+    return min(matches, key=_obj_z)
 
 
 _MIN_TINT_DIST = 0.35  # a tint this far (RGB) from the original reads as clearly different

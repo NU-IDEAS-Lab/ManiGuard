@@ -122,8 +122,8 @@ def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: in
     import torch as th
 
     from maniguard.data.bench_builder.perturbation import (
-        albedo_add_for, apply_recolor, average_object_color, find_object_by_category,
-        pick_tint, resolve_target_category,
+        albedo_add_for, apply_recolor, average_object_color, pick_tint,
+        resolve_target_category, resolve_target_object,
     )
     from maniguard.data.bench_builder.render import _build_og_config, render_views
     from maniguard.utils.robot_pose import BENCH_INIT_QPOS
@@ -155,7 +155,7 @@ def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: in
     robot.keep_still()
     og.sim.step()
 
-    target = find_object_by_category(env, cat)
+    target = resolve_target_object(env, diag, family)
     if target is None:
         raise RuntimeError(f"target object (category={cat}) not in scene")
     orig = average_object_color(target) or [1.0, 1.0, 1.0]
