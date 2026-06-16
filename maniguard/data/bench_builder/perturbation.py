@@ -158,11 +158,11 @@ _MIN_TINT_DIST = 0.35  # a tint this far (RGB) from the original reads as clearl
 
 def pick_tint(orig_rgb, task_index: int) -> list[float]:
     """Pick a saturated palette tint by CYCLING on the task index, so a family's
-    variants rotate through visibly distinct colors (task 0→red, 1→blue, 2→brown,
-    3→green, 4→yellow, …). A light guard skips a palette color that happens to sit
-    near the target's own color (rare — most manipulands are neutral), advancing
-    to the next index so the recolor is always clearly out-of-distribution.
-    Deterministic in the task index.
+    variants rotate through visibly distinct colors (task 0→red, 1→orange,
+    2→yellow, 3→green, 4→cyan, 5→magenta, then wraps). A light guard skips a
+    palette color that happens to sit near the target's own color (rare — most
+    manipulands are neutral), advancing to the next index so the recolor is always
+    clearly out-of-distribution. Deterministic in the task index.
     """
     orig = np.asarray(orig_rgb, dtype=np.float32).reshape(3)
     n = len(APPEARANCE_COLOR_PALETTE)
