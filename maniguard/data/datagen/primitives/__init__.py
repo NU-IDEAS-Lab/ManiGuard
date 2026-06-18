@@ -1,7 +1,8 @@
 """Layer-1 family-agnostic reusable primitives (the reusable "skeleton template").
 
-Planned modules (see doc §3, filled in Step 1):
-  - ``scene``     : scene_from_task_dir (build the empty-scene env from a base task)
+Modules (see doc §3; status as of Step 1):
+  - ``task_io``   : [DONE] parse a base-task dump (diagnostics/scene + task objects)
+  - ``scene``     : [DONE] scene_from_task_dir (build the empty-scene env from a task)
   - ``curobo_seg``: CuroboSegment.solve (one cuRobo segment + salvage + attach)
   - ``grasp``     : grasp_primitive (OBB sample + 2-stage standoff/servo + close + AG)
   - ``move``      : move_holding (carry a grasped object through waypoints)
