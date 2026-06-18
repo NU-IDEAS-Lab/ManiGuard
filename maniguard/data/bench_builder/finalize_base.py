@@ -198,11 +198,17 @@ def _patch_lid_ltl(family: str, ltl_safety: dict, spawn_specs: list, surface_nam
     return patched if changed else ltl_safety
 
 
-def _build_active_objects(env, ltl_safety: dict, surface_name: str | None) -> dict:
+def _build_active_objects(env, ltl_safety: dict, surface_name: str | None, objects=None) -> dict:
     """``{inst_id: obj}`` so the diagnostics LTL patterns resolve to live scene objects. Mirrors
     eval's resolver (category / taxonomy-lemma / name fnmatch / ``.n.`` surface fallback) but is
     kept self-contained in bench_builder so the bench never imports eval. (The duplicate lives in
     ``benchmark._build_active_objects_for_ltl`` — unify into shared LTL infra later, design doc §9.)
+
+    ``objects`` optionally restricts the candidate set (default: the whole scene). The env
+    perturbation passes only the injected task objects + the anchor table, so a category pattern
+    (e.g. ``desk_*``) binds to the ONE anchor table and not to the room's other same-category
+    furniture (a real room can hold several desks, which would otherwise mis-bind the support
+    proposition and manufacture a false LTL violation).
     """
     patterns: set[str] = set()
     for pdef in ((ltl_safety or {}).get("propositions") or {}).values():
@@ -213,7 +219,7 @@ def _build_active_objects(env, ltl_safety: dict, surface_name: str | None) -> di
             elif isinstance(v, str):
                 patterns.add(v)
     robot = env.robots[0] if env.robots else None
-    objs = list(env.scene.objects)
+    objs = list(objects) if objects is not None else list(env.scene.objects)
     cat2lemma = {}
     for o in objs:
         c = getattr(o, "category", "")
