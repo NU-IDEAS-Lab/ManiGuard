@@ -63,13 +63,16 @@ def _build_og_config(scene_file: Path, diagnostics: dict, resolution: int) -> di
     }
 
 
-def _object_positions(env, robot):
-    """World-XYZ of every non-robot scene object, keyed by name (for obj-displacement stats)."""
+def _object_positions(env, robot, names=None):
+    """World-XYZ of non-robot scene objects, keyed by name (for obj-displacement stats). ``names``
+    optionally restricts to a set of object names — the env perturbation passes the injected task
+    objects so an unsupported ROOM background object falling into the void can't pollute the stat
+    (it would otherwise dominate ``max`` displacement while the task objects sit perfectly still)."""
     import numpy as np
 
     out = {}
     for obj in env.scene.objects:
-        if obj is robot:
+        if obj is robot or (names is not None and obj.name not in names):
             continue
         p, _ = obj.get_position_orientation()
         out[obj.name] = np.asarray(p.cpu().numpy() if hasattr(p, "cpu") else p, dtype=np.float32)
@@ -87,6 +90,7 @@ def render_views(
     resolution: int = DEFAULT_RESOLUTION,
     mode: str = "idle_step",
     ltl_monitor=None,
+    track_object_names=None,
 ) -> tuple[dict, dict]:
     """Render the 4 canonical review videos from a LIVE env + return (diagnostics, stats).
 
@@ -108,9 +112,13 @@ def render_views(
             it is stepped once per recorded frame so the bench can read its OWN fresh
             ``ltl_violated`` over the same idle-step the video shows (the analog of the
             generation-time jitter rollout). The caller reads the monitor afterwards.
+        track_object_names: optional set of object names to restrict the ``obj_disp`` stat to —
+            the env perturbation passes the injected task objects so a falling ROOM background
+            object can't pollute it. ``None`` (base / location / target / standalone) tracks every
+            non-robot object, which there IS the task set (those scenes hold no room furniture).
 
     Returns ``(diagnostics, stats)`` where ``stats`` = ``{"arm_drift", "obj_disp",
-    "steps_executed"}``: the max joint drift, the max non-robot object displacement, and the
+    "steps_executed"}``: the max joint drift, the max tracked-object displacement, and the
     number of in-sim steps recorded (for the finalizer's fresh stability/LTL self-check).
     """
     import av
@@ -146,7 +154,7 @@ def render_views(
 
     # --- baseline for the stability/hold stats (frame-0 joint + object state) ---
     q0 = robot.get_joint_positions().cpu().numpy()
-    obj0 = _object_positions(env, robot)
+    obj0 = _object_positions(env, robot, track_object_names)
 
     # --- probe one frame to size the writers from the ACTUAL rgb (sensor-kwarg resolution
     #     is unreliable in OmniGibson; sizing from the real frame avoids a swscale mismatch). ---
@@ -192,7 +200,7 @@ def render_views(
     # --- stability/hold stats: max joint drift + max non-robot object displacement ---
     q1 = robot.get_joint_positions().cpu().numpy()
     arm_drift = float(np.abs(q1 - q0).max()) if len(q0) else 0.0
-    obj1 = _object_positions(env, robot)
+    obj1 = _object_positions(env, robot, track_object_names)
     obj_disp = 0.0
     for name, p0 in obj0.items():
         p1 = obj1.get(name)

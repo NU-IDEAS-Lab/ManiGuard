@@ -519,7 +519,10 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
         init_doomed = bool(monitor.step(0).get("doomed", False))
     gate_pass, gate_detail = _compute_gate(env, robot, diag, support_top, base_z,
                                            ROBOT_MOUNT_OFFSET, init_doomed)
-    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode, ltl_monitor=monitor)
+    # Track obj_disp over the INJECTED task objects only — an unsupported room background object
+    # falling into the void would otherwise dominate the max-displacement stat (the task is stable).
+    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode, ltl_monitor=monitor,
+                                   track_object_names={o.name for o in injected_objs})
     ltl_violated = bool(monitor.violated) if monitor is not None else False
     arm_ok = float(stats.get("arm_drift") or 0.0) < ARM_DRIFT_TOL
     feasible = bool(gate_pass and not ltl_violated and not fallen and not sunk and arm_ok)
