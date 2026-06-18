@@ -1086,3 +1086,37 @@ Large restructure landed on `refactor/omnigibson` over 12 commits. End state: th
 - **`finalize_base._build_active_objects(objects=…)`**: env restricts LTL active-object resolution to injected objects + the anchor table, so a category pattern (`desk_*`) binds the anchor and not the room's OTHER same-category furniture (a real room has several desks → false support-proposition violation otherwise).
 - **driver `--launch-gap`**: optional seconds before each worker launch (headroom for 2 concurrent single-job tmux sessions on one GPU). **Verification**: all 200 complete (scene+diag+4 mp4); 6 originally-failing + 14 substitutes + auto-flagged borderline (high obj_disp / heavy declutter) all visually reviewed; per-family `<fam>_env_vs_base.png` presentation grids saved under `snapshots_env/`. **Bench COMPLETE: base + 4 perturbation axes, 200×5 = 1000 instances.**
 - **Committed-artifact hygiene**: the db's `_meta.scenes_root` + the scenes-root resolver were sanitized to a dataset-relative tail (`behavior-1k-assets/scenes`) — no absolute local path / personal dir layout (`SENTINEL-Lite-data` / `ManiGuard-data` fallbacks dropped) in the pushed code; resolution now via `$OMNIGIBSON_DATA_PATH` + repo-local `datasets/`.
+
+## Demo data generation (cuRobo auto-collection for SFT)
+
+NEW phase after the bench finished: auto-collect success+safe demo trajectories on
+the 200 base tasks for SFT, **joint-native** via the env's cuRobo. A 正本清源 REFACTOR
+(like the bench): the old pnp/cuRobo code stays as pure reference; good parts are
+replicated clean into the new `maniguard/data/datagen/` 3-layer module (primitives /
+families / driver), bad parts rewritten. Tracking doc = Obsidian
+`ManiGuard 6fam_Data_Collection_TODO_Checklist.md`.
+
+### Step 0 — scaffold + schema (2026-06-18, `87f8da9d`)
+- New `maniguard/data/datagen/` package (3-layer scaffold). `data_format.py` = schema
+  single source: 5 image streams (4 bench third-person + injected wrist), `state(8)=[arm_q(7),gripper]`,
+  `actions(8)`=(b) next-achieved (DROID-style, DEFAULT) + `actions_commanded(8)`=(a) cuRobo
+  command (extra), `EXTERNAL_CAM_CHOICES`, MimicGen sidecar layout, `lerobot_features()` (LeRobot v2.1).
+  Extended `openpi_sft/data_configs.py` `external_cam` whitelist → {opposite,left,right,left_shoulder}.
+- cuRobo settled at the StanfordVL fork `cbaf7d32` **rebuilt for torch 2.6.0** (ABI-correct,
+  OmniGibson-compatible, USD-kinematics, plans OK). Bumping the fork to its HEAD `d083916`
+  needs a newer OmniGibson (`KeyError: 'eyes'`) → not this phase.
+
+### Step 1 · P1 — scene_from_task_dir + task_io (Layer-1, 2026-06-18, `e15edb2b`)
+- Replicated `_build_env`'s scene-build half clean so datagen is self-contained (no import of
+  the old curobo reference tree). `primitives/task_io.py` parses a base-task dump
+  (load_diagnostics_row / load_scene_info / identify_task_objects / build_object_cfg, lifted from
+  the reference `replay_empty_from_dataset`) — **fixes the stale `from tools.replay_empty_from_dataset`
+  import** (runtime ImportError), drops the dead `_SCHEME_B_PATTERN`. `primitives/scene.py` =
+  `init_omnigibson()` + `scene_from_task_dir() -> SceneBundle` (fixed support surface + spawn objects
+  + Franka at dump pose + goal marker + settle); cameras deferred to P8 via `external_sensors` /
+  `pre_build_hooks` seams. Dropped the family-specific dusty sponge hack (→ L2) + `no_distractors`
+  (YAGNI). GPU dynamics OFF (matches pnp; project_gpu_physx_rl_not_faster). Env infra
+  (`build_env_config` / `camera_setup` / `goal_region`) imported from shared `maniguard.envs|utils`.
+- **Verified** on a real dump (headless GPU): 5/5 task objects present, robot loaded, 15 steps
+  stable, fixed surface stays at its dumped z. The post-PASS teardown segfault is the known Isaac
+  Kit shutdown race (data-safe; the L3 driver will treat data-written + teardown-segfault as success).
