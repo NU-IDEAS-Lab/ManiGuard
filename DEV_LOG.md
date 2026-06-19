@@ -1190,3 +1190,23 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
 - **Verified** on a real base task: 5 raw MP4s all `h264/256x256/yuv420p/30fps` (== bench), `traj.hdf5` with
   state/actions/actions_commanded (8 each) + sim states, `meta.json`, and actions(b) vs actions_commanded(a)
   distinct. First real curobo-driven raw demo comes after P6 (execution moves the arm).
+
+### Step 1 · P7 — CuroboWorld: motion_gen + obstacle world + constraint levers (Layer-1, 2026-06-18, `2e1c72d6`)
+- `primitives/obstacles.py`: `CuroboWorld(env, robot)` formalizes the cuRobo setup the P2 smoke inlined —
+  `_install_mimic_patch` (fill the missing Franka finger joint at 0.04 open, replicated clean from
+  `collector._patch_curobo_mimic_lookup`) + `StarterSemanticActionPrimitives._motion_generator`, plus
+  `update_obstacles(ignore_objects=...)` and `LINEAR_SERVO = [0.1x5, 0.0]` (partial-pose hold: hold
+  orientation + perpendicular position, free along the approach axis → linear servo) +
+  `gripper_collision_disabled()`.
+- **Two cuRobo-fork issues found + handled (systematic debug)**: (1) `plan_batch` crashes
+  (`TypeError: 'int' object is not iterable` at `[False for _ in solve_state.batch_size]`,
+  motion_gen.py:3160) when a hold_partial_pose query is invalid (`valid_query=False` — start/goal
+  orientation mismatch or motion off the free axis). The old code tiptoed around it via careful seeding
+  (collector.py comment names the same failure). FIX: `solve_segment` now guards `motion_constraint`
+  calls — an invalid constrained query returns `None` (a plan failure), not a crash, so unattended
+  collection survives. (2) `toggle_link_collision` is ABSENT on the cbaf7d32 build (older-curobo API),
+  so `gripper_collision_disabled()` is a warn-once NO-OP. Verified the real collision levers on this
+  build = `update_obstacles(ignore_objects=...)` (drop the target during a grasp approach) +
+  `attach_obj` (held object). **P3 must use these, not the gripper-link toggle.**
+- **Verified** on a real base task: CuroboWorld builds + plans (31 waypoints); an invalid constrained
+  query returns `None` instead of crashing.
