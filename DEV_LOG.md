@@ -1161,3 +1161,32 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   genuinely distinct on the ramped joint (Δ≈0.10, the impedance tracking lag).
 - **Smoke policy**: the per-primitive `_smoke_*.py` harnesses are kept local-only (untracked, `00348ad2`
   untracked the P1/P8 ones); they remain on disk for re-running as later primitives build on them.
+
+### Step 1 · P2 — solve_segment: cuRobo segment + salvage (Layer-1, 2026-06-18, `1ac639e9`)
+- `primitives/curobo_seg.py`: `solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_pos,
+  *, timeout, attach_obj, motion_constraint, ...)` → `SegmentResult{arm_traj(T,7), final_full, salvaged,
+  pos/rot_err, n_waypoints}`. Replicated clean from `_solve_one_segment` (the family-agnostic solver the old
+  code already cross-imported). KEEP the salvage pass (recover trajectories trajopt flags `success=False` but
+  which converged within 5mm/0.03rad); DROP `eef_traj` (OSC-replay leftover — joint-native executes joints
+  directly), the `[PnP]` labels, and the always-on failure probe (now opt-in `diagnose_on_fail`). ADD
+  `attach_obj` + `motion_constraint` seams. Pure solver — the obstacle world, constraint levers, and
+  gripper-collision toggles belong to the caller (P7); the old `_plan_transport` patch pile is NOT inherited.
+- **Family-agnostic by design**: the old `pick_and_place_from_dataset` SCRIPT is clutter-specific (the lid has
+  its own `pick_up_lid` / `lid_transport`; stack/dusty/jar/cabinet have NO old curobo at all), but the SOLVER
+  inside it is generic — extracting it to L1 is the whole point of the refactor.
+- **Verified** on a real base task: reachable 8cm lift → 31-waypoint (T,7) trajectory; far-unreachable goal →
+  graceful `None`.
+
+### Step 1 · P9 revised — raw-first recorder (2026-06-18, `04ad92e7`)
+- Re-architected the recorder from direct-to-LeRobot → a **reviewable RAW form first** (user wants to eyeball
+  the curobo trajectories before any SFT conversion). `Recorder.attach(env, robot, out_dir, prompt)` →
+  `finalize()` writes, per trajectory: 5 MP4 streams (`image_{opposite,left,right,left_shoulder}.mp4` +
+  `wrist_image.mp4`) + `traj.hdf5` (state(8), actions(8) [b], actions_commanded(8) [a], `states` [sim dumps],
+  `datagen_info/gripper_action`) + `meta.json`; aborts (rmtree) on failure. MP4s match the bench rollout spec
+  **byte-for-byte** — PyAV `h264`/`yuv420p` at the camera's native 256² @ 30 fps (replicated from
+  `task_generation/utils/video`). **LeRobot v2.1 conversion is now a SEPARATE downstream step** (MP4
+  passthrough, no re-encode); `make_dataset` + the LeRobot writer are dropped from the recorder. The
+  joint-native schema is unchanged — only the output target.
+- **Verified** on a real base task: 5 raw MP4s all `h264/256x256/yuv420p/30fps` (== bench), `traj.hdf5` with
+  state/actions/actions_commanded (8 each) + sim states, `meta.json`, and actions(b) vs actions_commanded(a)
+  distinct. First real curobo-driven raw demo comes after P6 (execution moves the arm).
