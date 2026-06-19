@@ -1210,3 +1210,17 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   `attach_obj` (held object). **P3 must use these, not the gripper-link toggle.**
 - **Verified** on a real base task: CuroboWorld builds + plans (31 waypoints); an invalid constrained
   query returns `None` instead of crashing.
+
+### Step 1 · P6 — execute_trajectory: JointController replay + gripper (Layer-1, 2026-06-18, `beb222af`)
+- **Reordered P6 before P3** (dependency: a grasp can only be VALIDATED by executing the approach +
+  closing the gripper + checking the hold — that execution IS P6). `primitives/execute.py`:
+  `execute_trajectory(env, robot, arm_traj, *, gripper_cmd, recorder, steps_per_waypoint)` feeds each
+  (T,7) waypoint into the JointController arm slot (raw radians — the impedance preset's
+  `command_input_limits=None`) with a binary gripper command, and records every stepped frame
+  (`record_step(arm_q_cmd, gripper_cmd)` — the only place the arm is commanded). `actuate_gripper` holds
+  the arm + opens/closes the gripper for N steps (settle/close). `build_joint_action` replicated clean
+  from `collector._build_action`. `OPEN=+1 / CLOSE=-1`.
+- **First real cuRobo-driven RAW demo end-to-end** (scene → cameras → CuroboWorld → plan → execute → raw
+  record): planned 31 waypoints, executed 62 steps (×2 per waypoint), **eef rose 11.4 cm** (commanded
+  12), 62 frames into 5 MP4s + `traj.hdf5` (state (62,8)). The 5-pane montage (arm visibly lifting,
+  objects + goal sphere static) was shown to the user — the reviewable raw form before LeRobot.
