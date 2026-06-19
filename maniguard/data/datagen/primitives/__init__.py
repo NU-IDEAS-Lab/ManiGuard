@@ -10,6 +10,6 @@ Modules (see doc §3; status as of Step 1):
   - ``execute``   : execute_trajectory (JointController PD tracking)
   - ``obstacles`` : ObstacleWorld / Constraints (obstacle world + safety levers)
   - ``cameras``   : [DONE] bench camera_setup (4 third-person) + injected wrist
-  - ``record``    : Recorder (joint-native, 5 images, both actions, sim-state dump,
-                    LeRobot v2.1 write)
+  - ``record``    : [DONE] Recorder (joint-native, 5 images, both actions, sim-state
+                    dump, LeRobot v2.1 write)
 """
