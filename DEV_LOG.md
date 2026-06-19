@@ -1143,3 +1143,21 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   input = `<bench>/<family>/task_NNNN/base/`, FrankaPanda+longfinger): 4 recorded cams positioned, wrist
   injected at build, 5 streams at 256², and the cam_opposite render matches the task's base
   `rollout_opposite_side_front` video frame (arm init pose + objects + goal sphere identical).
+
+### Step 1 · P9 — Recorder: joint-native LeRobot v2.1 + MimicGen sidecar (Layer-1, 2026-06-18, `bca1d610`)
+- `primitives/record.py`: `make_dataset()` (datagen LeRobot v2.1 schema = `data_format.lerobot_features`,
+  reusing the bench `create_or_open_dataset` MP4-passthrough infra) + `Recorder`. Per `env.step` the
+  recorder captures the 5 image streams (→ target MP4s), the ACHIEVED joint state, the cuRobo COMMANDED
+  joint target, the gripper command, and a serialized `og.sim.dump_state` (the MimicGen replay hook).
+  `finalize()` writes one episode — `state(8)=[arm_q,gripper]`, `actions(8)`=(b) next-achieved
+  `[arm_q[t+1],gripper_cmd]`, `actions_commanded(8)`=(a) `[arm_q_cmd,gripper_cmd]` — + a per-episode
+  MimicGen sidecar HDF5 (sim states + gripper action); aborts (drops MP4s) on failure.
+- **The recorder only READS achieved state** — the arm is moved solely by the caller's curobo trajectory
+  (`record_step(arm_q_cmd, gripper_cmd)`); joint-native (no eef-8d / sim-state joint reverse-engineering,
+  which was the old `_sft_recorder`'s constraint). LeRobot 0.3.4 takes `task` as a positional arg to
+  `add_frame(frame, task)` (the old writer put it in the frame dict → breaks on 0.3.4).
+- **Verified** locally on a real base task: 5 video keys + state/actions/actions_commanded (8 each), 1
+  episode/8 frames, sidecar with sim states + gripper action, and `actions`(b) vs `actions_commanded`(a)
+  genuinely distinct on the ramped joint (Δ≈0.10, the impedance tracking lag).
+- **Smoke policy**: the per-primitive `_smoke_*.py` harnesses are kept local-only (untracked, `00348ad2`
+  untracked the P1/P8 ones); they remain on disk for re-running as later primitives build on them.
