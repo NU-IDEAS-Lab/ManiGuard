@@ -37,9 +37,41 @@ left_shoulder}`** (extended in `openpi_sft/data_configs.py`). It is routed to
 `right_wrist_0_rgb` is masked off (single-arm pi0.5 2-cam layout). Per family the
 best-quality view is reviewed + set in the config; record/SFT/eval stay consistent.
 
-## MimicGen sidecar (per episode, NOT in the LeRobot parquet)
+## Two stages: RAW collection → LeRobot conversion
+
+Collection writes a **reviewable RAW form first** (so the curobo trajectories can be
+eyeballed before any SFT conversion); LeRobot v2.1 is produced by a **separate
+downstream converter** (MP4 passthrough — no re-encode).
+
+### Stage 1 — RAW trajectory folder (per trajectory, written by `record.Recorder`)
+
+```
+<out>/<family>/task_NNNN/<variant>/
+  image_opposite.mp4        256x256 h264 yuv420p 30fps  (bench rollout spec, byte-for-byte)
+  image_left.mp4
+  image_right.mp4
+  image_left_shoulder.mp4
+  wrist_image.mp4
+  traj.hdf5                 state(N,8) + actions(N,8) + actions_commanded(N,8)
+                            + states(N,*) [sim dumps] + datagen_info/gripper_action(N,)
+                            + attrs: prompt, n_steps, fps, resolution, <task meta>
+  meta.json                 prompt, success, n_steps, fps, resolution, video_keys, <attrs>
+```
+
+The five MP4s match the bench `rollout_*` videos exactly — same PyAV `h264` /
+`yuv420p` encode at the camera's native render size (256² @ 30 fps). Review = open
+the videos. `traj.hdf5` carries the joint trajectory + the MimicGen sim-state dump.
+
+### Stage 2 — LeRobot v2.1 (separate converter, only when ready for SFT)
+
+A converter reads N raw folders → one LeRobot dataset using `lerobot_features()`
+below: the 5 MP4s pass straight through (no re-encode), the `state` / `actions` /
+`actions_commanded` columns come from each `traj.hdf5`.
+
+## MimicGen hook (inside `traj.hdf5`, NOT consumed by LeRobot)
 
 Kept now so the future MimicGen amplification layer (doc §8) needs no re-collection:
 - `states` — `og.sim.dump_state(serialized=True)` per step (replay).
-- `datagen_info/{eef_pose, object_poses/<obj>, gripper_action, subtask_term_signals/<sig>}`
-  — object-centric per-step info + subtask-termination flags.
+- `datagen_info/gripper_action` — per-step binary gripper command. (Object-centric
+  `eef_pose` / `object_poses` / `subtask_term_signals` are derivable later from the
+  sim states + the family skeleton; not written at collection time.)
