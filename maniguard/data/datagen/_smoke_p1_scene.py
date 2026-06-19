@@ -17,7 +17,7 @@ from maniguard.data.datagen.primitives.scene import init_omnigibson, scene_from_
 
 def main() -> int:
     task_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
-        "outputs/pipeline_runs/Rs_int_20260529_205132")
+        "outputs/lerobot_datasets/maniguard-bench/clutter_pickup/task_0000/base")
 
     og = init_omnigibson(headless=True)
     bundle = scene_from_task_dir(task_dir, episode=1)
