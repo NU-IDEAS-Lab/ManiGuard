@@ -8,7 +8,7 @@ Modules (see doc §3; status as of Step 1):
   - ``move``      : move_holding (carry a grasped object through waypoints)
   - ``contact``   : push_drawer / close_hinge / wipe_surface / extract_lateral
   - ``execute``   : execute_trajectory (JointController PD tracking)
-  - ``obstacles`` : ObstacleWorld / Constraints (obstacle world + safety levers)
+  - ``obstacles`` : [DONE] CuroboWorld (motion_gen + obstacle world + constraint levers)
   - ``cameras``   : [DONE] bench camera_setup (4 third-person) + injected wrist
   - ``record``    : [DONE] Recorder (joint-native, 5 images, both actions, sim-state
                     dump, LeRobot v2.1 write)

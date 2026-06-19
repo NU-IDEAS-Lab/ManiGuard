@@ -157,17 +157,31 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
     # return_full_result=True so the salvage pass can recover trajectories trajopt
     # flags success=False but which actually converged at the goal (short/degenerate
     # motions where its convergence criterion is overly strict).
-    full = motion_gen.compute_trajectories(
-        target_pos=target_pos, target_quat=target_quat,
-        initial_joint_pos=initial_joint_pos, is_local=False,
-        max_attempts=max_attempts, timeout=timeout, ik_fail_return=5,
-        enable_finetune_trajopt=True, finetune_attempts=2,
-        return_full_result=True, success_ratio=1.0 / bs,
-        attached_obj=attached_obj, attached_obj_scale=attached_obj_scale,
-        motion_constraint=motion_constraint, skip_obstacle_update=True,
-        ik_only=False, ik_world_collision_check=True,
-        emb_sel=CuRoboEmbodimentSelection.DEFAULT,
-    )
+    try:
+        full = motion_gen.compute_trajectories(
+            target_pos=target_pos, target_quat=target_quat,
+            initial_joint_pos=initial_joint_pos, is_local=False,
+            max_attempts=max_attempts, timeout=timeout, ik_fail_return=5,
+            enable_finetune_trajopt=True, finetune_attempts=2,
+            return_full_result=True, success_ratio=1.0 / bs,
+            attached_obj=attached_obj, attached_obj_scale=attached_obj_scale,
+            motion_constraint=motion_constraint, skip_obstacle_update=True,
+            ik_only=False, ik_world_collision_check=True,
+            emb_sel=CuRoboEmbodimentSelection.DEFAULT,
+        )
+    except TypeError as exc:
+        # cuRobo (Stanford fork) crashes building the failure result when a
+        # hold_partial_pose query is invalid: `[False for _ in batch_size]` where
+        # batch_size is an int (motion_gen.py plan_batch). It only fires when
+        # motion_constraint is set + update_pose_cost_metric rejects the query
+        # (start/goal orientation mismatch or motion off the free axis). Treat an
+        # invalid constrained query as a plan failure (None) instead of crashing
+        # collection — the caller seeds constrained segments to stay valid.
+        if motion_constraint is not None:
+            print(f"[datagen.curobo] segment {label!r}: invalid partial-pose "
+                  f"constraint query -> None ({exc})", flush=True)
+            return None
+        raise
 
     joint_state, salvaged, pos_err, rot_err = _salvage(full, pos_tol, rot_tol, label)
     if joint_state is None:
