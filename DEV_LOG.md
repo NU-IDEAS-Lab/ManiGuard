@@ -1120,3 +1120,26 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
 - **Verified** on a real dump (headless GPU): 5/5 task objects present, robot loaded, 15 steps
   stable, fixed surface stays at its dumped z. The post-PASS teardown segfault is the known Isaac
   Kit shutdown race (data-safe; the L3 driver will treat data-written + teardown-segfault as success).
+
+### Step 1 · P8 — cameras: 4 recorded-pose third-person + injected wrist (Layer-1, 2026-06-18, `d66709cc`)
+- `primitives/cameras.py` fills the two `scene_from_task_dir` seams: `external_camera_configs()` (the
+  bench third-person VisionSensors → `external_sensors=`) and `install_wrist_camera()` (the FrankaPanda
+  `_load_sensors` monkeypatch injecting the wrist Camera under `panda_hand` at +0.05 Z so it frames the
+  grasp zone and rides the eef → `pre_build_hooks=`), plus `find_wrist_sensor()` and
+  `place_and_resize_cameras(env, robot, og, diag)`. Wrist patch + lookup replicated clean from the
+  reference `_sft_recorder` (no import of that tree).
+- **Key decision — read, don't recompute**: `place_and_resize_cameras` positions the 4 third-person
+  cams from the poses RECORDED in `diagnostics["cameras"]` (via `position_diagnostics_cameras`), not a
+  robot-frame recompute, so the datagen views are byte-for-byte consistent with the bench render + eval
+  (the bench start state IS the baseline — nothing the user finalized is modified). Then it forces 256²
+  on every VisionSensor + rebuilds the obs space.
+- **Locked principle + debug lesson**: datagen starts from + holds the task's recorded init pose
+  (`reset_joint_pos` from the snapshot) and moves the arm ONLY via curobo-planned joint trajectories.
+  `env.step(np.zeros)` is NOT a no-op under the `joint_position_impedance` controller — it's an absolute
+  command to the joint-zero pose (a contorted upright arm). Observe/render with `og.sim.render()`, never
+  a stray action. (Cost a debug cycle: an early smoke fed a zero action + used an old `pipeline_runs/*`
+  dump that bakes the pre-standardization `FrankaMounted` robot.)
+- **Verified** render-only on `maniguard-bench/clutter_pickup/task_0000/base` (the canonical base-task
+  input = `<bench>/<family>/task_NNNN/base/`, FrankaPanda+longfinger): 4 recorded cams positioned, wrist
+  injected at build, 5 streams at 256², and the cam_opposite render matches the task's base
+  `rollout_opposite_side_front` video frame (arm init pose + objects + goal sphere identical).
