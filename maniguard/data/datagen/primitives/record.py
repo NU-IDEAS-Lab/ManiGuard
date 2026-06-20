@@ -239,7 +239,9 @@ class Recorder:
 
         with h5py.File(str(self.out_dir / "traj.hdf5"), "w") as f:
             for k, v in attrs.items():
-                f.attrs[k] = v
+                # h5py attrs take only scalars/strings — JSON-encode nested values (e.g. jitter dict)
+                f.attrs[k] = v if isinstance(v, (str, int, float, bool, np.integer, np.floating)) \
+                    else json.dumps(v, default=str)
             f.attrs["n_steps"] = int(self.n_steps)
             f.attrs["prompt"] = self.prompt
             f.attrs["fps"] = int(self.fps)
@@ -250,8 +252,21 @@ class Recorder:
             g = f.create_group("datagen_info")
             g.create_dataset("gripper_action", data=actions_cmd[:, -1].astype(np.float32))
             if self.record_sim_states and self._sim_states:
-                f.create_dataset("states", data=np.stack(self._sim_states, axis=0),
-                                 compression="gzip", compression_opts=4)
+                lens = {len(s) for s in self._sim_states}
+                if len(lens) == 1:
+                    f.create_dataset("states", data=np.stack(self._sim_states, axis=0),
+                                     compression="gzip", compression_opts=4)
+                else:
+                    # ragged serialized state (AG attach/detach changes its length across steps)
+                    # -> pad to max + store per-step lengths so it stays HDF5-writable.
+                    L = max(lens)
+                    padded = np.zeros((len(self._sim_states), L), dtype=np.float32)
+                    slen = np.empty(len(self._sim_states), dtype=np.int32)
+                    for i, s in enumerate(self._sim_states):
+                        padded[i, : len(s)] = s
+                        slen[i] = len(s)
+                    f.create_dataset("states", data=padded, compression="gzip", compression_opts=4)
+                    f.create_dataset("states_len", data=slen)
 
     def _write_meta(self, attrs: dict) -> None:
         meta = {
@@ -261,7 +276,6 @@ class Recorder:
             "fps": int(self.fps),
             "resolution": int(self.resolution),
             "video_keys": list(data_format.IMAGE_KEYS),
-            **{k: (v if isinstance(v, (str, int, float, bool, list)) else str(v))
-               for k, v in attrs.items()},
+            **attrs,                       # keep nested dicts/lists (e.g. jitter) as real JSON
         }
-        (self.out_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+        (self.out_dir / "meta.json").write_text(json.dumps(meta, indent=2, default=str))

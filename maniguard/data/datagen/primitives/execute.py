@@ -35,13 +35,18 @@ def build_joint_action(robot, arm_q, gripper_cmd: float):
 
 
 def execute_trajectory(env, robot, arm_traj, *, gripper_cmd: float = OPEN,
-                       recorder: Any = None, steps_per_waypoint: int = 1) -> int:
+                       recorder: Any = None, steps_per_waypoint: int = 1,
+                       on_step: Any = None) -> int:
     """Drive the arm through ``arm_traj`` (T,7) absolute-joint waypoints via the
     JointController, holding the gripper at ``gripper_cmd``. Records every stepped
     frame if ``recorder`` is set. Returns the number of env steps taken.
 
     The recorder reads the ACHIEVED joints after each step; ``arm_q_cmd`` is the
-    commanded waypoint. The arm is moved ONLY here (never a stray zero action)."""
+    commanded waypoint. The arm is moved ONLY here (never a stray zero action).
+
+    ``on_step`` (optional) is called after each ``env.step`` + record (e.g. the safety
+    gate's per-step tick); a truthy return ABORTS execution immediately (an LTL
+    violation must stop the unsafe trajectory at once)."""
     import torch as th
 
     n = 0
@@ -54,14 +59,17 @@ def execute_trajectory(env, robot, arm_traj, *, gripper_cmd: float = OPEN,
             if recorder is not None:
                 recorder.record_step(arm_q_cmd=q_np, gripper_cmd=gripper_cmd)
             n += 1
+            if on_step is not None and on_step():
+                return n
     return n
 
 
 def actuate_gripper(env, robot, *, close: bool, n_steps: int,
-                    recorder: Any = None) -> int:
+                    recorder: Any = None, on_step: Any = None) -> int:
     """Hold the arm at its current joints and drive the gripper open/closed for
     ``n_steps`` (settle before / close after a grasp). Records every step if
-    ``recorder`` is set. Returns the number of env steps taken."""
+    ``recorder`` is set. ``on_step`` (optional) ticks after each step and aborts early
+    on a truthy return (same gate hook as ``execute_trajectory``). Returns env steps taken."""
     arm = robot.default_arm
     gripper_cmd = CLOSE if close else OPEN
     n = 0
@@ -72,4 +80,6 @@ def actuate_gripper(env, robot, *, close: bool, n_steps: int,
         if recorder is not None:
             recorder.record_step(arm_q_cmd=cur_q.cpu().numpy(), gripper_cmd=gripper_cmd)
         n += 1
+        if on_step is not None and on_step():
+            return n
     return n
