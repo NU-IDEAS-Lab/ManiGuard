@@ -1224,3 +1224,38 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   record): planned 31 waypoints, executed 62 steps (×2 per waypoint), **eef rose 11.4 cm** (commanded
   12), 62 frames into 5 MP4s + `traj.hdf5` (state (62,8)). The 5-pane montage (arm visibly lifting,
   objects + goal sphere static) was shown to the user — the reviewable raw form before LeRobot.
+
+### Step 1 · grasp annotation — per-instance human grasp DB + review/QC tooling (2026-06-19, `6b6b3a51`..`1106720d`)
+- **Grasp-source pivot**: P3's grasp source is now **per-instance human-annotated grasp frames**
+  (RoboTwin-style), not GraspGen. Why: GraspGen ignores robot reachability/clutter (teacup top-40 grasps
+  0/40 reachable for the table Franka; teacup body 7.3 cm > 7.0 cm gripper) and can't express semantic
+  grasps (rim/handle/stem). GraspGen demoted to an optional candidate.
+- **Schema (locked)** `outputs/grasp_annotation/grasp_annotations.json` (gitignored): each grasp = an
+  **eef_link TARGET pose in the object-local frame** `(position, quat_xyzw)`; runtime
+  `T_eef_world = object_world_pose @ pose` → straight to cuRobo IK, zero conversion. Verified exact
+  (~1e-16) and object-relative (follows the object's pose in any task instance).
+- **Gripper eef-local frame (sim-measured, corrects the old probe)**: fingertips/**approach = eef +Z**,
+  **closing = eef -Y** (the old probe mislabelled the finger-link origins as the tips).
+- `6b6b3a51` `primitives/grasp_obb.py` (dependency): OBB grasp sampler + the OG mesh/transform helpers
+  (`mesh_from_og_object`, `_to_np`, `_pose_to_mat`) the annotation pipeline reuses.
+- `b32e8a48` `annotation/{extract_meshes,annotate_tool}.py` — **Phase A** enumerates the distinct grasp
+  targets per family (diagnostics goal + scene_ep1 model, pure JSON) and in one OG session exports an
+  object-local GLB + bbox + upright orientation per target (132 across 6 families) + the longfinger
+  gripper mesh in eef-frame. **Phase B** = viser web GUI (`:8080`): object shown upright + world axes +
+  real gripper, Guided (click + approach preset + yaw/depth) and Free (6-DoF gizmo) modes, incremental
+  save/resume, `--family` filter.
+- `1106720d` `annotation/{mesh_review,validate_grasps,fix_approach_tags}.py` — annotation QC.
+  **`mesh_review`** (fast, NO sim): per object, object-upright + gripper at each grasp from 3 viewpoints
+  (oblique/side/top) with a fixed-inset world XYZ triad, the true approach DERIVED from the pose — seconds
+  per family, the DEFAULT per-family check. **`validate_grasps`** (heavy, sim): teleports the base so
+  eef_link lands exactly on each grasp (0.0 mm), renders the 4 bench cams + a 3D closeup, emits per-grasp
+  montages + a per-object `_summary.png` — run later for real-scene context. **`fix_approach_tags`**
+  rewrites each grasp's `approach_hint` from the actual pose (confident → corrected, ambiguous band →
+  reported for human review).
+- **Workflow per family**: annotate (`annotate_tool --family X`) → `fix_approach_tags --family X --apply`
+  → `mesh_review --family X` (fast check) → much later `validate_grasps` (sim summary). Loader/camera
+  gotchas (sim path): wrist camera / new sim cameras → Vulkan DEVICE_LOST; mid-run camera reposition
+  doesn't re-render in headless (use matplotlib closeups); `og.clear()` multi-task breaks the cameras →
+  one object per process. Always `python -u`; exit 139 at `og.sim.stop()` is benign.
+- **Status**: clutter 5/39 targets annotated + closed-loop validated (25 grasps at 0.0 mm; goblet
+  #1/#2/#3 auto-corrected top_down→side). Next: annotate the remaining 34 clutter targets.
