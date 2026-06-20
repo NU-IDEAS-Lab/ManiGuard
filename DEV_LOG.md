@@ -1259,3 +1259,27 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   one object per process. Always `python -u`; exit 139 at `og.sim.stop()` is benign.
 - **Status**: clutter 5/39 targets annotated + closed-loop validated (25 grasps at 0.0 mm; goblet
   #1/#2/#3 auto-corrected top_down→side). Next: annotate the remaining 34 clutter targets.
+
+### Step 2 · executor — generic engine + clutter template, first real dataset (2026-06-20, `1c0f88c3`..)
+- **Generic executor ⟂ family skeleton**, decoupled by one interface (`MotionSegment` +
+  `FamilySkeleton`): `executor/` (contracts/engine/gate/geometry/grasp_select/variation) plans /
+  executes / gates / records / scales ANY family; `families/clutter.py` only declares the motion
+  segments. Adding a family = new task semantics, everything else reused.
+- **clutter boxy skeleton**: `pre_grasp → descend(ignore_clutter, world-collision-off) → lift(to
+  dynamic ≥3cm clearance) → transport(over goal) → to_goal(aim held-object centre at goal-sphere
+  centre)`. Grasps from the annotation DB (`grasp_db.py`, object-local @ live pose).
+- **Gate = HARD filter** (§0.1 revised): real-time LTL (`TaskLTLMonitor`) + success (held-in-goal)
+  every executed step; a violation voids the demo. Never collect "success but not safe".
+- **5 diversity dims, one master seed/variant**: grasp · cuRobo trajopt seed (`torch.manual_seed`)
+  · lift height (1.0–1.5× clearance) · standoff · above_xy. `--target N` loops draws until N
+  successes; pristine scene `load_state` reset before every variant; gap-free `traj_NNN`.
+- **3 integration fixes**: LINEAR_SERVO→unconstrained fallback (this cuRobo build rejects the
+  partial-pose query); grasp descent collision-off; settle + over-lift for PD undershoot.
+- **Tooling**: `sweep.py` (one subprocess per task, sharded/parallel, save-isolated), `reader.py`
+  (LeRobot conversion entry — videos/numbers separate, conversion needs no sim/replay), `review.py`
+  (per-task montage MP4). Output `outputs/datagen/<dataset>/<bench_family>/<task>/traj_NNN/` =
+  5 MP4 + traj.hdf5 + meta.json; bench-consistent naming + 256²/30fps/h264.
+- **First real dataset `v1`**: clutter_pickup task_0000–0004 × 50 = **250 demos, 1.77 h (~25s/demo)**,
+  integrity 0 issues (frame-aligned, gap-free, all success+safe), review quality confirmed. Full
+  pipeline doc = `docs/datagen/pipeline.md`. GraspGen path (`primitives/grasp.py`,`graspgen.py`)
+  demoted + kept local-only. Next: cabinet family.
