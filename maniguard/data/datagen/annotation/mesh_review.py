@@ -61,20 +61,18 @@ def classify_approach(a):
     """Derived approach class from the actual eef pose (gripper +Z = fingertips lead),
     given the approach vector in the UPRIGHT/world frame. Returns (label, theta_deg,
     confident) where theta is the angle from straight-down (0=top_down, 90=side, 180=up).
-    Confident only well inside a band; the in-between zones are flagged for human review.
 
-    Shared by mesh_review (display) and fix_approach_tags (data correction)."""
+    Hard thresholds (user-set top_down cutoff = 60deg, mirrored): top_down 0-60, side
+    60-120, bottom_up 120-180 — a tilted top grasp up to 60deg still counts as top_down.
+    Always confident (no ambiguous band). Shared by mesh_review + fix_approach_tags."""
     a = np.asarray(a, float)
     a = a / (np.linalg.norm(a) + 1e-9)
     theta = float(np.degrees(np.arccos(np.clip(-a[2], -1.0, 1.0))))
-    if theta <= 35.0:
+    if theta <= 60.0:
         return "top_down", theta, True
-    if 55.0 <= theta <= 125.0:
-        return "side", theta, True
-    if theta >= 145.0:
+    if theta >= 120.0:
         return "bottom_up", theta, True
-    guess = "top_down" if theta < 90.0 else "bottom_up"   # ambiguous vs "side"
-    return guess, theta, False
+    return "side", theta, True
 
 
 def _add_triad_inset(ax, el, az):
