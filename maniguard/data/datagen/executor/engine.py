@@ -41,7 +41,8 @@ class DemoEngine:
     def __init__(self, env, robot, world, *, timeout: float = 5.0,
                  steps_per_waypoint: int = 2, settle_steps: int = 8,
                  clearance_eps: float = 0.005, lift_margin: float = 0.04,
-                 servo_step_m: float = 0.010, servo_spw: int = 4):
+                 servo_step_m: float = 0.010, servo_spw: int = 4,
+                 max_steps: int = 3600):
         self.env = env
         self.robot = robot
         self.world = world                       # CuroboWorld (.motion_gen, .update_obstacles)
@@ -53,6 +54,9 @@ class DemoEngine:
         self.servo_step_m = float(servo_step_m)  # SERVO eef-interpolation resolution (straight-push waypoint spacing)
         self.servo_spw = int(servo_spw)          # sim steps per SERVO waypoint: SLOW so a pushed drawer slides
         #                                          with the gripper (a fast push outruns it -> no contact)
+        self.max_steps = int(max_steps)          # backstop: abort + fail "timeout" if a rollout exceeds this many
+        #                                          recorded steps (30 fps → 3600 ≈ 2 min). A healthy cabinet demo is
+        #                                          ~2400; this only catches a pathological runaway, never a normal run.
         self._last_servo = None                  # most recent SERVO joint path (for replay_reverse retreat)
 
     def _held(self, seg: MotionSegment, ctx: TaskContext):
@@ -144,14 +148,23 @@ class DemoEngine:
 
         gate.reset()
         self._last_servo = None                  # per-variant: no servo path recorded yet
+        self._timeout = False                    # tripped if the rollout exceeds self.max_steps
         recorder.attach(self.env, self.robot, out_dir,
                         prompt=ctx.diagnostics.get("prompt", ""))
 
-        def tick() -> bool:                      # gate hook: step LTL, abort on violation
+        def tick() -> bool:                      # per-step hook: LTL + step-limit, abort on either
             gate.step()
-            return gate.violated
+            if gate.violated:
+                return True
+            if recorder.n_steps >= self.max_steps:
+                self._timeout = True
+                return True
+            return False
 
         for seg in segments:
+            if self._timeout:                      # step-limit tripped in a prior segment's settle/gripper
+                recorder.finalize(success=False)
+                return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
             skeleton.on_segment(seg, ctx)          # family runtime side-effects (e.g. hold drawer open)
             tpos, tquat = self._resolve_target(seg, ctx, skeleton)
             if seg.ignore_clutter:
@@ -206,6 +219,10 @@ class DemoEngine:
             execute_trajectory(self.env, self.robot, arm_traj, gripper_cmd=carry,
                                recorder=recorder, steps_per_waypoint=spw,
                                on_step=tick)
+            if self._timeout:
+                print(f"[datagen.engine] {seg.name} TIMEOUT: {recorder.n_steps} steps > {self.max_steps}", flush=True)
+                recorder.finalize(success=False)
+                return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
             if gate.violated:
                 recorder.finalize(success=False)
                 return DemoResult.fail("unsafe", seg=seg.name, step=gate.violation_step)
