@@ -48,7 +48,10 @@ PLACE_Z_MARGIN = 0.01     # drop height above the table / drawer floor
 RETREAT_DZ = 0.12         # straight-up retreat after releasing a relocated blocker
 HANDLE_BACK_DIST = 0.10   # after opening, retreat the gripper this far along +open so fingers clear the handle
 CLOSE_FRACTION = 0.12     # close to this fraction of the spawn opening (≈88% shut; << Open threshold)
-LIFT_CLEAR = 0.05         # relocate: lift the held blocker this far above the table top before transit
+LIFT_CLEAR = 0.18         # relocate: lift the held blocker this HIGH above the table before the FREE transit
+#                           — a low (~5 cm) lift leaves the object hugging the table next to the tall cabinet,
+#                           so the cabinet-avoiding cuRobo transit plans a hard low path (~50% plan_fail on this
+#                           fork); lifting it well clear first gives the transit a roomy high lane = reliable plan
 RIM_CLEARANCE = 0.06      # place: lift the target's bottom this far above the drawer rim before going over
 # Per-demo diversity bands (sampled from the variant seed in derive_segments; small so the long-horizon
 # task still reliably completes). Dim 1: how far above the rim the target's bottom is carried (the lift
@@ -209,38 +212,29 @@ class CabinetSkeleton(FamilySkeleton):
         self._select_place_grasp(ctx, world, robot, P)
 
     def _select_place_grasp(self, ctx, world, robot, P) -> None:
-        """Choose the Phase-4 PLACE grasp on the target. The target is a solid base + thin post: a
-        top-down grasp on the post slips, so prefer the DEEPEST reachable TOP-DOWN grasp (lowest
-        object-local z = closest to the solid base = a firmer hold + a lower eef to keep the over-rim
-        lift within reach). Score reachability at the target's PREDICTED Phase-4 location (its
-        relocated base-side spot if it is in the drawer path, else spawn) — scoring at spawn rejects
-        the deep grasps that only become reachable once the target sits in the arm's sweet zone.
-        Caches ``P['place_gid']``; the runtime pre-grasp cuRobo plan is the final reach check."""
+        """Cache the Phase-4 PLACE-grasp candidate LIST = all REACHABLE target grasps at the target's
+        PREDICTED Phase-4 (relocated, base-side) location, cuRobo-score-ordered (best-first). NO
+        orientation/depth pre-judgement — top-down AND side grasps are BOTH kept; cuRobo reachability
+        is the only (fair) "is it possible" prefilter, and the real test of whether a grasp can grab +
+        lift over the rim + place + stay safe is the rollout + success/LTL gate. derive_segments
+        samples across this list per draw, so the place grasp is a diversity axis. Scoring at the moved
+        location (not spawn) matters: a grasp unreachable at spawn becomes reachable once the target
+        sits in the arm's zone. Caches ``P['place_gids']``; the runtime pre-grasp cuRobo plan is the
+        final reach check (a draw whose grasp plan-fails just fails + is dropped)."""
         key = ctx.target_key
-        grasps = self._local_grasps(key)
-        if not grasps:
+        if not self._local_grasps(key):
             return
         obj_pose = self._predicted_target_pose(ctx, P)
-        reachable = set(self._score_aux(world, robot, ctx, obj=ctx.target, key=key,
-                                        ignore=ctx.target, on_handle=False, obj_pose=obj_pose))
-        if not reachable:                              # fall back to spawn if the predicted pose scores empty
-            reachable = set(self._score_aux(world, robot, ctx, obj=ctx.target, key=key,
-                                            ignore=ctx.target, on_handle=False))
-        if not reachable:
+        gids = self._score_aux(world, robot, ctx, obj=ctx.target, key=key,
+                               ignore=ctx.target, on_handle=False, obj_pose=obj_pose)
+        if not gids:                                   # fall back to spawn-pose reachability
+            gids = self._score_aux(world, robot, ctx, obj=ctx.target, key=key,
+                                   ignore=ctx.target, on_handle=False)
+        if not gids:
             print("[datagen.cab] place grasp: none reachable -> fallback to target_grasp at runtime", flush=True)
             return
-
-        def vertical(g):                               # +1 = straight-down (top-down), 0 = side
-            appr = Rot.from_quat(g["orientation_xyzw"]).as_matrix()[:, 2]   # eef +Z in OBJECT frame
-            return float(-appr[2])                     # object upright ⇒ object-z ≈ world-z
-
-        cand = [g for g in grasps if int(g["id"]) in reachable]
-        top_down = [g for g in cand if vertical(g) > 0.5] or cand        # tilt-safe pinch; fall back if none
-        deepest = min(top_down, key=lambda g: float(g["position"][2]))   # lowest object-local z = deepest hold
-        P["place_gid"] = int(deepest["id"])
-        print(f"[datagen.cab] place grasp: id={deepest['id']} eef_z(local)={float(deepest['position'][2]):.3f} "
-              f"vert={vertical(deepest):.2f} pool={'top_down' if top_down is not cand else 'all'} "
-              f"reachable={sorted(reachable)}", flush=True)
+        P["place_gids"] = gids                         # best-first; derive_segments samples per draw
+        print(f"[datagen.cab] place grasp candidates (reachable, best-first): {gids}", flush=True)
 
     def _predicted_target_pose(self, ctx, P):
         """Where the target will sit when Phase 4 picks it: its Phase-2 relocated (base-side) xy if it
@@ -294,7 +288,10 @@ class CabinetSkeleton(FamilySkeleton):
         # per-demo diversity draws (deterministic per variant seed)
         d_shift = float(rng.uniform(*TARGET_D_SHIFT_BAND))     # dim 2: target's landing point along the edge
         rim_clear = float(rng.uniform(*RIM_CLEAR_BAND))        # dim 1: carry height above the rim
-        print(f"[datagen.cab] diversity: d_shift={d_shift:.3f} rim_clear={rim_clear:.3f}", flush=True)
+        place_gids = P.get("place_gids") or []                 # dim 3: which reachable place grasp (top-down OR
+        place_gid = int(place_gids[int(rng.integers(len(place_gids)))]) if place_gids else None  # side — fair, the
+        #                                                        gate is the real judge); None => target_grasp at runtime
+        print(f"[datagen.cab] diversity: d_shift={d_shift:.3f} rim_clear={rim_clear:.3f} place_gid={place_gid}", flush=True)
 
         segs: list[MotionSegment] = []
         # Phase 1 — close the drawer first. The bench spawns it 0.2-open; a blocker wedged at the
@@ -318,7 +315,7 @@ class CabinetSkeleton(FamilySkeleton):
         segs += self._open_drawer(ctx, dist=open_dist)
 
         # Phase 4 — pick the target (now at its moved spot) + place it INTO the open drawer.
-        segs += self._place_in_drawer(ctx, target_grasp, params, rim_clear)
+        segs += self._place_in_drawer(ctx, target_grasp, params, rim_clear, place_gid)
 
         # Phase 5 — close the drawer.
         segs += self._close_drawer(ctx, tag="final")
@@ -380,9 +377,11 @@ class CabinetSkeleton(FamilySkeleton):
                           compute="extract", extra={"dist": HANDLE_BACK_DIST}, ignore_objects=cab),
         ]
 
-    def _place_in_drawer(self, ctx, target_grasp, params, rim_clear: float = RIM_CLEARANCE) -> list[MotionSegment]:
-        """Phase 4: pick the target with its DEEP grasp, then an inverted-"门"-frame placement so it
-        lands upright in the open drawer without a tumbling free-fall. All-SERVO straight (pure IK,
+    def _place_in_drawer(self, ctx, target_grasp, params, rim_clear: float = RIM_CLEARANCE,
+                         place_gid: int | None = None) -> list[MotionSegment]:
+        """Phase 4: pick the target with the draw's sampled place grasp (a reachable top-down OR side
+        grasp — derive_segments rotates the candidate list), then an inverted-"门"-frame placement so
+        it lands upright in the open drawer without a tumbling free-fall. All-SERVO straight (pure IK,
         nearest-seed → the held object stays upright, only the eef translates):
           lift   ↑ straight UP to the top-left corner (target bottom above the rim, hard-verified)
           over   → straight HORIZONTAL to the top-right corner (directly over the cavity centre)
@@ -391,7 +390,7 @@ class CabinetSkeleton(FamilySkeleton):
           release  open at the low set-down → the target settles upright inside."""
         P = self._prepare(ctx)
         cab, tname = P["cab_name"], ctx.target_name
-        gid = P.get("place_gid") or target_grasp.id    # deep top-down grasp from select_grasps
+        gid = place_gid or target_grasp.id             # sampled reachable place grasp (select_grasps)
         e = {"obj": "target", "key": ctx.target_key, "grasp_id": gid}
         held = {"held_name": tname}
         q0 = np.array([0.0, 0.0, 0.0, 1.0])
