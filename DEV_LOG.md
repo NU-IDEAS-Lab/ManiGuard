@@ -1321,3 +1321,12 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   success+LTL gate as the only judge, plus a generic engine **step-limit backstop** (`max_steps`
   3600 ≈ 2 min). Review montage (`review.py`) made third-person-camera selectable (`--cam`) — still
   one family-agnostic tool; cabinet reviews from `opposite`, clutter unchanged on `left_shoulder`.
+- **Stability pass (task_0000, pre-scale)**: place grasp changed from one confident pick (deepest
+  top-down, side discarded) to **fair sampling** over the full reachable list (top-down AND side,
+  per-draw = a 3rd diversity axis); cuRobo reachability is the only "is it possible" prefilter, the
+  rollout + gate is the real judge. Found `move_transit` (relocate's cabinet-avoiding FREE plan)
+  ~50% plan_fail — a generic engine **cuRobo plan retry** (`plan_tries=2`) only patched it; the real
+  fix was lifting the relocated blocker **higher before the transit** (`LIFT_CLEAR` 0.05 → 0.18 m,
+  roomy high lane) → move_transit **50% → 100%** (8/8). Remaining failures are now all in the place
+  phase = the intended fair grasp test (bad grasps fail + drop). `review.py` now defaults to no-wrist
+  (`--wrist` to add it); annotate tool's jump list is searchable + alphabetical.
