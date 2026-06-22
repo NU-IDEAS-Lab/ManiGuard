@@ -148,7 +148,7 @@ def _montage_one(traj_dirs, title_text: str, out_path: Path, stride: int, wrist:
 
 
 def montage_task(dataset: str, family: str, task: str, *, stride: int = 3,
-                 wrist: bool = True, cam: str = "left_shoulder", root=reader.ROOT) -> None:
+                 wrist: bool = False, cam: str = "left_shoulder", root=reader.ROOT) -> None:
     base = Path(root) / dataset / family / task
     trajs = sorted(p for p in base.glob("traj_*") if (p / "traj.hdf5").exists())
     if not trajs:
@@ -174,8 +174,8 @@ def main() -> int:
     ap.add_argument("--stride", type=int, default=3, help="keep every Nth frame (3 => 10fps)")
     ap.add_argument("--cam", default="left_shoulder", choices=sorted(CAMS),
                     help="third-person view (default left_shoulder; cabinet uses opposite)")
-    ap.add_argument("--no-wrist", dest="wrist", action="store_false",
-                    help="third-person only (10 per row); default includes wrist (5 pairs/row)")
+    ap.add_argument("--wrist", action="store_true",
+                    help="also tile the wrist stream (default: third-person only, 10 per row)")
     a = ap.parse_args()
 
     if a.all:
