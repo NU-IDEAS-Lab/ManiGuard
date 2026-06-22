@@ -50,6 +50,11 @@ HANDLE_BACK_DIST = 0.10   # after opening, retreat the gripper this far along +o
 CLOSE_FRACTION = 0.12     # close to this fraction of the spawn opening (≈88% shut; << Open threshold)
 LIFT_CLEAR = 0.05         # relocate: lift the held blocker this far above the table top before transit
 RIM_CLEARANCE = 0.06      # place: lift the target's bottom this far above the drawer rim before going over
+# Per-demo diversity bands (sampled from the variant seed in derive_segments; small so the long-horizon
+# task still reliably completes). Dim 1: how far above the rim the target's bottom is carried (the lift
+# height). Dim 2: how far the relocated TARGET slides along +opening on the near edge (where it lands).
+RIM_CLEAR_BAND = (0.06, 0.12)
+TARGET_D_SHIFT_BAND = (0.18, 0.30)
 LOWER_IN_MAX = 0.35       # place: cap the final straight descent into the OPEN drawer. This chest's drawer
 #                           is DEEP (rim 0.734, interior floor ~0.47), so the 0.21 m target needs a ~0.26 m
 #                           descent to sit fully below the rim (else it jams the close) — NOT the ~10 cm
@@ -286,6 +291,10 @@ class CabinetSkeleton(FamilySkeleton):
         L = P["layout"]
         rng = np.random.default_rng(params.seed)
         open_dist = CG.open_distance(self._obj_width(ctx.target_key), L.remaining_travel, rng)
+        # per-demo diversity draws (deterministic per variant seed)
+        d_shift = float(rng.uniform(*TARGET_D_SHIFT_BAND))     # dim 2: target's landing point along the edge
+        rim_clear = float(rng.uniform(*RIM_CLEAR_BAND))        # dim 1: carry height above the rim
+        print(f"[datagen.cab] diversity: d_shift={d_shift:.3f} rim_clear={rim_clear:.3f}", flush=True)
 
         segs: list[MotionSegment] = []
         # Phase 1 — close the drawer first. The bench spawns it 0.2-open; a blocker wedged at the
@@ -297,7 +306,7 @@ class CabinetSkeleton(FamilySkeleton):
             key = ctx.target_key if role == "target" else P["obstacle_key"]
             gid = target_grasp.id if role == "target" else self._best_grasp_id(key)
             place_xy = CG.blocker_placement(L, _np(obj.get_position_orientation()[0])[:2],
-                                            self._obj_width(key) / 2, role, open_dist)
+                                            self._obj_width(key) / 2, role, open_dist, d_shift=d_shift)
             if place_xy is None:                       # no room → a "third-type" task to report
                 return []
             print(f"[datagen.cab] relocate[{role}] "
@@ -309,7 +318,7 @@ class CabinetSkeleton(FamilySkeleton):
         segs += self._open_drawer(ctx, dist=open_dist)
 
         # Phase 4 — pick the target (now at its moved spot) + place it INTO the open drawer.
-        segs += self._place_in_drawer(ctx, target_grasp, params)
+        segs += self._place_in_drawer(ctx, target_grasp, params, rim_clear)
 
         # Phase 5 — close the drawer.
         segs += self._close_drawer(ctx, tag="final")
@@ -371,7 +380,7 @@ class CabinetSkeleton(FamilySkeleton):
                           compute="extract", extra={"dist": HANDLE_BACK_DIST}, ignore_objects=cab),
         ]
 
-    def _place_in_drawer(self, ctx, target_grasp, params) -> list[MotionSegment]:
+    def _place_in_drawer(self, ctx, target_grasp, params, rim_clear: float = RIM_CLEARANCE) -> list[MotionSegment]:
         """Phase 4: pick the target with its DEEP grasp, then an inverted-"门"-frame placement so it
         lands upright in the open drawer without a tumbling free-fall. All-SERVO straight (pure IK,
         nearest-seed → the held object stays upright, only the eef translates):
@@ -399,7 +408,7 @@ class CabinetSkeleton(FamilySkeleton):
             # ↑ UP to the top-left corner: lift the target bottom above the rim + clearance, HARD-VERIFY
             # it cleared before ANY lateral move (a lift that stays below the rim catches it + rams the drawer).
             MotionSegment("place_lift", q0[:3], q0, mode=Mode.SERVO, attach=True, grip=Grip.HOLD,
-                          compute="lift_over_rim", extra={**held, "clearance": RIM_CLEARANCE},
+                          compute="lift_over_rim", extra={**held, "clearance": rim_clear},
                           reach_tol_m=REACH_TOL, verify_held_above_z=rim, ignore_objects=(cab,)),
             # → HORIZONTAL to the top-right corner: eef vertical axis directly over the LIVE exposed-cavity
             # centre (computed from the actual drawer joint, not the commanded open), height held; no

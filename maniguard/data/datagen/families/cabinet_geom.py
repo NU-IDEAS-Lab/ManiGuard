@@ -155,9 +155,11 @@ def drawer_interior_center(L: CabinetLayout, open_dist: float, obj_half_h: float
 
 
 def blocker_placement(L: CabinetLayout, obj_xy, obj_half: float, role: str,
-                      open_dist: float = 0.0):
+                      open_dist: float = 0.0, d_shift: float | None = None):
     """Where to put a path-blocking object so the drawer can open. Returns world xy. role in
-    {'target','obstacle'}.
+    {'target','obstacle'}. ``d_shift`` (target only) = how far to slide along +opening off the base's
+    straight-ahead line; ``None`` => the nominal ``TARGET_D_SHIFT`` (callers pass a per-demo sampled
+    value for diversity, but the place-grasp pre-selection keeps the nominal so its prediction holds).
 
     The object's bbox is pushed FLUSH against the table's perpendicular EDGE — all the way out of
     the drawer-opening corridor (the ``[p_lo, p_hi]`` sweep), maximising the cleared vertical space.
@@ -183,8 +185,8 @@ def blocker_placement(L: CabinetLayout, obj_xy, obj_half: float, role: str,
     pc = p_edge - side * (obj_half + EDGE_MARGIN)               # pull the bbox in from the edge
     dc = float(obj_xy @ L.d)                                     # keep along-slide pos ...
     if role == "target":
-        dc += TARGET_D_SHIFT                                     # ... but slide the target +d off the base's
-    #                                                              straight-ahead line for a comfortable re-grasp
+        dc += TARGET_D_SHIFT if d_shift is None else float(d_shift)   # ... but slide the target +d off the
+    #                                                              base's straight-ahead line for a comfy re-grasp
     dc = float(np.clip(dc, d_proj.min() + obj_half + EDGE_MARGIN,
                        d_proj.max() - obj_half - EDGE_MARGIN))   # clamped on-table
     return L.to_world(dc, pc)
