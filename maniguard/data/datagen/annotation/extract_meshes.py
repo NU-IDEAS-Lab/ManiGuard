@@ -56,9 +56,24 @@ def _state_ori(scene: dict, name: str):
         return [0.0, 0.0, 0.0, 1.0]
 
 
+def _graspable_names(diag: dict) -> list[str]:
+    """All names of objects the robot will GRASP in a task = the grasp target plus, for
+    families that have a movable blocker (cabinet), the obstacle object. Distractors are
+    never grasped, so they are not included."""
+    names = []
+    t = _target_name(diag)
+    if t:
+        names.append(t)
+    obi = diag.get("obstacle_info") or {}
+    if obi.get("name"):
+        names.append(obi["name"])
+    return names
+
+
 def enumerate_targets(families) -> dict:
     """{``cat/model``: {category, model, upright_orientation_xyzw, source_task}} via pure
-    JSON (no sim). First occurrence per distinct (cat, model) wins."""
+    JSON (no sim). Covers every GRASPED object (target + obstacle). First occurrence per
+    distinct (cat, model) wins."""
     db: dict = {}
     for fam in families:
         for tdir in sorted(glob.glob(str(BENCH / fam / "task_*/base"))):
@@ -69,20 +84,18 @@ def enumerate_targets(families) -> dict:
                 scene = json.load(open(tdir / "scene_ep1.json"))
             except Exception:  # noqa: BLE001
                 continue
-            tname = _target_name(diag)
-            if not tname:
-                continue
-            args = (scene.get("objects_info", {}).get("init_info", {})
-                    .get(tname, {}).get("args", {}))
-            cat, model = args.get("category"), args.get("model")
-            if not (cat and model):
-                continue
-            key = f"{cat}/{model}"
-            if key in db:
-                continue
-            db[key] = {"category": cat, "model": model,
-                       "upright_orientation_xyzw": _state_ori(scene, tname),
-                       "source_task": f"{fam}/{tdir.parent.name}"}
+            for nm in _graspable_names(diag):
+                args = (scene.get("objects_info", {}).get("init_info", {})
+                        .get(nm, {}).get("args", {}))
+                cat, model = args.get("category"), args.get("model")
+                if not (cat and model):
+                    continue
+                key = f"{cat}/{model}"
+                if key in db:
+                    continue
+                db[key] = {"category": cat, "model": model,
+                           "upright_orientation_xyzw": _state_ori(scene, nm),
+                           "source_task": f"{fam}/{tdir.parent.name}"}
     return db
 
 
@@ -177,11 +190,16 @@ def main() -> int:
 
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "meshes").mkdir(exist_ok=True)
-    db = {"schema_version": "1.0", "gripper": "franka_panda_longfinger",
-          "convention": {"pose_means": "eef_link target pose",
-                         "frame": "object_local (obj.get_position_orientation)",
-                         "note": "runtime: T_eef_world = object_world_pose @ pose"},
-          "objects": {}}
+    # MERGE into an existing mesh_db (extending one family must not drop another's objects).
+    if (OUT / "mesh_db.json").exists():
+        db = json.load(open(OUT / "mesh_db.json"))
+        db.setdefault("objects", {})
+    else:
+        db = {"schema_version": "1.0", "gripper": "franka_panda_longfinger",
+              "convention": {"pose_means": "eef_link target pose",
+                             "frame": "object_local (obj.get_position_orientation)",
+                             "note": "runtime: T_eef_world = object_world_pose @ pose"},
+              "objects": {}}
     ok = bad = 0
     for i, key in enumerate(keys):
         obj = env.scene.object_registry("name", f"obj_{i}")
