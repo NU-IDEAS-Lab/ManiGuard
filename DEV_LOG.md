@@ -1283,3 +1283,34 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   integrity 0 issues (frame-aligned, gap-free, all success+safe), review quality confirmed. Full
   pipeline doc = `docs/datagen/pipeline.md`. GraspGen path (`primitives/grasp.py`,`graspgen.py`)
   demoted + kept local-only. Next: cabinet family.
+
+### Step 3 · cabinet family — first goal_conditions family, task_0000 success+safe (2026-06-21, `64e566f2`..)
+- **Goal** `inside(target,drawer) & closed(cabinet)`; **5-phase skeleton** (`families/cabinet.py`):
+  close drawer → relocate in-path blockers → open to max → place target in drawer → close drawer.
+  Only the family declares segments; the generic executor plans/executes/gates/records it, reusing
+  the SAME `eval.goal_checker` success + `safety_monitor` LTL as teleop/eval.
+- **Two motion building blocks** (generic, backward-compatible — clutter unchanged): `Mode.FREE` =
+  cuRobo collision-aware transit; `Mode.SERVO` = pure straight-line IK for every deterministic
+  straight contact (drawer push/pull, the place up-over-down).
+- **Key debug — `Mode.LINEAR` is broken on this cuRobo fork**: its partial-pose query always fails
+  and silently falls back to an unconstrained salvage solve that DRIFTS the eef off the straight
+  line (carried object dropped off the table edge; grasp missed). Fix: every straight contact uses
+  SERVO. SERVO itself skewed the redundant wrist until `solve_ik` was changed to pick the IK branch
+  NEAREST the seed (not cuRobo's first-valid) → continuous, un-skewed straight servos.
+- **Relocation heuristic** (`cabinet_geom.blocker_placement`): obstacle → far `-p` table edge first,
+  target → near `+p` edge, BOTH pushed flush to the edge to fully clear the opening corridor; the
+  target is additionally slid `+opening` off the robot base's straight-ahead line, else the re-grasp
+  folds the arm too tight for cuRobo (≈0.31 m straight-ahead was unsolvable; ≈0.42 m diagonal works).
+- **Place into the deep drawer**: deep top-down grasp (grips the solid base, not the thin post);
+  inverted-U — lift the bottom over the rim (hard-verified), translate to the cavity centre =
+  OmniGibson's **fillable meta-link** live xy (ground truth; handle-inclusive AABB estimates bias
+  toward the opening), **roll the finger-rail ⊥ the opening** so the long flat housing clears the
+  upper drawer's handle on the way down, lower onto the interior floor (no free-fall — a 0.21 m
+  object dropped 0.3–0.5 m tumbles).
+- **Close approach + termination**: after release, lift the empty gripper straight UP out of the
+  cavity then translate over the handle xy at that height, so the cuRobo plan only descends straight
+  onto the handle (never scrapes the cabinet door). The final close ENDS at the closing push — the
+  success state — so no recording past it (like clutter, the sequence ends at success; the gate runs
+  the shared success check there). LTL gated every executed step throughout.
+- **Status**: `task_0000` (paper_towel_holder into a tall chest's deep drawer) collects a clean
+  success+safe demo end-to-end (`traj.hdf5`). Next: scale across grasps/draws, then task_0001+.
