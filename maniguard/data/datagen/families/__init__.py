@@ -16,9 +16,11 @@ Planned (clutter first = template; per-family high-level manip plan co-designed 
 
 ``FAMILY`` maps a family name to its ``FamilySkeleton`` class; the driver instantiates it.
 """
+from maniguard.data.datagen.families.cabinet import CabinetSkeleton
 from maniguard.data.datagen.families.clutter import ClutterSkeleton
 
 FAMILY = {
     "clutter": ClutterSkeleton,
+    "cabinet": CabinetSkeleton,
 }
 
