@@ -141,7 +141,9 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
     avoids collisions with the carried geometry too. ``motion_constraint`` is a
     cuRobo ``PoseCostMetric`` (e.g. partial-pose hold / linear servo). The obstacle
     world is assumed pre-configured by the caller (``skip_obstacle_update=True``).
-    """
+
+    For a deliberate straight push INTO contact (no trajopt, no collision avoidance) use
+    :func:`solve_ik` per interpolated waypoint instead."""
     import torch as th
     from omnigibson.action_primitives.curobo import CuRoboEmbodimentSelection
 
@@ -205,3 +207,66 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
           f"{' (salvaged)' if salvaged else ''}", flush=True)
     return SegmentResult(arm_traj=arm_traj, final_full=final_full, salvaged=salvaged,
                          pos_err=pos_err, rot_err=rot_err, n_waypoints=len(arm_traj))
+
+
+def solve_ik(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_pos, *,
+             timeout: float, max_attempts: int = 8, ik_collision: bool = False,
+             eef_link: str | None = None, label: str = "") -> SegmentResult | None:
+    """Single-pose IK to ``(eef_goal_pos, eef_goal_quat)`` (world) from ``initial_joint_pos``
+    (full-DoF). Returns a :class:`SegmentResult` whose ``arm_traj`` is the 1-waypoint IK config
+    (or ``None`` if no IK solution). This is the building block for a straight Cartesian SERVO:
+    interpolate the eef line and IK each pose with ``ik_collision=False`` so the solve goes
+    straight INTO contact (a deliberate push the collision-avoiding planner would refuse).
+
+    Unlike :func:`solve_segment` this uses cuRobo's IK solver (``ik_only`` => ``solve_ik_batch``),
+    which returns an ``IKResult`` (no ``get_paths`` / trajopt salvage) — so we read the IK joint
+    state directly from the ``return_full_result=False`` ``(successes, joint_states)`` form."""
+    import torch as th
+    from omnigibson.action_primitives.curobo import CuRoboEmbodimentSelection
+
+    if eef_link is None:
+        eef_link = robot.eef_link_names[robot.default_arm]
+    bs = motion_gen.batch_size
+    target_pos = {eef_link: th.stack([eef_goal_pos] * bs)}
+    target_quat = {eef_link: th.stack([eef_goal_quat] * bs)}
+    successes, joint_states = motion_gen.compute_trajectories(
+        target_pos=target_pos, target_quat=target_quat,
+        initial_joint_pos=initial_joint_pos, is_local=False,
+        max_attempts=max_attempts, timeout=timeout, ik_fail_return=5,
+        return_full_result=False, success_ratio=1.0 / bs,
+        ik_only=True, ik_world_collision_check=ik_collision,
+        skip_obstacle_update=True, emb_sel=CuRoboEmbodimentSelection.DEFAULT,
+    )
+    manip_idx = robot.arm_control_idx[robot.default_arm]
+    seed_arm = initial_joint_pos[manip_idx].detach().cpu().reshape(-1)
+
+    def _arm_of(js):
+        jp = motion_gen.path_to_joint_trajectory(
+            js, get_full_js=False, emb_sel=CuRoboEmbodimentSelection.DEFAULT)
+        return (jp[manip_idx] if jp.dim() == 1 else jp[:, manip_idx]).detach().cpu().reshape(-1)
+
+    # Pick the valid IK branch CLOSEST to the seed (the previous servo waypoint), NOT cuRobo's
+    # "first valid" — for a redundant 7-DoF arm the first-valid solution can jump to a far branch
+    # (wrist/elbow skew) for nearly the same eef pose, which is the unnatural sideways twist seen on
+    # a straight servo lift. Nearest-to-seed keeps the per-waypoint configs continuous.
+    best_arm, best_d = None, None
+    for i in range(len(joint_states)):
+        try:
+            ok = bool(successes[i].item())
+        except Exception:  # noqa: BLE001
+            ok = bool(successes[i])
+        if not ok or joint_states[i] is None:
+            continue
+        arm_i = _arm_of(joint_states[i])
+        d = float((arm_i - seed_arm).norm())
+        if best_d is None or d < best_d:
+            best_d, best_arm = d, arm_i
+    if best_arm is None:
+        print(f"[datagen.curobo] ik {label!r}: no IK solution", flush=True)
+        return None
+
+    # NOTE: get_full_js=True crashes cuRobo here ("lock_joints is also listed in self.joint_names")
+    # for an IK solution, so we do NOT compute final_full — the caller seeds the next IK by
+    # splicing this arm config into the prior full-DoF state.
+    return SegmentResult(arm_traj=best_arm.reshape(1, -1), final_full=None, salvaged=False,
+                         pos_err=None, rot_err=None, n_waypoints=1)

@@ -53,15 +53,17 @@ def surface_top_z(support) -> float | None:
 
 def max_other_top_z(env, *, exclude=(), robots=(), support_top=None,
                     on_surface_margin: float = 0.05):
-    """Max world top-z over scene objects that REST on the surface, excluding the held
-    target + robots. Returns ``(max_top_z, name)`` (``(-inf, None)`` if none qualify).
+    """Max world top-z over the MANIPULABLE objects resting on the surface, excluding the held
+    object + robots. Returns ``(max_top_z, name)`` (``(-inf, None)`` if none qualify).
 
-    If ``support_top`` is given, only objects whose bottom-z >= ``support_top -
-    on_surface_margin`` count (i.e. actually sitting on this table, not floating elsewhere)."""
+    Fixed-base objects (the support surface, furniture like a cabinet) are skipped: they are
+    structure the planner navigates AROUND, not small clutter the held object is lifted OVER —
+    so they must not inflate the lift-clearance height. If ``support_top`` is given, only objects
+    whose bottom-z >= ``support_top - on_surface_margin`` count (sitting on this table)."""
     excl = {id(o) for o in exclude} | {id(r) for r in robots}
     best_z, best_name = -np.inf, None
     for o in env.scene.objects:
-        if id(o) in excl:
+        if id(o) in excl or getattr(o, "fixed_base", False):
             continue
         lo, hi = aabb_lo_hi(o)
         if support_top is not None and float(lo[2]) < float(support_top) - on_surface_margin:

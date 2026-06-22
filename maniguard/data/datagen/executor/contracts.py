@@ -25,11 +25,16 @@ import numpy as np
 
 
 class Mode(str, Enum):
-    """How cuRobo plans a segment."""
+    """How the engine produces a segment's joint trajectory."""
 
-    FREE = "free"             # free-space, fully collision-free plan to the eef target
+    FREE = "free"             # free-space, fully collision-free cuRobo plan to the eef target
     LINEAR = "linear_servo"   # LINEAR_SERVO: lock orientation + perpendicular position, free
     #                           ONLY the approach axis (top-down => "fix xy, move z straight")
+    SERVO = "servo"           # straight-line Cartesian IK servo: interpolate the eef from the
+    #                           current pose to the target (orientation held), per-waypoint IK with
+    #                           COLLISION OFF — a deliberate straight push into contact (e.g. shoving
+    #                           a drawer shut) that cuRobo's collision-avoiding planner would refuse.
+    #                           The executed joint path is stored so a later segment can replay it.
 
 
 class Grip(str, Enum):
@@ -60,10 +65,26 @@ class MotionSegment:
     target_clearance_m: float | None = None  # lift AIM clearance (>= min_clearance_m; varies per draw for
     #                                          height diversity). None => aim at min_clearance_m.
     compute: str | None = None             # runtime-resolved eef target (None => use eef_pos/eef_quat as given).
-    #                                        the engine resolves these from the LIVE post-grasp state via geometry:
+    #                                        GENERIC tags the engine resolves inline from the LIVE state:
     #                                          "lift_to_clearance"  -> raise z until held lowest-z clears clutter + min_clearance
     #                                          "over_goal"          -> move xy over the goal, keep current height + orientation
     #                                          "aim_to_goal_center" -> translate so the held object CENTRE lands on the goal-sphere centre
+    #                                        any OTHER tag is delegated to ``FamilySkeleton.resolve_compute`` (family-specific,
+    #                                        e.g. cabinet's grasp-handle / pull-drawer / regrasp-moved-target).
+    extra: dict = field(default_factory=dict)   # family payload for resolve_compute (grasp pose, standoff, open_dist, ...)
+    replay_reverse: bool = False           # execute the REVERSED joint path of the most recent SERVO segment
+    #                                        (retreat straight back out the way the push came in — that lane is
+    #                                        guaranteed clear). The eef_pos/quat/compute are ignored for this segment.
+    carry_closed: bool | None = None       # gripper command DURING the motion: None => default (closed iff attach);
+    #                                        True => hold CLOSED (e.g. a closed-gripper block shoving a drawer, no attach)
+    reach_tol_m: float | None = None       # if set, after the segment VERIFY the eef reached its commanded target
+    #                                        within this tol; else fail "stuck" (the held object didn't follow the
+    #                                        plan — a path/strategy that jammed → the driver retries another combo)
+    verify_held_above_z: float | None = None  # if set, after the segment VERIFY the HELD object's lowest point is
+    #                                        ABOVE this absolute world z; else fail "below_z". Guards a lift that
+    #                                        must clear an obstacle's top BEFORE any lateral move (e.g. raise the
+    #                                        target clear of the drawer rim before moving it over the cavity —
+    #                                        moving while still below the rim catches the rim and rams the drawer)
 
 
 @dataclass
@@ -141,10 +162,36 @@ class FamilySkeleton(ABC):
         = this family's manip skeleton."""
 
     def success_extra(self, ctx: TaskContext) -> bool:
-        """Extra family-specific success terms beyond the generic held-in-goal. Default:
-        none (clutter). e.g. lid overrides this with a lid_attached check."""
+        """Extra family-specific success terms beyond the generic goal check. Default: none
+        (clutter). e.g. lid overrides this with a lid_attached check."""
         return True
+
+    def resolve_compute(self, tag: str, seg: "MotionSegment", ctx: TaskContext):
+        """Resolve a FAMILY-SPECIFIC ``compute`` tag to a world ``(eef_pos, eef_quat)`` from the
+        LIVE state (the engine handles the generic tags itself and delegates the rest here).
+        Default: unsupported. Cabinet overrides this for grasp-handle / pull / regrasp."""
+        raise ValueError(f"{type(self).__name__} has no resolve_compute for tag {tag!r}")
+
+    def select_grasps(self, ctx: TaskContext, world: Any, robot: Any) -> None:
+        """Optional per-task hook (called once by the driver after the CuroboWorld is built,
+        before the variant loop) to pre-select reachable AUXILIARY grasps the family resolves
+        internally — e.g. cabinet's drawer-handle / obstacle grasps, which are NOT the target
+        grasp the sampler iterates and so cannot be filtered by the driver's grasp scoring.
+        Default: no-op (clutter has only the target grasp, already scored by the driver)."""
+        return None
 
     def variation_knobs(self, ctx: TaskContext) -> dict[str, Any]:
         """Which waypoints / ranges may jitter for diversity. Default: engine defaults."""
         return {}
+
+    def debug_state(self, ctx: TaskContext) -> str:
+        """Optional one-line family state string the engine prints after each segment when
+        ``DATAGEN_DEBUG_STATE`` is set (e.g. cabinet's live drawer-joint value). Default: none."""
+        return ""
+
+    def on_segment(self, seg: "MotionSegment", ctx: TaskContext) -> None:
+        """Optional side-effect hook the engine calls just BEFORE planning each segment — for runtime
+        state a family must toggle mid-rollout that isn't a pose (e.g. cabinet stiffening the drawer
+        joint to hold it open while the arm reaches over it, then softening it for the deliberate
+        close). Default: no-op."""
+        return None
