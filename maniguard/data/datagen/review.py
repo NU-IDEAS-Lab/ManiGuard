@@ -31,8 +31,15 @@ CELLS_PER_ROW = 10          # always 10 cells/row (5 groups with wrist, 10 witho
 MAX_ROWS = 5                # rows per file before splitting into _p0/_p1
 TITLE_H = 26
 LABEL_PAD = (4, 2)
-LSHOULDER = "image_left_shoulder.mp4"
 WRIST = "wrist_image.mp4"
+# selectable third-person camera (name -> mp4 file, short filename tag): clutter reviews from the
+# left_shoulder view, cabinet from the opposite (front) view where the drawer + place are clearest.
+CAMS = {
+    "left_shoulder": ("image_left_shoulder.mp4", "ls"),
+    "opposite": ("image_opposite.mp4", "opp"),
+    "left": ("image_left.mp4", "l"),
+    "right": ("image_right.mp4", "r"),
+}
 
 
 class _Cell:
@@ -86,10 +93,11 @@ def _title_bar(width: int, text: str) -> np.ndarray:
     return np.asarray(bar)
 
 
-def _montage_one(traj_dirs, title_text: str, out_path: Path, stride: int, wrist: bool) -> None:
-    """Write one montage MP4. Each group = [left_shoulder (| wrist)]; groups/row chosen so a
+def _montage_one(traj_dirs, title_text: str, out_path: Path, stride: int, wrist: bool,
+                 third: str = "image_left_shoulder.mp4") -> None:
+    """Write one montage MP4. Each group = [third-person (| wrist)]; groups/row chosen so a
     row is always CELLS_PER_ROW cells wide (5 groups with wrist, 10 without)."""
-    files = [LSHOULDER, WRIST] if wrist else [LSHOULDER]
+    files = [third, WRIST] if wrist else [third]
     cells_per_group = len(files)
     groups_per_row = CELLS_PER_ROW // cells_per_group
 
@@ -140,20 +148,21 @@ def _montage_one(traj_dirs, title_text: str, out_path: Path, stride: int, wrist:
 
 
 def montage_task(dataset: str, family: str, task: str, *, stride: int = 3,
-                 wrist: bool = True, root=reader.ROOT) -> None:
+                 wrist: bool = True, cam: str = "left_shoulder", root=reader.ROOT) -> None:
     base = Path(root) / dataset / family / task
     trajs = sorted(p for p in base.glob("traj_*") if (p / "traj.hdf5").exists())
     if not trajs:
         print(f"[review] no trajs under {base}")
         return
+    third_file, cam_tag = CAMS[cam]
     cells_per_group = 2 if wrist else 1
     per_file = MAX_ROWS * (CELLS_PER_ROW // cells_per_group)   # 25 with wrist, 50 without
-    tag = "lsw" if wrist else "ls"                             # left_shoulder+wrist / left_shoulder
+    tag = f"{cam_tag}w" if wrist else cam_tag                  # e.g. lsw / oppw / opp
     chunks = [trajs[i:i + per_file] for i in range(0, len(trajs), per_file)]
     for ci, chunk in enumerate(chunks):
         part = "" if len(chunks) == 1 else f"_p{ci}"
         title = f"{family} / {task}  ({len(trajs)} trajs)" + (f"  part {ci}" if part else "")
-        _montage_one(chunk, title, base / f"_review_{tag}{part}.mp4", stride, wrist)
+        _montage_one(chunk, title, base / f"_review_{tag}{part}.mp4", stride, wrist, third=third_file)
 
 
 def main() -> int:
@@ -163,8 +172,10 @@ def main() -> int:
     ap.add_argument("--task", default=None, help="one task (e.g. task_0000); omit with --all")
     ap.add_argument("--all", action="store_true", help="every task in the family")
     ap.add_argument("--stride", type=int, default=3, help="keep every Nth frame (3 => 10fps)")
+    ap.add_argument("--cam", default="left_shoulder", choices=sorted(CAMS),
+                    help="third-person view (default left_shoulder; cabinet uses opposite)")
     ap.add_argument("--no-wrist", dest="wrist", action="store_false",
-                    help="left_shoulder only (10 per row); default includes wrist (5 pairs/row)")
+                    help="third-person only (10 per row); default includes wrist (5 pairs/row)")
     a = ap.parse_args()
 
     if a.all:
@@ -172,9 +183,9 @@ def main() -> int:
         tasks = sorted(p.name for p in base.glob("task_*") if p.is_dir())
         print(f"[review] {len(tasks)} tasks under {base}")
         for tk in tasks:
-            montage_task(a.dataset, a.family, tk, stride=a.stride, wrist=a.wrist)
+            montage_task(a.dataset, a.family, tk, stride=a.stride, wrist=a.wrist, cam=a.cam)
     elif a.task:
-        montage_task(a.dataset, a.family, a.task, stride=a.stride, wrist=a.wrist)
+        montage_task(a.dataset, a.family, a.task, stride=a.stride, wrist=a.wrist, cam=a.cam)
     else:
         ap.error("pass --task <name> or --all")
     return 0
