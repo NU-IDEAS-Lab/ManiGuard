@@ -1314,3 +1314,10 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   the shared success check there). LTL gated every executed step throughout.
 - **Status**: `task_0000` (paper_towel_holder into a tall chest's deep drawer) collects a clean
   success+safe demo end-to-end (`traj.hdf5`). Next: scale across grasps/draws, then task_0001+.
+- **Scale-up (diversity + robustness + review)**: two per-demo diversity bands sampled from the
+  variant seed — lift-over-rim carry height (0.06–0.12 m) + relocate landing spot along the edge
+  (0.18–0.30 m); `task_0000` collected **5/5 success+safe** with distinct draws. Dropped the
+  fine-grained stall detector (false-positived on cuRobo ease-in) in favour of the reliable shared
+  success+LTL gate as the only judge, plus a generic engine **step-limit backstop** (`max_steps`
+  3600 ≈ 2 min). Review montage (`review.py`) made third-person-camera selectable (`--cam`) — still
+  one family-agnostic tool; cabinet reviews from `opposite`, clutter unchanged on `left_shoulder`.
