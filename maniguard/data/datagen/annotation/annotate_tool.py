@@ -91,7 +91,7 @@ class App:
             stems = tuple(FAMILY_STEMS[f] for f in families)
             keys = [k for k in keys
                     if str(self.db["objects"][k].get("source_task", "")).startswith(stems)]
-        self.keys = keys
+        self.keys = sorted(keys)               # alphabetical so the jump list / prev-next are findable
         self.gripper = _load_mesh(GRIPPER)
         self.ann = self._load_ann()
         self.i = 0
@@ -133,8 +133,15 @@ class App:
         with g.add_folder("navigate"):
             g.add_button("◀ prev").on_click(lambda _: self.show(self.i - 1))
             g.add_button("next ▶").on_click(lambda _: self.show(self.i + 1))
+            # type a substring to filter the jump list (case-insensitive); the dropdown stays
+            # alphabetical. _filtering guards the jump callback so re-setting options while typing
+            # doesn't fire a stray jump — only an explicit pick navigates.
+            self._filtering = False
+            self.search = g.add_text("search", initial_value="")
+            self.search.on_update(lambda _: self._filter_jump())
             self.jump = g.add_dropdown("jump to", options=self.keys)
-            self.jump.on_update(lambda _: self.show(self.keys.index(self.jump.value)))
+            self.jump.on_update(
+                lambda _: None if self._filtering else self.show(self.keys.index(self.jump.value)))
         with g.add_folder("Guided — click point + presets"):
             self.appr = g.add_dropdown("approach", options=list(APPROACHES),
                                        initial_value="top_down")
@@ -152,12 +159,34 @@ class App:
             g.add_button("✚ save grasp").on_click(lambda _: self._save_grasp())
             g.add_button("✖ delete last").on_click(lambda _: self._del_last())
 
+    def _filter_jump(self):
+        """Filter the jump dropdown to keys containing the search substring (empty => all), and
+        FOLLOW the filter: if the shown object is filtered away, display the first match (viser won't
+        re-fire on_update for an already-selected single match, so we navigate explicitly here)."""
+        q = self.search.value.strip().lower()
+        opts = [k for k in self.keys if q in k.lower()] if q else list(self.keys)
+        if not opts:
+            return                              # no match: keep the current list, don't blank it
+        self._filtering = True                  # suppress the jump callback while reassigning options
+        self.jump.options = opts
+        self._filtering = False
+        cur = self.keys[self.i]
+        if cur not in opts:                     # current object narrowed away -> jump to first match
+            self.show(self.keys.index(opts[0]))
+
     # ---- per-object display ------------------------------------------------
     def show(self, i):
         self.i = i % len(self.keys)
         key = self.keys[self.i]
         o = self.db["objects"][key]
         self.lbl.value = key
+        # keep the jump dropdown highlighting the shown object (guarded so it doesn't re-fire show);
+        # only if it's a current option (prev/next can land outside an active search filter).
+        jump = getattr(self, "jump", None)
+        if jump is not None and key in jump.options and jump.value != key:
+            self._filtering = True
+            jump.value = key
+            self._filtering = False
         self.prog.value = (f"{self.i + 1}/{len(self.keys)}  "
                            f"[{len(self.ann['objects'].get(key, {}).get('grasps', []))} saved]")
         self.server.scene.reset()
