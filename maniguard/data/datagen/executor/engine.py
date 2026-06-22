@@ -42,7 +42,7 @@ class DemoEngine:
                  steps_per_waypoint: int = 2, settle_steps: int = 8,
                  clearance_eps: float = 0.005, lift_margin: float = 0.04,
                  servo_step_m: float = 0.010, servo_spw: int = 4,
-                 max_steps: int = 3600):
+                 max_steps: int = 3600, plan_tries: int = 2):
         self.env = env
         self.robot = robot
         self.world = world                       # CuroboWorld (.motion_gen, .update_obstacles)
@@ -57,6 +57,9 @@ class DemoEngine:
         self.max_steps = int(max_steps)          # backstop: abort + fail "timeout" if a rollout exceeds this many
         #                                          recorded steps (30 fps → 3600 ≈ 2 min). A healthy cabinet demo is
         #                                          ~2400; this only catches a pathological runaway, never a normal run.
+        self.plan_tries = max(1, int(plan_tries))  # cuRobo FREE/LINEAR plan attempts per segment: trajopt samples
+        #                                          seed trajectories from the (advancing) torch RNG, so a retry
+        #                                          explores NEW seeds → clears this old fork's intermittent plan_fail
         self._last_servo = None                  # most recent SERVO joint path (for replay_reverse retreat)
 
     def _held(self, seg: MotionSegment, ctx: TaskContext):
@@ -195,16 +198,20 @@ class DemoEngine:
                 pos_t = th.as_tensor(tpos, dtype=th.float32)
                 quat_t = th.as_tensor(tquat, dtype=th.float32)
                 mc = obstacles.LINEAR_SERVO if seg.mode == Mode.LINEAR else None
-                res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
-                                    timeout=self.timeout, attach_obj=attach,
-                                    motion_constraint=mc, label=seg.name,
-                                    diagnose_on_fail=True)  # TEMP
-                if res is None and mc is not None:
-                    # this cuRobo build often rejects the partial-pose (LINEAR_SERVO) query;
-                    # fall back to an unconstrained solve (reference grasp.py:140-147).
+                res = None
+                for attempt in range(self.plan_tries):     # retry: cuRobo trajopt is stochastic, a fresh
+                    tag = seg.name if attempt == 0 else f"{seg.name}:try{attempt + 1}"   # call explores new seeds
                     res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
                                         timeout=self.timeout, attach_obj=attach,
-                                        motion_constraint=None, label=seg.name + ":unconstrained")
+                                        motion_constraint=mc, label=tag, diagnose_on_fail=True)
+                    if res is None and mc is not None:
+                        # this cuRobo build often rejects the partial-pose (LINEAR_SERVO) query;
+                        # fall back to an unconstrained solve (reference grasp.py:140-147).
+                        res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
+                                            timeout=self.timeout, attach_obj=attach,
+                                            motion_constraint=None, label=tag + ":unconstrained")
+                    if res is not None:
+                        break
                 if res is None:
                     recorder.finalize(success=False)
                     return DemoResult.fail("plan_fail", seg=seg.name)
