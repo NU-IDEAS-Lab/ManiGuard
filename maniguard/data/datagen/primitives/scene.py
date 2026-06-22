@@ -100,9 +100,10 @@ def scene_from_task_dir(
     print(f"[datagen.scene] {task_dir.name}: {len(task_names)} task objects "
           f"(surface={task_names[0]})", flush=True)
 
+    # each object keeps its snapshot fixed_base (surface + furniture like a cabinet are fixed,
+    # manipulable objects free); the surface is forced fixed as a safety.
     object_cfgs = [build_object_cfg(task_names[0], scene_info, fixed_base=True)]
-    object_cfgs += [build_object_cfg(n, scene_info, fixed_base=False)
-                    for n in task_names[1:]]
+    object_cfgs += [build_object_cfg(n, scene_info) for n in task_names[1:]]
 
     robot_setup = extract_scene_robot_setup(scene_info)
     if robot_setup is None:
@@ -132,7 +133,9 @@ def scene_from_task_dir(
     env = og.Environment(configs=env_cfg)
     env.reset()
 
-    # env.reset can perturb spawn poses — re-apply the dumped poses.
+    # env.reset can perturb spawn poses — re-apply the dumped poses (and articulated joint
+    # state, e.g. a cabinet drawer's initial open fraction).
+    reg = scene_info["state"]["registry"]["object_registry"]
     for cfg in object_cfgs:
         obj = env.scene.object_registry("name", cfg["name"])
         if obj is None:
@@ -141,6 +144,9 @@ def scene_from_task_dir(
             position=th.tensor(cfg["position"], dtype=th.float32),
             orientation=th.tensor(cfg["orientation"], dtype=th.float32),
         )
+        jp = reg.get(cfg["name"], {}).get("joint_pos")
+        if jp and getattr(obj, "joints", None) and len(obj.joints) == len(jp):
+            obj.set_joint_positions(th.tensor(jp, dtype=th.float32))
         if hasattr(obj, "keep_still"):
             obj.keep_still()
 

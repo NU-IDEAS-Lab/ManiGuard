@@ -102,45 +102,61 @@ def identify_task_objects(
     AND the task-object name pattern.
     """
     init_info = scene_info["objects_info"]["init_info"]
-    surface = str(diagnostics["surface"])
-    if surface not in init_info:
-        raise ValueError(f"Surface {surface!r} not found in scene snapshot")
+    surface = _resolve_surface_name(scene_info, diagnostics)
 
-    spec_categories = {spec["category"]
-                       for spec in diagnostics["selection"]["spawn_specs"]}
-
+    # Trust the snapshot: spawn every DatasetObject it holds (surface first), skipping the
+    # robot. ``diagnostics['surface']`` may be the object NAME (clutter) or a ``cat/model``
+    # (cabinet, named ``support_surface``); the robot is a non-DatasetObject class (e.g.
+    # FrankaPanda) and is added separately by the scene builder, so it is excluded here.
     names: list[str] = [surface]
-    used: set[str] = {surface}
     for n, info in init_info.items():
-        if n in used:
+        if n == surface:
             continue
-        cat = info.get("args", {}).get("category")
-        if cat in spec_categories and _is_task_object_name(n, cat):
-            names.append(n)
-            used.add(n)
+        if info.get("class_name") != "DatasetObject":
+            continue
+        names.append(n)
     return names
+
+
+def _resolve_surface_name(scene_info: dict[str, Any], diagnostics: dict[str, Any]) -> str:
+    """The support-surface object name. ``diagnostics['surface']`` is the object name in some
+    families (clutter) and a ``category/model`` in others (cabinet, surface named
+    ``support_surface``); resolve robustly via name, the conventional ``support_surface`` key,
+    then category match."""
+    init_info = scene_info["objects_info"]["init_info"]
+    s = str(diagnostics.get("surface", ""))
+    if s in init_info:
+        return s
+    if "support_surface" in init_info:
+        return "support_surface"
+    cat = s.split("/")[0] if "/" in s else (diagnostics.get("surface_info") or {}).get("category", "")
+    for n, info in init_info.items():
+        if info.get("args", {}).get("category") == cat and info.get("class_name") == "DatasetObject":
+            return n
+    raise ValueError(f"Surface {s!r} not found in scene snapshot")
 
 
 def build_object_cfg(
     name: str,
     scene_info: dict[str, Any],
-    fixed_base: bool,
+    fixed_base: bool | None = None,
 ) -> dict[str, Any]:
-    """Build an OmniGibson ``DatasetObject`` config from the snapshot, at the
-    object's dumped pose. The support surface is spawned ``fixed_base=True``;
-    task objects free."""
+    """Build an OmniGibson ``DatasetObject`` config from the snapshot, at the object's dumped
+    pose. ``fixed_base`` defaults to the snapshot's own per-object value (the surface AND
+    furniture like a cabinet are fixed; manipulable objects are free)."""
     init_info = scene_info["objects_info"]["init_info"][name]
     reg = scene_info["state"]["registry"]["object_registry"][name]
     args = init_info.get("args", {})
     scale = args.get("scale")
     scale = [float(v) for v in scale] if scale is not None else [1.0, 1.0, 1.0]
+    fb = bool(args.get("fixed_base", False)) if fixed_base is None else bool(fixed_base)
     return {
         "type": "DatasetObject",
         "name": name,
         "category": args["category"],
         "model": args["model"],
         "scale": scale,
-        "fixed_base": bool(fixed_base),
+        "fixed_base": fb,
         "position": [float(v) for v in reg["root_link"]["pos"]],
         "orientation": [float(v) for v in reg["root_link"]["ori"]],
     }

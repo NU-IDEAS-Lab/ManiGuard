@@ -48,19 +48,32 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     env, robot = bundle.env, bundle.robot
     cameras.place_and_resize_cameras(env, robot, og, bundle.diagnostics)
 
+    # goal_region families (clutter) carry a sphere spec; goal_conditions families (cabinet)
+    # don't — resolve the target + support from the spec or diagnostics accordingly.
+    # (`target_obj` is the object; `target` is the --target demo count.)
     spec = bundle.goal_spec
-    if spec is None:
-        raise ValueError(f"{task_dir} has no goal_region — not a transport task")
-    target_obj = env.scene.object_registry("name", spec.target_name)   # NOT `target` (= the --target count)
+    if spec is not None:
+        target_name = spec.target_name
+        goal_center, goal_radius = np.asarray(spec.center_world, float), float(spec.radius_m)
+        surface_name = spec.support_name
+    else:
+        ti = bundle.diagnostics.get("target_info")
+        if not ti:
+            raise ValueError(f"{task_dir} has neither goal_region nor target_info")
+        target_name = ti["name"]
+        goal_center, goal_radius = np.zeros(3), 0.0          # unused by goal_conditions families
+        surface_name = getattr(bundle.surface, "name", None)
+    target_obj = env.scene.object_registry("name", target_name)
     target_key = f"{target_obj.category}/{target_obj.model}"
     ctx = TaskContext(
         env=env, robot=robot, target=target_obj, target_key=target_key,
-        target_name=spec.target_name, goal_center=np.asarray(spec.center_world, float),
-        goal_radius=float(spec.radius_m), support=bundle.surface, diagnostics=bundle.diagnostics)
+        target_name=target_name, goal_center=goal_center, goal_radius=goal_radius,
+        support=bundle.surface, diagnostics=bundle.diagnostics)
 
     world = obstacles.CuroboWorld(env, robot)
-    gate = build_gate(env, bundle.diagnostics, target_obj, surface_name=spec.support_name)
+    gate = build_gate(env, bundle.diagnostics, surface_name=surface_name)
     skeleton = FAMILY[family]()
+    skeleton.select_grasps(ctx, world, robot)   # pre-filter family-internal aux grasps (cabinet handle/obstacle)
     engine = DemoEngine(env, robot, world, timeout=timeout, steps_per_waypoint=steps_per_waypoint)
     recorder = record.Recorder()      # sim-state dump ON (D7 MimicGen hook); recorder pads if ragged
 
@@ -72,7 +85,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     task_name = task_dir.parent.name                                   # task_0000
     src_task = f"{bench_family}/{task_name}"                           # clutter_pickup/task_0000
     print(f"[driver] {src_task} target={target_key} grasps={[c.id for c in cands]} "
-          f"goal_r={spec.radius_m:.3f}", flush=True)
+          f"goal_r={goal_radius:.3f}", flush=True)
 
     if score:
         from maniguard.data.datagen.executor.grasp_select import score_grasps

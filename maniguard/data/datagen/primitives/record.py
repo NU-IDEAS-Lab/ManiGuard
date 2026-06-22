@@ -27,6 +27,7 @@ reverse-engineering).
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any, Sequence
@@ -218,9 +219,10 @@ class Recorder:
         self._writers = None
 
         if not success or self.n_steps == 0:
-            if self.out_dir is not None and self.out_dir.exists():
+            keep = os.environ.get("DATAGEN_KEEP_FAILED") and self.n_steps > 0
+            if self.out_dir is not None and self.out_dir.exists() and not keep:
                 shutil.rmtree(self.out_dir, ignore_errors=True)
-            print(f"[datagen.record] dropped {self.out_dir} "
+            print(f"[datagen.record] {'KEPT(debug)' if keep else 'dropped'} {self.out_dir} "
                   f"(success={success}, steps={self.n_steps})", flush=True)
             self._reset_buffers()
             return None

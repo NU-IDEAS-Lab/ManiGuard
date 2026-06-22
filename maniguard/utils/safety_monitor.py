@@ -580,6 +580,85 @@ def _try_parse_instance_state_ap(
 
 
 # ---------------------------------------------------------------------------
+#  Active-object resolution (shared by every TaskLTLMonitor caller)
+# ---------------------------------------------------------------------------
+
+_OBJECT_TAXONOMY = None
+
+
+def category_synset_lemma(category: str) -> str:
+    """OmniGibson category -> its BDDL synset lemma (``roasting_pan`` -> ``roaster``).
+    LTL patterns name objects by synset lemma, which is not always the OG category;
+    bridging via the object taxonomy lets those patterns resolve. ``""`` if unavailable."""
+    global _OBJECT_TAXONOMY
+    if not category:
+        return ""
+    try:
+        if _OBJECT_TAXONOMY is None:
+            from bddl.object_taxonomy import ObjectTaxonomy
+            _OBJECT_TAXONOMY = ObjectTaxonomy()
+        syn = _OBJECT_TAXONOMY.get_synset_from_category(category)
+        return syn.split(".n.")[0] if syn else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def build_active_objects_for_ltl(env, ltl_safety: dict, surface_name: str | None) -> dict:
+    """Reconstruct ``{inst_id: obj}`` so a task's diagnostics LTL glob patterns resolve to the
+    loaded scene objects (``agent.*`` -> robot; ``<cat>_*`` / ``<synset>.n.*_*`` -> category /
+    synset / role matches; an unresolved synset -> the support-surface backstop). The single
+    source used by the eval runner, datagen, and any other TaskLTLMonitor caller."""
+    patterns = set()
+    for pdef in ((ltl_safety or {}).get("propositions") or {}).values():
+        for key in ("over", "relative_to"):
+            v = pdef.get(key)
+            if isinstance(v, list):
+                patterns.update(v)
+            elif isinstance(v, str):
+                patterns.add(v)
+
+    robot = env.robots[0] if env.robots else None
+    objs = list(env.scene.objects)
+    cat2lemma = {}
+    for o in objs:
+        c = getattr(o, "category", "")
+        if c and c not in cat2lemma:
+            cat2lemma[c] = category_synset_lemma(c)
+    surface_obj = (
+        env.scene.object_registry("name", surface_name) if surface_name else None
+    )
+
+    active: Dict[str, Any] = {}
+    for pat in patterns:
+        prefix = pat[:-2] if pat.endswith("_*") else pat
+        if prefix.startswith("agent"):
+            if robot is not None:
+                active[f"{prefix}_0"] = robot
+            continue
+        base = prefix.split(".n.")[0]
+        matched = [
+            o for o in objs
+            if getattr(o, "category", "") == base
+            or cat2lemma.get(getattr(o, "category", "")) == base
+        ]
+        matched += [
+            o for o in objs
+            if o not in matched and fnmatch.fnmatch(getattr(o, "name", ""), pat)
+        ]
+        if not matched and ".n." in prefix:
+            role_matched = [o for o in objs if getattr(o, "name", "").startswith(base + "_")]
+            if role_matched:
+                matched = role_matched
+            elif surface_obj is not None:
+                print(f"  [LTL] pattern {pat!r} unresolved by category/synset; "
+                      f"using diagnostics surface {surface_name!r}", flush=True)
+                matched = [surface_obj]
+        for i, obj in enumerate(matched):
+            active[f"{prefix}_{i}"] = obj
+    return active
+
+
+# ---------------------------------------------------------------------------
 #  TaskLTLMonitor
 # ---------------------------------------------------------------------------
 

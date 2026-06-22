@@ -80,7 +80,8 @@ def summarize(dataset: str = "demos", family: str | None = None, *, root=ROOT) -
     for d in dirs:
         m = load_meta(d)
         print(f"  {d.relative_to(base)}  target={m.get('target_key')} grasp={m.get('grasp_id')} "
-              f"seed={m.get('seed')} n_steps={m.get('n_steps')} held={m.get('held_in_goal')}")
+              f"seed={m.get('seed')} n_steps={m.get('n_steps')} "
+              f"reached={m.get('goal_reached', m.get('held_in_goal'))}")
     return dirs
 
 
