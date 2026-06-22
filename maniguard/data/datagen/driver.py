@@ -29,7 +29,12 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     ``max_attempts``, default ``target*4``). Else ``n_per_grasp`` bounded variants. One OG
     session per process (og.clear() multi-task reload breaks cameras)."""
     import json
+    import os
     import time
+
+    if os.environ.get("DATAGEN_HANG_WATCHDOG"):          # debug: dump the main-thread Python stack every
+        import faulthandler                               # 20 s (a watchdog thread runs even if main is in a
+        faulthandler.dump_traceback_later(20, repeat=True)   # native C call → shows the Python frame that hangs)
 
     from maniguard.data.datagen.primitives import scene as scenemod, cameras, obstacles, record
     from maniguard.data.datagen.executor.contracts import TaskContext
@@ -103,7 +108,13 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     # output dir uses the BENCH family name (clutter_pickup) so it matches the bench dataset layout
     out_base = Path(out_root) / dataset / bench_family / task_name
     out_base.mkdir(parents=True, exist_ok=True)
-    idx = len(list(out_base.glob("traj_*")))                          # resume after existing trajs
+    # resume / top-up: every KEPT demo carries a traj.hdf5, so prior successes count TOWARD the target.
+    # A re-run then collects only the DEFICIT (target - existing) and stops the moment N is reached,
+    # instead of collecting `target` MORE on top of what's already there.
+    n_existing = sum(1 for p in out_base.glob("traj_*") if (p / "traj.hdf5").exists())
+    idx = n_existing
+    if n_existing:
+        print(f"[driver] resume: {n_existing} existing demo(s) count toward target={target}", flush=True)
 
     # pristine scene snapshot — RESTORED before every variant (each demo moves the target /
     # disturbs clutter; without this, variant 2+ start from a corrupted scene).
@@ -111,10 +122,10 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     results = []
     n_att = 0
     for g, params in variant_iter:
-        n_ok = sum(r.ok for r in results)
-        if target and (n_ok >= target or n_att >= max_att):
+        n_have = n_existing + sum(r.ok for r in results)             # existing + this run -> resume toward N
+        if target and (n_have >= target or n_att >= max_att):
             break
-        if limit_demos and n_ok >= limit_demos:
+        if limit_demos and n_have >= limit_demos:
             break
         n_att += 1
         og.sim.load_state(init_state, serialized=True)
@@ -130,21 +141,24 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
                 "jitter": params.jitter, "grasp_score": round(getattr(g, "score", 0.0), 3)}
         segs = skeleton.derive_segments(ctx, g, params)
         res = engine.run(ctx, skeleton, segs, gate, recorder, out_dir=out_dir, seed=params.seed, meta=meta)
-        n_ok2 = sum(r.ok for r in results) + (1 if res.ok else 0)
+        n_have2 = n_existing + sum(r.ok for r in results) + (1 if res.ok else 0)
         print(f"[driver] {traj} g{g.id} draw{params.seed}: ok={res.ok} fail={res.fail_stage} "
-              f"{res.detail} [{n_ok2}/{target or '∞'} att={n_att}]", flush=True)
+              f"{res.detail} [{n_have2}/{target or '∞'} att={n_att}]", flush=True)
         results.append(res)
         if res.ok:
             idx += 1                                                  # only kept demos consume a number (gap-free)
 
-    n_ok = sum(r.ok for r in results)
+    n_this = sum(r.ok for r in results)                  # collected THIS run
+    n_total = n_existing + n_this                        # total kept on disk (incl. prior runs)
     elapsed = time.time() - t0
     summary = {"source_task": src_task, "task": task_name, "target_key": target_key,
-               "target": target, "n_success": n_ok, "n_attempts": n_att,
+               "target": target, "n_success": n_total, "n_collected_this_run": n_this,
+               "n_attempts": n_att, "reached_target": (target is None or n_total >= target),
                "elapsed_s": round(elapsed, 1), "dataset": dataset}
     (out_base / "_summary.json").write_text(json.dumps(summary, indent=2))
-    print(f"[driver] DONE {n_ok}/{n_att} success+safe in {elapsed / 60:.1f} min -> {out_base}",
-          flush=True)
+    status = "REACHED" if (target is None or n_total >= target) else "UNDER-TARGET"
+    print(f"[driver] DONE {status} {n_total}/{target or '∞'} kept ({n_this} this run, "
+          f"{n_att} attempts) in {elapsed / 60:.1f} min -> {out_base}", flush=True)
     try:
         og.sim.stop()
     except Exception:  # noqa: BLE001
