@@ -62,6 +62,10 @@ class VariationSampler:
         draws evenly across grasps so diversity doesn't pile onto one grasp."""
         import itertools
         reach = [c for c in cands if getattr(c, "reachable", True)]
+        if not reach:
+            return                              # NO reachable grasp -> yield nothing (else itertools.count()
+            #                                     spins forever with an empty inner loop = a hard CPU hang
+            #                                     that blocks the whole sweep). The driver then ends 0/target.
         for k in itertools.count():
             for c in reach:
                 yield c, self._params(c, k)

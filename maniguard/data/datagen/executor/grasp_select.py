@@ -15,10 +15,13 @@ from maniguard.data.datagen.primitives.curobo_seg import solve_segment
 
 
 def score_grasps(world, robot, target, cands, *, standoff_m: float = 0.10,
-                 timeout: float = 3.0) -> list:
+                 timeout: float = 3.0, plan_tries: int = 2) -> list:
     """Set ``score`` + ``reachable`` on each GraspCand and return them sorted (reachable
     first, then high score). The standoff plan mirrors the engine's pre_grasp, so a grasp
-    that scores reachable will almost certainly clear the demo's first segment."""
+    that scores reachable will almost certainly clear the demo's first segment. Each grasp is
+    retried ``plan_tries`` times before declared unreachable: this old cuRobo fork's solve is
+    stochastic, so a single unlucky solve would wrongly drop a reachable grasp (e.g. every grasp
+    of a task scoring unreachable -> no variants -> 0 demos)."""
     import torch as th
 
     init_q = robot.get_joint_positions()
@@ -28,11 +31,15 @@ def score_grasps(world, robot, target, cands, *, standoff_m: float = 0.10,
         appr = R[:, 2]
         appr = appr / (np.linalg.norm(appr) + 1e-9)
         standoff = np.asarray(c.eef_pos, float) - standoff_m * appr
-        res = solve_segment(
-            world.motion_gen, robot,
-            th.as_tensor(standoff, dtype=th.float32),
-            th.as_tensor(np.asarray(c.eef_quat, float), dtype=th.float32),
-            init_q, timeout=timeout, label=f"score:g{c.id}")
+        res = None
+        for _attempt in range(max(1, plan_tries)):       # retry: a fresh solve explores new seeds
+            res = solve_segment(
+                world.motion_gen, robot,
+                th.as_tensor(standoff, dtype=th.float32),
+                th.as_tensor(np.asarray(c.eef_quat, float), dtype=th.float32),
+                init_q, timeout=timeout, label=f"score:g{c.id}")
+            if res is not None:
+                break
         if res is None:
             c.reachable, c.score = False, -1.0
         else:
