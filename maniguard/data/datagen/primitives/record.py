@@ -220,9 +220,17 @@ class Recorder:
 
         if not success or self.n_steps == 0:
             keep = os.environ.get("DATAGEN_KEEP_FAILED") and self.n_steps > 0
-            if self.out_dir is not None and self.out_dir.exists() and not keep:
-                shutil.rmtree(self.out_dir, ignore_errors=True)
-            print(f"[datagen.record] {'KEPT(debug)' if keep else 'dropped'} {self.out_dir} "
+            kept_dir = self.out_dir
+            if self.out_dir is not None and self.out_dir.exists():
+                if not keep:
+                    shutil.rmtree(self.out_dir, ignore_errors=True)
+                else:                                  # debug: preserve EVERY failed attempt (don't let the
+                    n = 0                              # next attempt overwrite this traj dir → rename uniquely)
+                    while (alt := self.out_dir.parent / f"{self.out_dir.name}_fail{n}").exists():
+                        n += 1
+                    self.out_dir.rename(alt)
+                    kept_dir = alt
+            print(f"[datagen.record] {'KEPT(debug)' if keep else 'dropped'} {kept_dir} "
                   f"(success={success}, steps={self.n_steps})", flush=True)
             self._reset_buffers()
             return None
