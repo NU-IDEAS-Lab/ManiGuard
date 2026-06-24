@@ -115,6 +115,9 @@ class GraspCand:
     approach: str = "top_down"             # metadata (top_down / side)
     score: float = 0.0                     # cuRobo reachability / IK-cost / collision score (higher = better)
     reachable: bool = True
+    margin: float = float("-inf")          # joint-limit margin (rad) of the chosen roll variant; -inf = unreachable
+    chosen_roll: bool = False              # True if the 180°-about-approach roll variant won (vs the annotated quat)
+    chosen_quat: np.ndarray | None = None  # world xyzw of the chosen roll variant (selection-time, for place IK checks)
 
 
 @dataclass

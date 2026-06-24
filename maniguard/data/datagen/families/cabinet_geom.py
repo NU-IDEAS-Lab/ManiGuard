@@ -25,6 +25,9 @@ PLACE_Z_MARGIN = 0.01     # drop height above the drawer floor
 TARGET_D_SHIFT = 0.22     # slide the relocated TARGET this far along +opening, off the robot base's
 #                           straight-ahead line, so the top-down re-grasp isn't folded too tight to solve
 #                           (≈0.3 m straight-ahead → ≈0.39 m diagonal; the obstacle is never re-grasped → 0)
+OBSTACLE_D_NUDGE = 0.08   # nudge the relocated OBSTACLE this far off the base's perpendicular foot (the
+#                           straight-ahead, most-folded pose) toward the cabinet face — a diagonal place
+#                           solves more reliably (clamped so it never crosses behind the cabinet face)
 
 
 def slide_axes(slide_dir, toward_xy=None, origin_xy=None):
@@ -155,38 +158,56 @@ def drawer_interior_center(L: CabinetLayout, open_dist: float, obj_half_h: float
 
 
 def blocker_placement(L: CabinetLayout, obj_xy, obj_half: float, role: str,
-                      open_dist: float = 0.0, d_shift: float | None = None):
+                      open_dist: float = 0.0, d_shift: float | None = None,
+                      avoid_dc: float | None = None, avoid_half: float = 0.0,
+                      p_half: float | None = None, d_half: float | None = None):
     """Where to put a path-blocking object so the drawer can open. Returns world xy. role in
     {'target','obstacle'}. ``d_shift`` (target only) = how far to slide along +opening off the base's
     straight-ahead line; ``None`` => the nominal ``TARGET_D_SHIFT`` (callers pass a per-demo sampled
     value for diversity, but the place-grasp pre-selection keeps the nominal so its prediction holds).
+    ``avoid_dc``/``avoid_half`` (obstacle only): the target's already-resolved destination d-coord and
+    half-width — the obstacle is kept ``obj_half + avoid_half + EDGE_MARGIN`` clear of it so the two
+    parked bboxes never overlap.
 
-    The object's bbox is pushed FLUSH against the table's perpendicular EDGE — all the way out of
-    the drawer-opening corridor (the ``[p_lo, p_hi]`` sweep), maximising the cleared vertical space.
-    (Merely nudging it just outside the drawer's p-span left it hugging the corridor edge, still
-    blocking.) Role fixes which edge, on OPPOSITE sides:
-      * TARGET   → the +p (near-robot) table edge. It is re-picked + placed INTO the drawer, so the
-        near edge keeps it in the arm's comfortable reach.
-      * OBSTACLE → the -p (far-from-robot) table edge, the "other side" away from the target (a pure
-        distractor, never re-grasped).
-    Both keep their own along-slide (d) coordinate EXCEPT the target is also nudged ``TARGET_D_SHIFT``
-    along the +opening direction: the bare perpendicular edge spot sits straight in front of the robot
-    base (same d-line, only ~0.3 m away) where a top-down re-grasp folds the arm too tightly for cuRobo
-    to reach the pre-grasp pose. Sliding it that bit further along the edge (still p-clear of the
-    corridor, still on the edge) moves it off the base's straight-ahead line to a comfortable reach.
+    BOTH roles park on the SAME ``+p`` (near-robot) table edge — pushed FLUSH against it, all the way
+    out of the drawer-opening corridor (the ``[p_lo, p_hi]`` sweep) so the drawer clears them — and
+    BOTH stay IN FRONT of the cabinet face (never carried behind it across the opening plane: the far
+    ``-p`` edge and the cabinet-back region are out of the mounted arm's reach AND invite a knock
+    during the later pick/place). They are STAGGERED along that one edge so they never collide:
+      * TARGET   → slid ``TARGET_D_SHIFT`` along +opening off the base's straight-ahead line. The bare
+        perpendicular-foot spot sits ~0.3 m straight in front of the base where a top-down re-grasp
+        folds the arm too tightly for cuRobo; the slide moves it to a comfortable diagonal reach. It is
+        re-picked + dropped INTO the drawer, so it must stay re-graspable.
+      * OBSTACLE → near the base's perpendicular foot on the edge (the nearest stable point), nudged
+        ``OBSTACLE_D_NUDGE`` off the straight-ahead fold and clamped to stay in front of the cabinet
+        face. A pure distractor, never re-grasped, so a reachable one-shot place is all it needs. It
+        then resolves clear of the target's bbox: stagger further toward the face if there is room,
+        else hop to the far (``+d``) side past the target.
     Everything is clamped so the bbox stays on the table (a narrow table → falls back to its widest).
     """
     obj_xy = np.asarray(obj_xy, float)[:2]
+    # ``p_half`` / ``d_half`` = the object's half-extent toward the corridor (p) and along the edge (d)
+    # AFTER its relocate orientation. An elongated object parked long-axis ∥ the edge faces the corridor
+    # with only its SHORT half (p_half = short/2) → it sits flush to the edge, well clear of the sweep
+    # (using the square obj_half over-pulled it inboard, leaving a long object hugging the corridor).
+    ph = obj_half if p_half is None else float(p_half)
+    dh = obj_half if d_half is None else float(d_half)
     tcorners = np.array([[x, y] for x in (L.table_lo[0], L.table_hi[0])
                          for y in (L.table_lo[1], L.table_hi[1])])
     p_proj, d_proj = tcorners @ L.p, tcorners @ L.d
-    side = +1.0 if role == "target" else -1.0                   # target: +p near-robot edge; obstacle: -p far edge
-    p_edge = float(p_proj.max() if side > 0 else p_proj.min())
-    pc = p_edge - side * (obj_half + EDGE_MARGIN)               # pull the bbox in from the edge
-    dc = float(obj_xy @ L.d)                                     # keep along-slide pos ...
+    p_edge = float(p_proj.max())                                # +p = near-robot edge (BOTH roles)
+    pc = p_edge - (ph + EDGE_MARGIN)                            # pull the bbox in from the edge
     if role == "target":
-        dc += TARGET_D_SHIFT if d_shift is None else float(d_shift)   # ... but slide the target +d off the
-    #                                                              base's straight-ahead line for a comfy re-grasp
-    dc = float(np.clip(dc, d_proj.min() + obj_half + EDGE_MARGIN,
-                       d_proj.max() - obj_half - EDGE_MARGIN))   # clamped on-table
+        dc = float(obj_xy @ L.d)                                # keep along-slide pos ...
+        dc += TARGET_D_SHIFT if d_shift is None else float(d_shift)   # ... slid +d off the base line
+    else:                                                       # obstacle: foot, nudged off the straight-ahead fold
+        min_front = (L.d_front - L.j_current) + dh + EDGE_MARGIN   # never behind the (re-)closed cabinet face
+        dc = max(float(L.robot_xy @ L.d) - OBSTACLE_D_NUDGE, min_front)
+        if avoid_dc is not None:                                # keep the two parked bboxes from overlapping
+            gap = dh + avoid_half + EDGE_MARGIN
+            if abs(dc - avoid_dc) < gap:
+                back = avoid_dc - gap                           # stagger further -d (toward the face) ...
+                dc = back if back >= min_front else avoid_dc + gap   # ... or +d past the target if no front room
+    dc = float(np.clip(dc, d_proj.min() + dh + EDGE_MARGIN,
+                       d_proj.max() - dh - EDGE_MARGIN))         # clamped on-table (along-edge half)
     return L.to_world(dc, pc)
