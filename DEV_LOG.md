@@ -1378,3 +1378,41 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   `pewter_teapot`→`mug`; 0034 big `stockpot`→`can_of_soda`). 0017/0025/0030 obstacles verified off-side (not
   blocking). Dataset is gitignored → committed the tools + this log; spec/plan kept local under
   docs/superpowers/. Motion layer (cabinet.py/cabinet_geom.py, T2-T5) still uncommitted. See [[project_maniguard_cabinet_family]].
+
+- **Singularity-aware grasp selection + cabinet FREE-segment collision policy (2026-06-24)**: cabinet datagen
+  dropped task_0000 (0/9) because grasp selection scored Cartesian reachability only — never the IK joint config —
+  so it picked the annotated "palm-flip" 180°-roll variant with the wrist already at a joint limit, and the first
+  lift/carry stalled at a singularity. Fix in the shared scorer (`executor/grasp_select.py`): per candidate, IK
+  BOTH approach-roll variants (annotated quat + 180° about eef +Z), read the planned arm config, keep the roll
+  whose worst joint sits farthest from a limit (`joint_margin`), drop grasps below `MARGIN_FLOOR` (0.2 rad). The
+  chosen roll propagates to execution via a `grasp_roll` flag in the segment `extra` → `cabinet._grasp_pose`
+  re-rolls the LIVE pose (robust to object motion); every reorient that rebuilds the held pose from the DB grasp
+  (`uprightify`, `_yaw_align_quat` for `fit_yaw`/`edge_yaw`) applies the same roll via `_eo_rolled` so it never
+  twists the wrist back. `_select_place_grasp` extends the margin to the place carry (over-rim + over-cavity).
+  Handle grasps keep the legacy single-quat path (their own contact gates). Validated: task_0000 1/1 (was 0/9),
+  task_0004 3/3, both prior `pick_lift`/`place_lift` singularity stalls gone. Bundled with the T2 motion-layer
+  collision policy (the 3 FREE connectors now AVOID the cabinet + open drawer instead of ignoring them). Pure
+  helpers unit-tested (`tests/datagen/test_grasp_singularity.py`); cuRobo/sim paths validated by collection.
+  See [[project_maniguard_grasp_singularity]].
+
+- **datagen: preserve every failed attempt under unique `_failN` dirs (2026-06-24)**: `primitives/record.py` —
+  with `DATAGEN_KEEP_FAILED=1` a kept failed trajectory is renamed `<traj>_failN` (next free N) instead of being
+  overwritten by the next attempt, so debug review sees ALL failures of a slot (the `traj_000_fail0/1/2` seen in
+  the cabinet collection runs).
+
+- **eval: consume shared safety_monitor LTL resolution in benchmark (2026-06-24)**: `eval/benchmark.py` — the LTL
+  active-object resolution (`category_synset_lemma`, `build_active_objects_for_ltl`) now lives in the shared
+  `utils.safety_monitor` (single source across eval/datagen/bench-finalize); benchmark keeps thin local aliases so
+  call sites are unchanged. See [[reference_shared_success_ltl_modules]].
+
+- **Bench task_0005 pineapple→jar_of_tumeric: reach-fix by target swap (2026-06-24)**: task_0005's pineapple
+  target was un-graspable — its in-path corridor (drawer-centre X) sits 0.5-0.67 m out, at the Franka top-down
+  reach edge, and the pineapple's only 4 grasps are all high (z_local 0.135 → standoff z≈0.72), so cuRobo's FREE
+  plan to the standoff failed even drawer-closed (`--score` 0/3 + `--no-score` `pick_pre` plan_fail 3/4). A
+  surgical spawn-toward-robot alone could not fix it (corridor barely overlaps reliable reach + high grasps), so
+  the target was swapped to a compact low-grasp `jar_of_tumeric/miivhi` (text-swap scene incl. nested copies +
+  structured diag edit; backup `base_bak_preedit`), re-finalized clean (gate/LTL ok) → now collects 3/3 (jar
+  grasps reachable, margins 0.34-0.92). All 4 perturbations regenerated from the jar base via
+  `bench_builder/perturb_{target,language,location,env}` (env reused the original room office_vendor_machine);
+  5 manifests rebuilt to 35 rows (the drivers' `--tasks` `w`-mode truncation); review snapshots regenerated.
+  Dataset is gitignored → only this log committed. See [[project_maniguard_cabinet_family]].
