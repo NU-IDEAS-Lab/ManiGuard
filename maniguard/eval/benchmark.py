@@ -280,108 +280,17 @@ def query_policy(policy, obs, client_type, cfg):
 # LTL safety
 # ---------------------------------------------------------------------------
 
-_OBJECT_TAXONOMY = None
-
-
+# LTL active-object resolution lives in the shared utils.safety_monitor (single source
+# used by the eval runner, datagen, and bench-finalize alike). Thin local aliases keep this
+# module's existing call sites + names unchanged.
 def _category_synset_lemma(category: str) -> str:
-    """OmniGibson category -> its BDDL synset lemma (e.g. ``roasting_pan`` ->
-    ``roaster``, ``milk_carton`` -> ``milk__carton``).
-
-    LTL patterns name objects by synset lemma, which is NOT always the OG
-    category; bridging via the object taxonomy lets those patterns resolve.
-    Returns ``""`` if unavailable (taxonomy missing or category has no synset).
-    """
-    global _OBJECT_TAXONOMY
-    if not category:
-        return ""
-    try:
-        if _OBJECT_TAXONOMY is None:
-            from bddl.object_taxonomy import ObjectTaxonomy
-            _OBJECT_TAXONOMY = ObjectTaxonomy()
-        syn = _OBJECT_TAXONOMY.get_synset_from_category(category)
-        return syn.split(".n.")[0] if syn else ""
-    except Exception:
-        return ""
+    from maniguard.utils.safety_monitor import category_synset_lemma
+    return category_synset_lemma(category)
 
 
 def _build_active_objects_for_ltl(env, ltl_safety, surface_name):
-    """Reconstruct ``{inst_id: obj}`` so the diagnostics LTL patterns resolve to
-    loaded scene objects.
-
-    6fam-base scenes carry no ``inst_to_name`` / ``active_object_summary``, so
-    the per-scene LTL spec (embedded in diagnostics) references objects only by
-    glob pattern, e.g. ``teacup_*`` (category), ``roaster_*`` (synset lemma of a
-    ``roasting_pan``), ``desk.n.01_*`` (synset), ``target_paper_towel_holder_*``
-    (role+category). Map each pattern to the matching loaded objects under a key
-    that fnmatches it:
-
-      * ``agent.*``        -> the robot
-      * else               -> objects whose category OR synset lemma == the
-                              pattern prefix (synset base ``.split('.n.')[0]``
-                              stripped), plus any whose name fnmatches the
-                              pattern (role+category)
-      * unresolved synset  -> the diagnostics ``surface`` object (support
-                              backstop, e.g. ``breakfast_table.n.01_*`` filled by
-                              an OG ``desk`` — a task role substitution the
-                              taxonomy does not link)
-    """
-    import fnmatch
-
-    patterns = set()
-    for pdef in ((ltl_safety or {}).get("propositions") or {}).values():
-        for key in ("over", "relative_to"):
-            v = pdef.get(key)
-            if isinstance(v, list):
-                patterns.update(v)
-            elif isinstance(v, str):
-                patterns.add(v)
-
-    robot = env.robots[0] if env.robots else None
-    objs = list(env.scene.objects)
-    # category -> synset lemma, so synset-lemma-named patterns resolve too.
-    cat2lemma = {}
-    for o in objs:
-        c = getattr(o, "category", "")
-        if c and c not in cat2lemma:
-            cat2lemma[c] = _category_synset_lemma(c)
-    surface_obj = (
-        env.scene.object_registry("name", surface_name) if surface_name else None
-    )
-
-    active = {}
-    for pat in patterns:
-        prefix = pat[:-2] if pat.endswith("_*") else pat
-        if prefix.startswith("agent"):
-            if robot is not None:
-                active[f"{prefix}_0"] = robot
-            continue
-        base = prefix.split(".n.")[0]
-        matched = [
-            o for o in objs
-            if getattr(o, "category", "") == base
-            or cat2lemma.get(getattr(o, "category", "")) == base
-        ]
-        matched += [
-            o for o in objs
-            if o not in matched and fnmatch.fnmatch(getattr(o, "name", ""), pat)
-        ]
-        if not matched and ".n." in prefix:
-            # Synset pattern (e.g. lid.n.02_*) whose object is spawned under a
-            # ROLE name (lid_cap_ep1_1, category 'cap') rather than the synset
-            # category — match the synset lemma as a role-name prefix before
-            # falling back to the support surface.
-            role_matched = [
-                o for o in objs if getattr(o, "name", "").startswith(base + "_")
-            ]
-            if role_matched:
-                matched = role_matched
-            elif surface_obj is not None:
-                print(f"  [LTL] pattern {pat!r} unresolved by category/synset; "
-                      f"using diagnostics surface {surface_name!r}")
-                matched = [surface_obj]
-        for i, obj in enumerate(matched):
-            active[f"{prefix}_{i}"] = obj
-    return active
+    from maniguard.utils.safety_monitor import build_active_objects_for_ltl
+    return build_active_objects_for_ltl(env, ltl_safety, surface_name)
 
 
 # ---------------------------------------------------------------------------
