@@ -1330,3 +1330,51 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   roomy high lane) → move_transit **50% → 100%** (8/8). Remaining failures are now all in the place
   phase = the intended fair grasp test (bad grasps fail + drop). `review.py` now defaults to no-wrist
   (`--wrist` to add it); annotate tool's jump list is searchable + alphabetical.
+- **Stability test task_0001–0005 → pipeline does NOT generalize + infra fixes (2026-06-22)**: annotated the
+  10 new objects (+ `fix_approach_tags` = 65 corrections) and swept 0001-0005. Findings: **task_0001
+  bottle_of_tequila 0/3** (all target grasps cuRobo-unreachable at spawn — tall bottle out of reach);
+  **task_0002 graduated_cylinder 0/3** (7 attempts all fail: place-pick approach knocks things over, place_lift
+  below_z/stuck, place_over IK fail). The place logic was tuned to task_0000's solid-base+thin-post shape; the
+  new tall/thin objects fail — **NEXT = diagnose per-object via the review videos, don't blindly scale**. Infra
+  fixed (all committed): (a) **HANG** — `variants_stream` spun forever (`itertools.count()` + empty reach) when
+  --score dropped every grasp, blocking the whole sweep with no timeout → now returns 0/N cleanly; `score_grasps`
+  got a 2-try retry. (b) **per-family logs** — sweep logs/summary moved under `<dataset>/<bench_family>/_logs/`
+  (shared `_logs/` clobbered across families, task names repeat). (c) sweep **resume-to-N** (re-run tops up the
+  deficit, stops at N) + `--max-attempts` + UNDER-TARGET report; `DATAGEN_HANG_WATCHDOG` faulthandler watchdog
+  (found the hang). (d) **2-process-on-1-GPU deadlocks** for cabinet's cuRobo-heavy load → single process only.
+- **Cabinet placement: whack-a-mole wall → systematic REDESIGN (spec + plan), uncommitted (2026-06-22)**:
+  a long debug session on the placement (per-object via review videos) kept shifting the failure with each
+  SERVO/heuristic patch (relocate near-side rewrite, footprint-aware blocker halves, adaptive place-grasp
+  height filter, grasp-balance centrality, fit_yaw/edge_yaw early-vs-late, toward-robot cavity shift, low-height
+  roll, fail0 `place_pre_grasp`/`pick_pre` no-longer-ignore-target, fail1 obstacle-balance grasp + `pick_lift`
+  empty-grip verify, `place_gid or`→`is not None`, recorder keeps each failed attempt as `traj_*_failN`). All
+  landed in `cabinet.py`/`cabinet_geom.py`/`record.py` but **uncommitted**. Hit the architecture-questioning
+  threshold and **stopped patching**. Root cause found: **cuRobo was told to `ignore_objects=(cab,)` in EVERY
+  segment**, so the FREE moves plan THROUGH the open drawer and knock it (the "gripper bends into the door");
+  VERIFIED OmniGibson cuRobo `update_obstacles` adds every link's collision mesh at its LIVE pose, so the open
+  drawer IS modellable — cuRobo can avoid it, it was just told not to. **Redesign = waypoint-anchored**: every
+  move is a must-reach-waypoint skeleton — **门-shape pick-and-place with 4 mandatory waypoints**
+  (`D_grasp`/`D_up_src`/`D_up_dst`/`D_place`) reached by **pure IK**; **cuRobo only on path-irrelevant free-space
+  connectors** (avoiding the live cabinet+drawer); handle push/pull; the fragile `fit_yaw`/`rail_clear`/
+  `toward_robot` fold into one **early LOW cuRobo reorient** (avoid cab, upright — done at z≈0.7 not the z≈1
+  reach ceiling) + the `D_up_dst` pose; cuRobo connectors get an IK fallback (lift→across→descend) on plan_fail.
+  Also flagged: the **12 far-target tasks (0001/0003/0007/0013/0015/0018/0021/0023/0026/0028/0031/0034) are still
+  UNFIXED** (target spawned ~1.0-1.1m out of reach) → must be respawned to both-front; and a **diagnostics-only
+  target↔obstacle role-swap** fallback for ungraspable targets (verified on task_0004, which is now swapped to
+  "place the shaker"). SPEC `docs/superpowers/specs/2026-06-22-cabinet-datagen-waypoint-architecture-design.md`
+  + PLAN `docs/superpowers/plans/2026-06-22-cabinet-datagen-waypoint-architecture.md` (7 tasks T1-T7) written +
+  approved. **NEXT = execute the plan from T1** (12-task both-front conversion is independent + first); task_0000
+  is the regression baseline. See [[project_maniguard_cabinet_family]].
+- **Cabinet bench DATA renewed: T1 spawn-fix + T1.5 finalize/perturbation renew (2026-06-23)**: finalized the
+  benchmark cabinet family (35 tasks) after the spawn edits — base + 4 perturbations + 5 manifests all consistent,
+  all `ok`. NEW tooling: `tools/cabinet_rerender_base.py` re-runs the REAL bench pipeline (`finalize_base_task`,
+  not a render-only pass — runtime gate/LTL/stability is RE-COMPUTED in the gravity idle-step, never copied) in
+  place or from a regen source (`--src-root`); `cabinet_bothfront.py` (both-front + near-edge + on-table +
+  drift + drawer + adaptive-sep) and `cabinet_roleswap.py` (the §13 6-field swap) lifted from the T1 one-offs;
+  `tools/cabinet_review_grid.py` tiles each level's 35 last-frame stills into one review montage. 18 of 35 tasks
+  modified; the full gravity idle-step caught spawn defects the gravity-OFF spawn settle masked → 5 content
+  regens (0007 chess_set→bottle_of_water; 0024+0026 hutch-desk `desk/puapey`→flat `conference_table` so the
+  robot base is coplanar not perched; 0026 tippy `wine_sauce_bottle`→`can_of_bay_leaves`; 0028 big
+  `pewter_teapot`→`mug`; 0034 big `stockpot`→`can_of_soda`). 0017/0025/0030 obstacles verified off-side (not
+  blocking). Dataset is gitignored → committed the tools + this log; spec/plan kept local under
+  docs/superpowers/. Motion layer (cabinet.py/cabinet_geom.py, T2-T5) still uncommitted. See [[project_maniguard_cabinet_family]].
