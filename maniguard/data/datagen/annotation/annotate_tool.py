@@ -156,8 +156,14 @@ class App:
             self.hint = g.add_dropdown("approach_hint", options=["top_down", "side"],
                                        initial_value="top_down")
             self.label = g.add_text("label", initial_value="")
-            g.add_button("✚ save grasp").on_click(lambda _: self._save_grasp())
+            g.add_button("✚ save grasp (Enter)").on_click(lambda _: self._save_grasp())
             g.add_button("✖ delete last").on_click(lambda _: self._del_last())
+        # Enter-to-save: commit the finished pose without moving the mouse to the button. A
+        # command-palette command (also reachable via Ctrl/Cmd+K) bound to the Enter hotkey.
+        # viser's client uses Mantine useHotkeys with the default tagsToIgnore
+        # (INPUT/TEXTAREA/SELECT), so hitting Enter WHILE typing in the search / label fields
+        # does NOT misfire a save — only Enter with focus off a text input triggers it.
+        g.add_command("save grasp", hotkey="enter").on_trigger(lambda _: self._save_grasp())
 
     def _filter_jump(self):
         """Filter the jump dropdown to keys containing the search substring (empty => all), and
