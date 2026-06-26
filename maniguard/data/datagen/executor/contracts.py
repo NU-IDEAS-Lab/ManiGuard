@@ -75,9 +75,17 @@ class MotionSegment:
     replay_reverse: bool = False           # execute the REVERSED joint path of the most recent SERVO segment
     #                                        (retreat straight back out the way the push came in — that lane is
     #                                        guaranteed clear). The eef_pos/quat/compute are ignored for this segment.
+    path_begin: bool = False               # start accumulating this + the following segments' joint trajectories
+    #                                        into one buffer (the relocate path from ~HOME to the place spot).
+    replay_reverse_path: bool = False      # execute the REVERSED accumulated path (``replay_frac`` of it) — retrace
+    #                                        the whole relocate BACK to ~HOME via the exact joint path it took out, so
+    #                                        the next FREE plan starts from the good config the first pick solved from
+    #                                        (JointController is joint-space → reverse-replay is drift-free, no replan).
+    replay_frac: float = 0.8               # fraction of the reversed path to replay (0.8 => return to ~20% = near HOME)
     carry_closed: bool | None = None       # gripper command DURING the motion: None => default (closed iff attach);
     #                                        True => hold CLOSED (e.g. a closed-gripper block shoving a drawer, no attach)
     reach_tol_m: float | None = None       # if set, after the segment VERIFY the eef reached its commanded target
+    reach_xy_only: bool = False            # with reach_tol_m: check only the XY distance (ignore benign Z droop of the held load; the held-above-rim Z is gated by verify_held_above_z)
     #                                        within this tol; else fail "stuck" (the held object didn't follow the
     #                                        plan — a path/strategy that jammed → the driver retries another combo)
     verify_held_above_z: float | None = None  # if set, after the segment VERIFY the HELD object's lowest point is
@@ -118,6 +126,8 @@ class GraspCand:
     margin: float = float("-inf")          # joint-limit margin (rad) of the chosen roll variant; -inf = unreachable
     chosen_roll: bool = False              # True if the 180°-about-approach roll variant won (vs the annotated quat)
     chosen_quat: np.ndarray | None = None  # world xyzw of the chosen roll variant (selection-time, for place IK checks)
+    is_top_down: bool = False              # geometric: approach axis within TOP_DOWN_MAX_TILT_DEG of straight-down
+    wrist_open: bool = False               # geometric: approach leans toward the cabinet -> wrist/arm on the drawer-OPEN side, clear of the cabinet (relocate only; needs prefer_wrist_dir)
 
 
 @dataclass
@@ -186,6 +196,30 @@ class FamilySkeleton(ABC):
     def variation_knobs(self, ctx: TaskContext) -> dict[str, Any]:
         """Which waypoints / ranges may jitter for diversity. Default: engine defaults."""
         return {}
+
+    def relocate_prefer_top_down(self) -> bool:
+        """Whether the driver should rank the TARGET's Phase-1 relocate grasps top-down-first (a
+        straight vertical relocate lift stalls a side grasp's wrist; a top-down grasp lifts cleanly).
+        Default False (clutter: goal-region placement, no such lift constraint). Cabinet returns True."""
+        return False
+
+    def grasping_mode(self) -> str:
+        """OmniGibson AG mode baked into the datagen env for this family. Default ``"assisted"``
+        (magnetize only an object held BETWEEN both fingers — realistic force-closure). A family
+        whose target is un-graspable by force closure (e.g. a tabletop slab wider than the gripper
+        in both horizontal axes, which an edge-pinch only shoves away) overrides to ``"sticky"``
+        (magnetize on first single-finger contact), so the demo teaches the task SEQUENCE rather
+        than stalling on an impossible grasp. Keep eval's grasp mode consistent with this."""
+        return "assisted"
+
+    def relocate_open_dir(self, ctx: TaskContext):
+        """World-frame xy unit vector the relocate grasp's WRIST should trail toward, so the arm body
+        stays clear of an obstruction when picking objects in front of it. The grasp scorer prefers
+        grasps whose approach leans OPPOSITE this (toward the obstruction), putting the wrist on this
+        side. Default None (no azimuth preference). Cabinet returns the drawer-OPEN direction: picking
+        from the open side keeps the arm off the closed cabinet (else cuRobo can't reach + the SERVO
+        descend jams on the cabinet). Returns ``np.ndarray | None``."""
+        return None
 
     def debug_state(self, ctx: TaskContext) -> str:
         """Optional one-line family state string the engine prints after each segment when

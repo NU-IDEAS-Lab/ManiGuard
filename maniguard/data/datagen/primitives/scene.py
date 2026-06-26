@@ -109,12 +109,16 @@ def scene_from_task_dir(
     if robot_setup is None:
         raise RuntimeError(f"No robot found in scene snapshot for {task_dir.name}")
 
-    # JointController + impedance preset (the joint-native curobo execution path);
+    # JointController, joint_position_raw preset = RIGID Isaac position drive (isaac_kp=1e7),
+    # MATCHING eval/teleop/bench (configs/eval/*_joint.yaml + robot_pose.BENCH_CONTROLLER_PRESET).
+    # The old joint_position_impedance preset (soft, pos_kp=50) drooped the held load ~0.07 m at arm
+    # extension and could not track the descent wrist-swing, failing the cabinet place; eval is rigid
+    # anyway, so datagen-rigid is ALSO more train/eval-consistent (recorded action = next-achieved q).
     # action/render at 30 Hz; assisted grasp by default.
     env_cfg = build_env_config(
         scene_info,
         diagnostics,
-        controller_preset="joint_position_impedance",
+        controller_preset="joint_position_raw",
         grasping_mode=grasping_mode,
         action_frequency=30,
         rendering_frequency=30,

@@ -61,6 +61,7 @@ class DemoEngine:
         #                                          seed trajectories from the (advancing) torch RNG, so a retry
         #                                          explores NEW seeds → clears this old fork's intermittent plan_fail
         self._last_servo = None                  # most recent SERVO joint path (for replay_reverse retreat)
+        self._path_buf = None                    # accumulating joint path (for replay_reverse_path return-to-home)
 
     def _held(self, seg: MotionSegment, ctx: TaskContext):
         """The object currently carried (for attach + clearance). Defaults to ctx.target
@@ -137,6 +138,73 @@ class DemoEngine:
             q_seed[manip_idx] = arm_cfg.to(q_seed.device, q_seed.dtype)
         return th.stack(out)
 
+    # ---- debug instrumentation: per-segment joint diagnostics (DATAGEN_LOG_JOINTS) ----
+    def _arm_limits(self):
+        ai = self.robot.arm_control_idx[self.robot.default_arm]
+        lo = np.asarray(self.robot.joint_lower_limits)[ai]
+        hi = np.asarray(self.robot.joint_upper_limits)[ai]
+        return ai, lo, hi
+
+    def _log_cmd_joints(self, seg, arm_traj):
+        """COMMANDED arm trajectory's closest approach to a joint limit — shows whether the IK/plan
+        ITSELF drives a joint to its limit (a joint-limit singularity) on this segment."""
+        _, lo, hi = self._arm_limits()
+        traj = _np(arm_traj)
+        if traj.ndim == 1:
+            traj = traj.reshape(1, -1)
+        margins = np.minimum(traj - lo, hi - traj)             # (T,7) dist to nearest limit per joint
+        per_wp_min = margins.min(axis=1)
+        wi = int(np.argmin(per_wp_min))
+        print(f"[joints] {seg.name} CMD n={len(traj)}: final_min_margin={margins[-1].min():+.3f}"
+              f"(j{int(np.argmin(margins[-1]))}) traj_min_margin={per_wp_min[wi]:+.3f}"
+              f"(j{int(np.argmin(margins[wi]))})@wp{wi}; final_q={np.round(traj[-1], 3)}", flush=True)
+
+    def _log_achieved_joints(self, seg, arm_traj, tpos):
+        """ACHIEVED arm config after execution vs the COMMANDED final waypoint. A large per-joint
+        tracking error on a near-limit joint = the controller saturating against that limit (the
+        stall); eef_err shows the Cartesian shortfall (the held object that 'didn't lift')."""
+        ai, lo, hi = self._arm_limits()
+        q_now = np.asarray(self.robot.get_joint_positions())[ai]
+        cmd = _np(arm_traj[-1]).reshape(-1)
+        margins = np.minimum(q_now - lo, hi - q_now)
+        jm = int(np.argmin(margins))
+        terr = np.abs(q_now - cmd)
+        jt = int(np.argmax(terr))
+        ep = _np(self.robot.eef_links[self.robot.default_arm].get_position_orientation()[0])
+        eerr = float(np.linalg.norm(ep - np.asarray(tpos, float)))
+        print(f"[joints] {seg.name} DONE: min_margin={margins[jm]:+.3f}(j{jm}) "
+              f"max_track_err={terr[jt]:.3f}(j{jt}) eef_err={eerr:.3f}; achieved_q={np.round(q_now, 3)}", flush=True)
+
+    def _log_contacts(self, seg):
+        """Which NON-robot scene bodies the robot is touching at the END of this segment. A contact
+        with the cabinet / another object during a free approach is the collision that stalled it
+        (explains a large eef_err with healthy joint margins = obstruction, not a singularity)."""
+        try:
+            contacts = self.robot.contact_list()
+        except Exception as e:  # noqa: BLE001
+            print(f"[contacts] {seg.name}: contact_list failed: {e}", flush=True)
+            return
+        rname = str(self.robot.name)
+
+        def _obj(b):                                     # /World/scene_0/<object>/<link>/...
+            parts = b.strip("/").split("/")
+            if "scene_0" in parts:
+                i = parts.index("scene_0")
+                return parts[i + 1] if i + 1 < len(parts) else parts[-1]
+            return parts[1] if len(parts) >= 2 else b
+
+        hit: dict[str, int] = {}
+        for c in contacts:
+            b0, b1 = str(getattr(c, "body0", "")), str(getattr(c, "body1", ""))
+            rlink = b0 if rname in b0 else (b1 if rname in b1 else None)
+            other = b1 if rname in b0 else (b0 if rname in b1 else None)
+            if rlink is None or other is None or rname in other:
+                continue
+            # robot-link : object  — distinguishes a fingertip grip from a forearm collision
+            key = f"{_obj(other)}<->{rlink.strip('/').split('/')[-1]}"
+            hit[key] = hit.get(key, 0) + 1
+        print(f"[contacts] {seg.name}: {dict(sorted(hit.items())) or 'NONE'}", flush=True)
+
     # ---- run one demo variant ----------------------------------------------
     def run(self, ctx: TaskContext, skeleton: FamilySkeleton, segments,
             gate: SafetyGate, recorder, *, out_dir, seed: int = 0, meta: dict | None = None) -> DemoResult:
@@ -151,6 +219,7 @@ class DemoEngine:
 
         gate.reset()
         self._last_servo = None                  # per-variant: no servo path recorded yet
+        self._path_buf = None                    # per-variant: no relocate path accumulated yet
         self._timeout = False                    # tripped if the rollout exceeds self.max_steps
         recorder.attach(self.env, self.robot, out_dir,
                         prompt=ctx.diagnostics.get("prompt", ""))
@@ -180,9 +249,19 @@ class DemoEngine:
             self.world.update_obstacles(ignore_objects=ignore)
 
             attach = self._held(seg, ctx) if seg.attach else None
+            if seg.path_begin:
+                self._path_buf = []                              # start accumulating the relocate's joint path
             # produce this segment's joint trajectory: a stored-path replay, a straight IK servo,
             # or the default collision-aware cuRobo solve.
-            if seg.replay_reverse:
+            if seg.replay_reverse_path:
+                if not self._path_buf:
+                    recorder.finalize(success=False)
+                    return DemoResult.fail("no_path", seg=seg.name)
+                rev = th.flip(th.cat(self._path_buf, dim=0), dims=[0])   # retrace the WHOLE relocate back toward HOME
+                k = max(1, int(seg.replay_frac * rev.shape[0]))   # replay_frac of it -> stop ~ (1-frac) into the path
+                arm_traj = rev[:k]
+                self._path_buf = None
+            elif seg.replay_reverse:
                 if self._last_servo is None:
                     recorder.finalize(success=False)
                     return DemoResult.fail("no_servo", seg=seg.name)
@@ -217,12 +296,20 @@ class DemoEngine:
                     return DemoResult.fail("plan_fail", seg=seg.name)
                 arm_traj = res.arm_traj
 
+            # accumulate this segment's joint path so a later replay_reverse_path can retrace it (skip the
+            # replay segment itself, which already consumed + cleared the buffer).
+            if self._path_buf is not None and not seg.replay_reverse_path:
+                self._path_buf.append(arm_traj)
+
+            if os.environ.get("DATAGEN_LOG_JOINTS"):
+                self._log_cmd_joints(seg, arm_traj)
+
             # gripper command DURING the arm motion: closed iff carrying an attached object,
             # unless the segment forces it (a closed-gripper block pushing the drawer = carry_closed).
             carry = CLOSE if (seg.attach if seg.carry_closed is None else seg.carry_closed) else OPEN
             # a SERVO push (or its reverse) runs SLOW so a contacted drawer slides with the gripper
             # instead of being outrun; everything else uses the normal per-waypoint cadence.
-            spw = self.servo_spw if (seg.mode == Mode.SERVO or seg.replay_reverse) else self.steps_per_waypoint
+            spw = self.servo_spw if (seg.mode == Mode.SERVO or seg.replay_reverse or seg.replay_reverse_path) else self.steps_per_waypoint
             execute_trajectory(self.env, self.robot, arm_traj, gripper_cmd=carry,
                                recorder=recorder, steps_per_waypoint=spw,
                                on_step=tick)
@@ -244,12 +331,20 @@ class DemoEngine:
                 recorder.finalize(success=False)
                 return DemoResult.fail("unsafe", seg=seg.name, step=gate.violation_step)
 
+            if os.environ.get("DATAGEN_LOG_JOINTS"):
+                self._log_achieved_joints(seg, arm_traj, tpos)
+                self._log_contacts(seg)
+
             # stuck check: did the eef actually REACH its commanded target? If it stalled far short,
             # the held object didn't follow the plan (a jammed path/strategy) — fail fast so the
             # driver retries a different (strategy x grasp x seed) combo.
             if seg.reach_tol_m is not None:
                 ez = _np(self.robot.eef_links[self.robot.default_arm].get_position_orientation()[0])
-                err = float(np.linalg.norm(ez - np.asarray(tpos, float)))
+                tp = np.asarray(tpos, float)
+                # reach_xy_only: a carry segment whose eef Z droops under the held load (the compliant wrist
+                # sags at a high/extended pose) but for which XY-reaching-the-target IS the functional need —
+                # the held-above-rim Z is gated separately by verify_held_above_z. Don't fail on benign Z droop.
+                err = float(np.linalg.norm((ez - tp)[:2] if seg.reach_xy_only else (ez - tp)))
                 if err > seg.reach_tol_m:
                     print(f"[datagen.engine] {seg.name} STUCK: eef reach err={err:.3f} > {seg.reach_tol_m} "
                           f"(eef={ez.round(3)} target={np.asarray(tpos, float).round(3)})", flush=True)

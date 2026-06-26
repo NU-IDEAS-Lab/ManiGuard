@@ -21,7 +21,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
              n_per_grasp: int = 1, target: int | None = None, max_attempts: int | None = None,
              score: bool = False, out_root: str = "outputs/datagen",
              headless: bool = True, timeout: float = 5.0, steps_per_waypoint: int = 2,
-             limit_demos=None):
+             limit_demos=None, grasping_mode: str | None = None):
     """Build one base task, then run the family skeleton x variants through the generic engine,
     recording each success+safe demo. Returns the list of DemoResults.
 
@@ -46,9 +46,14 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
 
     t0 = time.time()
     task_dir = Path(task_dir)
-    og = scenemod.init_omnigibson(headless=headless)
+    skeleton = FAMILY[family]()                        # built early so its grasping_mode() (the family
+    og = scenemod.init_omnigibson(headless=headless)   # default, e.g. cabinet -> "sticky") can set the
+    ag_mode = grasping_mode or skeleton.grasping_mode()   # AG mode baked into the env; CLI --grasping-mode wins
+    print(f"[driver] grasping_mode={ag_mode!r} (family default={skeleton.grasping_mode()!r}, "
+          f"cli_override={grasping_mode!r})", flush=True)
     bundle = scenemod.scene_from_task_dir(
         task_dir, external_sensors=cameras.external_camera_configs(),
+        grasping_mode=ag_mode,
         pre_build_hooks=[_patch_franka_longfinger])
     env, robot = bundle.env, bundle.robot
     cameras.place_and_resize_cameras(env, robot, og, bundle.diagnostics)
@@ -77,9 +82,11 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
 
     world = obstacles.CuroboWorld(env, robot)
     gate = build_gate(env, bundle.diagnostics, surface_name=surface_name)
-    skeleton = FAMILY[family]()
-    skeleton.select_grasps(ctx, world, robot)   # pre-filter family-internal aux grasps (cabinet handle/obstacle)
-    engine = DemoEngine(env, robot, world, timeout=timeout, steps_per_waypoint=steps_per_waypoint)
+    skeleton.select_grasps(ctx, world, robot)   # built earlier (grasping_mode); pre-filter family-internal aux grasps
+    engine = DemoEngine(env, robot, world, timeout=timeout, steps_per_waypoint=steps_per_waypoint,
+                        max_steps=4500)   # the 4-phase cabinet demo (relocate x2 + open + place + close)
+    #                                       lands ~3.6-3.7k steps; the backstop only fires on a runaway, so
+    #                                       this is a comfortable cap and stays safe for shorter families.
     recorder = record.Recorder()      # sim-state dump ON (D7 MimicGen hook); recorder pads if ragged
 
     cands = skeleton.grasp_candidates(ctx)
@@ -94,7 +101,9 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
 
     if score:
         from maniguard.data.datagen.executor.grasp_select import score_grasps
-        cands = score_grasps(world, robot, target_obj, cands)
+        cands = score_grasps(world, robot, target_obj, cands,
+                             prefer_top_down=skeleton.relocate_prefer_top_down(),
+                             prefer_wrist_dir=skeleton.relocate_open_dir(ctx))
 
     sampler = VariationSampler(n_per_grasp=n_per_grasp)
     if target:
@@ -180,7 +189,11 @@ if __name__ == "__main__":
     ap.add_argument("--score", action="store_true", help="cuRobo-score + rank grasps first")
     ap.add_argument("--limit-demos", type=int, default=None)
     ap.add_argument("--steps-per-waypoint", type=int, default=2)
+    ap.add_argument("--grasping-mode", choices=["physical", "assisted", "sticky"], default=None,
+                    help="override the family-default AG mode (e.g. force 'sticky' for a target that "
+                         "is un-graspable by force closure); default None = use the family default")
     a = ap.parse_args()
     run_task(a.task_dir, family=a.family, dataset=a.dataset, grasp_ids=a.grasp_ids,
              n_per_grasp=a.n_per_grasp, target=a.target, max_attempts=a.max_attempts,
-             score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos)
+             score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos,
+             grasping_mode=a.grasping_mode)
