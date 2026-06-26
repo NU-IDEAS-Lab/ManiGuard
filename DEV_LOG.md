@@ -1416,3 +1416,48 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   `bench_builder/perturb_{target,language,location,env}` (env reused the original room office_vendor_machine);
   5 manifests rebuilt to 35 rows (the drivers' `--tasks` `w`-mode truncation); review snapshots regenerated.
   Dataset is gitignored → only this log committed. See [[project_maniguard_cabinet_family]].
+
+- **Cabinet place-into-drawer datagen pipeline collects end-to-end on task_0002 (2026-06-26)**: the
+  `cabinet_pickup` family now produces a complete demo (relocate obstacle+target → open → place in the
+  open cavity → close). Fixes: (1) datagen switched to the RIGID `joint_position_raw` controller (matching
+  eval/teleop/bench) — the soft `joint_position_impedance` preset drooped the held load ~0.07 m at extension
+  and couldn't track the descent; rigid also makes datagen↔eval consistent (recorded action = next-achieved
+  joint). (2) the carried object centres on the EXPOSED-cavity geometric centre I (cabinet front + ½ live
+  open dist, on the slide centreline), dropping the off-centre toward-robot/fillable bias that was the REAL
+  cause of the descent wrist singularity that tipped it → a clean straight-down upright lower-in (the
+  earlier azimuth/branch/cuRobo detours were all symptoms of the off-centre target). (3) `open_dist`
+  auto-caps to the widest opening whose handle is reachable for BOTH the open pull AND the close re-grasp
+  (full-open pushed the handle past reach → `close_pre` IK-fail). (4) reverse-replay exit; max_steps 4500.
+  Committed `903c0277` (8 datagen files; only Co-Authored-By trailer). Robustness ~2/6 (close_pre plan_fail
+  from only 1 clear handle grasp at 0.289) — next: drop `place_over_handle` + dead-code cleanup, then scale.
+  See [[project_maniguard_cabinet_family]].
+
+- **Cabinet close-approach hardening + the ~50% close reach-limit finding (2026-06-26, post-903c0277, UNCOMMITTED)**:
+  after the working-pipeline commit, hardened the CLOSE approach. (1) `place_over_handle` removed, then re-added as a
+  PARTIAL lateral move — `OVER_HANDLE_FRAC=0.55` of the way from the cavity centre toward the handle XY (z held) → the
+  empty gripper exits the cavity into open space before the close (33%→50% per-attempt, shorter demo). (2) `close_pre`
+  made truly COLLISION-AWARE — removed its `ignore_objects=cab` (the docstring CLAIMED "collision-aware" but it IGNORED
+  the cabinet → cuRobo planned a no-avoidance diagonal whose fingers CLIPPED the drawer door; the user caught it on the
+  1:50 video). Now CLEAN (no clip) at the same ~50% rate. (3) `plan_tries=4` (driver→engine) for stochastic FREE-plan
+  retries. (4) Added a generic `resample_compute` mechanism (contracts.MotionSegment + engine: re-resolve the target on
+  EACH plan retry, + per-segment `plan_tries`) and a close_pre standoff-RANGE search — but it FAILED (0/6) and was
+  REVERTED: standoff is the WRONG knob — BOTH close_pre failure modes are ORIENTATION (`rot_err`: TRAJOPT_FAIL ~0.8 = ~50°,
+  IK_FAIL 0.038 just over the 0.03 tol; `pos_err` tiny), and a standoff (position offset along the approach axis) does
+  NOT change the grasp orientation; my range 0.12-0.18 was also all LARGER than the working 0.10 → reach/joint limit
+  (the user's worry). close_pre is back at collision-aware fixed `STANDOFF=0.10` = the 50%-clean config. **The ~50%
+  close_pre plan_fail is a FUNDAMENTAL reachability limit**: the SIDE handle grasp at the OPEN (0.289, far +y) position is
+  at the edge of orientation-reachability (ignore-cab AND collision-aware BOTH ~50%). Levers to exceed it (deferred):
+  relax close_pre `rot_tol` (rescues the IK_FAIL half → ~70%; needs a per-segment rot_tol field; a few° is fine for a
+  push), a different/easier handle grasp, or accept 50% (likely task_0002-specific — the handle is pushed far +y only at
+  this task's open width; SCALING to other tasks will tell if it's systemic). **DECISION (user): accept 50% (clean) →
+  cleanup → commit → scale** (scaling reveals whether 50% is systemic; defer `rot_tol` unless scaling shows it's needed).
+  **DEAD CODE removed in this pass** (grep-verified zero callers, py_compile + pure-module import clean): `cabinet_geom.up_dst_pose`,
+  `_prepare`'s `fillable_link`, the `toward_robot` extra payload, the `lift_out` compute handler + `LIFT_OUT_ABOVE_RIM`, the
+  `STANDOFF_RANGE` constant, the `standoff_range` sampling in `_grasp_pose`, and the reverted `resample_compute` machinery
+  (`contracts.MotionSegment` field + the engine retry branch); also fixed two STALE `on_segment` segment names
+  (`place_over`→`place_across`, `place_over_handle`→`place_toward_handle`, renamed earlier this session — `place_lift`
+  already stiffens + persists so net behaviour is unchanged) and deleted the now-orphan `test_cabinet_up_dst_pose.py`.
+  **KEPT**: the effective `plan_tries` knob (engine-level default `plan_tries=4` in the driver + the per-segment override
+  field). The post-903c0277 close work committed alongside: `cabinet.py` (partial over_handle `OVER_HANDLE_FRAC=0.55` +
+  collision-aware close_pre), `driver.py` (max_steps 4500, plan_tries 4), `contracts.py` + `engine.py` (per-segment
+  plan_tries). See [[project_maniguard_cabinet_family]].
