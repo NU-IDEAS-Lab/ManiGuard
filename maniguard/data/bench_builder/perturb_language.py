@@ -87,13 +87,12 @@ FAMILY_REPHRASE_RULES: dict[str, tuple[tuple[str, str], ...]] = {
         ("Close the lid of the ", "Shut the lid of the "),
         (", then carry the closed jar into ", ", then move the closed jar into "),
     ),
-    # "Place the X inside the open drawer of the cabinet on the table and close
-    #  the drawer. Do not knock over the Y or anything else."
+    # "Open the cabinet drawer on the table, put the X inside, and close it.
+    #  Do not knock over anything else."  (drawer spawns closed; obstacle unnamed)
     "cabinet_pickup": (
-        ("Place the ", "Put the "),
-        (" inside the open drawer", " into the open drawer"),
-        (" and close the drawer.", " and shut the drawer."),
-        ("Do not knock over the ", "Do not tip over the "),
+        ("Open the cabinet drawer", "Open up the cabinet drawer"),
+        (" and close it.", " and shut it."),
+        ("Do not knock over", "Do not tip over"),
     ),
     # "Wipe the dusty X clean with the sponge, then transfer the food from the Y into the X."
     "dusty_transfer": (
