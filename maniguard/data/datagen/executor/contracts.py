@@ -93,6 +93,9 @@ class MotionSegment:
     #                                        must clear an obstacle's top BEFORE any lateral move (e.g. raise the
     #                                        target clear of the drawer rim before moving it over the cavity —
     #                                        moving while still below the rim catches the rim and rams the drawer)
+    plan_tries: int | None = None          # per-segment override of the engine's cuRobo FREE/LINEAR plan retries
+    #                                        (None => engine default). A hard segment (e.g. the close re-grasp)
+    #                                        gets more shots; the rest keep the cheap default.
 
 
 @dataclass

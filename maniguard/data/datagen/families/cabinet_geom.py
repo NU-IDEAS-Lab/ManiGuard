@@ -142,11 +142,6 @@ def open_distance(target_width: float, remaining_travel: float, rng,
     return float(max(0.0, remaining_travel - 0.02))
 
 
-def corridor(L: CabinetLayout, open_dist: float):
-    """(d_lo, d_hi, p_lo, p_hi) the drawer front sweeps when opened by ``open_dist``."""
-    return (L.d_front, L.d_front + open_dist, L.p_lo, L.p_hi)
-
-
 def drawer_interior_center(L: CabinetLayout, open_dist: float, obj_half_h: float = 0.0):
     """World (xyz) to drop the target into the OPEN drawer. Not the cavity's geometric centre
     (that is deep inside the cabinet body — unreachable, and shoving the target there pushes the
@@ -158,27 +153,6 @@ def drawer_interior_center(L: CabinetLayout, open_dist: float, obj_half_h: float
     xy = L.to_world(dc, L.p_center)
     z = L.drawer_floor_z + obj_half_h + PLACE_Z_MARGIN
     return np.array([xy[0], xy[1], z])
-
-
-def up_dst_pose(L: CabinetLayout, cavity_xy, eef_z: float, *, long_len: float, short_len: float,
-                perp_w: float, exposed_d: float, elongated: bool):
-    """The ``D_up_dst`` carry waypoint for the place 门: the open-drawer cavity-centre xy shifted
-    toward the robot by the elongated-fit slack, held at the carry height ``eef_z``, plus the fit-yaw
-    world direction (the wider exposed cavity axis). Pure numpy — folds the old ``over_cavity``
-    ``toward_robot`` slack shift + the ``fit_yaw`` direction into one place.
-
-    ``cavity_xy`` = the live fillable-cavity centre (runtime; the caller passes it). ``perp_w`` =
-    interior width ⊥ the slide, ``exposed_d`` = how far the drawer has slid out. ``fit_dir`` =
-    ``L.d`` (∥ slide) when the exposed depth is the wider axis, else ``L.p`` (∥ width). Compact
-    (``elongated=False``): no shift — returns the cavity centre unchanged (so the compact place,
-    e.g. task_0000, is byte-identical to the old over_cavity); ``fit_dir`` is then unused."""
-    xy = np.asarray(cavity_xy, float)[:2]
-    fit_dir = np.asarray(L.d if exposed_d >= perp_w else L.p, float)
-    if elongated:
-        e_p = long_len if perp_w >= exposed_d else short_len     # object extent along p after the fit
-        shift = max(0.0, (perp_w - e_p) / 2.0 - 0.02)            # keep the far end off the wall
-        xy = xy + shift * np.asarray(L.p, float)
-    return np.array([xy[0], xy[1], float(eef_z)]), fit_dir
 
 
 def blocker_placement(L: CabinetLayout, obj_xy, obj_half: float, role: str,

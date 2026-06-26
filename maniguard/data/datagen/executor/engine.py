@@ -278,7 +278,8 @@ class DemoEngine:
                 quat_t = th.as_tensor(tquat, dtype=th.float32)
                 mc = obstacles.LINEAR_SERVO if seg.mode == Mode.LINEAR else None
                 res = None
-                for attempt in range(self.plan_tries):     # retry: cuRobo trajopt is stochastic, a fresh
+                n_tries = seg.plan_tries if seg.plan_tries is not None else self.plan_tries
+                for attempt in range(n_tries):             # retry: cuRobo trajopt is stochastic, a fresh
                     tag = seg.name if attempt == 0 else f"{seg.name}:try{attempt + 1}"   # call explores new seeds
                     res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
                                         timeout=self.timeout, attach_obj=attach,

@@ -84,9 +84,11 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     gate = build_gate(env, bundle.diagnostics, surface_name=surface_name)
     skeleton.select_grasps(ctx, world, robot)   # built earlier (grasping_mode); pre-filter family-internal aux grasps
     engine = DemoEngine(env, robot, world, timeout=timeout, steps_per_waypoint=steps_per_waypoint,
-                        max_steps=4500)   # the 4-phase cabinet demo (relocate x2 + open + place + close)
-    #                                       lands ~3.6-3.7k steps; the backstop only fires on a runaway, so
-    #                                       this is a comfortable cap and stays safe for shorter families.
+                        max_steps=4500, plan_tries=4)   # max_steps: the 4-phase cabinet demo lands ~3.6-3.7k
+    #                                       steps (backstop, safe for shorter families). plan_tries=4: each
+    #                                       cuRobo FREE segment retries with a fresh seed up to 4x — a failing
+    #                                       segment (e.g. the winding close_pre) gets more shots, a succeeding
+    #                                       one breaks on try 1 (no extra cost). Lifts the ~50% close_pre rate.
     recorder = record.Recorder()      # sim-state dump ON (D7 MimicGen hook); recorder pads if ragged
 
     cands = skeleton.grasp_candidates(ctx)
