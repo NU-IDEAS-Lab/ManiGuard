@@ -143,11 +143,12 @@ def open_distance(target_width: float, remaining_travel: float, rng,
 
 
 def drawer_interior_center(L: CabinetLayout, open_dist: float, obj_half_h: float = 0.0):
-    """World (xyz) to drop the target into the OPEN drawer. Not the cavity's geometric centre
-    (that is deep inside the cabinet body — unreachable, and shoving the target there pushes the
-    drawer shut); rather the centre of the EXPOSED span that slid out past the cabinet front
-    (reachable from above, +open side). The drawer ends up open by ``open_dist`` from closed, and
-    its closed leading face = ``d_front - j_current`` (the spawn leading face retracts to closed)."""
+    """World (xyz) of the EXPOSED-cavity GEOMETRIC centre of the OPEN drawer — the centre of the span
+    that slid out past the cabinet front (reachable from above, +open side; NOT the deep geometric
+    centre inside the body). The drawer ends up open by ``open_dist`` from closed, and its closed
+    leading face = ``d_front - j_current``. NOTE: the runtime PLACE no longer drops here — it drops at
+    ``cabinet.CabinetSkeleton._carry_target_xy`` (this centre biased toward the robot near edge for
+    top-down reach). This stays the unbiased geometric centre, used by the smoke test's gate check."""
     leading_closed = L.d_front - L.j_current        # drawer leading face once (re-)closed ≈ cabinet front
     dc = leading_closed + 0.5 * float(open_dist)    # centre of the exposed open span
     xy = L.to_world(dc, L.p_center)

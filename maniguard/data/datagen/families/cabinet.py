@@ -62,13 +62,24 @@ RIM_CLEARANCE = 0.06      # place: lift the target's bottom this far above the d
 # Per-demo diversity bands (sampled from the variant seed in derive_segments; small so the long-horizon
 # task still reliably completes). Dim 1: how far above the rim the target's bottom is carried (the lift
 # height). Dim 2: how far the relocated TARGET slides along +opening on the near edge (where it lands).
-RIM_CLEAR_BAND = (0.10, 0.13)   # COMMANDED carry clearance above the rim. The sticky-held wide slab hangs
-# off-center and the compliant joint_position_impedance WRIST sags ~0.07 m under that torque (verified: the
-# symmetric cylinder lifts clean eef_err 0.02, the fruitcake droops 0.07 on j6 at the SAME lift distance).
-# So we COMMAND ~0.10-0.13 above the rim; after the ~0.07 wrist droop the held bottom still lands ~rim+0.03..0.06.
-RIM_CLEAR_HARD = 0.03           # HARD floor: the held bottom MUST end at least this far above the rim ("clearly
-# lifted over the drawer wall" — verify_held_above_z checks THIS object height, not an exact eef pose, because
-# the wrist physically cannot reach the commanded eef under the asymmetric sticky load). Upright stays gated by LTL.
+RIM_CLEAR_BAND = (0.01, 0.02)   # COMMANDED carry clearance above the rim — kept SMALL. The old 0.10-0.13
+# compensated for the joint_position_impedance WRIST sag (~0.07 m droop); since the switch to the RIGID
+# joint_position_raw controller (903c0277) there is NO droop, so the commanded clearance is achieved directly.
+# A large clearance also OVERSHOOTS the arm's TOP-DOWN orientation-reachability ceiling at the cavity (IK-verified:
+# the rim-crossing eef must stay LOW enough that the wrist can still point straight down at the extended cavity
+# pose — 0.12 clearance -> eef 1.26 = FAIL; ~0.02 -> eef ~1.16 = REACH). So command only ~1-2 cm above the rim.
+RIM_CLEAR_HARD = 0.005          # HARD floor: the held bottom MUST end at least this far above the rim ("clearly
+# lifted over the drawer wall" — verify_held_above_z checks THIS object height, not an exact eef pose). The rigid
+# controller tracks the small commanded clearance closely, so this 0.5 cm floor is comfortably met. Upright stays gated by LTL.
+PLACE_NEAR_EDGE_BIAS = 0.07     # place: bias the rim-crossing / drop point this far toward the robot (+p = the
+# near-robot edge of the open cavity) instead of the exact cavity centre. The FAR cavity centre is at the arm's
+# TOP-DOWN orientation-reachability ceiling for a TALL object (the eef must be HIGH to clear the rim AND extended
+# FORWARD to the centre, where the wrist can no longer point straight down). Pulling +p toward the robot cuts the
+# forward extension and recovers the reach (IK-verified on task_0007: cavity-centre z=1.15 is knife-edge; +0.03..+0.18
+# all REACH with margin). Clamped to keep the object fully inside the drawer interior (off the near wall). Harmless
+# for short objects (already reachable; the drop just shifts a few cm), rescues tall ones -> family-wide default.
+PLACE_WALL_MARGIN = 0.02        # keep the placed object's near edge this far inside the open-drawer near wall
+#                                 (clamp in _carry_target_xy: pc <= p_hi - obj_half - PLACE_WALL_MARGIN).
 TARGET_D_SHIFT_BAND = (0.18, 0.30)
 LOWER_IN_MAX = 0.35       # place: cap the final straight descent into the OPEN drawer. This chest's drawer
 #                           is DEEP (rim 0.734, interior floor ~0.47), so the 0.21 m target needs a ~0.26 m
@@ -309,7 +320,7 @@ class CabinetSkeleton(FamilySkeleton):
         # --- adaptive height filter: can each grasp clear the rim AND reach the open cavity? ---
         L = P["layout"]
         open_dist = P["open_dist"]                     # max reliable open (reachability search, select_grasps)
-        cav_xy = self._predicted_cavity_xy(P, open_dist)
+        cav_xy = self._predicted_cavity_xy(P, open_dist, self._obj_width(ctx.target_key) / 2.0)
         rim = float(P["drawer_top_z"])
         rim_clear = RIM_CLEAR_BAND[1]                  # conservative: highest lift any draw will ask for
         obj_bottom = float(_np(ctx.target.aabb[0])[2])  # the held object's resting bottom (upright AABB)
@@ -377,12 +388,23 @@ class CabinetSkeleton(FamilySkeleton):
         print(f"[datagen.cab] place grasp viable (balance-then-deep): "
               f"{[(g, round(_balance(g), 3), round(z, 3), r) for z, g, r in viable]}", flush=True)
 
-    def _predicted_cavity_xy(self, P, open_dist: float):
-        """The open drawer's EXPOSED-cavity GEOMETRIC centre xy = point I (cabinet front + half the open
-        span, on the slide centreline), where ``over_cavity`` aims the carried object's centre. Geometry
-        only (matches the runtime ``over_cavity`` formula exactly), so the place-grasp reachability check
-        and the runtime carry target are the SAME point."""
-        return np.asarray(CG.drawer_interior_center(P["layout"], open_dist)[:2], float)
+    def _carry_target_xy(self, L, open_val: float, obj_half: float):
+        """The place rim-crossing / drop XY: the exposed-cavity centre along the slide (cabinet front + half
+        the open span), BIASED toward the robot (+p near edge) by PLACE_NEAR_EDGE_BIAS so the HIGH rim-crossing
+        stays inside the arm's top-down reach, clamped to keep the object fully inside the open-drawer interior
+        (off the near wall). Used by BOTH the place-grasp reachability check (_predicted_cavity_xy) and the
+        runtime ``over_cavity``, so the selection and the executed carry aim at the SAME point. If the drawer is
+        too narrow in p for the bias to fit, the clamp falls back to the cavity centre (no bias)."""
+        dc = (L.d_front - L.j_current) + 0.5 * float(open_val)      # exposed-cavity centre along the slide
+        pc = min(L.p_center + PLACE_NEAR_EDGE_BIAS, L.p_hi - obj_half - PLACE_WALL_MARGIN)   # toward robot, off near wall
+        pc = max(pc, L.p_center)                                    # never bias AWAY from the robot
+        return L.to_world(dc, pc)
+
+    def _predicted_cavity_xy(self, P, open_dist: float, obj_half: float):
+        """The place rim-crossing / drop xy used by the place-grasp reachability check — the near-edge-biased
+        carry point (see ``_carry_target_xy``), matching the runtime ``over_cavity`` EXACTLY so the selection and
+        the executed carry aim at the SAME point (else selection rejects every grasp it would actually use)."""
+        return np.asarray(self._carry_target_xy(P["layout"], open_dist, obj_half)[:2], float)
 
     def _predicted_target_pose(self, ctx, P):
         """Where the target will sit when Phase 3 picks it: its Phase-1 relocated (base-side) xy if it
@@ -750,18 +772,17 @@ class CabinetSkeleton(FamilySkeleton):
             xy = np.asarray(x["xy"], float)
             z = float(x["z"]) if x.get("z") is not None else ep[2]
             return np.array([xy[0], xy[1], z]), eq
-        if tag == "over_cavity":                          # D_up_dst — drive the held object's centre to
-            L = P["layout"]                               # directly above the EXPOSED-cavity GEOMETRIC centre
-            # I (the user's spec): the centre of the open span that slid out past the cabinet front =
-            # (cabinet front, = the closed leading face d_front - j_current) + 0.5 * (live open distance),
-            # on the slide centreline (p_center). NO toward-robot shift, NO fillable-link bias — the object
-            # centre == eef xy (centred top-down sticky grasp), so this lands the object dead-centre over
-            # the cavity where it drops straight in without catching a side wall.
+        if tag == "over_cavity":                          # D_up_dst — drive the held object to the rim-crossing /
+            L = P["layout"]                               # drop XY = exposed-cavity centre along the slide, BIASED
+            # toward the robot (+p near edge) by PLACE_NEAR_EDGE_BIAS so the HIGH rim-crossing stays inside the
+            # arm's top-down reach. The FAR cavity centre is at the top-down orientation-reachability ceiling for
+            # a tall object (IK-verified: centre z=1.15 knife-edge, near-edge REACHES with margin), so we pull the
+            # carry/drop toward the robot. Clamped inside the drawer interior (off the near wall). SAME point the
+            # place-grasp selection checked (``_predicted_cavity_xy``), so selection and execution stay consistent.
             j = float(P["cab"].get_joint_positions()[self._drawer_jidx(P["cab"], ctx)])   # live open dist
-            dc = (L.d_front - L.j_current) + 0.5 * j
-            xy = L.to_world(dc, L.p_center)
-            print(f"[datagen.cab] over_cavity/across: object centre -> cavity centre I "
-                  f"xy={np.round(xy, 3)} (open={j:.3f}, eef_z held {ep[2]:.3f})", flush=True)
+            xy = self._carry_target_xy(L, j, self._obj_width(ctx.target_key) / 2.0)
+            print(f"[datagen.cab] over_cavity/across: object -> near-edge-biased drop xy={np.round(xy, 3)} "
+                  f"(open={j:.3f}, p_center={L.p_center:.3f} bias+{PLACE_NEAR_EDGE_BIAS}, eef_z held {ep[2]:.3f})", flush=True)
             return np.array([xy[0], xy[1], ep[2]]), eq
         if tag == "extract":                              # slide the eef +slide (away from the cabinet)
             d3 = np.array([P["layout"].d[0], P["layout"].d[1], 0.0])   # at the current height
