@@ -725,35 +725,42 @@ class CabinetSkeleton(FamilySkeleton):
         return float(self._geom["j_extract"]) * CLOSE_FRACTION
 
     def _close_drawer(self, ctx, *, tag: str) -> list[MotionSegment]:
-        """Phase 4: close the drawer by an honest push (as in teleop). cuRobo-reach a
-        collision-aware handle pre-pose closest to the robot base (gripper OPEN), a straight Cartesian
-        IK SERVO push drives the OPEN gripper straight in the closing direction (a finger catches the
-        drawer front → physics carries it shut to ``close_target_joint``). The pre-pose tracks the
-        handle's LIVE position (the final close runs after the drawer was pulled wide open — a fixed
-        spawn-joint pre-pose would miss the open handle and under-push).
+        """Phase 4: close the drawer by GRASPING the handle and sliding it shut — the exact INVERSE of the
+        open pull (as in teleop), NOT an open-finger push. cuRobo-reach a collision-aware handle pre-pose
+        (gripper OPEN), SERVO straight onto the handle + CLOSE on it, then a straight pure-IK SERVO slides
+        the GRIPPED handle to the closed joint: the gripper is rigidly coupled to the handle, so the soft
+        drawer follows it continuously.
 
-        The INITIAL close then replays the push lane in REVERSE to retreat straight back out (freeing
-        the arm to go pick the blocker). The FINAL close ENDS at the push: closing the drawer with the
-        target inside IS the task's success state (``inside & closed``), so the demo terminates on the
-        success moment — no trailing retreat recorded past it (the engine's end-of-run success check
-        then confirms it)."""
-        cab = (self._prepare(ctx)["cab_name"],)         # ignore only the cabinet (we push it)
+        Why not the old open-finger push: a flat finger pushing the sliding drawer FRONT is an unstable
+        contact — under the rigid controller it stick-slips (stall→slip→jolt), and each jolt impacts the
+        drawer and topples the just-placed object inside (measured: close_push velocity stutters, object
+        tips). A grasp removes the contact entirely. Reachability holds: the close grasps the handle at its
+        OPEN (pulled-out, near-robot = easy) position and slides it back to the CLOSED position — which is
+        exactly where the OPEN sequence first grasped it, so both endpoints are known-reachable.
+
+        The handle is released in place; the drawer stays shut = the task success state (``inside &
+        closed``). Method-2 closes once (tag='final'); the engine's end-of-run settle + success check
+        then confirm it on the settled state."""
+        cab = (self._prepare(ctx)["cab_name"],)         # gripping the handle = don't avoid the cabinet
         q0 = np.array([0.0, 0.0, 0.0, 1.0])
         h = {"obj": "handle"}
-        tj = self.close_target_joint()                  # ~88% closed
-        segs = [
-            # COLLISION-AWARE approach to the handle pre-grasp (NO cab-ignore — the pre-grasp sits a STANDOFF
-            # off the handle = free space): cuRobo MUST avoid the cabinet door/drawer on the way in (the old
-            # ignore_objects=cab made this a no-avoidance diagonal whose fingers clipped the drawer door).
+        tj = self.close_target_joint()                  # ~88% closed (a sliver below the Open threshold)
+        return [
+            # COLLISION-AWARE approach to the handle pre-grasp (gripper OPEN, NO cab-ignore): cuRobo MUST
+            # avoid the cabinet door/drawer on the way in to the STANDOFF pre-pose at the live (open) handle.
             MotionSegment(f"close_pre_{tag}", q0[:3], q0, mode=Mode.FREE, grip=Grip.OPEN, grip_steps=6,
                           compute="grasp", extra={**h, "standoff": STANDOFF}),
-            MotionSegment(f"close_push_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.HOLD, carry_closed=False,
-                          compute="grasp", extra={**h, "standoff": 0.0, "joint": tj}, ignore_objects=cab),
+            # SERVO straight onto the handle + CLOSE on it (mirror of handle_grasp_open).
+            MotionSegment(f"close_grasp_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.CLOSE, grip_steps=8,
+                          compute="grasp", extra={**h, "standoff": 0.0}, ignore_objects=cab),
+            # SERVO slide the GRIPPED handle shut to tj (mirror of drawer_open, to=close): gripper HELD
+            # closed (carry_closed), the softened drawer follows the handle → smooth continuous close.
+            MotionSegment(f"close_push_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.HOLD, carry_closed=True,
+                          compute="drawer", extra={"to": "close", "joint": tj}, ignore_objects=cab),
+            # release the handle in place; the drawer stays shut (success state).
+            MotionSegment(f"close_release_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.OPEN, grip_steps=6,
+                          compute="hold", ignore_objects=cab),
         ]
-        if tag != "final":                              # final close = success state → stop at the push
-            segs.append(MotionSegment(f"close_retreat_{tag}", q0[:3], q0, replay_reverse=True,
-                                      grip=Grip.OPEN, grip_steps=6, carry_closed=False, ignore_objects=cab))
-        return segs
 
     # ---- runtime resolution of cabinet-specific compute tags -------------------------
     def resolve_compute(self, tag: str, seg: MotionSegment, ctx: TaskContext):
@@ -792,7 +799,8 @@ class CabinetSkeleton(FamilySkeleton):
             if x["to"] == "open":
                 return ep + d3 * float(x["dist"]), eq
             j = float(P["cab"].get_joint_positions()[self._drawer_jidx(P["cab"], ctx)])
-            return ep - d3 * j, eq                       # push the handle back to joint 0
+            target_j = float(x.get("joint", 0.0))        # slide the GRIPPED handle to this joint (a sliver
+            return ep - d3 * (j - target_j), eq          # above 0 leaves it off the hard stop, still "closed")
         if tag == "lift_above_support":                   # relocate lift: raise the held bottom to
             bottom = self._held_bottom(ctx, x["held_name"])   # support_top + clearance (cabinet-independent;
             st = float(_np(ctx.support.aabb[1])[2]) if ctx.support is not None else 0.0   # the FREE transit
@@ -835,11 +843,18 @@ class CabinetSkeleton(FamilySkeleton):
             print(f"[datagen.cab] fit_yaw: exposed_slide={exposed_d:.3f} perp_width={perp_w:.3f} -> long axis ∥ "
                   f"{'opening' if exposed_d >= perp_w else 'width'}", flush=True)
             return ep, q
-        if tag == "lower_to_floor":                       # descend straight so the held bottom nears the
-            bottom = self._held_bottom(ctx, x["held_name"])   # drawer floor, capped (~10 cm, no free-fall)
-            floor = P["layout"].drawer_floor_z + PLACE_Z_MARGIN
-            dz = min(max(0.0, bottom - floor), float(x.get("max_dz", LOWER_IN_MAX)))
-            print(f"[datagen.cab] lower_to_floor: bottom={bottom:.3f} floor={floor:.3f} -> dz=-{dz:.3f}", flush=True)
+        if tag == "lower_to_floor":                       # descend so the held object's TOP ends just under the
+            top = self._held_top(ctx, x["held_name"])     # drawer rim -> it rests on/near the true interior floor
+            bottom = self._held_bottom(ctx, x["held_name"])  # WITHOUT overshooting into it. NB: P["layout"].
+            rim = float(P["drawer_top_z"])                # drawer_floor_z is the drawer LINK's AABB underside
+            #                                               (skirt/front-face bottom), BELOW the real interior
+            #   floor panel -- so the old floor-relative descent aimed the bottom under the floor and the rigid
+            #   SERVO (no compliance) jammed the object through it, destabilising it + dragging the sliding
+            #   drawer. Rim-relative avoids that. (A short object keeps a small release gap; the end-of-rollout
+            #   settle gate now catches it if the gap-drop tips it. Measuring the true floor is a deferred follow-up.)
+            dz = min(max(0.0, top - (rim - PLACE_Z_MARGIN)), float(x.get("max_dz", LOWER_IN_MAX)))
+            print(f"[datagen.cab] lower_to_floor: top={top:.3f}->{top - dz:.3f} bottom={bottom:.3f}->{bottom - dz:.3f} "
+                  f"rim={rim:.3f} -> dz=-{dz:.3f}", flush=True)
             return np.array([ep[0], ep[1], ep[2] - dz]), eq
         if tag == "lower_to_support":                     # relocate set-down: lower the held bottom onto the
             bottom = self._held_bottom(ctx, x["held_name"])   # TABLE top (live measured), capped — NOT a fixed
@@ -863,6 +878,9 @@ class CabinetSkeleton(FamilySkeleton):
 
     def _held_bottom(self, ctx, name) -> float:
         return float(_np(ctx.env.scene.object_registry("name", name).aabb[0])[2])
+
+    def _held_top(self, ctx, name) -> float:
+        return float(_np(ctx.env.scene.object_registry("name", name).aabb[1])[2])
 
     def _grasp_pose(self, ctx, P, x):
         """World eef (pos, quat) for grasping ``x['obj']`` at its LIVE pose, offset back by
