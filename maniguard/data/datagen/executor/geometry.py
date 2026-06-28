@@ -101,3 +101,43 @@ def aim_to_center_eef(robot, target, goal_center, arm=None):
     ep, eq = robot.eef_links[arm].get_position_orientation()
     delta = _np(goal_center) - object_center(target)
     return _np(ep) + delta, _np(eq)
+
+
+# --- place_across pinned-seed helpers (no-flare = elbow stays in the reach plane) ---
+
+def arm_flare(q_arm) -> float:
+    """Out-of-plane elbow-flare proxy = |panda_joint3| (arm index 2, the upper-arm-roll DOF).
+    0 at reset (no flare); a real elbow-swivel branch flip moves this >= 1 rad. q_arm = 7-vec."""
+    return abs(float(_np(q_arm)[2]))
+
+
+def quat_yaw(quat_xyzw) -> float:
+    """Yaw (rotation about world z) from an xyzw quaternion."""
+    x, y, z, w = (float(v) for v in _np(quat_xyzw))
+    return float(np.arctan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z)))
+
+
+def noflare_seed(q_arm_entry, base_pos, base_yaw: float, target_xy) -> np.ndarray:
+    """Tailored no-flare IK warm-start seed (7,): aim j0 (panda_joint1) at the target azimuth in the
+    base frame, zero j2 (panda_joint3 = the flare DOF), keep j1/j3/j4/j5/j6 from the live post-lift
+    config (the in-plane reach + top-down wrist). A seed only — solve_ik refines it to the exact
+    endpoint; j2=0 + cspace-toward-seed biases the solution onto the no-flare branch."""
+    seed = _np(q_arm_entry).copy()
+    d = _np(target_xy)[:2] - _np(base_pos)[:2]
+    az = float(np.arctan2(d[1], d[0])) - float(base_yaw)          # target azimuth in the base frame
+    seed[0] = float((az + np.pi) % (2.0 * np.pi) - np.pi)         # wrap to [-pi, pi]
+    seed[2] = 0.0
+    return seed
+
+
+def elbow_lateral_offset(shoulder_xy, elbow_xy, eef_xy):
+    """DIAGNOSTICS-ONLY Cartesian out-of-plane flare (m): |elbow offset from the vertical plane
+    through the shoulder->eef reach direction|. None if the reach direction is degenerate (eef ~above
+    shoulder). All args = world xy (2,) from LIVE link reads."""
+    s, x, e = _np(shoulder_xy)[:2], _np(elbow_xy)[:2], _np(eef_xy)[:2]
+    v = e - s
+    nv = float(np.linalg.norm(v))
+    if nv < 0.05:
+        return None
+    n = np.array([-v[1], v[0]]) / nv                              # horizontal normal to the reach plane
+    return abs(float(np.dot(x - s, n)))
