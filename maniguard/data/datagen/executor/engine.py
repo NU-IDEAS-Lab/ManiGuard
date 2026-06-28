@@ -125,7 +125,8 @@ class DemoEngine:
         arm = self.robot.default_arm
         sp = _np(self.robot.eef_links[arm].get_position_orientation()[0])
         tp = np.asarray(tpos, float)
-        n = max(2, int(np.ceil(float(np.linalg.norm(tp - sp)) / self.servo_step_m)))
+        step = seg.servo_step_m if seg.servo_step_m is not None else self.servo_step_m   # per-segment override
+        n = max(2, int(np.ceil(float(np.linalg.norm(tp - sp)) / step)))
         print(f"[datagen.engine] {seg.name}: SERVO start_eef={sp.round(3)} -> target={tp.round(3)} "
               f"(delta={(tp - sp).round(3)}, |d|={np.linalg.norm(tp - sp):.3f}m, n={n} ik steps)", flush=True)
         quat_t = th.as_tensor(np.asarray(tquat, float), dtype=th.float32)
@@ -432,7 +433,8 @@ class DemoEngine:
             carry = CLOSE if (seg.attach if seg.carry_closed is None else seg.carry_closed) else OPEN
             # a SERVO push (or its reverse) runs SLOW so a contacted drawer slides with the gripper
             # instead of being outrun; everything else uses the normal per-waypoint cadence.
-            spw = self.servo_spw if (seg.mode == Mode.SERVO or seg.replay_reverse or seg.replay_reverse_path) else self.steps_per_waypoint
+            base_spw = seg.servo_spw if seg.servo_spw is not None else self.servo_spw   # per-segment override
+            spw = base_spw if (seg.mode == Mode.SERVO or seg.replay_reverse or seg.replay_reverse_path) else self.steps_per_waypoint
             execute_trajectory(self.env, self.robot, arm_traj, gripper_cmd=carry,
                                recorder=recorder, steps_per_waypoint=spw,
                                on_step=tick)

@@ -96,6 +96,13 @@ class MotionSegment:
     plan_tries: int | None = None          # per-segment override of the engine's cuRobo FREE/LINEAR plan retries
     #                                        (None => engine default). A hard segment (e.g. the close re-grasp)
     #                                        gets more shots; the rest keep the cheap default.
+    servo_step_m: float | None = None      # SERVO only: per-segment eef-interpolation step (None => engine
+    #                                        default). FINER = smaller per-step eef increment.
+    servo_spw: int | None = None           # SERVO only: per-segment sim-steps-per-waypoint (None => engine
+    #                                        default). servo_step_m small + servo_spw=1 => each sim step advances
+    #                                        the eef one small uniform increment (the rigid controller slams only
+    #                                        that tiny amount) => continuous UNIFORM-velocity glide instead of the
+    #                                        default slam-1cm-then-idle stutter. Used for the gentle drawer close.
 
 
 @dataclass

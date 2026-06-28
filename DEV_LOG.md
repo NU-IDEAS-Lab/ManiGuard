@@ -1532,3 +1532,20 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
     the open-finger contact). NEXT: a global minimal-motion SERVO-IK fix (controls the redundancy at the root → smooths close AND
     place_across), with a cheap `servo_spw`-slowdown quick-test first. (Separately, `close_pre` cuRobo plan_fail = a task-specific handle
     reach limit, accept clean-fail + retry.) See [[project_maniguard_cabinet_family]].
+
+- **Cabinet close: uniform-velocity smooth close + the marginal-bottle limit (2026-06-28)**: Round-4 of the task_0007
+  close debug. Confirmed (code + trace) the close "一卡一卡" was a SLAM-IDLE artifact: `execute_trajectory` commands each
+  1 cm SERVO waypoint for `servo_spw=4` steps and the rigid `joint_position_raw` controller (isaac_kp≈1e7) slams the full
+  1 cm in ~1 step then idles 3 → spike-then-zero eef velocity, which jerks the gripped handle/drawer. Fix (per-segment, scoped
+  to `close_grasp`+`close_push`): `servo_step_m=0.0025` + `servo_spw=1` → each sim step advances the eef one 2.5 mm increment =
+  a continuous UNIFORM 7.5 cm/s glide, DURATION-NEUTRAL (same total steps). Added per-segment `servo_step_m`/`servo_spw`
+  overrides to MotionSegment. Verified: close_push mean|qd| 0.6→0.11, Δq 0.006 (smooth). Two dead-ends REVERTED first:
+  `smooth_servo` joint-path moving-average (broke the open-finger contact) and `servo_spw=16` (more idle, same slam, worse).
+  HONEST LIMIT (trace-proven, corrects "chatter tips it"): even a perfectly smooth close (traj_000, Δq 0.006, no IK flip)
+  still tipped the bottle to 43.5° — the tall `bottle_of_water` (0.2285 m, at the cavity-height limit) catches the cabinet
+  front opening as it's carried in whenever it has a few-degrees lean; smoothing makes the tip later/smaller (43° vs 55°) but
+  can't eliminate it (marginal stability, not a motion bug). Also: smooth/jerky is STOCHASTIC (the per-variant torch seed,
+  engine.py:216, makes the per-waypoint solve_ik land on a continuous vs flipping branch). The dominant yield limiter is
+  actually separate cuRobo `Mode.FREE` plan_fails — `place_pre_grasp` (task_0007) / `close_pre_final` (task_0002, ~7-8/12),
+  stochastic, driver retries. DECISION (user): stop tuning the close (randomness + object physics dominated); validate the
+  pipeline on 5 fresh normal-stability tasks (target 2 each) to measure real yield. See [[project_maniguard_cabinet_family]].

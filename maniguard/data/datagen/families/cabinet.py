@@ -752,11 +752,15 @@ class CabinetSkeleton(FamilySkeleton):
                           compute="grasp", extra={**h, "standoff": STANDOFF}),
             # SERVO straight onto the handle + CLOSE on it (mirror of handle_grasp_open).
             MotionSegment(f"close_grasp_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.CLOSE, grip_steps=8,
-                          compute="grasp", extra={**h, "standoff": 0.0}, ignore_objects=cab),
-            # SERVO slide the GRIPPED handle shut to tj (mirror of drawer_open, to=close): gripper HELD
-            # closed (carry_closed), the softened drawer follows the handle → smooth continuous close.
+                          compute="grasp", extra={**h, "standoff": 0.0}, ignore_objects=cab,
+                          servo_step_m=0.0025, servo_spw=1),
+            # SERVO slide the GRIPPED handle shut to tj (mirror of drawer_open, to=close): gripper HELD closed
+            # (carry_closed), the softened drawer follows the handle. FINE waypoints (2.5 mm) + servo_spw=1 =>
+            # a continuous UNIFORM-velocity glide (no slam-then-idle stutter) so the gripped handle / drawer
+            # doesn't jerk-tip the marginally-stable placed object. Duration-neutral vs the old 1 cm / spw=4.
             MotionSegment(f"close_push_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.HOLD, carry_closed=True,
-                          compute="drawer", extra={"to": "close", "joint": tj}, ignore_objects=cab),
+                          compute="drawer", extra={"to": "close", "joint": tj}, ignore_objects=cab,
+                          servo_step_m=0.0025, servo_spw=1),
             # release the handle in place; the drawer stays shut (success state).
             MotionSegment(f"close_release_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.OPEN, grip_steps=6,
                           compute="hold", ignore_objects=cab),
