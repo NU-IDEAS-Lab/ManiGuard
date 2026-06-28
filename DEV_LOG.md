@@ -1461,3 +1461,74 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   field). The post-903c0277 close work committed alongside: `cabinet.py` (partial over_handle `OVER_HANDLE_FRAC=0.55` +
   collision-aware close_pre), `driver.py` (max_steps 4500, plan_tries 4), `contracts.py` + `engine.py` (per-segment
   plan_tries). See [[project_maniguard_cabinet_family]].
+
+- **Cabinet: all-35 non-penetration z-fix + place reach fix (committed) + the place_across SLIDE-BACK finding (2026-06-27)**:
+  - **z-FIX (all 35 cabinets now non-penetrating)**: a full-35 clearance audit (live AABB, `cab_bottom` vs `table_top`)
+    found NONE was clearly above the table — all FLUSH (gap ≈0) or 0.1–0.7 mm BELOW (per-table-model `top_plane_z` metadata
+    error: `djflkd` −0.7, `jxixdw` −0.5, `semdkc` −0.3, `wtlxfr` −0.1). A penetrating/flush cabinet JAMS the sliding drawer
+    against the table (scrape) → it never opens → all downstream place failures are noise (same pattern as the 2026-06-25
+    wnrior breakthrough). Controlled proof: task_0007 +0.7 mm (gap→0.0000) → drawer OPENS (joint 0.204, pull eef_err 0). Raised
+    the **12 negative-gap tasks** (`0005 0007 0011 0016 0018 0022 0023 0024 0026 0029 0030 0034`) cabinet root z by −gap to
+    gap=0.0000 (.bak_zfix2) + **properly re-finalized** `cabinet_rerender_base --jobs 3` (reload→gate→LTL→re-render 4 vids→re-dump
+    BOTH json; 12/12 gate_pass=True ltl=False). Other 23 already flush. Re-audit: all 12 gap≈0.0000. Source `_place_cabinet_on_surface:610`
+    `dz = top_z − bottom_z` places FLUSH using the buggy metadata `top_z` — a +clearance source fix is the recurrence-prevention follow-up.
+  - **PLACE FIX (committed `c94899c6`)**: a TALL top-gripped object (eef ~0.208 m above its bottom) carried to the cavity CENTRE at
+    the rim-clearing height put eef ~1.26 m → OVER the arm's TOP-DOWN orientation-reachability ceiling at the far cavity (IK ground
+    truth: cavity-centre z=1.10 REACH / z=1.20 FAIL at ~same shoulder distance — orientation, not reach; insertion z=0.88 REACH) →
+    place_across servo_ik_fail 6/6 (task_0007 0/6). Reach measured from the SHOULDER (joint2 ~base+0.333) not the base — my earlier
+    "base too far / infeasible" was a wrong reference. Fix (IK-verified + 7-agent consensus workflow + general-purpose code review
+    APPROVE): (a) cut `RIM_CLEAR_BAND` 0.10-0.13 → 0.01-0.02 + `RIM_CLEAR_HARD` 0.03 → 0.005 (the big clearance compensated for the OLD
+    `joint_position_impedance` wrist droop; the rigid `joint_position_raw` has none AND the over-lift overshot the ceiling); (b) bias the
+    rim-crossing/drop toward the robot near edge (`PLACE_NEAR_EDGE_BIAS=0.07`, `PLACE_WALL_MARGIN=0.02`, via a shared `_carry_target_xy`
+    used by BOTH the place-grasp pre-check `_predicted_cavity_xy` AND runtime `over_cavity` so selection+execution stay consistent),
+    clamped inside the interior. Strict-upright (only XY moves). **task_0007 0/6 → 3/3** (place_across servo_ik_fail & below_z both 0).
+  - **NEW BLOCKER — place_across SLIDE-BACK (the next thing to fix)**: on SHORT objects (task_0009 jar 7 cm → 1/3) the drawer OPENS FULLY
+    (0.289, drawer_open eef_err 0) then **SLIDES CLOSED during place_across** (per-segment drawer_joint: stable ~0.31 through pre_grasp/
+    descend/lift, then 0.31→0.13 during place_across, →0.08 at place_lower → object dropped into a half-closed drawer → goal not reached).
+    NOT under-open; NOT a fingertip clip (no `<->cabinet` contact at the segment END). **USER'S VISUAL DIAGNOSIS (videos sent)**: the
+    place_across SERVO (nearest-seed straight-line IK) drives the ELBOW into a contorted pose, hits a SINGULARITY mid-carry, the IK
+    abruptly SNAPS the elbow joint back to keep advancing → the eef DROPS → clips the drawer FRONT face → pushes the drawer closed. Lift
+    HEIGHT is ~enough (not the cause). Likely WORSENED by the place-fix's lower carry for short objects (lower carry → arm sweeps lower
+    over the open drawer). User's intended arm config: base joints ~fixed, upper arm ~VERTICAL, only the forearm (eef-side joints) bends
+    (the arm itself a clean 门-frame). User's lift-height robustness rule: lift to the **CD (front, HIGHER) edge** plane + a few cm
+    clearance so the carry clears WHICHEVER edge the path crosses (AD side is LOWER) — the code's `drawer_top_z = cab.links[link].aabb_hi_z`
+    is already the drawer-link MAX-z (= the highest edge ≈ CD front), so the lift already targets the high edge; the slide-back is the
+    singularity DROP, not the lift. **NEXT (post-compact)**: control the place_across arm CONFIG to avoid the elbow singularity (better
+    seed keeping the upper arm vertical / finer carry waypoints / a config that only bends the forearm), then re-test short + tall +
+    scale. See [[project_maniguard_cabinet_family]].
+
+- **Cabinet task_0007 close/place debug — LTL-coverage + lower-in + grasp-close round (2026-06-28)**: a systematic, video+log-driven
+  debug of task_0007 (`bottle_of_water/migvlt`, the tall thin target). User visual review showed the earlier "place_across slide-back"
+  was only one symptom; the real residual failures were (1) lower-in too deep, (2) a missed-tip LTL gap, (3) a jerky close that topples
+  the bottle. Three READ-ONLY agents ruled out the source hypotheses: the object is NOT too tall (0.2285 m vs cavity 0.2737 m, +3.5 cm
+  close-headroom; the task-gen height filter `InteriorBBox.fits` worked), and opening WIDER is a red herring (the 0.204 cap is the close
+  re-grasp reach, and a wider open doesn't change the vertical cavity height). Three fixes landed, each with a single-agent code review:
+  - **#2 LTL FULL-ROLLOUT COVERAGE (engine, Part A)**: the gate ticked every executed step EXCEPT the gap after the last segment — a
+    bottle toppling once the gripper's attached-grasp masked-upright hold ends (post-release) completed UNMONITORED and was mislabeled a
+    clean success. Fix = a MONITORED end-of-rollout settle: `actuate_gripper(close=last-cmd, n_steps=rest_settle_steps=45, recorder=None,
+    on_step=tick)` BEFORE `gate.success()`, so the 45° `all_active_upright` is checked through settle-to-rest and the verdict is read on
+    the SETTLED state (also catches a drawer springing back open). Threshold STAYS 45° (the fix is COVERAGE not threshold, per user).
+    +hardening: `carry=OPEN` init (empty-segments NameError guard) + `if self._timeout` fail-clean before the settle.
+  - **#1 LOWER-IN RIM-RELATIVE (cabinet, Part B)**: `lower_to_floor` aimed the held bottom at `drawer_floor_z` = the drawer LINK's AABB
+    underside (skirt/front-face bottom), BELOW the real interior floor → the rigid `joint_position_raw` SERVO jammed the object THROUGH
+    the floor, destabilising it AND dragging the sliding drawer shut. Fix = descend rim-relative: `dz = held_top − (rim − 0.01)` (new
+    `_held_top`), stopping the object's TOP just under the rim → rests on/near the true floor, no overshoot. Verified: jam + drawer-drag
+    gone (drawer holds ~0.31 through place_lower vs the old 0.2147→0.2065).
+  - **#3 GRASP-AND-SLIDE CLOSE (cabinet)**: the old close drove an OPEN gripper to push the sliding drawer FRONT — an unstable contact that
+    stick-slips under the rigid controller (stall→slip→jolt) and topples the placed object. Rewrote `_close_drawer` as the INVERSE of the
+    open pull: `close_pre`(FREE, open) → `close_grasp`(SERVO, CLOSE on handle) → `close_push`(SERVO, carry_closed, `compute="drawer"`
+    `to:"close"` `joint:tj` — the GRIPPED handle slides the soft drawer shut, rigid 1:1) → `close_release`(open in place). The `drawer`
+    compute close branch gained a `joint` target (slide to a sliver `tj`, off the hard stop). Dropped the dead non-final retreat branch.
+  - **NEW DIAGNOSTIC (engine)**: `DATAGEN_TRACE` writes a per-step `trace.jsonl` (segment, arm `q`+`qd`, target obj pose+lin/ang vel) for
+    EVERY rollout (kept or failed) — the traceback tool for close-phase smoothness + tip-onset analysis. (Also present, DORMANT: a
+    `_build_pin_seed` no-flare-seed ladder + `arm_flare`/`elbow_lateral_offset` flare metric from the shelved place_across pin — the flare
+    metric is live in the trace diagnostics; the pin builder is unwired, kept as the foundation for the global SERVO-redundancy fix.)
+  - **WHAT REMAINS (the real residual, evidence-backed)**: grasp-close did NOT lift task_0007 (still ~2/12) — the bottle STILL topples and
+    the close STILL stalls. Trace proved WHY: the close-phase jerk ("一卡一卡") is the **SERVO per-waypoint IK joint chatter** (`close_push`
+    max|qd|≈2.5, redundant j2/j4 wander 5-6×), IDENTICAL whether the gripper pushes (open) or grasps (closed) — the arm's joint motion is
+    set by the eef-path IK, not the grip. Controlled contrast: a SHORT/squat object (`task_0002` fruitcake) survives the SAME chatter
+    (close_push tilt 1.8°, closes to 0.000-0.0087) while the TALL bottle tips (25-55°). So the close jostle root = SERVO redundancy chatter
+    = the SAME root as the place_across elbow flare. A `smooth_servo` (joint-path moving-average) attempt FAILED + was REVERTED (it broke
+    the open-finger contact). NEXT: a global minimal-motion SERVO-IK fix (controls the redundancy at the root → smooths close AND
+    place_across), with a cheap `servo_spw`-slowdown quick-test first. (Separately, `close_pre` cuRobo plan_fail = a task-specific handle
+    reach limit, accept clean-fail + retry.) See [[project_maniguard_cabinet_family]].
