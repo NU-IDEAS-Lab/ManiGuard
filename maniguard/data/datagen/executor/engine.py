@@ -26,6 +26,10 @@ from maniguard.data.datagen.primitives.execute import (
     CLOSE, OPEN, actuate_gripper, execute_trajectory,
 )
 
+FLARE_TOL = 0.5          # rad: max |panda_joint3| (j2 = arm index 2) before a config is "elbow-flared".
+#                          PROVISIONAL — locked in S1 from the flip(>=1 rad)-vs-clean(<=0.3 rad) j2 gap.
+PIN_L2_PERTURB = (0.3, -0.3, 0.6, -0.6, 0.9, -0.9)   # rad j2 seed perturbations for the dormant L2 ladder.
+
 
 def _np(x) -> np.ndarray:
     if hasattr(x, "detach"):
@@ -39,7 +43,7 @@ class DemoEngine:
     """Built once per task (shares the CuroboWorld). ``run`` plays one variant's segments."""
 
     def __init__(self, env, robot, world, *, timeout: float = 5.0,
-                 steps_per_waypoint: int = 2, settle_steps: int = 8,
+                 steps_per_waypoint: int = 2, settle_steps: int = 8, rest_settle_steps: int = 45,
                  clearance_eps: float = 0.005, lift_margin: float = 0.04,
                  servo_step_m: float = 0.010, servo_spw: int = 4,
                  max_steps: int = 3600, plan_tries: int = 2):
@@ -49,6 +53,7 @@ class DemoEngine:
         self.timeout = float(timeout)
         self.steps_per_waypoint = int(steps_per_waypoint)
         self.settle_steps = int(settle_steps)
+        self.rest_settle_steps = int(rest_settle_steps)  # monitored end-of-rollout settle-to-rest steps
         self.clearance_eps = float(clearance_eps)
         self.lift_margin = float(lift_margin)    # over-lift past the min clearance to absorb PD undershoot
         self.servo_step_m = float(servo_step_m)  # SERVO eef-interpolation resolution (straight-push waypoint spacing)
@@ -112,7 +117,10 @@ class DemoEngine:
         """Interpolate the eef from its CURRENT pose straight to ``(tpos, tquat)`` (orientation
         held), solving per-waypoint IK with COLLISION OFF and chaining each solve's seed for a
         smooth joint path. Returns the joint trajectory (T,7) or ``None`` if any IK fails. Used
-        for a deliberate push the collision-avoiding planner would refuse (shoving a drawer shut)."""
+        for a deliberate push the collision-avoiding planner would refuse (shoving a drawer shut).
+
+        DATAGEN_LOG_SERVO: per-waypoint flare/Delta trace + (for place_across) the candidate no-flare
+        ``q_pin`` flare. Phase A only logs (the chained seed still drives); the pin is wired in Phase B."""
         import torch as th
         arm = self.robot.default_arm
         sp = _np(self.robot.eef_links[arm].get_position_orientation()[0])
@@ -122,8 +130,17 @@ class DemoEngine:
               f"(delta={(tp - sp).round(3)}, |d|={np.linalg.norm(tp - sp):.3f}m, n={n} ik steps)", flush=True)
         quat_t = th.as_tensor(np.asarray(tquat, float), dtype=th.float32)
         manip_idx = self.robot.arm_control_idx[self.robot.default_arm]
+
+        log_servo = bool(os.environ.get("DATAGEN_LOG_SERVO"))
+        if log_servo and seg.name == "place_across":            # S1 endpoint no-flare probe (no pin)
+            ai = self.robot.arm_control_idx[arm]
+            cand = self._build_pin_seed(tpos, tquat)
+            print("[servo] place_across PROBE: " + ("no no-flare endpoint config (L3)" if cand is None
+                  else f"q_pin flare={geometry.arm_flare(_np(cand[ai])):.3f} "
+                       f"q_pin={np.round(_np(cand[ai]), 3)}"), flush=True)
+
         q_seed = self.robot.get_joint_positions()             # full-DoF seed, spliced per step
-        out = []
+        out, prev_cfg = [], None
         for i in range(1, n + 1):
             p = sp + (tp - sp) * (i / n)
             res = solve_ik(self.world.motion_gen, self.robot,
@@ -133,10 +150,54 @@ class DemoEngine:
                 print(f"[datagen.engine] {seg.name}: servo IK failed at step {i}/{n}", flush=True)
                 return None
             arm_cfg = res.arm_traj[-1]
-            out.append(arm_cfg)
+            if log_servo:
+                self._log_servo_wp(seg, i, n, arm_cfg, prev_cfg, p)
+            out.append(arm_cfg); prev_cfg = arm_cfg
             q_seed = q_seed.clone()                            # chain: keep IK near the prior solution
             q_seed[manip_idx] = arm_cfg.to(q_seed.device, q_seed.dtype)
+        if log_servo:
+            self._log_flare(seg.name)
         return th.stack(out)
+
+    def _build_pin_seed(self, tpos, tquat):
+        """No-flare reference arm config (full-DoF tensor) at the segment endpoint (tpos, held tquat),
+        or None (=> servo_ik_fail). L1: tailored no-flare seed (geometry.noflare_seed) -> solve_ik,
+        accept iff arm_flare < FLARE_TOL. L2 (dormant, only when L1 flares): perturb j2, re-solve, pick
+        min flare. L3: None. Adds +1 solve_ik (L1) over the carry's ~20-40; bounded by self.timeout."""
+        import torch as th
+        arm = self.robot.default_arm
+        ai = self.robot.arm_control_idx[arm]
+        q_full = self.robot.get_joint_positions()
+        bp, bq = self.robot.get_position_orientation()        # robot base world pose
+        base_yaw = geometry.quat_yaw(_np(bq))
+        pos_t = th.as_tensor(np.asarray(tpos, float), dtype=th.float32)
+        quat_t = th.as_tensor(np.asarray(tquat, float), dtype=th.float32)
+
+        def _solve(seed_arm):
+            seed_full = q_full.clone()
+            seed_full[ai] = th.as_tensor(seed_arm, dtype=seed_full.dtype, device=seed_full.device)
+            res = solve_ik(self.world.motion_gen, self.robot, pos_t, quat_t, seed_full,
+                           timeout=self.timeout, ik_collision=False, label="place_across:pin")
+            if res is None:
+                return None
+            out = seed_full.clone()
+            out[ai] = res.arm_traj[-1].to(out.device, out.dtype)
+            return out
+
+        seed = geometry.noflare_seed(_np(q_full[ai]), _np(bp), base_yaw, np.asarray(tpos, float)[:2])
+        q_pin = _solve(seed)                                   # L1
+        if q_pin is not None and geometry.arm_flare(_np(q_pin[ai])) < FLARE_TOL:
+            return q_pin
+        best, best_flare = None, FLARE_TOL                     # L2 (dormant)
+        for dj2 in PIN_L2_PERTURB:
+            s = seed.copy(); s[2] = float(dj2)
+            cand = _solve(s)
+            if cand is None:
+                continue
+            f = geometry.arm_flare(_np(cand[ai]))
+            if f < best_flare:
+                best, best_flare = cand, f
+        return best                                            # None => L3
 
     # ---- debug instrumentation: per-segment joint diagnostics (DATAGEN_LOG_JOINTS) ----
     def _arm_limits(self):
@@ -205,6 +266,57 @@ class DemoEngine:
             hit[key] = hit.get(key, 0) + 1
         print(f"[contacts] {seg.name}: {dict(sorted(hit.items())) or 'NONE'}", flush=True)
 
+    # ---- place_across pinned-seed diagnostics (DATAGEN_LOG_SERVO) -----------
+    def _log_flare(self, tag):
+        """live Cartesian out-of-plane elbow flare from FK link reads (panda_link2 shoulder ->
+        panda_link4 elbow vs the shoulder->eef reach plane)."""
+        arm = self.robot.default_arm
+        sh = _np(self.robot.links["panda_link2"].get_position_orientation()[0])
+        el = _np(self.robot.links["panda_link4"].get_position_orientation()[0])
+        ee = _np(self.robot.eef_links[arm].get_position_orientation()[0])
+        off = geometry.elbow_lateral_offset(sh[:2], el[:2], ee[:2])
+        lat = "degen" if off is None else f"{off:.3f}"
+        print(f"[servo] {tag}: elbow_lat={lat} elbow_z={el[2]:.3f}", flush=True)
+
+    def _log_servo_wp(self, seg, i, n, arm_cfg, prev_cfg, p):
+        """per-waypoint trace: flare(=|j2|), |Delta| from the prior waypoint + argmax joint, j3
+        (panda_joint4) margin to its straight limit -0.0698, commanded on-line eef-z."""
+        c = _np(arm_cfg).reshape(-1)
+        dmax, dj = 0.0, -1
+        if prev_cfg is not None:
+            d = np.abs(c - _np(prev_cfg).reshape(-1)); dmax, dj = float(d.max()), int(d.argmax())
+        print(f"[servo] {seg.name} wp{i}/{n}: flare={geometry.arm_flare(c):.3f} "
+              f"dmax={dmax:.3f}(j{dj}) j3_marg={(-0.0698 - c[3]):+.3f} eef_z={float(p[2]):.3f} "
+              f"q={np.round(c, 3)}", flush=True)
+
+    def _write_trace_line(self, ctx):
+        """[DATAGEN_TRACE] one per-step full-state row -> out_dir/trace.jsonl: current segment, arm joints
+        q + joint velocities qd, and the target object's pose + linear/angular velocity. Lets us traceback
+        per-step motion smoothness (joint accel spikes) + object tip onset (angular velocity) for ANY
+        rollout, kept or failed. Flushed per line so a failed rollout's trace is complete."""
+        import json
+        ai = self.robot.arm_control_idx[self.robot.default_arm]
+        q = _np(self.robot.get_joint_positions())[ai]
+        try:
+            qd = _np(self.robot.get_joint_velocities())[ai]
+        except Exception:  # noqa: BLE001
+            qd = np.zeros_like(q)
+        rec = {"seg": self._cur_seg, "s": int(getattr(self, "_trace_i", 0)),
+               "q": [round(float(v), 4) for v in q], "qd": [round(float(v), 4) for v in qd]}
+        self._trace_i = int(getattr(self, "_trace_i", 0)) + 1
+        tgt = getattr(ctx, "target", None)
+        if tgt is not None:
+            try:
+                p, quat = tgt.get_position_orientation()
+                rec["op"] = [round(float(v), 4) for v in _np(p)]
+                rec["oq"] = [round(float(v), 4) for v in _np(quat)]
+                rec["olv"] = [round(float(v), 3) for v in _np(tgt.get_linear_velocity())]
+                rec["oav"] = [round(float(v), 3) for v in _np(tgt.get_angular_velocity())]
+            except Exception:  # noqa: BLE001
+                pass
+        self._trace_f.write(json.dumps(rec) + "\n")
+        self._trace_f.flush()
+
     # ---- run one demo variant ----------------------------------------------
     def run(self, ctx: TaskContext, skeleton: FamilySkeleton, segments,
             gate: SafetyGate, recorder, *, out_dir, seed: int = 0, meta: dict | None = None) -> DemoResult:
@@ -221,11 +333,19 @@ class DemoEngine:
         self._last_servo = None                  # per-variant: no servo path recorded yet
         self._path_buf = None                    # per-variant: no relocate path accumulated yet
         self._timeout = False                    # tripped if the rollout exceeds self.max_steps
+        self._cur_seg = None                     # current segment name, labels the DATAGEN_TRACE rows
         recorder.attach(self.env, self.robot, out_dir,
                         prompt=ctx.diagnostics.get("prompt", ""))
 
-        def tick() -> bool:                      # per-step hook: LTL + step-limit, abort on either
+        self._trace_f = None                     # DATAGEN_TRACE: per-step full-state dump for traceback
+        self._trace_i = 0                         # per-rollout step counter for the trace rows
+        if os.environ.get("DATAGEN_TRACE"):      # (joints q+qdot + target pose/lin+ang vel), per rollout
+            self._trace_f = open(os.path.join(str(out_dir), "trace.jsonl"), "w")  # noqa: SIM115
+
+        def tick() -> bool:                      # per-step hook: LTL + step-limit (+ trace), abort on either
             gate.step()
+            if self._trace_f is not None:
+                self._write_trace_line(ctx)
             if gate.violated:
                 return True
             if recorder.n_steps >= self.max_steps:
@@ -233,10 +353,12 @@ class DemoEngine:
                 return True
             return False
 
+        carry = OPEN                             # last-segment gripper cmd; held during the end settle
         for seg in segments:
             if self._timeout:                      # step-limit tripped in a prior segment's settle/gripper
                 recorder.finalize(success=False)
                 return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
+            self._cur_seg = seg.name               # label the DATAGEN_TRACE rows by segment
             skeleton.on_segment(seg, ctx)          # family runtime side-effects (e.g. hold drawer open)
             tpos, tquat = self._resolve_target(seg, ctx, skeleton)
             if seg.ignore_clutter:
@@ -404,6 +526,22 @@ class DemoEngine:
                 ep_now = _np(self.robot.eef_links[self.robot.default_arm].get_position_orientation()[0])
                 print(f"[datagen.engine] after {seg.name}: eef={ep_now.round(3)} {ds}", flush=True)
 
+        if self._timeout:                         # a step-limit tripped inside the LAST segment's settle/
+            recorder.finalize(success=False)      # gripper has no next-iteration check -- fail cleanly here
+            return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
+
+        # Monitored settle-to-rest: step the env (arm + gripper held at their final command) with the
+        # gate ticking EVERY step, so post-release physics the segment loop never covered -- an object
+        # toppling once the gripper's masked-upright AG hold ends, or the drawer/object settling -- is SEEN
+        # by the LTL gate (45deg upright + dropped) BEFORE the success+safety verdict is locked. Without
+        # this, a topple completing in the unmonitored gap after the last segment was mislabeled a clean
+        # success. Not recorded (the demo still ends on the last segment's frame); only the gate advances,
+        # and success() is re-checked below on the SETTLED state (also catches a drawer springing back open).
+        if self.rest_settle_steps > 0:
+            self._cur_seg = "rest_settle"
+            actuate_gripper(self.env, self.robot, close=(carry == CLOSE),
+                            n_steps=self.rest_settle_steps, recorder=None, on_step=tick)
+
         reached = gate.success()
         ok = bool(reached and skeleton.success_extra(ctx) and not gate.violated)
         recorder.finalize(success=ok, attrs={
@@ -412,4 +550,6 @@ class DemoEngine:
             "goal_reached": bool(reached), "ltl_violated": bool(gate.violated),
             "n_steps": int(recorder.n_steps),
         })
+        if self._trace_f is not None:
+            self._trace_f.close()
         return DemoResult(ok=ok, out_dir=str(out_dir), detail={"goal_reached": bool(reached)})
