@@ -1549,3 +1549,24 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   actually separate cuRobo `Mode.FREE` plan_fails — `place_pre_grasp` (task_0007) / `close_pre_final` (task_0002, ~7-8/12),
   stochastic, driver retries. DECISION (user): stop tuning the close (randomness + object physics dominated); validate the
   pipeline on 5 fresh normal-stability tasks (target 2 each) to measure real yield. See [[project_maniguard_cabinet_family]].
+
+- **Cabinet yield: far-reach close fix — IK-tolerance relax + open-distance derate (2026-06-29, `73386f21` + `837e9823`)**:
+  the family yield limiter was the close re-grasping the handle at its pulled-OUT (open) position = the far edge of the arm's
+  reach. ROOT CAUSE corrected by reading the cuRobo diag (not guessed): `close_pre_final` IK_FAILs because the best IK solution
+  sits a hair past BOTH baked gates — pos 0.0052–0.0058 m > 0.005 and rot 0.043–0.059 rad ≈ 0.05 — whichever binds first kills
+  the plan (no trajectory). The earlier "rot stuck on 0.05" was only half of it; relaxing rotation alone left pos-bound configs
+  still failing. **Approach A (`73386f21`)**: cuRobo has no per-plan tolerance field (baked at MotionGen construction across 4
+  solvers), but the IK success gate reads `ik_solver.position_threshold`/`.rotation_threshold` at CALL time
+  (`ik_solver.py:1352 _get_success`) — so widen the live attributes for ONE plan (try/finally restored) + the `_salvage` tols to
+  match, scoped via new `MotionSegment.rot_relax`/`pos_relax` (→ `solve_segment` `ik_rot_relax`/`ik_pos_relax`) to the cabinet
+  `close_pre` segment only (relax 0.10 rad / 0.015 m). Harmless: pos is a standoff the next SERVO re-aims from the LIVE handle,
+  rot is on the roll-symmetric bar; a real miss is still caught by `close_grasp` + the physical success gate. Lifted apricot
+  (task_0003, baseline WORST) 1/20 → 2/5; `close_pre` stopped plan_failing. The 3 residual fails were all the same far-open-handle
+  close-sequence reach (close_grasp `servo_ik_fail` / close_push undershoot-jam → `goal_reached` False / close_push object-tip →
+  unsafe). **Approach B (`837e9823`)**: the `open_dist` selection gate is OPTIMISTIC — it scores 5 discrete handle poses with
+  cuRobo from the home pose, but the runtime close runs a continuous per-waypoint `solve_ik` SERVO from the post-place config, so
+  it picks an open whose far handle is at the reach envelope. Derate the gate-selected open by `OPEN_DIST_SAFETY=0.88` (~2–3 cm
+  nearer the base) after selection, before the place gate; grasps stay reachable (smaller = strictly easier) and the place reach
+  gate still validates cavity fit. **5-task scan (target 2) vs baseline: apricot 1/20→2/3, napkins 2/9→2/2, muffin 2/5→2/3,
+  box_yogurt 2/3→2/2, can_soda 2/4→2/2 — all improved or held, no regressions**; with B the handle is close enough that
+  `close_pre` now plans CLEANLY (no salvage). See [[project_maniguard_cabinet_family]].
