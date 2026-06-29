@@ -50,6 +50,17 @@ OVER_HANDLE_FRAC = 0.55    # close approach: SERVO this fraction of the way from
 PLACE_Z_MARGIN = 0.01     # drop height above the table / drawer floor
 RETREAT_DZ = 0.12         # straight-up retreat after releasing a relocated blocker
 HANDLE_BACK_DIST = 0.10   # after opening, retreat the gripper this far along +open so fingers clear the handle
+CLOSE_PRE_ROT_RELAX = 0.10  # close_pre IK rotation_threshold relax (rad, ≈5.7°). The FINAL close re-grasps the
+#                            handle at its pulled-OUT (open) position = the far edge of reach; the only reachable
+#                            wrist there is a few degrees (obs. 0.043–0.057 rad) off the grasp orientation — a miss
+#                            on the ROLL-SYMMETRIC handle bar (HARMLESS).
+CLOSE_PRE_POS_RELAX = 0.015  # close_pre IK position_threshold relax (m, 1.5 cm). At that far open-handle pre-grasp
+#                            STANDOFF the arm bottoms out its reach ~5.2-5.8 mm short of the exact point (> the 5 mm
+#                            gate) — diagnosed as the BINDING constraint (pos, not rot, IK_FAILs first on the worst
+#                            tasks). Harmless at a standoff: close_grasp SERVOs onto the handle from its LIVE pose,
+#                            absorbing the offset. cuRobo's baked 0.005-m IK gate else rejects it (IK_FAIL, no traj).
+#                            Widen BOTH gates for THIS plan only; a genuinely-bad grasp is still caught by close_grasp
+#                            + the physical success gate. See [[project_maniguard_cabinet_family]] SESSION-5 Approach A.
 CLOSE_FRACTION = 0.12     # close to this fraction of the spawn opening (≈88% shut; << Open threshold)
 DRAWER_OPEN_MARGIN = 0.02   # stop the open pull this far off the drawer's hard stop (full stroke)
 DRAWER_OPEN_FRACS = (1.0, 0.85, 0.72, 0.6)   # search the open distance from full-stroke DOWN; the widest
@@ -749,7 +760,8 @@ class CabinetSkeleton(FamilySkeleton):
             # COLLISION-AWARE approach to the handle pre-grasp (gripper OPEN, NO cab-ignore): cuRobo MUST
             # avoid the cabinet door/drawer on the way in to the STANDOFF pre-pose at the live (open) handle.
             MotionSegment(f"close_pre_{tag}", q0[:3], q0, mode=Mode.FREE, grip=Grip.OPEN, grip_steps=6,
-                          compute="grasp", extra={**h, "standoff": STANDOFF}),
+                          compute="grasp", extra={**h, "standoff": STANDOFF},
+                          rot_relax=CLOSE_PRE_ROT_RELAX, pos_relax=CLOSE_PRE_POS_RELAX),
             # SERVO straight onto the handle + CLOSE on it (mirror of handle_grasp_open).
             MotionSegment(f"close_grasp_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.CLOSE, grip_steps=8,
                           compute="grasp", extra={**h, "standoff": 0.0}, ignore_objects=cab,

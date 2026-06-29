@@ -103,6 +103,17 @@ class MotionSegment:
     #                                        the eef one small uniform increment (the rigid controller slams only
     #                                        that tiny amount) => continuous UNIFORM-velocity glide instead of the
     #                                        default slam-1cm-then-idle stutter. Used for the gentle drawer close.
+    rot_relax: float | None = None         # FREE/LINEAR only: temporarily widen cuRobo's IK rotation_threshold (rad)
+    #                                        + the trajopt-salvage rot_tol for THIS segment's plan only (try/finally
+    #                                        restored). Use when the goal orientation's reach-limited mismatch is on a
+    #                                        PHYSICALLY SYMMETRIC axis (e.g. the roll-symmetric cabinet handle bar), so
+    #                                        the few-degree miss is harmless: cuRobo would otherwise IK_FAIL at the
+    #                                        far-reach open handle and never produce a trajectory to grasp it.
+    pos_relax: float | None = None         # FREE/LINEAR only: same lever for cuRobo's IK position_threshold (m). At a
+    #                                        STANDOFF pre-grasp the arm at its reach envelope lands a few mm short
+    #                                        (measured 5.2-5.8 mm > the 5 mm gate); that residual is absorbed by the
+    #                                        following SERVO which re-aims from the LIVE target pose. Pair with rot_relax
+    #                                        — at the far reach EITHER axis can bind first (whichever does => IK_FAIL).
 
 
 @dataclass

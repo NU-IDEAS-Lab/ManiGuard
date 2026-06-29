@@ -132,6 +132,7 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
                   attach_obj=None, motion_constraint=None,
                   eef_link: str | None = None, label: str = "",
                   pos_tol: float = 0.005, rot_tol: float = 0.03,
+                  ik_rot_relax: float | None = None, ik_pos_relax: float | None = None,
                   diagnose_on_fail: bool = False) -> SegmentResult | None:
     """Plan one collision-free segment to ``(eef_goal_pos, eef_goal_quat)`` (world
     frame) from ``initial_joint_pos`` (full-DoF). Returns a :class:`SegmentResult`
@@ -155,6 +156,28 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
     target_quat = {eef_link: th.stack([eef_goal_quat] * bs)}
     attached_obj = {eef_link: attach_obj.root_link} if attach_obj is not None else None
     attached_obj_scale = {eef_link: 1.0} if attach_obj is not None else None
+
+    # ik_rot_relax / ik_pos_relax: temporarily widen cuRobo's IK convergence rotation_threshold (rad) /
+    # position_threshold (m) just for THIS plan, restored in finally below. cuRobo bakes
+    # rotation_threshold=0.05 + position_threshold=0.005 at MotionGen construction; the IK success gate
+    # reads them at call time (ik_solver._get_success -> self.rotation_threshold / self.position_threshold),
+    # so mutating the live solver attributes is the per-call lever (there is NO MotionGenPlanConfig field
+    # for them). Needed for a far-reach handle grasp at the arm's reach ENVELOPE, where the best IK solution
+    # sits a hair past the strict gate on BOTH axes (measured: pos 0.0052-0.0058 m, rot 0.043-0.057 rad) —
+    # whichever binds first IK_FAILs (no solution -> no trajectory). At a STANDOFF pre-grasp the sub-cm /
+    # few-degree residual is harmless (the next SERVO re-aims from the LIVE handle pose). We widen the
+    # salvage tols to match so the trajopt path (which still optimises to ~that residual) is kept.
+    ik_solver = motion_gen.mg[CuRoboEmbodimentSelection.DEFAULT].ik_solver
+    _saved_rot_thresh = _saved_pos_thresh = None
+    salvage_rot_tol, salvage_pos_tol = rot_tol, pos_tol
+    if ik_rot_relax is not None:
+        _saved_rot_thresh = ik_solver.rotation_threshold
+        ik_solver.rotation_threshold = max(_saved_rot_thresh, ik_rot_relax)
+        salvage_rot_tol = max(rot_tol, ik_rot_relax)
+    if ik_pos_relax is not None:
+        _saved_pos_thresh = ik_solver.position_threshold
+        ik_solver.position_threshold = max(_saved_pos_thresh, ik_pos_relax)
+        salvage_pos_tol = max(pos_tol, ik_pos_relax)
 
     # return_full_result=True so the salvage pass can recover trajectories trajopt
     # flags success=False but which actually converged at the goal (short/degenerate
@@ -184,8 +207,13 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
                   f"constraint query -> None ({exc})", flush=True)
             return None
         raise
+    finally:
+        if _saved_rot_thresh is not None:
+            ik_solver.rotation_threshold = _saved_rot_thresh
+        if _saved_pos_thresh is not None:
+            ik_solver.position_threshold = _saved_pos_thresh
 
-    joint_state, salvaged, pos_err, rot_err = _salvage(full, pos_tol, rot_tol, label)
+    joint_state, salvaged, pos_err, rot_err = _salvage(full, salvage_pos_tol, salvage_rot_tol, label)
     if joint_state is None:
         print(f"[datagen.curobo] segment {label!r}: FAILED (0/{int(bs)} successes)",
               flush=True)

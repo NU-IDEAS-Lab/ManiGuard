@@ -406,13 +406,15 @@ class DemoEngine:
                     tag = seg.name if attempt == 0 else f"{seg.name}:try{attempt + 1}"   # call explores new seeds
                     res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
                                         timeout=self.timeout, attach_obj=attach,
-                                        motion_constraint=mc, label=tag, diagnose_on_fail=True)
+                                        motion_constraint=mc, label=tag, ik_rot_relax=seg.rot_relax,
+                                        ik_pos_relax=seg.pos_relax, diagnose_on_fail=True)
                     if res is None and mc is not None:
                         # this cuRobo build often rejects the partial-pose (LINEAR_SERVO) query;
                         # fall back to an unconstrained solve (reference grasp.py:140-147).
                         res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
                                             timeout=self.timeout, attach_obj=attach,
-                                            motion_constraint=None, label=tag + ":unconstrained")
+                                            motion_constraint=None, label=tag + ":unconstrained",
+                                            ik_rot_relax=seg.rot_relax, ik_pos_relax=seg.pos_relax)
                     if res is not None:
                         break
                 if res is None:
