@@ -65,6 +65,15 @@ CLOSE_FRACTION = 0.12     # close to this fraction of the spawn opening (≈88% 
 DRAWER_OPEN_MARGIN = 0.02   # stop the open pull this far off the drawer's hard stop (full stroke)
 DRAWER_OPEN_FRACS = (1.0, 0.85, 0.72, 0.6)   # search the open distance from full-stroke DOWN; the widest
 #                            whose open-END the arm can still reach (handle grasp clear there) is the max
+OPEN_DIST_SAFETY = 0.88   # derate the GATE-selected open_dist by this factor (Approach B). The selection gate
+#                            scores 5 DISCRETE handle poses with cuRobo from the home pose, but the runtime
+#                            close sequence (close_grasp/close_push) runs a CONTINUOUS per-waypoint solve_ik
+#                            SERVO from the post-place config — so the gate is OPTIMISTIC and picks an open whose
+#                            far open-handle sits right at the reach envelope (close_grasp servo_ik_fail / push
+#                            undershoot-jam / object-tip = the task_0003 Approach-A residual failures). Backing the
+#                            open off ~12% pulls the handle ~2-3 cm nearer the base, giving the whole close
+#                            sequence reach margin. SMALL on purpose (handle stays clearly grasped, cavity stays
+#                            deep enough — the place reach gate still validates fit). See SESSION-5 Approach B.
 LIFT_CLEAR = 0.18         # relocate: lift the held blocker this HIGH above the table before the FREE transit
 #                           — a low (~5 cm) lift leaves the object hugging the table next to the tall cabinet,
 #                           so the cabinet-avoiding cuRobo transit plans a hard low path (~50% plan_fail on this
@@ -273,7 +282,14 @@ class CabinetSkeleton(FamilySkeleton):
         if not clear:                                  # no open-end-reachable grasp -> legacy behaviour
             clear = [g for g in pre if g in contact and g in close]
             P["open_dist"] = CG.open_distance(0.0, L.remaining_travel, np.random.default_rng(0))
-        print(f"[datagen.cab] max reliable open_dist={P['open_dist']:.3f} of stroke {L.stroke:.3f} "
+        # Approach B: derate the gate-selected open by a safety factor. The gate validated the handle grasps
+        # at the LARGER open, so they stay reachable at this SMALLER one (handle nearer = strictly easier),
+        # while the runtime close sequence gains reach margin. Applied BEFORE the place gate so the cavity
+        # (computed from open_dist) and its reach filter see the actual, derated open.
+        gate_open = P["open_dist"]
+        P["open_dist"] = float(gate_open * OPEN_DIST_SAFETY)
+        print(f"[datagen.cab] open_dist gate={gate_open:.3f} -> derated={P['open_dist']:.3f} "
+              f"(x{OPEN_DIST_SAFETY}) of stroke {L.stroke:.3f} "
               f"({len(clear)} handle grasps clear at the open-end)", flush=True)
         # among the clear-reachable handle points, prefer the one CLOSEST to the robot base = farthest
         # from the in-path blocker, where an open-gripper finger reliably catches the drawer front.
