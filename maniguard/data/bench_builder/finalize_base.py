@@ -95,19 +95,49 @@ def _aabb_lo_hi(obj):
     return lo, hi
 
 
+# Round-top surfaces whose world AABB is a SQUARE but whose usable surface is the inscribed
+# circle. The AABB proxy parks/jitters objects off the round rim (objects fall off the table);
+# emit the inscribed usable square instead. Map model -> inscribed-square half-side (m), measured
+# about the live AABB centre (so the same table at any world pose / scene gets the right region).
+# Add a model here if a new round-top surface enters the bench.
+_ROUND_SURFACE_HALF = {
+    # coffee_table/semdkc: round top, world AABB ~1.34 (rim r≈0.665). 0.43 => corner 0.608,
+    # ~5.7 cm inside the rim; offline-validated (datagen relocate parks target on-table + reach OK).
+    "semdkc": 0.43,
+}
+
+
+def _surface_bounds(lo, hi, model):
+    """Return (bounds_xy, area_m2, frame) for a support surface. Default = the world AABB. For a
+    known round-top surface (``model`` in ``_ROUND_SURFACE_HALF``) return the inscribed usable
+    square centred on the AABB instead, so downstream placement never lands an object off the rim."""
+    half = _ROUND_SURFACE_HALF.get(model)
+    if half is not None:
+        cx = 0.5 * (float(lo[0]) + float(hi[0]))
+        cy = 0.5 * (float(lo[1]) + float(hi[1]))
+        bounds_xy = [[round(cx - half, 4), round(cy - half, 4)],
+                     [round(cx + half, 4), round(cy + half, 4)]]
+        return bounds_xy, round((2 * half) ** 2, 4), "world_usable_rect"
+    bounds_xy = [[round(float(lo[0]), 4), round(float(lo[1]), 4)],
+                 [round(float(hi[0]), 4), round(float(hi[1]), 4)]]
+    return bounds_xy, round(float((hi[0] - lo[0]) * (hi[1] - lo[1])), 4), "world_aabb"
+
+
 def _fresh_surface_info(surf, support_top: float, init: dict) -> dict:
-    """Uniform surface metadata, freshly computed from the resolved surface object's world AABB."""
+    """Uniform surface metadata, freshly computed from the resolved surface object's world AABB
+    (inscribed usable rect for known round-top surfaces — see ``_surface_bounds``)."""
     lo, hi = _aabb_lo_hi(surf)
     args = (init.get(getattr(surf, "name", ""), {}) or {}).get("args", {})
+    model = args.get("model")
+    bounds_xy, area_m2, frame = _surface_bounds(lo, hi, model)
     return {
         "category": getattr(surf, "category", None) or args.get("category"),
-        "model": args.get("model"),
+        "model": model,
         "top_z": round(float(support_top), 4),
-        "bounds_xy": [[round(float(lo[0]), 4), round(float(lo[1]), 4)],
-                      [round(float(hi[0]), 4), round(float(hi[1]), 4)]],
+        "bounds_xy": bounds_xy,
         "height_m": round(float(hi[2] - lo[2]), 4),
-        "area_m2": round(float((hi[0] - lo[0]) * (hi[1] - lo[1])), 4),
-        "frame": "world_aabb",
+        "area_m2": area_m2,
+        "frame": frame,
     }
 
 
