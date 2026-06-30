@@ -199,3 +199,9 @@ if __name__ == "__main__":
              n_per_grasp=a.n_per_grasp, target=a.target, max_attempts=a.max_attempts,
              score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos,
              grasping_mode=a.grasping_mode)
+    # The Python interpreter teardown SEGFAULTS during torch/Isaac extension unload (faulthandler dump
+    # right after the "[driver] DONE" line). That abnormal exit leaves the GPU's CUDA context in a "bad
+    # state" that accumulates across per-task process restarts into the per-GPU wedge. All data is already
+    # on disk (summary + per-demo hdf5/mp4), so terminate cleanly here and skip the segfaulting teardown.
+    import os
+    os._exit(0)
