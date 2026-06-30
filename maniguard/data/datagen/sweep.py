@@ -58,6 +58,13 @@ def main() -> int:
     ap.add_argument("--no-score", dest="score", action="store_false")
     ap.add_argument("--skip-existing", action="store_true",
                     help="skip tasks whose _summary.json already reaches the target")
+    ap.add_argument("--exit-on-wedge", action="store_true",
+                    help="if a task leaves no _summary.json (driver crashed = GPU CUDA 'bad state' wedge "
+                         "or hard segfault), exit immediately (rc=2) so a supervisor can idle-recover the "
+                         "GPU and resume (with --skip-existing). Avoids grinding the rest into instant-fails.")
+    ap.add_argument("--task-cooldown", type=int, default=0,
+                    help="seconds to sleep BETWEEN tasks — gives the GPU a brief idle between Isaac "
+                         "restarts (may slow the per-GPU CUDA-context leak that causes the wedge).")
     a = ap.parse_args()
 
     bench_family = BENCH_FAMILY[a.family]
@@ -106,12 +113,23 @@ def main() -> int:
             subprocess.run(cmd, env=env, stdout=lf, stderr=subprocess.STDOUT, check=False)
         dt = time.time() - t0
         sm = out_task / "_summary.json"
+        if not sm.exists():
+            # no summary => the driver crashed before finishing (GPU CUDA 'bad state' wedge, or a hard
+            # segfault). The demos it DID collect are still on disk (resume via --skip-existing tops up).
+            print(f"[sweep] ⚠️ CRASH/WEDGE on {task}: no _summary.json after {dt / 60:.1f} min", flush=True)
+            if a.exit_on_wedge:
+                print("[sweep] --exit-on-wedge: exiting rc=2 so the supervisor can idle-recover the GPU "
+                      "and resume (--skip-existing)", flush=True)
+                return 2
         s = json.loads(sm.read_text()) if sm.exists() else {"task": task, "n_success": 0, "n_attempts": 0}
         s["wall_s"] = round(dt, 1)
         done.append(s)
         flag = "OK" if s.get("n_success", 0) >= a.target else "⚠️ UNDER-TARGET"
         print(f"[sweep] ({ti + 1}/{len(my_tasks)}) {task} {flag} {s.get('n_success')}/{a.target} "
               f"({s.get('n_attempts')} att, {dt / 60:.1f} min)", flush=True)
+        if a.task_cooldown and ti < len(my_tasks) - 1:
+            print(f"[sweep] task-cooldown {a.task_cooldown}s before next task", flush=True)
+            time.sleep(a.task_cooldown)
 
     tot = time.time() - t_sweep
     nok = sum(s.get("n_success", 0) for s in done)
