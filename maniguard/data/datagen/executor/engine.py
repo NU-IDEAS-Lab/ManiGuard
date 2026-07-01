@@ -112,6 +112,55 @@ class DemoEngine:
             return geometry.aim_to_center_eef(self.robot, ctx.target, ctx.goal_center)
         raise ValueError(f"unknown compute tag: {seg.compute}")
 
+    # ---- terminal-placement reach fallback (intersection-relaxation for a far goal) ----
+    def _reach_fallback_transport(self, seg, ctx, q_full, pos_t, quat_t, attach):
+        """Fallback when the precise transport plan fails on a FAR goal (eef cannot reach goal_xy at the
+        carry orientation). Success only needs the held object's AABB to intersect the goal sphere, so
+        relax "object centre on goal centre" to "object touches the goal region": keep the carry
+        orientation, pull the terminal eef target back toward the robot along base->goal (at goal height),
+        and accept the first placement that is IK-reachable AND still leaves the object in the sphere.
+
+        That placement IS the terminal (object in sphere => success), so the caller skips ``to_goal``.
+        Returns a :class:`SegmentResult`, or ``None`` if no reachable in-sphere placement exists.
+        (Phase 2 — add an upright-preserving world-Z yaw to grow the pull-back budget — is deferred.)"""
+        import torch as th
+
+        arm = self.robot.default_arm
+        eef_now = _np(self.robot.eef_links[arm].get_position_orientation()[0])
+        base = _np(self.robot.get_position_orientation()[0])
+        g = _np(ctx.goal_center)
+        r = float(ctx.goal_radius)
+        held = self._held(seg, ctx)
+        lo, hi = geometry.aabb_lo_hi(held)
+        obj_c = geometry.object_center(held)
+        q = _np(quat_t)                                                     # carry orientation (unchanged)
+
+        # eef pose that puts the OBJECT centre on the goal centre (== aim_to_goal_center), then pull the eef
+        # back toward the robot along base->goal. Targeting the eef (not the object) at goal height would
+        # drive the held object DOWN into the table — the eef must stay ABOVE it by the grasp offset.
+        eef_at_goal = g - (obj_c - eef_now)                                # eef so object centre is on goal
+        d = (g - base).astype(float); d[2] = 0.0
+        d = d / (np.linalg.norm(d) + 1e-9)                                  # base->goal, horizontal unit
+        fwd = geometry.object_forward_extent(lo, hi, eef_now, d)           # object reach past eef toward goal
+        k_max = r + fwd + 0.10                                             # generous; the real cap is the sphere gate
+
+        for k in np.arange(0.0, k_max + 1e-6, 0.02):
+            tgt = eef_at_goal - k * d                                      # object-on-goal, pulled back by k
+            offset = tgt - eef_now                                         # rigid-hold: object shifts with the eef
+            if not geometry.aabb_sphere_hit(lo, hi, g, r, offset=offset):
+                break                                                     # pulled too far — object left the sphere
+            res = solve_segment(
+                self.world.motion_gen, self.robot,
+                th.as_tensor(tgt, dtype=th.float32), th.as_tensor(q, dtype=th.float32), q_full,
+                timeout=self.timeout, attach_obj=attach, label=f"{seg.name}:pullback{int(k * 100)}")
+            if res is not None:
+                print(f"[datagen.engine] {seg.name}: reach fallback pull-back k={k * 100:.0f}cm "
+                      f"(object still in {r * 100:.0f}cm goal sphere; to_goal skipped)", flush=True)
+                self._skip_to_goal = True
+                return res
+        print(f"[datagen.engine] {seg.name}: reach fallback exhausted (k_max={k_max * 100:.0f}cm)", flush=True)
+        return None
+
     # ---- straight-line Cartesian IK servo (deliberate push into contact) ----
     def _servo_line(self, tpos, tquat, ctx, seg):
         """Interpolate the eef from its CURRENT pose straight to ``(tpos, tquat)`` (orientation
@@ -335,6 +384,7 @@ class DemoEngine:
         self._path_buf = None                    # per-variant: no relocate path accumulated yet
         self._timeout = False                    # tripped if the rollout exceeds self.max_steps
         self._cur_seg = None                     # current segment name, labels the DATAGEN_TRACE rows
+        self._skip_to_goal = False               # set by the reach fallback: it already placed the object
         recorder.attach(self.env, self.robot, out_dir,
                         prompt=ctx.diagnostics.get("prompt", ""))
 
@@ -359,6 +409,8 @@ class DemoEngine:
             if self._timeout:                      # step-limit tripped in a prior segment's settle/gripper
                 recorder.finalize(success=False)
                 return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
+            if seg.compute == "aim_to_goal_center" and self._skip_to_goal:
+                continue                            # reach fallback already placed the object in the sphere
             self._cur_seg = seg.name               # label the DATAGEN_TRACE rows by segment
             skeleton.on_segment(seg, ctx)          # family runtime side-effects (e.g. hold drawer open)
             tpos, tquat = self._resolve_target(seg, ctx, skeleton)
@@ -417,6 +469,10 @@ class DemoEngine:
                                             ik_rot_relax=seg.rot_relax, ik_pos_relax=seg.pos_relax)
                     if res is not None:
                         break
+                if res is None and seg.reach_fallback:
+                    # precise placement unreachable on a far goal — relax to the closest-to-goal eef
+                    # placement that is reachable AND still leaves the object intersecting the goal sphere.
+                    res = self._reach_fallback_transport(seg, ctx, q_full, pos_t, quat_t, attach)
                 if res is None:
                     recorder.finalize(success=False)
                     return DemoResult.fail("plan_fail", seg=seg.name)

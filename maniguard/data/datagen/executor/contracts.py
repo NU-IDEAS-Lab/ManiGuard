@@ -114,6 +114,12 @@ class MotionSegment:
     #                                        (measured 5.2-5.8 mm > the 5 mm gate); that residual is absorbed by the
     #                                        following SERVO which re-aims from the LIVE target pose. Pair with rot_relax
     #                                        — at the far reach EITHER axis can bind first (whichever does => IK_FAIL).
+    reach_fallback: bool = False            # transport only: if the precise (eef→goal / object-centre→goal-centre)
+    #                                        plan fails on a FAR goal, the engine may relax to the closest-to-goal
+    #                                        placement that is IK-reachable AND still leaves the held object
+    #                                        intersecting the goal sphere (pull the eef back toward the robot;
+    #                                        optionally add an upright-preserving world-Z yaw). See engine
+    #                                        ._reach_fallback_transport. The precise plan stays the normal path.
 
 
 @dataclass

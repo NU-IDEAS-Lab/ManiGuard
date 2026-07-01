@@ -83,7 +83,8 @@ class ClutterSkeleton(FamilySkeleton):
                           min_clearance_m=params.min_clearance_m,                       # verify floor (3cm)
                           target_clearance_m=params.min_clearance_m * params.lift_clearance_mult),
             MotionSegment("transport", np.array([goal[0], goal[1], grasp.eef_pos[2]]), q,
-                          mode=Mode.FREE, attach=True, grip=Grip.HOLD, compute="over_goal"),
+                          mode=Mode.FREE, attach=True, grip=Grip.HOLD, compute="over_goal",
+                          reach_fallback=True),
             MotionSegment("to_goal", goal.copy(), q, mode=Mode.LINEAR,
                           attach=True, grip=Grip.HOLD, compute="aim_to_goal_center"),
         ]

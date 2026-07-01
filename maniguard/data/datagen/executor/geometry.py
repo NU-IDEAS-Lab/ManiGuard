@@ -117,6 +117,25 @@ def quat_yaw(quat_xyzw) -> float:
     return float(np.arctan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z)))
 
 
+def object_forward_extent(aabb_lo, aabb_hi, eef_pos, direction) -> float:
+    """How far the AABB reaches past ``eef_pos`` along unit ``direction`` (max corner projection, >= 0).
+
+    Used by the reach fallback to size how far the eef can be pulled back toward the robot while the held
+    object still reaches into the goal sphere (bigger forward reach => larger pull-back budget)."""
+    lo = _np(aabb_lo); hi = _np(aabb_hi); e = _np(eef_pos); d = _np(direction)
+    d = d / (np.linalg.norm(d) + 1e-9)
+    corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+    return float(max(0.0, np.max((corners - e) @ d)))
+
+
+def aabb_sphere_hit(aabb_lo, aabb_hi, center, radius, offset=(0.0, 0.0, 0.0)) -> bool:
+    """True if the AABB rigidly shifted by ``offset`` comes within ``radius`` of ``center`` (closest-point
+    test — the SAME criterion as ``utils.goal_region.object_intersects_goal_region``)."""
+    lo = _np(aabb_lo) + _np(offset); hi = _np(aabb_hi) + _np(offset); c = _np(center)
+    closest = np.minimum(np.maximum(c, lo), hi)
+    return bool(float(np.dot(c - closest, c - closest)) <= float(radius) * float(radius))
+
+
 def noflare_seed(q_arm_entry, base_pos, base_yaw: float, target_xy) -> np.ndarray:
     """Tailored no-flare IK warm-start seed (7,): aim j0 (panda_joint1) at the target azimuth in the
     base frame, zero j2 (panda_joint3 = the flare DOF), keep j1/j3/j4/j5/j6 from the live post-lift
