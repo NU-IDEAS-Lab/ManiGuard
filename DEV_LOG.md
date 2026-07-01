@@ -1635,3 +1635,28 @@ written. The 8 tasks that reached 40 in recollect were fine (their summaries kep
   next_draw still wins).
 - **Cleanup**: the 13 dups re-deduped + the 2 tasks recollected with the floor in effect (start_k
   auto-derives to 19 / 7). See [[project_clutter_liquid_reach_fixes]].
+
+## 2026-07-01 — datagen RAW -> LeRobot v2.1 converter (family-agnostic)
+
+`8b1646dc feat(datagen): raw -> LeRobot v2.1 converter`. The pipeline's "future work" (`pipeline.md` §G)
+converter, finally written: `maniguard/data/datagen/to_lerobot.py` repackages the RAW per-traj collection
+(traj.hdf5 + 5 mp4 + meta.json) into ONE LeRobot v2.1 dataset per family.
+
+- **Numeric**: `state` + `actions` (b, next-achieved) + `actions_commanded` (a) in parquet, **absolute
+  joint** (openpi deltas at train via `use_delta_joint_actions`). Matches the old
+  `sentinel-pnp-clutter-joint` convention + the `data_format` default.
+- **Video passthrough (no re-encode)**: pre-copy each h264 mp4 to `ds.root/get_video_file_path(ep,key)`
+  (that path is root-RELATIVE — the one gotcha), no-op `_save_image`, mp4-aware `sample_images` stats,
+  `save_episode` skips encoding a camera whose mp4 already exists. 3-patch set VERIFIED against lerobot
+  0.3.3 (Task-0 spike: 5 mp4 byte-identical before/after). Technique referenced from `lerobot_writer.py`
+  but NOT imported (reuses only `datagen.reader` + `data_format`).
+- **All 5 cams kept** (opposite/left/right/left_shoulder/wrist); cam-subset + delta stay train-time
+  openpi concerns. **One dataset/family** (2200 clutter eps → one SFT ckpt), multi-task via `tasks.jsonl`,
+  prompt from `meta["prompt"]` (== task diagnostics, verified).
+- **Env**: the lerobot uv env (py3.11 / lerobot 0.3.3 / +h5py 3.16 / numpy 2.x) — separate from the
+  `behavior` conda env; the converter never imports OmniGibson (`reader`/`data_format` are pure).
+- **Output**: `outputs/datagen/<dataset>_lerobot_format/<family>/`, repo_id
+  `IDEAS-Lab-Northwestern/datagen-<fam>-v1-joint-5cam`, **no HF push**. Local 80-ep integration verified
+  (loads, 5 video + state + 2 actions, image decodes 256², numbers match raw, prompt in tasks.jsonl).
+  spec+plan+test local-only per user. Full clutter 2200-ep run on the Vast server.
+  See [[project_clutter_liquid_reach_fixes]].
