@@ -1570,3 +1570,27 @@ families / driver), bad parts rewritten. Tracking doc = Obsidian
   gate still validates cavity fit. **5-task scan (target 2) vs baseline: apricot 1/20→2/3, napkins 2/9→2/2, muffin 2/5→2/3,
   box_yogurt 2/3→2/2, can_soda 2/4→2/2 — all improved or held, no regressions**; with B the handle is close enough that
   `close_pre` now plans CLEANLY (no salvage). See [[project_maniguard_cabinet_family]].
+
+## 2026-06-30 — cabinet_pickup family FINALIZED (all 35 collectable; awaiting server for large-scale collection)
+
+Repaired the 12 tasks that were under-target in the full-family dry-run → **all 35 cabinet_pickup base tasks now collect ≥2/2**
+(success + LTL-safe). Two committed code fixes + data repairs:
+
+- **`33384142` fix(bench): round-top surface uses inscribed usable rect, not square AABB.** `finalize_base._fresh_surface_info`
+  computed `surface_info.bounds_xy` from the surface's world AABB, which is a square for a round-top table
+  (`coffee_table/semdkc`) — datagen relocate / `perturb_location` then parked objects past the circular rim and they fell off
+  (0016/0029 collected 0/2). Added `_ROUND_SURFACE_HALF={"semdkc":0.43}` + `_surface_bounds(lo,hi,model)` → for a known round
+  model emit the inscribed square centred on the live AABB (`frame=world_usable_rect`), else AABB unchanged; benefits every
+  family/pose that uses the table. (Audit: `semdkc`=round→fixed; `rlsebe`=square slab→AABB correct; `wzyqgx`=likely-fine.)
+- **`65cfddb4` feat(tools): cabinet_swap_object.** Swaps a task's target/obstacle for a bench donor by rewriting `scene_ep1.json`
+  (RECURSIVELY — the snapshot nests whole-scene copies under `init_info/args/scene_file/…`) + `diagnostics.jsonl`
+  (`{role}_info`/`selection`/`spawn_specs`/goal subject/prompt/LTL over-globs). LTL globs derive from the object NAME STEM
+  (robust to a few tasks' crossed role/category naming); `_find_donor_source` also scans `*.bak_swap` so a swapped-out object is
+  reusable as a donor. Used to repair 10 tasks (0001/0007/0011/0012/0018/0019/0025/0028/0030/0032) to 2-attempt-stable donors,
+  all 35 (target,obstacle) pairs kept unique.
+- **0028 lesson:** cabinet datagen relocates the OBSTACLE first, so an obstacle-relocate `move_transit` fail blocks the demo
+  before the target is touched — the fix was making the compact flat **mouse the obstacle** (target/spawn-y were red herrings).
+- Data (gitignored) repaired end-to-end: bases re-finalized, all 4 perturbations regenerated (`perturb_language` has no `--jobs`),
+  full 35-row manifests rebuilt, and the 12 tasks pushed to HF `IDEAS-Lab-Northwestern/ManiGuard-Bench`.
+- **Collection handoff** = `CABINET_COLLECTION_HANDOFF.md` (repo root): env/commands/parallelism + ~4.4 min per usable trajectory
+  (single-process at scale), ~67% per-attempt success. See [[project_maniguard_cabinet_family]].
