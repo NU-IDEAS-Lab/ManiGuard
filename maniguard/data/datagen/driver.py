@@ -125,7 +125,18 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     from maniguard.data.datagen.executor.resume import resolve_start_k, compute_next_draw
     summary_path = out_base / "_summary.json"
     prev_summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
-    start_k = resolve_start_k(prev_summary, start_draw)
+    # on-disk floor: the highest draw index any existing traj already used (new-encoding trajs carry
+    # draw_index; pre-fix "old encoding" trajs used a disjoint seed space + no draw_index -> skipped).
+    # This makes resume re-draw-proof even if the summary's next_draw was lost (dedup/crash/partial run).
+    ondisk_max_draw = -1
+    for _mp in out_base.glob("traj_*/meta.json"):
+        try:
+            _di = json.loads(_mp.read_text()).get("draw_index")
+        except Exception:  # noqa: BLE001
+            _di = None
+        if _di is not None:
+            ondisk_max_draw = max(ondisk_max_draw, int(_di))
+    start_k = resolve_start_k(prev_summary, start_draw, ondisk_max_draw)
 
     if target:
         max_att = max_attempts or target * 4                          # give up if a task can't reach target

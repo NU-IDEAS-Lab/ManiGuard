@@ -7,16 +7,24 @@ kept pure so they unit-test without a sim."""
 from __future__ import annotations
 
 
-def resolve_start_k(existing_summary: dict | None, start_draw_override: int | None) -> int:
+def resolve_start_k(existing_summary: dict | None, start_draw_override: int | None,
+                    ondisk_max_draw: int = -1) -> int:
     """The draw index to start (or resume) a run's variant stream from.
 
-    Precedence: explicit ``--start-draw`` override > the prior run's ``next_draw`` (top-up) > 0 (a fresh
-    task, or a pre-fix summary written before this field existed)."""
+    Requested start precedence: explicit ``--start-draw`` override > the prior run's ``next_draw``
+    (top-up) > 0 (a fresh task, or a pre-fix summary without the field). That request is then floored by
+    ``ondisk_max_draw + 1`` — the highest draw index any trajectory ALREADY on disk used — so a resume can
+    NEVER re-draw a k it already produced a demo for, even when the summary's ``next_draw`` was lost (a
+    dedup pass wiped it, a crash skipped the summary write, a partial run reset it). The summary can still
+    push the start HIGHER than the on-disk floor (it also skips FAILED k values, which leave no traj).
+    ``ondisk_max_draw`` defaults to -1 (no on-disk trajs => no floor)."""
     if start_draw_override is not None:
-        return int(start_draw_override)
-    if existing_summary and existing_summary.get("next_draw") is not None:
-        return int(existing_summary["next_draw"])
-    return 0
+        base = int(start_draw_override)
+    elif existing_summary and existing_summary.get("next_draw") is not None:
+        base = int(existing_summary["next_draw"])
+    else:
+        base = 0
+    return max(base, int(ondisk_max_draw) + 1)
 
 
 def compute_next_draw(last_run_draw: int | None, start_k: int) -> int:
