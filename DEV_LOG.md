@@ -1616,3 +1616,22 @@ Low-success tasks were stuck (the same k deterministically succeed/fail → resu
 - **Follow-up (not done)**: dedup the already-polluted Vast v1 tasks (0031/0032/0047/0045 + check
   0036/0038/0015) by seed and recollect the deficit via `--start-draw`; diagnose task_0032's ~18% success
   rate. See [[project_clutter_liquid_reach_fixes]].
+
+## 2026-07-01 — datagen resume: on-disk draw floor (dedup→recollect no longer re-dups)
+
+Sequel to the resume-seed-cursor fix, found while cleaning the Vast v1 clutter data. The
+dedup→recollect→top-up workflow re-introduced 13 duplicate trajectories (task_0024 +1, task_0032 +12):
+the resume cursor read `start_k` ONLY from `_summary.json`'s `next_draw`, and the dedup cleanup script
+had wiped that field, so recollect ran every task at k=0 (harmless — new `SeedSequence` seeds don't
+collide with the old `grasp*1000+k` data), but a SECOND resume (the max-attempts-180 top-up) of the two
+still-under-target tasks also restarted at k=0 and re-drew the same new-encoding seeds recollect had just
+written. The 8 tasks that reached 40 in recollect were fine (their summaries kept a correct `next_draw`).
+
+- **`1457d309` fix(datagen): floor resume start_k by on-disk max draw_index.** `resolve_start_k` now takes
+  `ondisk_max_draw` and returns `max(requested_start, ondisk_max_draw + 1)`; the driver scans existing
+  `traj_*/meta.json` for the highest `draw_index` and passes it. A resume can no longer re-draw a k that
+  already has a trajectory on disk, regardless of whether the summary's `next_draw` survived. `next_draw`
+  still wins when higher (it also skips FAILED k). Unit-tested (floor beats a lost/stale summary; a higher
+  next_draw still wins).
+- **Cleanup**: the 13 dups re-deduped + the 2 tasks recollected with the floor in effect (start_k
+  auto-derives to 19 / 7). See [[project_clutter_liquid_reach_fixes]].
