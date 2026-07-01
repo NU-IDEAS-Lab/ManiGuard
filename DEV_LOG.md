@@ -1594,3 +1594,25 @@ Repaired the 12 tasks that were under-target in the full-family dry-run → **al
   full 35-row manifests rebuilt, and the 12 tasks pushed to HF `IDEAS-Lab-Northwestern/ManiGuard-Bench`.
 - **Collection handoff** = `CABINET_COLLECTION_HANDOFF.md` (repo root): env/commands/parallelism + ~4.4 min per usable trajectory
   (single-process at scale), ~67% per-attempt success. See [[project_maniguard_cabinet_family]].
+
+## 2026-07-01 — datagen resume-safe seed cursor (stop/resume no longer duplicates trajectories)
+
+Found via the v1 clutter top-up: resuming a task re-collected DUPLICATE trajectories (task_0031 23 unique
+of 40, task_0032 14 of 28, verified by each traj's meta seed). The per-demo master seed was deterministic
+in `(grasp_id, k)` and the sampler restarted its draw index `k` at 0 every run, so a top-up re-drew the
+same `(grasp, k)` → same jitter + same cuRobo trajopt seed → same trajectory saved under a new `traj_NNN`.
+Low-success tasks were stuck (the same k deterministically succeed/fail → resume can't add unique data).
+
+- **`3b9698bc` fix(datagen): resume-safe draw cursor + collision-free seed encoding.** Persist a task-level
+  `next_draw` cursor (= max draw index *attempted*, incl. failures, + 1) in `_summary.json`; the driver
+  reads it back and resumes `VariationSampler.variants_stream(cands, start_k=next_draw)` so a top-up only
+  ever draws UNSEEN seeds. The seed is now `SeedSequence([grasp_id, k])` (uint32) instead of
+  `grasp_id*1000+k` (which aliased once k>=1000 as the cursor accumulates across rounds). New pure helpers
+  `executor/resume.py` (`resolve_start_k`/`compute_next_draw`); each demo meta now stores `seed`+`draw_index`;
+  `--start-draw N` override (driver + sweep) to recollect a deduped task with guaranteed-fresh seeds.
+  Family-agnostic — every family's collection flows through the same sampler/driver.
+- **Tested**: 7 unit tests (collision-free at high k, start_k disjoint, cursor math, stop/resume no reuse)
+  + local headless sim (task_0002, two rounds → draws `[0,0,1,1]`, 4 seeds all distinct).
+- **Follow-up (not done)**: dedup the already-polluted Vast v1 tasks (0031/0032/0047/0045 + check
+  0036/0038/0015) by seed and recollect the deficit via `--start-draw`; diagnose task_0032's ~18% success
+  rate. See [[project_clutter_liquid_reach_fixes]].
