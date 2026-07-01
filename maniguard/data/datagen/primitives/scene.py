@@ -16,9 +16,11 @@ layered on top by the cameras (P8) / record (P9) primitives through two seams:
 Env infra (``build_env_config``, ``extract_scene_robot_setup``, goal-region
 helpers) is imported from the shared ``maniguard.envs`` / ``maniguard.utils``
 trees — NOT the old curobo reference tree. Dump parsing is the local ``task_io``
-primitive. GPU dynamics is OFF (the curobo + JointController pipeline is
-CPU/obs-bound; GPU PhysX is slower and NaN-prone here — see
-project_gpu_physx_rl_not_faster), matching the reference pnp init.
+primitive. GPU dynamics is OFF for dry tasks (the curobo + JointController pipeline
+is CPU/obs-bound; GPU PhysX is slower and NaN-prone here — see
+project_gpu_physx_rl_not_faster), matching the reference pnp init; liquid/particle
+tasks (diagnostics ``selection.system_name``) auto-enable it — see
+:func:`task_needs_gpu_dynamics` / :func:`init_omnigibson`.
 """
 from __future__ import annotations
 
@@ -48,19 +50,37 @@ class SceneBundle:
     goal_spec: Any | None        # GoalRegionSpec, or None if the task has no goal
 
 
-def init_omnigibson(headless: bool = True):
+def _needs_gpu_dynamics(diag: dict) -> bool:
+    """True if the task carries a PhysX particle/fluid system that only simulates under the GPU
+    dynamics pipeline. Clutter-liquid tasks declare ``selection.system_name`` (e.g. ``"water"``);
+    under the default CPU pipeline the fluid particles deterministically NaN-segfault at water-system
+    init. Mirrors ``bench_builder.finalize_base._needs_gpu_dynamics`` (the canonical bench gating)."""
+    return bool((diag.get("selection") or {}).get("system_name"))
+
+
+def task_needs_gpu_dynamics(task_dir: str | Path, episode: int = 1) -> bool:
+    """Whether this base task needs GPU dynamics, read from its dumped diagnostics row. Pure file
+    read (no ``omnigibson`` import) so the driver can call it BEFORE :func:`init_omnigibson`, which
+    must set the gm macro before ``import omnigibson``."""
+    return _needs_gpu_dynamics(load_diagnostics_row(Path(task_dir), episode))
+
+
+def init_omnigibson(headless: bool = True, needs_gpu_dynamics: bool = False):
     """Set datagen OmniGibson macros, then import + return ``omnigibson``.
 
-    MUST be called once before :func:`scene_from_task_dir` (gm macros take effect
-    only before ``import omnigibson``). GPU dynamics OFF + flatcache ON mirrors the
-    reference pnp pipeline.
+    MUST be called once before :func:`scene_from_task_dir` (gm macros take effect only before
+    ``import omnigibson``). Dry tasks run GPU-dynamics OFF + flatcache ON (the curobo + JointController
+    pipeline is CPU/obs-bound; GPU PhysX is slower and NaN-prone here — see project_gpu_physx_rl_not_faster),
+    mirroring the reference pnp init. Liquid/particle tasks (``needs_gpu_dynamics=True``, detected per
+    task via :func:`task_needs_gpu_dynamics`) REQUIRE GPU dynamics + flatcache OFF or the PhysX water
+    system NaN-segfaults at init — matching the bench_builder finalize + source liquid pipelines.
     """
     from omnigibson.macros import gm
 
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
-    gm.USE_GPU_DYNAMICS = False
-    gm.ENABLE_FLATCACHE = True
+    gm.USE_GPU_DYNAMICS = needs_gpu_dynamics
+    gm.ENABLE_FLATCACHE = not needs_gpu_dynamics
     if headless:
         gm.HEADLESS = True
 

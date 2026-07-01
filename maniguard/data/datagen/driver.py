@@ -47,8 +47,14 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     t0 = time.time()
     task_dir = Path(task_dir)
     skeleton = FAMILY[family]()                        # built early so its grasping_mode() (the family
-    og = scenemod.init_omnigibson(headless=headless)   # default, e.g. cabinet -> "sticky") can set the
-    ag_mode = grasping_mode or skeleton.grasping_mode()   # AG mode baked into the env; CLI --grasping-mode wins
+    # liquid/particle tasks (diagnostics selection.system_name, e.g. "water") REQUIRE GPU dynamics +
+    # flatcache OFF or the PhysX water system NaN-segfaults at init; dry tasks stay on the CPU pipeline.
+    # Must be decided BEFORE init_omnigibson (gm macros take effect only before `import omnigibson`).
+    needs_gpu = scenemod.task_needs_gpu_dynamics(task_dir)
+    if needs_gpu:
+        print("[driver] liquid/particle task -> gm.USE_GPU_DYNAMICS=True, ENABLE_FLATCACHE=False", flush=True)
+    og = scenemod.init_omnigibson(headless=headless, needs_gpu_dynamics=needs_gpu)   # default, e.g. cabinet
+    ag_mode = grasping_mode or skeleton.grasping_mode()   # -> "sticky"; CLI --grasping-mode wins
     print(f"[driver] grasping_mode={ag_mode!r} (family default={skeleton.grasping_mode()!r}, "
           f"cli_override={grasping_mode!r})", flush=True)
     bundle = scenemod.scene_from_task_dir(
