@@ -164,6 +164,8 @@ class SampleParams:
 
     seed: int = 0                          # the variant's master seed: cuRobo trajopt (torch.manual_seed)
     #                                        in the engine + jitter/lift draws in the sampler all derive from it
+    draw_index: int = 0                    # the draw index k (grasp-independent) this variant came from; the
+    #                                        driver persists max(draw_index)+1 as the resume cursor next_draw
     standoff_m: float = 0.10               # pre-grasp standoff along the approach axis
     min_clearance_m: float = 0.03          # required clearance floor over clutter during transport
     lift_clearance_mult: float = 1.0       # lift AIM = min_clearance_m × this (1.0–1.5 for height diversity)

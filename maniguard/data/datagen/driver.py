@@ -21,7 +21,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
              n_per_grasp: int = 1, target: int | None = None, max_attempts: int | None = None,
              score: bool = False, out_root: str = "outputs/datagen",
              headless: bool = True, timeout: float = 5.0, steps_per_waypoint: int = 2,
-             limit_demos=None, grasping_mode: str | None = None):
+             limit_demos=None, grasping_mode: str | None = None, start_draw: int | None = None):
     """Build one base task, then run the family skeleton x variants through the generic engine,
     recording each success+safe demo. Returns the list of DemoResults.
 
@@ -114,17 +114,27 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
                              prefer_wrist_dir=skeleton.relocate_open_dir(ctx))
 
     sampler = VariationSampler(n_per_grasp=n_per_grasp)
-    if target:
-        max_att = max_attempts or target * 4                          # give up if a task can't reach target
-        variant_iter = sampler.variants_stream(cands)
-        print(f"[driver] target={target} demos (max {max_att} attempts), score={score}", flush=True)
-    else:
-        variant_iter = sampler.variants(cands)
-        print(f"[driver] {n_per_grasp}/grasp bounded variants, score={score}", flush=True)
 
     # output dir uses the BENCH family name (clutter_pickup) so it matches the bench dataset layout
     out_base = Path(out_root) / dataset / bench_family / task_name
     out_base.mkdir(parents=True, exist_ok=True)
+
+    # resume cursor: a fresh run starts drawing at k=0; a top-up resumes from the prior run's next_draw
+    # so it only ever draws UNSEEN seeds (the seed is deterministic per (grasp_id, k) → restarting at 0
+    # would re-collect duplicate trajectories). --start-draw forces the cursor (recollect a deduped task).
+    from maniguard.data.datagen.executor.resume import resolve_start_k, compute_next_draw
+    summary_path = out_base / "_summary.json"
+    prev_summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
+    start_k = resolve_start_k(prev_summary, start_draw)
+
+    if target:
+        max_att = max_attempts or target * 4                          # give up if a task can't reach target
+        variant_iter = sampler.variants_stream(cands, start_k=start_k)
+        print(f"[driver] target={target} demos (max {max_att} attempts), score={score}, "
+              f"start_draw={start_k}", flush=True)
+    else:
+        variant_iter = sampler.variants(cands)
+        print(f"[driver] {n_per_grasp}/grasp bounded variants, score={score}", flush=True)
     # resume / top-up: every KEPT demo carries a traj.hdf5, so prior successes count TOWARD the target.
     # A re-run then collects only the DEFICIT (target - existing) and stops the moment N is reached,
     # instead of collecting `target` MORE on top of what's already there.
@@ -138,6 +148,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     init_state = og.sim.dump_state(serialized=True)
     results = []
     n_att = 0
+    last_run_draw = None                                 # highest draw index actually attempted -> resume cursor
     for g, params in variant_iter:
         n_have = n_existing + sum(r.ok for r in results)             # existing + this run -> resume toward N
         if target and (n_have >= target or n_att >= max_att):
@@ -145,6 +156,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         if limit_demos and n_have >= limit_demos:
             break
         n_att += 1
+        last_run_draw = params.draw_index                # attempted (incl. failures); cursor skips past all tried k
         og.sim.load_state(init_state, serialized=True)
         robot.keep_still()
         for _ in range(3):
@@ -153,13 +165,13 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         out_dir = out_base / traj
         meta = {"family": fam_name, "source_task": src_task, "task": task_name, "traj": traj,
                 "target_key": target_key, "grasp_id": g.id, "approach": g.approach,
-                "draw": params.seed, "standoff_m": round(params.standoff_m, 4),
+                "seed": params.seed, "draw_index": params.draw_index, "standoff_m": round(params.standoff_m, 4),
                 "lift_clearance_mult": round(params.lift_clearance_mult, 3),
                 "jitter": params.jitter, "grasp_score": round(getattr(g, "score", 0.0), 3)}
         segs = skeleton.derive_segments(ctx, g, params)
         res = engine.run(ctx, skeleton, segs, gate, recorder, out_dir=out_dir, seed=params.seed, meta=meta)
         n_have2 = n_existing + sum(r.ok for r in results) + (1 if res.ok else 0)
-        print(f"[driver] {traj} g{g.id} draw{params.seed}: ok={res.ok} fail={res.fail_stage} "
+        print(f"[driver] {traj} g{g.id} seed{params.seed}: ok={res.ok} fail={res.fail_stage} "
               f"{res.detail} [{n_have2}/{target or '∞'} att={n_att}]", flush=True)
         results.append(res)
         if res.ok:
@@ -170,7 +182,8 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     elapsed = time.time() - t0
     summary = {"source_task": src_task, "task": task_name, "target_key": target_key,
                "target": target, "n_success": n_total, "n_collected_this_run": n_this,
-               "n_attempts": n_att, "reached_target": (target is None or n_total >= target),
+               "n_attempts": n_att, "next_draw": compute_next_draw(last_run_draw, start_k),
+               "reached_target": (target is None or n_total >= target),
                "elapsed_s": round(elapsed, 1), "dataset": dataset}
     (out_base / "_summary.json").write_text(json.dumps(summary, indent=2))
     status = "REACHED" if (target is None or n_total >= target) else "UNDER-TARGET"
@@ -200,11 +213,14 @@ if __name__ == "__main__":
     ap.add_argument("--grasping-mode", choices=["physical", "assisted", "sticky"], default=None,
                     help="override the family-default AG mode (e.g. force 'sticky' for a target that "
                          "is un-graspable by force closure); default None = use the family default")
+    ap.add_argument("--start-draw", type=int, default=None,
+                    help="force the resume draw cursor (overrides the summary's next_draw); use to "
+                         "recollect a deduped task with guaranteed-fresh seeds")
     a = ap.parse_args()
     run_task(a.task_dir, family=a.family, dataset=a.dataset, grasp_ids=a.grasp_ids,
              n_per_grasp=a.n_per_grasp, target=a.target, max_attempts=a.max_attempts,
              score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos,
-             grasping_mode=a.grasping_mode)
+             grasping_mode=a.grasping_mode, start_draw=a.start_draw)
     # The Python interpreter teardown SEGFAULTS during torch/Isaac extension unload (faulthandler dump
     # right after the "[driver] DONE" line). That abnormal exit leaves the GPU's CUDA context in a "bad
     # state" that accumulates across per-task process restarts into the per-GPU wedge. All data is already

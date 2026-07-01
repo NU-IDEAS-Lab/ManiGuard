@@ -58,6 +58,9 @@ def main() -> int:
     ap.add_argument("--no-score", dest="score", action="store_false")
     ap.add_argument("--skip-existing", action="store_true",
                     help="skip tasks whose _summary.json already reaches the target")
+    ap.add_argument("--start-draw", type=int, default=None,
+                    help="passthrough to the driver: force the resume draw cursor for every task in this "
+                         "sweep (recollect deduped tasks with fresh seeds)")
     ap.add_argument("--exit-on-wedge", action="store_true",
                     help="if a task leaves no _summary.json (driver crashed = GPU CUDA 'bad state' wedge "
                          "or hard segfault), exit immediately (rc=2) so a supervisor can idle-recover the "
@@ -106,6 +109,8 @@ def main() -> int:
                "--target", str(a.target)]
         if a.max_attempts:
             cmd += ["--max-attempts", str(a.max_attempts)]
+        if a.start_draw is not None:
+            cmd += ["--start-draw", str(a.start_draw)]
         cmd += (["--score"] if a.score else [])
         print(f"[sweep] ({ti + 1}/{len(my_tasks)}) {task} -> {log}", flush=True)
         t0 = time.time()
