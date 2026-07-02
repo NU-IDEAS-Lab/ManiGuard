@@ -95,12 +95,15 @@ def main() -> int:
     fname = key.replace("/", "__") + ".glb"
     mesh.export(OUT / "meshes" / fname)
 
+    from maniguard.data.datagen.annotation.family_membership import obj_families
     db = json.load(open(OUT / "mesh_db.json"))
     db["objects"][key] = {
         "category": cat, "model": model,
         "upright_orientation_xyzw": [float(v) for v in _to_np(rq)],
         "mesh": f"meshes/{fname}", "bbox_size": [float(v) for v in mesh.extents],
-        "source_task": meta["source_task"], "grasps": [],
+        "source_task": meta["source_task"],
+        "families": sorted(obj_families(db["objects"].get(key, {})) | {"cabinet_pickup"}),
+        "grasps": [],
         "articulated": True, "handle_object": True, "j_extract": j_extract,
     }
     json.dump(db, open(OUT / "mesh_db.json", "w"), indent=2)

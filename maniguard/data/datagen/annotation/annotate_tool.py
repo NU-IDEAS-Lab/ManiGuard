@@ -38,11 +38,8 @@ APPROACHES = {
     "side_Y+": [0.0, 1.0, 0.0], "side_Y-": [0.0, -1.0, 0.0],
 }
 
-# family stem -> source_task prefix (used by --family to annotate one family at a time).
-FAMILY_STEMS = {
-    "clutter": "clutter_pickup/", "jar": "jar_transport/", "lid": "lid_transport/",
-    "dusty": "dusty_transfer/", "stack": "stack_retrieve/", "cabinet": "cabinet_pickup/",
-}
+# FAMILY_STEMS + the multi-family membership test live in family_membership (shared, no heavy deps).
+from maniguard.data.datagen.annotation.family_membership import FAMILY_STEMS, obj_in_family
 
 
 def _xyzw_to_wxyz(q):
@@ -88,9 +85,7 @@ class App:
         self.db = json.load(open(MESH_DB))
         keys = list(self.db["objects"])
         if families:
-            stems = tuple(FAMILY_STEMS[f] for f in families)
-            keys = [k for k in keys
-                    if str(self.db["objects"][k].get("source_task", "")).startswith(stems)]
+            keys = [k for k in keys if obj_in_family(self.db["objects"][k], families)]
         self.keys = sorted(keys)               # alphabetical so the jump list / prev-next are findable
         self.gripper = _load_mesh(GRIPPER)
         self.ann = self._load_ann()

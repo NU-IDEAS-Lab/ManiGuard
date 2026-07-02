@@ -20,6 +20,8 @@ import glob
 import json
 from pathlib import Path
 
+from maniguard.data.datagen.annotation.family_membership import obj_families
+
 ALL_FAMILIES = ["clutter_pickup", "jar_transport", "lid_transport",
                 "dusty_transfer", "stack_retrieve", "cabinet_pickup"]
 BENCH = Path("outputs/lerobot_datasets/maniguard-bench")
@@ -70,6 +72,28 @@ def _graspable_names(diag: dict) -> list[str]:
     return names
 
 
+def _stack_instance_names(diag: dict, scene: dict) -> list[str]:
+    """For ``stack_retrieve``: one scene instance name per relocated STACK ``(category, model)``.
+    The 3 stack objects ARE grasped (top-down pick + relocate) but are recorded in
+    ``selection.spawn_specs`` (role=``stack``), not in ``goal_region``/``obstacle_info`` — so
+    ``_graspable_names`` misses them (they differ from the target only in flat mode; same mode
+    shares the target's model and is already covered). Returns one name per distinct (cat, model)."""
+    sel = diag.get("selection") or {}
+    want = {(s.get("category"), s.get("model")) for s in sel.get("spawn_specs", [])
+            if s.get("role") == "stack" and s.get("category") and s.get("model")}
+    if not want:
+        return []
+    seen: set = set()
+    names: list[str] = []
+    for nm, info in scene.get("objects_info", {}).get("init_info", {}).items():
+        a = info.get("args", {})
+        cm = (a.get("category"), a.get("model"))
+        if cm in want and cm not in seen:
+            seen.add(cm)
+            names.append(nm)
+    return names
+
+
 def enumerate_targets(families) -> dict:
     """{``cat/model``: {category, model, upright_orientation_xyzw, source_task}} via pure
     JSON (no sim). Covers every GRASPED object (target + obstacle). First occurrence per
@@ -84,7 +108,7 @@ def enumerate_targets(families) -> dict:
                 scene = json.load(open(tdir / "scene_ep1.json"))
             except Exception:  # noqa: BLE001
                 continue
-            for nm in _graspable_names(diag):
+            for nm in _graspable_names(diag) + _stack_instance_names(diag, scene):
                 args = (scene.get("objects_info", {}).get("init_info", {})
                         .get(nm, {}).get("args", {}))
                 cat, model = args.get("category"), args.get("model")
@@ -207,8 +231,15 @@ def main() -> int:
             mesh = mesh_from_og_object(obj, use_visual=True)   # object-local trimesh
             fname = key.replace("/", "__") + ".glb"
             mesh.export(OUT / "meshes" / fname)
+            # multi-family membership: UNION this family into the object's families (never clobber another
+            # family's claim on a SHARED object); keep the FIRST source_task (a valid load-task for validate).
+            existing = db["objects"].get(key, {})
+            this_fam = str(targets[key].get("source_task", "")).split("/", 1)[0]
             db["objects"][key] = {
-                **targets[key],
+                "category": targets[key]["category"], "model": targets[key]["model"],
+                "upright_orientation_xyzw": targets[key]["upright_orientation_xyzw"],
+                "source_task": existing.get("source_task") or targets[key].get("source_task"),
+                "families": sorted(obj_families(existing) | ({this_fam} if this_fam else set())),
                 "bbox_size": [float(v) for v in mesh.extents],
                 "mesh": f"meshes/{fname}",
                 "grasps": [],

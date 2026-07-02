@@ -37,11 +37,9 @@ MESH_DB = ANN_DIR / "mesh_db.json"
 GRIPPER = ANN_DIR / "gripper_longfinger.glb"
 OUT = ANN_DIR / "mesh_review"
 
-# family stem -> source_task prefix (source_task lives in mesh_db, not the annotations).
-FAMILY_STEMS = {
-    "clutter": "clutter_pickup/", "jar": "jar_transport/", "lid": "lid_transport/",
-    "dusty": "dusty_transfer/", "stack": "stack_retrieve/", "cabinet": "cabinet_pickup/",
-}
+# FAMILY_STEMS + the multi-family membership test live in family_membership (shared, no heavy deps).
+# Re-exported here so ``from ...mesh_review import FAMILY_STEMS`` (fix_approach_tags) keeps working.
+from maniguard.data.datagen.annotation.family_membership import FAMILY_STEMS, obj_in_family  # noqa: E402
 
 # (label, elev, azim) viewpoints — oblique 3/4, side, and near-top for grasp coverage.
 VIEWS = [("oblique", 18.0, -60.0), ("side", 10.0, 30.0), ("top", 78.0, -90.0)]
@@ -107,9 +105,7 @@ def main() -> int:
     src = json.load(open(MESH_DB))["objects"] if MESH_DB.exists() else {}
     items = [(k, v) for k, v in ann["objects"].items() if v.get("grasps")]
     if args.family:
-        stems = tuple(FAMILY_STEMS[f] for f in args.family)
-        items = [(k, v) for k, v in items
-                 if str(src.get(k, {}).get("source_task", "")).startswith(stems)]
+        items = [(k, v) for k, v in items if obj_in_family(src.get(k, {}), args.family)]
     if args.object:
         items = [(k, v) for k, v in items if k == args.object]
     if not items:

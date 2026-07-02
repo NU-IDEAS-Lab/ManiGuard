@@ -25,7 +25,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
 from maniguard.data.datagen.annotation.mesh_review import (
-    ANN, ANN_DIR, FAMILY_STEMS, MESH_DB, classify_approach,
+    ANN, ANN_DIR, FAMILY_STEMS, MESH_DB, classify_approach, obj_in_family,
 )
 
 
@@ -40,9 +40,7 @@ def main() -> int:
     src = json.load(open(MESH_DB))["objects"] if MESH_DB.exists() else {}
     keys = [k for k, v in ann["objects"].items() if v.get("grasps")]
     if args.family:
-        stems = tuple(FAMILY_STEMS[f] for f in args.family)
-        keys = [k for k in keys
-                if str(src.get(k, {}).get("source_task", "")).startswith(stems)]
+        keys = [k for k in keys if obj_in_family(src.get(k, {}), args.family)]
     if args.object:
         keys = [k for k in keys if k == args.object]
 
