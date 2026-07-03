@@ -9,7 +9,7 @@ verified by the executor's real-time LTL gate (doc §0.1 revised, §4.3).
 Planned (clutter first = template; per-family high-level manip plan co-designed with user):
   - ``clutter`` : grasp(target) → transport(target→goal)            [template, first]
   - ``lid``     : grasp(lid) → place(lid,on=container) → grasp(container) → transport
-  - ``stack``   : grasp(bottom,side) → extract_lateral → transport
+  - ``stack``   : unstack 3 identical tops → one right-side re-stack pile → retrieve bottom → goal
   - ``dusty``   : grasp(sponge) → wipe(dest) → place(sponge) → grasp(source) → pour
   - ``jar``     : close_hinge(lid) → grasp(jar) → transport
   - ``cabinet`` : grasp(target) → place(target,in=drawer) → push_drawer(close)
@@ -18,9 +18,11 @@ Planned (clutter first = template; per-family high-level manip plan co-designed 
 """
 from maniguard.data.datagen.families.cabinet import CabinetSkeleton
 from maniguard.data.datagen.families.clutter import ClutterSkeleton
+from maniguard.data.datagen.families.stack import StackSkeleton
 
 FAMILY = {
     "clutter": ClutterSkeleton,
     "cabinet": CabinetSkeleton,
+    "stack": StackSkeleton,
 }
 

@@ -120,6 +120,10 @@ class MotionSegment:
     #                                        intersecting the goal sphere (pull the eef back toward the robot;
     #                                        optionally add an upright-preserving world-Z yaw). See engine
     #                                        ._reach_fallback_transport. The precise plan stays the normal path.
+    no_salvage: bool = False                # require a genuinely-successful (collision-free) cuRobo solve —
+    #                                        skip the endpoint-tol salvage (which can keep a colliding path).
+    #                                        The stack target transport sets this so a winding salvaged path
+    #                                        never knocks the just-built re-stack pile.
 
 
 @dataclass
@@ -225,6 +229,14 @@ class FamilySkeleton(ABC):
     def variation_knobs(self, ctx: TaskContext) -> dict[str, Any]:
         """Which waypoints / ranges may jitter for diversity. Default: engine defaults."""
         return {}
+
+    def score_drop_extra(self, ctx: TaskContext) -> list:
+        """Extra scene objects the driver should ALSO drop from the collision world when it scores the
+        TARGET grasp (``score_grasps`` accepts a LIST target = multi-drop). Default: none. A family whose
+        target is BURIED at scoring time but EXPOSED by execution time (stack: the bottom object under the
+        pile, which is uncovered before it is grasped) returns the objects that will be gone by then —
+        else the still-covered target scores 0-reachable and the sampler yields no variants."""
+        return []
 
     def relocate_prefer_top_down(self) -> bool:
         """Whether the driver should rank the TARGET's Phase-1 relocate grasps top-down-first (a

@@ -109,7 +109,10 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
 
     if score:
         from maniguard.data.datagen.executor.grasp_select import score_grasps
-        cands = score_grasps(world, robot, target_obj, cands,
+        # score_grasps drops the target from the collision world; a family may add MORE objects to drop
+        # (stack: the pile above the buried bottom target, gone by the time it is grasped) via score_drop_extra.
+        drop_target = [target_obj, *skeleton.score_drop_extra(ctx)]
+        cands = score_grasps(world, robot, drop_target, cands,
                              prefer_top_down=skeleton.relocate_prefer_top_down(),
                              prefer_wrist_dir=skeleton.relocate_open_dir(ctx))
 

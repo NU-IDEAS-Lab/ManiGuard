@@ -1660,3 +1660,21 @@ converter, finally written: `maniguard/data/datagen/to_lerobot.py` repackages th
   (loads, 5 video + state + 2 actions, image decodes 256², numbers match raw, prompt in tasks.jsonl).
   spec+plan+test local-only per user. Full clutter 2200-ep run on the Vast server.
   See [[project_clutter_liquid_reach_fixes]].
+
+## 2026-07-02 — stack_retrieve family (unstack → re-stack → retrieve) + planning-pipeline fixes
+
+New `stack` family (`families/stack.py` + `stack_geom.py` + `stack_grasp_depth.py`): unstack the 3
+identical top objects onto one right-side re-stack pile, then retrieve the exposed bottom target into
+the goal (held). Manipulation: **geometric shallow-grab** — retract each pick along its approach axis so
+the gripper grabs ONLY the top object, never the one below (trimesh proximity, no python-fcl);
+**upright-aligned re-stack** — reorient each object to its DB upright + realign xy so every placed object
+shares pose+xy, only z differs → they stack/nest stably; **live per-phase transfer height** clearing the
+whole gripper AND the held object, recomputed each phase so it drops as the pile shrinks (unblocks tall
+stacks); **dest rail-clearance by the chosen grasp's actual eef offset** (no over-push of wide objects) +
+robot-ward pull on narrow/arc tables; **downstream-reachable grasp selection** — prefer dest-side grasps
+and IK-probe the carry, rejecting picks that can't be transferred; family **multi-grab acceptance gate**;
+**target transport requires a clean (non-salvaged) cuRobo solve** so a winding path never knocks the pile.
+Executor seams (family-agnostic): `FamilySkeleton.score_drop_extra / on_segment / success_extra`,
+`MotionSegment.no_salvage`, per-step object-pose trace in `engine._write_trace_line`. Validated:
+task_0000 (plate) 0→1/2, task_0013 (bowl) 2/2, task_0021 (bottle) 1→2/2; shoe_box 0022/0026 remain
+reach-limited (report-level). See [[project_maniguard_stack_family]].

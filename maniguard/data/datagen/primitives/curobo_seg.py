@@ -51,9 +51,13 @@ def _flt_at(e, j):
             return None
 
 
-def _salvage(full, pos_tol: float, rot_tol: float, label: str):
-    """Pick the first batch path that succeeded, or that converged within tol
+def _salvage(full, pos_tol: float, rot_tol: float, label: str, *, allow_salvage: bool = True):
+    """Pick the first batch path that succeeded, or (when ``allow_salvage``) that converged within tol
     despite ``success=False``. Returns ``(joint_state|None, salvaged, pos_err, rot_err)``.
+
+    ``allow_salvage=False`` accepts ONLY a genuinely-successful (collision-free) cuRobo solve — the
+    tol-based recovery only checks the ENDPOINT pose, so a salvaged path can collide ALONG the way. The
+    target transport requires a clean solve (else a winding salvaged path knocks the just-built pile).
     """
     for i, r in enumerate(full):
         try:
@@ -76,10 +80,10 @@ def _salvage(full, pos_tol: float, rot_tol: float, label: str):
             path_js = paths[j]
             if path_js is None:
                 continue
-            accepted = is_succ or (
+            accepted = is_succ or (allow_salvage and (
                 (pos_err is None or pos_err < pos_tol)
                 and (rot_err is None or rot_err < rot_tol)
-            )
+            ))
             if accepted:
                 salvaged = not is_succ
                 if salvaged:
@@ -133,7 +137,7 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
                   eef_link: str | None = None, label: str = "",
                   pos_tol: float = 0.005, rot_tol: float = 0.03,
                   ik_rot_relax: float | None = None, ik_pos_relax: float | None = None,
-                  diagnose_on_fail: bool = False) -> SegmentResult | None:
+                  diagnose_on_fail: bool = False, no_salvage: bool = False) -> SegmentResult | None:
     """Plan one collision-free segment to ``(eef_goal_pos, eef_goal_quat)`` (world
     frame) from ``initial_joint_pos`` (full-DoF). Returns a :class:`SegmentResult`
     or ``None`` on failure.
@@ -213,7 +217,8 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
         if _saved_pos_thresh is not None:
             ik_solver.position_threshold = _saved_pos_thresh
 
-    joint_state, salvaged, pos_err, rot_err = _salvage(full, salvage_pos_tol, salvage_rot_tol, label)
+    joint_state, salvaged, pos_err, rot_err = _salvage(full, salvage_pos_tol, salvage_rot_tol, label,
+                                                       allow_salvage=not no_salvage)
     if joint_state is None:
         print(f"[datagen.curobo] segment {label!r}: FAILED (0/{int(bs)} successes)",
               flush=True)

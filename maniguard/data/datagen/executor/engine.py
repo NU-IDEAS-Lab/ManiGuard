@@ -364,6 +364,20 @@ class DemoEngine:
                 rec["oav"] = [round(float(v), 3) for v in _np(tgt.get_angular_velocity())]
             except Exception:  # noqa: BLE001
                 pass
+        try:                                   # per-step pose of EVERY manipulable object (non-fixed,
+            robots = set(self.env.robots)      # non-robot): detect multi-object grab / a state teleport /
+            objs, objq = {}, {}                # (objq) placement-orientation alignment across stack objects
+            for o in self.env.scene.objects:
+                if o in robots or getattr(o, "fixed_base", False):
+                    continue
+                p, q = o.get_position_orientation()
+                nm = getattr(o, "name", "?")
+                objs[nm] = [round(float(v), 4) for v in _np(p)]
+                objq[nm] = [round(float(v), 4) for v in _np(q)]
+            rec["objs"] = objs
+            rec["objq"] = objq
+        except Exception:  # noqa: BLE001
+            pass
         self._trace_f.write(json.dumps(rec) + "\n")
         self._trace_f.flush()
 
@@ -459,14 +473,16 @@ class DemoEngine:
                     res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
                                         timeout=self.timeout, attach_obj=attach,
                                         motion_constraint=mc, label=tag, ik_rot_relax=seg.rot_relax,
-                                        ik_pos_relax=seg.pos_relax, diagnose_on_fail=True)
+                                        ik_pos_relax=seg.pos_relax, diagnose_on_fail=True,
+                                        no_salvage=seg.no_salvage)
                     if res is None and mc is not None:
                         # this cuRobo build often rejects the partial-pose (LINEAR_SERVO) query;
                         # fall back to an unconstrained solve (reference grasp.py:140-147).
                         res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
                                             timeout=self.timeout, attach_obj=attach,
                                             motion_constraint=None, label=tag + ":unconstrained",
-                                            ik_rot_relax=seg.rot_relax, ik_pos_relax=seg.pos_relax)
+                                            ik_rot_relax=seg.rot_relax, ik_pos_relax=seg.pos_relax,
+                                            no_salvage=seg.no_salvage)
                     if res is not None:
                         break
                 if res is None and seg.reach_fallback:
