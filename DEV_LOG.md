@@ -1678,3 +1678,26 @@ Executor seams (family-agnostic): `FamilySkeleton.score_drop_extra / on_segment 
 `MotionSegment.no_salvage`, per-step object-pose trace in `engine._write_trace_line`. Validated:
 task_0000 (plate) 0→1/2, task_0013 (bowl) 2/2, task_0021 (bottle) 1→2/2; shoe_box 0022/0026 remain
 reach-limited (report-level). See [[project_maniguard_stack_family]].
+
+## 2026-07-03 — stack shoe_box hard cases resolved by object swap + thin-object shallow-grab fallback
+
+The two reach-limited shoe_box stack tasks are fixed not by a pipeline change but by **swapping the
+object**: bench `stack_retrieve/task_0022` shoe_box/pitwey → **toy_dice/ievnsq** (4 cm cube) and
+`task_0026` shoe_box/gvwcka → **folder/lktggf** (thin), same-mode. Small/compact objects remove the
+reach problem entirely (tiny footprint → dest close; short stack → no vertical reach). Done via two
+LOCAL tools (not committed) modelled on the cabinet swap — `tools/stack_swap_object.py` (rename all 4
+task objects + restack at the new bbox thickness + patch selection/spawn_specs/goal-names/ltl-globs/
+prompt) and `tools/stack_rerender_base.py` (`finalize_base_task` = settle physics + re-render 4 videos +
+recompute cameras/gate/LTL/surface). Both `base` + all 4 perturbations (env/target/location/language)
+regenerated for both tasks, review_grids rebuilt, and only the 0022/0026 leaf json+videos pushed to
+`IDEAS-Lab-Northwestern/ManiGuard-Bench`. folder mesh + 11 hand-annotated grasps extracted into the
+local (gitignored) grasp DB.
+
+Committed code change: **thin-object shallow-grab fallback** in `families/stack.py::select_grasps`. The
+geometric shallow-grab returns None when the gripper is thicker than the object's stack gap (e.g. a 4 cm
+cube — no retraction can clear the layer below while still contacting the top), which previously
+`raise`d and aborted the task. It now **falls back to a full-depth grasp** (`descend_pos=None`) instead;
+the sticky AG grabs the between-fingers top object and the multi-grab acceptance gate still rejects any
+demo that drags two. Collection validated: toy_dice 2/2 (2 attempts, no multi-grab), folder 2/2 (4
+attempts; residual failures are the pre-existing buggy `t_place` partial-pose query falling back to a
+stochastic unconstrained solve, not object-specific). See [[project_maniguard_stack_family]].

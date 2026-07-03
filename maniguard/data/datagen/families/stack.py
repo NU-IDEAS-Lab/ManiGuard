@@ -298,10 +298,16 @@ class StackSkeleton(FamilySkeleton):
                                            (_np(op), _np(oq)), margin=self.SHALLOW_MARGIN,
                                            contact_tol=self.SHALLOW_CONTACT_TOL, d_max=self.SHALLOW_D_MAX)
             if d is None:
-                raise ValueError(f"stack: no shallow grasp for {it.name} ({key}) — gripper thicker than "
-                                 f"the stack gap above {below_key} (raise the annotated grasp or skip task)")
-            it.descend_pos = it.grasp_pos - float(d) * (approach / float(np.linalg.norm(approach)))
-            shallow_ds.append(round(float(d), 3))
+                # thin object (gripper thicker than the object's stack gap): no shallow depth can isolate the
+                # top instance from the one below. Fall back to the FULL grasp depth — the multi-grab
+                # acceptance gate (success_extra) still rejects any demo that actually drags 2 objects.
+                it.descend_pos = None                              # None => derive_segments uses full grasp_pos
+                shallow_ds.append(None)
+                print(f"[datagen.stack] {it.name} ({key}): no shallow depth (thin object) -> full-depth grasp",
+                      flush=True)
+            else:
+                it.descend_pos = it.grasp_pos - float(d) * (approach / float(np.linalg.norm(approach)))
+                shallow_ds.append(round(float(d), 3))
 
         # Fix 1: finalise the dest from the CHOSEN grasps' ACTUAL eef offset toward the source. The rail
         # only clips group1 when a grasp points the eef (hence the rail) at it; a wide / centre grasp keeps
