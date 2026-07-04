@@ -163,28 +163,32 @@ def _build_configs() -> list[TrainConfig]:
             ).get_freeze_filter(),
             ema_decay=None,
         ),
-        # Sim cabinet-pickup (place the paper towel holder into the cabinet's open
-        # drawer and close it, without knocking anything over), LIBERO 2-cam,
-        # JOINT controller.
+        # Sim cabinet-pickup (open the table-top cabinet drawer, put the target
+        # object inside, and close it without knocking anything over), LIBERO 2-cam,
+        # JOINT controller. DATAGEN v1 dataset (35 base tasks x 40 = 1400 demos).
         #
-        # Dataset: IDEAS-Lab-Northwestern/sim-cabinet-pickup-30-joint-3cam
-        #   3-cam rendered (image_left/image_right/wrist) but consumed 2-cam
-        #   (image_left + wrist; image_right dropped, third slot black). 8-D joint
-        #   state + 8-D absolute-joint action; use_delta_joint_actions=True.
-        # warm-start = pi05_base.
+        # Dataset: IDEAS-Lab-Northwestern/datagen-cabinet-v1-joint-5cam (private)
+        #   5-cam rendered (image_opposite/left/right/left_shoulder + wrist_image)
+        #   but consumed 2-cam: external_cam="left" overview + wrist_image; the
+        #   other views dropped, pi0.5's third image slot zero-filled + masked.
+        #   8-D joint state + 8-D absolute-joint action; use_delta_joint_actions=True.
+        # warm-start = pi05_base. discrete_state_input=True (pi0.5: the 8-D robot
+        #   state is discretized + tokenized into the language prefix alongside the
+        #   prompt) -- set explicitly (Pi0Config would resolve None->pi05 anyway).
         #
-        # Training scale: ~2 epochs over the 22,684-frame set at batch 12, rounded
-        #   up to a clean 4000 steps. keep_period = 1000 matches the 1000-step
-        #   save_interval, so checkpoints land at 1000/2000/3000/4000.
-        # dtype=float32 + fsdp_devices=4: see the dusty-transfer config above for
-        # the rationale (FSDP-sharded bf16 diverges to NaN; float32 is stable).
+        # Training scale: 2 epochs over the 4,172,962-frame set at batch 32
+        #   (4_172_962 * 2 / 32 = 260,811 -> rounded UP to 261,000 to guarantee a
+        #   full 2 epochs). decay_steps == num_train_steps; keep_period = steps // 5
+        #   (5 checkpoints); warmup 3%; peak_lr sqrt-scaled from 2.5e-5 @ batch 8.
+        #   dtype=bfloat16 (single-GPU, no FSDP -> the float32-for-FSDP-NaN reason
+        #   does not apply; bf16 is faster + leaves more batch headroom).
         TrainConfig(
-            name="pi05_base_cabinet_pickup_joint_2cam_lora",
+            name="pi05-base_datagen_v1_cabinet_joint_2cam_lora",
             project_name="maniguard-sft",
             policy_metadata={
-                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-cabinet-pickup-joint-2cam-lora",
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-datagen-v1-cabinet-joint-2cam-lora",
                 "hf_private": False,
-                "default_exp": "cabinet_pickup_joint_2cam",
+                "default_exp": "datagen_v1_cabinet_joint_2cam",
             },
             model=pi0_config.Pi0Config(
                 pi05=True,
@@ -193,30 +197,29 @@ def _build_configs() -> list[TrainConfig]:
                 paligemma_variant="gemma_2b_lora",
                 action_expert_variant="gemma_300m_lora",
                 dtype="bfloat16",
+                discrete_state_input=True,  # pi0.5: 8-D robot state -> discrete prompt tokens
             ),
             data=Sim2CamLiberoDataConfig(
-                repo_id="IDEAS-Lab-Northwestern/sim-cabinet-pickup-30-joint-3cam",
+                repo_id="IDEAS-Lab-Northwestern/datagen-cabinet-v1-joint-5cam",
                 base_config=DataConfig(prompt_from_task=True),
                 use_delta_joint_actions=True,  # JointController: MUST be True
-                # cab's left overview is low-quality; train (and eval) on image_right instead.
-                external_cam="right",
+                external_cam="left",  # reviewed: datagen cabinet left overview is good
             ),
             weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
-            # ~2 epochs @ batch 12 rounded up to a clean 4000 steps; sqrt-LR recipe
-            # (base 2.5e-5 @ batch 8): peak_lr = 2.5e-5 * sqrt(12/8) ~= 3e-5;
-            # decay_lr = peak/10; warmup ~10%.
+            # sqrt-LR (base 2.5e-5 @ batch 8): peak = 2.5e-5*sqrt(32/8) = 5e-5;
+            # decay_lr = peak/10; warmup 3% of steps; decay_steps == num_train_steps.
             lr_schedule=_optimizer.CosineDecaySchedule(
-                warmup_steps=200,  # ~10% of 2000
-                peak_lr=4.3e-5,  # 2.5e-5 * sqrt(24/8)
-                decay_steps=2_000,  # == num_train_steps
-                decay_lr=4.3e-6,  # peak/10
+                warmup_steps=7_830,  # 3% of 261,000
+                peak_lr=5e-5,  # 2.5e-5 * sqrt(32/8)
+                decay_steps=261_000,  # == num_train_steps
+                decay_lr=5e-6,  # peak/10
             ),
-            num_train_steps=2_000,  # ~2 epochs @ batch 24 (22,684 frames)
-            batch_size=24,
-            num_workers=12,  # CPU dataloader prefetch workers (pyav decode is CPU-bound)
+            num_train_steps=261_000,  # 2 epochs @ batch 32 (4,172,962 frames), rounded up
+            batch_size=32,
+            num_workers=16,  # CPU dataloader prefetch workers (pyav decode is CPU-bound)
             log_interval=5,  # loss logging cadence
             fsdp_devices=1,  # single GPU: full data-parallel, no sharding
-            keep_period=1_000,  # matches the 1000-step save cadence -> ckpts at 1000/2000/3000/4000
+            keep_period=52_200,  # steps // 5 -> 5 evenly-spaced checkpoints
             freeze_filter=pi0_config.Pi0Config(
                 pi05=True,
                 action_dim=32,
@@ -228,37 +231,29 @@ def _build_configs() -> list[TrainConfig]:
         ),
         # Sim pnp-clutter (pick the target object out of a cluttered tabletop and
         # move it into the green goal sphere), LIBERO 2-cam, JOINT controller.
+        # DATAGEN v1 dataset (42 base tasks, 2200 demos / 901,520 frames).
         #
-        # PROVENANCE — different from the four teleop families above. This config
-        # is migrated from the collaborator SFT fork
-        # (github.com/666harrypeng/openpi-maniguard @ maniguard-sft,
-        # src/openpi/training/config.py :: pi05_base_pnp_clutter_joint_2cam_lora)
-        # so all evaluable joint checkpoints have their train config in one place
-        # here. The clutter data was NOT collected by GELLO teleop; it is a large
-        # cuRobo-automated (motion-planned) pick-and-place set, hence the very
-        # different scale (1070 eps / 12 tasks / ~1.70M frames vs the 30-ep teleop
-        # families). Only the POLICY-SHAPE parameters are reproduced strictly; the
-        # training-scale knobs are placeholders (see note on lr/steps below).
+        # Dataset: IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam (private)
+        #   5-cam rendered (image_opposite/left/right/left_shoulder + wrist_image)
+        #   but consumed 2-cam: external_cam="left" overview + wrist_image; the
+        #   other views dropped, pi0.5's third image slot zero-filled + masked.
+        #   8-D joint state + 8-D absolute-joint action; use_delta_joint_actions=True.
+        # warm-start = pi05_base. discrete_state_input=True (pi0.5: the 8-D robot
+        #   state is discretized + tokenized into the language prefix alongside the
+        #   prompt) -- set explicitly (Pi0Config would resolve None->pi05 anyway).
         #
-        # Dataset: IDEAS-Lab-Northwestern/sentinel-pnp-clutter-joint (public)
-        #   3-cam rendered but consumed 2-cam (image_left + wrist; image_right
-        #   dropped, third slot black) — identical policy I/O to the teleop
-        #   families. Sim2CamLiberoDataConfig here is the exact equivalent of the
-        #   fork's LeRobotPnPMultitask2CamDataConfig (same repack, same
-        #   Inputs/Outputs slot mapping, same DeltaActions/AbsoluteActions with
-        #   make_bool_mask(7, -1)). 8-D joint state + 8-D absolute-joint action.
-        # use_delta_joint_actions=True — JointController pipeline (REQUIRED).
-        # discrete_state_input — NOT set here, so it stays at Pi0Config's default.
-        #   The field literally defaults to None, and Pi0Config.__post_init__ then
-        #   resolves None -> self.pi05; with pi05=True that yields True. 
-        # warm-start = pi05_base.
+        # Training scale: 2 epochs over the 901,520-frame set at batch 32
+        #   (901_520 * 2 / 32 = 56,345 -> rounded UP to 57,000 to guarantee a full
+        #   2 epochs). decay_steps == num_train_steps; keep_period = steps // 5
+        #   (5 checkpoints); warmup 3%; peak_lr sqrt-scaled from 2.5e-5 @ batch 8.
+        #   dtype=bfloat16 (single-GPU, no FSDP).
         TrainConfig(
-            name="pi05_base_pnp_clutter_joint_2cam_lora",
+            name="pi05-base_datagen_v1_clutter_joint_2cam_lora",
             project_name="maniguard-sft",
             policy_metadata={
-                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-pnp-clutter-joint-2cam-lora",
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-datagen-v1-clutter-joint-2cam-lora",
                 "hf_private": False,
-                "default_exp": "pnp_clutter_joint_2cam",
+                "default_exp": "datagen_v1_clutter_joint_2cam",
             },
             model=pi0_config.Pi0Config(
                 pi05=True,
@@ -266,36 +261,30 @@ def _build_configs() -> list[TrainConfig]:
                 action_horizon=16,
                 paligemma_variant="gemma_2b_lora",
                 action_expert_variant="gemma_300m_lora",
-                # float32 for FSDP-sharded numerical stability (see dusty config).
-                # The original fork run was bf16 on 8x80GB full data-parallel; this
-                # only affects training numerics, not the policy's inference I/O.
-                dtype="float32",
+                dtype="bfloat16",
+                discrete_state_input=True,  # pi0.5: 8-D robot state -> discrete prompt tokens
             ),
             data=Sim2CamLiberoDataConfig(
-                repo_id="IDEAS-Lab-Northwestern/sentinel-pnp-clutter-joint",
+                repo_id="IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam",
                 base_config=DataConfig(prompt_from_task=True),
                 use_delta_joint_actions=True,  # JointController: MUST be True
+                external_cam="left",  # reviewed: datagen clutter left overview is good
             ),
             weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
-            # TRAINING SCALE = PLACEHOLDER. The fork's active run was sized for an
-            # 8x80GB box (batch 64, 54_000 steps ~= 2 epochs over 1.70M frames,
-            # peak_lr 7e-5 = 2.5e-5*sqrt(64/8)). Retune num_train_steps / batch_size
-            # / decay_steps / keep_period / peak_lr TOGETHER for the actual compute
-            # box, keeping ~2 epochs and decay_steps == num_train_steps. The values
-            # below are a conservative single-/few-GPU placeholder, NOT the fork's
-            # validated recipe.
+            # sqrt-LR (base 2.5e-5 @ batch 8): peak = 2.5e-5*sqrt(32/8) = 5e-5;
+            # decay_lr = peak/10; warmup 3% of steps; decay_steps == num_train_steps.
             lr_schedule=_optimizer.CosineDecaySchedule(
-                warmup_steps=2_000,
-                peak_lr=7e-5,  # fork value @ batch 64; rescale if you change batch
-                decay_steps=54_000,  # == num_train_steps
-                decay_lr=7e-6,  # peak/10
+                warmup_steps=1_710,  # 3% of 57,000
+                peak_lr=5e-5,  # 2.5e-5 * sqrt(32/8)
+                decay_steps=57_000,  # == num_train_steps
+                decay_lr=5e-6,  # peak/10
             ),
-            num_train_steps=54_000,  # PLACEHOLDER: ~2 epochs @ batch 64 (1.70M frames)
-            batch_size=12,  # PLACEHOLDER: scale to your box (fork used 64 on 8xH100)
-            num_workers=8,  # CPU dataloader prefetch workers
-            log_interval=25,  # loss logging cadence
-            fsdp_devices=4,  # shard across 4 GPUs (see dusty-transfer config note)
-            keep_period=10_800,  # steps // 5 -> 5 evenly-spaced checkpoints
+            num_train_steps=57_000,  # 2 epochs @ batch 32 (901,520 frames), rounded up
+            batch_size=32,
+            num_workers=16,  # CPU dataloader prefetch workers (pyav decode is CPU-bound)
+            log_interval=5,  # loss logging cadence
+            fsdp_devices=1,  # single GPU: full data-parallel, no sharding
+            keep_period=11_400,  # steps // 5 -> 5 evenly-spaced checkpoints
             freeze_filter=pi0_config.Pi0Config(
                 pi05=True,
                 action_dim=32,
