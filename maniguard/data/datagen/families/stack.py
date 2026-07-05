@@ -90,6 +90,7 @@ class StackSkeleton(FamilySkeleton):
         self.grip_settle_steps = int(grip_settle_steps)
         # per-task state, populated by _prepare/select_grasps (Task 4)
         self._prepared_for: str | None = None
+        self._hints: dict = {}                # per-task opt-in manip tweaks (set in _prepare from diagnostics)
         self._stack: list[_StackItem] = []
         self._z_top0: float = 0.0
         self._dest_xy: np.ndarray | None = None
@@ -197,6 +198,9 @@ class StackSkeleton(FamilySkeleton):
         from maniguard.data.datagen.families import stack_grasp_depth as SD
 
         env, diag = ctx.env, ctx.diagnostics
+        # per-task opt-in manipulation tweaks (present ONLY in the two hard tasks' diagnostics; absent
+        # everywhere else -> every other task keeps byte-identical behaviour, no regression needed).
+        self._hints = diag.get("datagen_hints") or {}
         want = self._stack_specs(diag)
         insts = [o for o in env.scene.objects
                  if (getattr(o, "category", None), getattr(o, "model", None)) in want
@@ -277,7 +281,15 @@ class StackSkeleton(FamilySkeleton):
             # transfer IK), then take the first whose CARRY to over-dest is ALSO IK-reachable (bounded).
             reach = [c for c in scored if c.reachable] or scored
             c_xy = G.object_center(it.obj)[:2]
-            reach.sort(key=lambda cc: float(np.dot(_np(cc.eef_pos)[:2] - c_xy, self._right)), reverse=True)
+            # Fix 3 prefers DEST-side grasps (shorter carry). BUT when the target has geometry that
+            # protrudes UP into the grasp on the dest side (task_0007: the router's antenna sits on the
+            # re-stack side), a dest-side top-down grasp drives the fingers around the antenna/body and the
+            # sticky AG grabs the TARGET. The ``stack_grasp_avoid_dest_side`` hint (0007 only) FLIPS the
+            # preference to the FAR-from-dest side (away from the antenna) — still top-down, just the far
+            # end of the stack object. Absent on every other task -> unchanged dest-side preference.
+            _avoid_dest = bool(self._hints.get("stack_grasp_avoid_dest_side"))
+            reach.sort(key=lambda cc: float(np.dot(_np(cc.eef_pos)[:2] - c_xy, self._right)),
+                       reverse=not _avoid_dest)
             best = reach[0] if reach else None
             for cc in reach[:4]:                               # cap the downstream IK probes
                 if self._carry_reachable(ctx, world, robot, cc):
@@ -372,8 +384,13 @@ class StackSkeleton(FamilySkeleton):
                           grip_steps=steps, compute="safe_up", extra=dict(ph)),
             MotionSegment(f"s{i}_over", over, gq, mode=Mode.SERVO, grip=Grip.OPEN, grip_steps=steps,
                           compute="over_at_hsafe", extra=dict(ph)),
-            MotionSegment(f"s{i}_descend", dpos, gq, mode=Mode.FREE, grip=Grip.CLOSE,
-                          grip_steps=steps, ignore_clutter=True),
+            # Default = FREE (cuRobo point-to-point) descent into the grasp. The ``clean_vertical_descend``
+            # hint (task_0010 only: a fragile stack of small regular cubes) swaps it for a PURE-VERTICAL
+            # SERVO straight-down from the over-pose, so the fingers close with no lateral push and the
+            # cube tower is not nudged over before the grasp settles. Absent elsewhere -> unchanged FREE.
+            MotionSegment(f"s{i}_descend", dpos, gq,
+                          mode=(Mode.SERVO if self._hints.get("clean_vertical_descend") else Mode.FREE),
+                          grip=Grip.CLOSE, grip_steps=steps, ignore_clutter=True),
             MotionSegment(f"s{i}_lift", gpos.copy(), gq, mode=Mode.SERVO, grip=Grip.HOLD,
                           attach=True, compute="safe_up", extra=dict(phi),
                           servo_step_m=self.GENTLE_STEP, servo_spw=self.GENTLE_SPW),
