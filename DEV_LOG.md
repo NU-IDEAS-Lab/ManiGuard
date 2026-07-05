@@ -1742,3 +1742,38 @@ plate by position instead — no more double-grab, and the cascaded `s1_reorient
 Datagen re-test (target 2, max-attempt 6): 0018/0019 **2/2** (no regression), 0001 **2/2**, 0023 0/2→**1/2**,
 0020/0025 **1/2** (grasp-freedom-limited — server + more attempts). See
 [[project_maniguard_stack_family]], [[project_maniguard_stack_sweep_findings]].
+
+## 2026-07-05 — stack full-family: reach-cap fix + goal-shrink + per-task hints (25/28 collectable)
+
+Continued the full-family `stack_retrieve` push (2 committed + local bench/grasp data).
+
+**Adaptive-gap reach-cap fix** (committed `5a506744` `stack_geom.py`). Re-testing after the prior fixes
+showed task_0000 REGRESSED to 0/6 — every attempt `s0_carry servo_ik_fail`. The adaptive gap capped its
+widening at the dest CENTRE's `reach_comfort`, but the re-stack CARRY reaches `over_dest = centre +
+grasp_offset` (up to `+stack_half` away from the robot). A thick pile's carry target sat ~stack_half
+beyond comfort while the centre looked fine (0000: centre 0.70 < 0.72 but over_dest 0.81). Pull the reach
+cap in by `stack_half`. Monotonic tightening of the opt-in gap only, floored at the minimal-gap dest, so
+thin piles + every passing task are unchanged (0018/0023 no regression; 0000 0/6 → 2/2).
+
+**Goal-shrink for the chopping-board tasks** (bench data, LOCAL; new tool `tools/stack_shrink_goal.py`).
+All 8 board goals sat 0.74–0.87 m radial — BEYOND the Franka comfort reach (0.72): the retrieval goal is
+never comfort-clamped (only the re-stack dest is, Fix 4). Move each goal 30% toward the target's initial
+position (patch `goal_region.center_world` + the marker in scene_ep). Applied to 0000–0006 + 0020 (0025
+already close). Recovered the t_place/t_transport far-goal plan_fails.
+
+**Per-task datagen_hints for the two hardest tasks** (committed `082ada27` `stack.py`; hints in the two
+tasks' diagnostics, LOCAL). task_0007 (router + cigarette packs): the router antenna sits on the dest side,
+so the dest-side grasp preference drove the fingers around it and the sticky AG grabbed the TARGET —
+`stack_grasp_avoid_dest_side` flips the preference to the far-from-antenna side (still top-down). task_0010
+(fragile stack of small cubes): the FREE descent nudged the tower over — `clean_vertical_descend` swaps the
+stack descent for a pure-vertical SERVO. Hints present ONLY in those two diagnostics → every other task
+byte-identical, no regression sweep. Both 0/4 → 2/2.
+
+**Grasp re-annotations** (grasp DB, LOCAL): `chopping_board/ktxcvz` (0001) + `ozrzrr` (0006) got balanced
+edge-middle grasps (a corner grasp cantilevers the flat board → tilts → t_place fails); `plate/spppps`
+(0002) got rim-edge grasps (thin plate full-depth double-grabbed).
+
+**Result — 25/28 reach ≥2 demos** (raw sweep was 8/28). Remaining 0015/0016/0025 are grasp-freedom-limited
+(server + more attempts, not bugs). Per-trajectory randomness verified distinct — unique
+`SeedSequence([grasp_id, draw_k])` per variant + jitter give a consistent skeleton with mutually-distinct
+details. Local review artifact: `stack_family_review.html`. See [[project_maniguard_stack_sweep_findings]].
