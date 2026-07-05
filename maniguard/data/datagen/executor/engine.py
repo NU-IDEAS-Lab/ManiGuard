@@ -112,6 +112,41 @@ class DemoEngine:
             return geometry.aim_to_center_eef(self.robot, ctx.target, ctx.goal_center)
         raise ValueError(f"unknown compute tag: {seg.compute}")
 
+    # ---- collision-aware cuRobo FREE/LINEAR solve (shared by FREE dispatch + SERVO free_fallback) ----
+    def _free_transport_solve(self, seg, ctx, tpos, tquat, attach, motion_constraint):
+        """Solve one segment with cuRobo: ``plan_tries`` stochastic retries, an unconstrained retry if a
+        motion_constraint is set (this build's partial-pose query is flaky), then the terminal reach
+        fallback. Returns a ``SegmentResult`` or ``None``. Shared so a SERVO ``free_fallback`` can reuse
+        the exact FREE-plan path (with an orientation-hold constraint)."""
+        import torch as th
+
+        q_full = self.robot.get_joint_positions()             # live full-DoF (incl. gripper/drift)
+        pos_t = th.as_tensor(tpos, dtype=th.float32)
+        quat_t = th.as_tensor(tquat, dtype=th.float32)
+        res = None
+        n_tries = seg.plan_tries if seg.plan_tries is not None else self.plan_tries
+        for attempt in range(n_tries):                        # retry: cuRobo trajopt is stochastic
+            tag = seg.name if attempt == 0 else f"{seg.name}:try{attempt + 1}"
+            res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
+                                timeout=self.timeout, attach_obj=attach,
+                                motion_constraint=motion_constraint, label=tag, ik_rot_relax=seg.rot_relax,
+                                ik_pos_relax=seg.pos_relax, diagnose_on_fail=True,
+                                no_salvage=seg.no_salvage)
+            if res is None and motion_constraint is not None:
+                # this cuRobo build often rejects the partial-pose query -> unconstrained solve.
+                res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
+                                    timeout=self.timeout, attach_obj=attach,
+                                    motion_constraint=None, label=tag + ":unconstrained",
+                                    ik_rot_relax=seg.rot_relax, ik_pos_relax=seg.pos_relax,
+                                    no_salvage=seg.no_salvage)
+            if res is not None:
+                break
+        if res is None and seg.reach_fallback:
+            # precise placement unreachable on a far goal — relax to the closest-to-goal eef placement
+            # that is reachable AND still leaves the object intersecting the goal sphere.
+            res = self._reach_fallback_transport(seg, ctx, q_full, pos_t, quat_t, attach)
+        return res
+
     # ---- terminal-placement reach fallback (intersection-relaxation for a far goal) ----
     def _reach_fallback_transport(self, seg, ctx, q_full, pos_t, quat_t, attach):
         """Fallback when the precise transport plan fails on a FAR goal (eef cannot reach goal_xy at the
@@ -457,38 +492,27 @@ class DemoEngine:
                 arm_traj = th.flip(self._last_servo, dims=[0])    # retreat back out the push lane
             elif seg.mode == Mode.SERVO:
                 arm_traj = self._servo_line(tpos, tquat, ctx, seg)
-                if arm_traj is None:
+                if arm_traj is not None:
+                    self._last_servo = arm_traj                   # remember for the replay-reverse retreat
+                elif seg.free_fallback:
+                    # the straight servo can't reach the (far) target — fall back to a collision-aware
+                    # cuRobo FREE solve, holding the eef ORIENTATION so the rigidly-held object stays
+                    # ~upright THROUGHOUT (an unconstrained FREE path can tilt it >45deg mid-way and trip
+                    # the per-step LTL). Best-effort: solve_segment retries unconstrained if the upstream
+                    # partial-pose query is rejected.
+                    print(f"[datagen.engine] {seg.name}: servo unreachable -> cuRobo FREE fallback "
+                          f"(upright-hold)", flush=True)
+                    res = self._free_transport_solve(seg, ctx, tpos, tquat, attach, obstacles.UPRIGHT_HOLD)
+                    if res is None:
+                        recorder.finalize(success=False)
+                        return DemoResult.fail("plan_fail", seg=seg.name)
+                    arm_traj = res.arm_traj
+                else:
                     recorder.finalize(success=False)
                     return DemoResult.fail("servo_ik_fail", seg=seg.name)
-                self._last_servo = arm_traj                       # remember for the replay-reverse retreat
             else:
-                q_full = self.robot.get_joint_positions()         # live full-DoF (incl. gripper/drift)
-                pos_t = th.as_tensor(tpos, dtype=th.float32)
-                quat_t = th.as_tensor(tquat, dtype=th.float32)
                 mc = obstacles.LINEAR_SERVO if seg.mode == Mode.LINEAR else None
-                res = None
-                n_tries = seg.plan_tries if seg.plan_tries is not None else self.plan_tries
-                for attempt in range(n_tries):             # retry: cuRobo trajopt is stochastic, a fresh
-                    tag = seg.name if attempt == 0 else f"{seg.name}:try{attempt + 1}"   # call explores new seeds
-                    res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
-                                        timeout=self.timeout, attach_obj=attach,
-                                        motion_constraint=mc, label=tag, ik_rot_relax=seg.rot_relax,
-                                        ik_pos_relax=seg.pos_relax, diagnose_on_fail=True,
-                                        no_salvage=seg.no_salvage)
-                    if res is None and mc is not None:
-                        # this cuRobo build often rejects the partial-pose (LINEAR_SERVO) query;
-                        # fall back to an unconstrained solve (reference grasp.py:140-147).
-                        res = solve_segment(self.world.motion_gen, self.robot, pos_t, quat_t, q_full,
-                                            timeout=self.timeout, attach_obj=attach,
-                                            motion_constraint=None, label=tag + ":unconstrained",
-                                            ik_rot_relax=seg.rot_relax, ik_pos_relax=seg.pos_relax,
-                                            no_salvage=seg.no_salvage)
-                    if res is not None:
-                        break
-                if res is None and seg.reach_fallback:
-                    # precise placement unreachable on a far goal — relax to the closest-to-goal eef
-                    # placement that is reachable AND still leaves the object intersecting the goal sphere.
-                    res = self._reach_fallback_transport(seg, ctx, q_full, pos_t, quat_t, attach)
+                res = self._free_transport_solve(seg, ctx, tpos, tquat, attach, mc)
                 if res is None:
                     recorder.finalize(success=False)
                     return DemoResult.fail("plan_fail", seg=seg.name)

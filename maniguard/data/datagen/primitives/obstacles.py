@@ -35,6 +35,13 @@ GRIPPER_COLLISION_LINKS = ("panda_hand", "panda_leftfinger", "panda_rightfinger"
 # approach axis → a pure linear servo. Pass as solve_segment(motion_constraint=...).
 LINEAR_SERVO = [0.1, 0.1, 0.1, 0.1, 0.1, 0.0]
 
+# Orientation-only hold: lock the eef ROTATION (x3), free ALL position (x3). Used for the
+# t_transport FREE fallback so the held object keeps ~its grasp (upright) orientation THROUGHOUT the
+# cuRobo path — an unconstrained FREE plan is free to route through configs that tilt the rigidly-held
+# object >45deg mid-path, tripping the per-step LTL upright check. Best-effort: this cuRobo build may
+# reject the partial-pose query (solve_segment then retries unconstrained).
+UPRIGHT_HOLD = [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+
 
 _MIMIC_PATCHED = False
 _TOGGLE_WARNED = False

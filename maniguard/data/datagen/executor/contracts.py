@@ -120,6 +120,12 @@ class MotionSegment:
     #                                        intersecting the goal sphere (pull the eef back toward the robot;
     #                                        optionally add an upright-preserving world-Z yaw). See engine
     #                                        ._reach_fallback_transport. The precise plan stays the normal path.
+    free_fallback: bool = False             # SERVO only: if the straight-line IK servo can't reach the target
+    #                                        (servo_ik_fail), fall back to a collision-aware cuRobo FREE solve with
+    #                                        an orientation-hold constraint (obstacles.UPRIGHT_HOLD). Lets a
+    #                                        transport run as an orientation-safe SERVO gate by default, only
+    #                                        invoking cuRobo (which can tilt the held object) when the servo
+    #                                        genuinely can't reach a far goal. See engine dispatch.
     no_salvage: bool = False                # require a genuinely-successful (collision-free) cuRobo solve —
     #                                        skip the endpoint-tol salvage (which can keep a colliding path).
     #                                        The stack target transport sets this so a winding salvaged path
