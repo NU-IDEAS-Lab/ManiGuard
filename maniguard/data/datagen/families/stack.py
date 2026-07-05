@@ -69,7 +69,11 @@ class StackSkeleton(FamilySkeleton):
     #                           grasp eef only ~2cm above the rim) the open fingers hang at rim height and sweep
     #                           the stack over during the H_safe transit. Term 2 lifts H_safe until the whole
     #                           gripper clears — plates/boxes already satisfy it, so only tall rim-grasps rise.
-    GAP = 0.065               # 5-8cm separation between the pack's right edge and the re-stack pile
+    GAP = 0.065               # MIN separation between the pack's right edge and the re-stack pile
+    GAP_MAX = 0.20            # adaptive gap: on a roomy table, widen the source<->dest gap up to this so
+    #                           the exposed bottom target has room to grasp without fouling the re-stack
+    #                           pile (task_0023); capped by comfortable reach + on-surface, small tables
+    #                           keep GAP (graded clamp then shrinks). See stack_geom.dest_center.
     REACH_MAX = 0.85          # coarse Franka horizontal reach clamp for the dest (bring-up refines)
     REACH_COMFORT = 0.72      # Fix 4: pull the dest toward the robot until within this reach (narrow/arc
     #                           table) so the pure-IK carry can actually solve (REACH_MAX passed servo-IK-fail)
@@ -239,7 +243,8 @@ class StackSkeleton(FamilySkeleton):
         dest = SG.dest_center(pack_lo, pack_hi, right, self._stack_half, gap=self.GAP,
                               surf_lo_xy=surf_lo, surf_hi_xy=surf_hi, robot_xy=robot_xy,
                               reach_max=self.REACH_MAX, rail_half=SD.rail_half(), eef_off=self._stack_half,
-                              pull_robot_ward=self._pull_robot_ward)
+                              pull_robot_ward=self._pull_robot_ward,
+                              gap_max=self.GAP_MAX, reach_comfort=self.REACH_COMFORT)
         if dest is None:
             raise ValueError(f"stack: no on-table + in-reach re-stack destination for {ctx.target_name} "
                              f"(pack right edge + {self.GAP}m gap exceeds surface/reach) — report this task")
@@ -326,7 +331,8 @@ class StackSkeleton(FamilySkeleton):
         dest = SG.dest_center(pack_lo, pack_hi, self._right, self._stack_half, gap=self.GAP,
                               surf_lo_xy=surf_lo, surf_hi_xy=surf_hi, robot_xy=robot_xy,
                               reach_max=self.REACH_MAX, rail_half=SD.rail_half(), eef_off=eef_off,
-                              pull_robot_ward=self._pull_robot_ward)
+                              pull_robot_ward=self._pull_robot_ward,
+                              gap_max=self.GAP_MAX, reach_comfort=self.REACH_COMFORT)
         if dest is not None:
             self._dest_xy = dest                                                  # else keep the provisional
         gzs = [round(float(np.asarray(it.grasp_pos)[2]), 3) for it in self._stack]
@@ -403,25 +409,29 @@ class StackSkeleton(FamilySkeleton):
                           grip_steps=steps, ignore_clutter=True),
             MotionSegment("t_lift", tpos.copy(), tq, mode=Mode.SERVO, grip=Grip.HOLD,
                           attach=True, compute="safe_up", extra=dict(ph)),
-            # target TRANSPORT to the goal: require a CLEAN cuRobo solve (no colliding salvage) with more
-            # seeds — a winding salvaged path would knock the just-built re-stack pile (task_0021 unsafe).
-            # (t_place, the final LINEAR descent INTO the goal sphere, KEEPS salvage: its partial-pose query
-            # is a known-buggy cuRobo path that relies on the endpoint-tol recovery to place at all.)
-            MotionSegment("t_transport", np.array([goal[0], goal[1], tpos[2]]), tq, mode=Mode.FREE,
+            # target TRANSPORT to the goal (the gate "over"): SERVO by default — a straight-line IK path
+            # holds the grasp orientation (upright) THROUGHOUT, so the held target never tilts >45deg
+            # mid-way (an unconstrained cuRobo FREE plan does, tripping the per-step LTL target_upright,
+            # task_0023). If the servo can't reach a far goal it falls back to cuRobo FREE with an
+            # orientation-hold constraint (free_fallback; reach_fallback then relaxes to the sphere).
+            MotionSegment("t_transport", np.array([goal[0], goal[1], tpos[2]]), tq, mode=Mode.SERVO,
                           grip=Grip.HOLD, attach=True, compute="over_goal", reach_fallback=True,
-                          no_salvage=True, plan_tries=8),
+                          free_fallback=True, no_salvage=True, plan_tries=8),
             MotionSegment("t_place", goal.copy(), tq, mode=Mode.LINEAR, grip=Grip.HOLD,
                           attach=True, compute="aim_to_goal_center"),
         ]
 
     # --- per-phase LIVE transfer height (drops as objects are removed; unblocks tall stacks) ---
-    def _live_h_safe(self, ctx: TaskContext, held, grasp_z, drop) -> float:
-        """H_safe from the LIVE scene: clear the tallest OTHER object (held excluded) by ``drop`` (the
-        lowest point that hangs below the eef — the gripper, or, when carrying, the held object)."""
+    def _live_h_safe(self, ctx: TaskContext, held, grasp_z, drop, exclude_extra=None) -> float:
+        """H_safe from the LIVE scene: clear the tallest OTHER object (held + ``exclude_extra`` excluded)
+        by ``drop`` (the lowest point that hangs below the eef — the gripper, or, when carrying, the held
+        object). ``exclude_extra`` drops objects OFF the current path so the gate need not clear them
+        (the re-stacked pile is on the RIGHT; the target transports LEFT over open space)."""
         from maniguard.data.datagen.executor import geometry as G
         from maniguard.data.datagen.families import stack_geom as SG
         st = G.surface_top_z(ctx.support)
-        other, _ = G.max_other_top_z(ctx.env, exclude=[held] if held is not None else [],
+        excl = ([held] if held is not None else []) + list(exclude_extra or [])
+        other, _ = G.max_other_top_z(ctx.env, exclude=excl,
                                      robots=ctx.env.robots, support_top=st)
         if not np.isfinite(other):
             other = st if st is not None else 0.0
@@ -435,12 +445,19 @@ class StackSkeleton(FamilySkeleton):
         x = seg.extra
         drop = SD.gripper_drop_below_eef(np.asarray(x["gq"], float))   # gripper's lowest point below eef
         held = None
+        exclude_extra = None
         if seg.attach:                                         # holding an object -> exclude it from the max
             inst = x.get("inst")                               # AND lift IT above the others: it hangs BELOW
             held = self._stack[int(inst)].obj if inst is not None else ctx.target   # the gripper fingertips
             ep_z = float(_np(ctx.robot.eef_links[ctx.robot.default_arm].get_position_orientation()[0])[2])
             drop = max(drop, ep_z - float(G.lowest_z(held)))   # held object's bottom below eef (rigid grasp)
-        z = self._live_h_safe(ctx, held, x["gz"], drop)
+            if inst is None:                                   # TARGET carry (t_lift/t_transport): the 3 stack
+                exclude_extra = [it.obj for it in self._stack]  # objects are re-stacked on the RIGHT and the
+                #                                                target transports LEFT over open space, so the
+                #                                                gate need NOT clear that pile — keep H_safe LOW
+                #                                                (a high gate pushes the far goal reach into
+                #                                                singularity / servo_ik_fail, task_0023).
+        z = self._live_h_safe(ctx, held, x["gz"], drop, exclude_extra=exclude_extra)
         if not self._logged_h_safe:
             print(f"[datagen.stack] H_safe(live)={z:.3f} @ {seg.name} (drop={drop:.3f})", flush=True)
             self._logged_h_safe = True
