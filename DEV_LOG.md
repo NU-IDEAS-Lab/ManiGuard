@@ -1701,3 +1701,44 @@ the sticky AG grabs the between-fingers top object and the multi-grab acceptance
 demo that drags two. Collection validated: toy_dice 2/2 (2 attempts, no multi-grab), folder 2/2 (4
 attempts; residual failures are the pre-existing buggy `t_place` partial-pose query falling back to a
 stochastic unconstrained solve, not object-specific). See [[project_maniguard_stack_family]].
+
+## 2026-07-05 — stack full-family robustness: table re-home + upright target transport
+
+Full-family `stack_retrieve` datagen sweep (28 base tasks) exposed three problem classes; addressed this
+session.
+
+**Problem 3 — re-stack dest infeasible on small/oblique surfaces (10 setup-crashes)** (committed
+`be865017`). `stack_geom.dest_center` was ideal-or-`None`: when the ideal right-side pile overshot the
+surface edge it raised. Now **graded degradation** — slide the pile back along `right` onto the surface
+(→ ≤3 cm COM-safe overhang; `None` only if even the tightest non-overlapping pile is off-table).
+Diagnosed offline (reconstruct dest from the bench leaves) as pure SURFACE clamps (reach 0.5–0.78 ≪
+0.85), not reach. Also **adaptive gap**: on a roomy table widen the source↔dest clearance up to
+comfortable reach (`GAP_MAX=0.20`, capped by reach + on-surface), so the exposed bottom target has room
+to grasp; recon: 0 regressions across 28, e.g. task_0023 6.5 cm → 16.7 cm.
+
+**Oblique/tiny-table tasks — object placed off the REAL (rotated) table** (bench data, LOCAL + HF).
+`surface_info.bounds_xy` is a WORLD-AABB; for an obliquely-placed compact table it overhangs the real
+footprint (~2×), so the clamped dest lands off-table and the object tips. Six tasks (0001/0018/0019/
+0020/0023/0025) **re-homed onto bigger orthogonal donor tables** via a new LOCAL tool
+`tools/stack_rehome_task.py` (copy a donor's scaffold, remap its 1-target+3-stack objects to the task's
+own objects, re-finalize). finalize bakes a canonical robot ⟂ the axis-aligned donor table, so
+orthogonality is automatic. Donors chosen distinct + multi-scene (env perturbation needs the table in ≥2
+rooms, else it substitutes a random table): 0001←0006, 0018←0005, 0019←0002, 0020←0006, 0023←0004,
+0025←0013. All 6 base + 4 perturbations + review_grids regenerated; env verified normal-mode (no random
+substitution); `perturb_language` takes no `--jobs` (silent arg error had left it un-rebuilt).
+
+**Upright-safe target transport** (committed `78f9a803` executor infra + `be865017` family). `t_transport`
+was cuRobo `Mode.FREE` — an unconstrained plan routes through configs that tilt the rigidly-held target
+>45° mid-path, tripping the per-step LTL `target_upright` (task_0023). Now **SERVO** (straight-line IK
+holds the grasp orientation throughout), with a `free_fallback` to cuRobo FREE + an `UPRIGHT_HOLD`
+orientation constraint only when the servo can't reach a far goal. Plus a **dynamic low gate**: the 3
+stack objects are re-stacked on the RIGHT and the target transports LEFT over open space, so its `H_safe`
+excludes that pile → lower gate, dodges the far-reach singularity.
+
+**0001 double-grab** fixed by **re-annotating** `plate/lkomhp` grasps (grasp DB, LOCAL): tightly-nested
+thin plates can't be depth-isolated by shallow-grab (`shallow_d=0`), so rim-EDGE grasps isolate the top
+plate by position instead — no more double-grab, and the cascaded `s1_reorient` IK failure vanished.
+
+Datagen re-test (target 2, max-attempt 6): 0018/0019 **2/2** (no regression), 0001 **2/2**, 0023 0/2→**1/2**,
+0020/0025 **1/2** (grasp-freedom-limited — server + more attempts). See
+[[project_maniguard_stack_family]], [[project_maniguard_stack_sweep_findings]].
