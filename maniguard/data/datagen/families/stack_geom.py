@@ -111,6 +111,16 @@ def dest_center(pack_lo_xy, pack_hi_xy, right_dir_xy, stack_half, *, gap,
     # staying within COMFORTABLE reach. Small tables keep the minimal offset (graded clamp then shrinks).
     if gap_max is not None and reach_comfort is not None and float(gap_max) > float(gap):
         rc = _max_reach_offset(pack_center, d, robot_xy, float(reach_comfort))
+        # The reach cap must bound the CARRY target, not the pile CENTRE. The re-stack carry (``over_dest``)
+        # drives the held object's centre to ``dest_centre`` -> the EEF lands at ``dest_centre + grasp_off``,
+        # where an edge grasp on the pile's far side offsets the EEF by up to ``+stack_half`` ALONG ``d``
+        # (away from the robot). Capping only the centre at ``reach_comfort`` lets a THICK pile's carry
+        # target sit ~stack_half beyond comfort, so the pure-IK servo fails while the centre looks fine
+        # (task_0000: centre reach 0.70 < 0.72 but over_dest 0.81 -> every s0_carry servo_ik_fail). Pull the
+        # centre cap in by stack_half so the WORST-CASE carry stays within comfort. No-op for thin piles;
+        # the ``max(offset, ...)`` floor below still guarantees the minimal-gap dest (old, reachable) behaviour.
+        if rc is not None:
+            rc = rc - float(stack_half)
         iv0 = _max_onsurface_offset(pack_center, d, np.asarray(surf_lo_xy, float),
                                     np.asarray(surf_hi_xy, float), float(stack_half), 0.0)
         surf_cap = iv0[1] if iv0 is not None else offset
