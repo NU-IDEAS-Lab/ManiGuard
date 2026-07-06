@@ -11,18 +11,20 @@ Planned (clutter first = template; per-family high-level manip plan co-designed 
   - ``lid``     : grasp(lid) → place(lid,on=container) → grasp(container) → transport
   - ``stack``   : unstack 3 identical tops → one right-side re-stack pile → retrieve bottom → goal
   - ``dusty``   : grasp(sponge) → wipe(dest) → place(sponge) → grasp(source) → pour
-  - ``jar``     : close_hinge(lid) → grasp(jar) → transport
+  - ``jar``     : close_hinge(lid) → grasp(jar_body, side) → transport
   - ``cabinet`` : grasp(target) → place(target,in=drawer) → push_drawer(close)
 
 ``FAMILY`` maps a family name to its ``FamilySkeleton`` class; the driver instantiates it.
 """
 from maniguard.data.datagen.families.cabinet import CabinetSkeleton
 from maniguard.data.datagen.families.clutter import ClutterSkeleton
+from maniguard.data.datagen.families.jar import JarSkeleton
 from maniguard.data.datagen.families.stack import StackSkeleton
 
 FAMILY = {
     "clutter": ClutterSkeleton,
     "cabinet": CabinetSkeleton,
     "stack": StackSkeleton,
+    "jar": JarSkeleton,
 }
 
