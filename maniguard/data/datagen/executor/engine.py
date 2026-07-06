@@ -593,6 +593,7 @@ class DemoEngine:
                                 recorder=recorder, on_step=tick)
                 if seg.grip == Grip.CLOSE:
                     held = self._held(seg, ctx)
+                    ag = None
                     try:
                         from omnigibson.controllers.controller_base import IsGraspingState
                         ag = self.robot.is_grasping(self.robot.default_arm, held)
@@ -600,6 +601,11 @@ class DemoEngine:
                               f"(held={getattr(held, 'name', '?')})", flush=True)
                     except Exception as e:  # noqa: BLE001
                         print(f"[datagen.engine] (AG check skip: {e})", flush=True)
+                    if seg.require_attach and (ag is None or int(ag) != 1):
+                        # the grasp did NOT attach — fail fast instead of carrying air to the goal
+                        print(f"[datagen.engine] {seg.name} NO-ATTACH (AG={ag}) -> abort attempt", flush=True)
+                        recorder.finalize(success=False)
+                        return DemoResult.fail("no_attach", seg=seg.name)
                 if gate.violated:
                     recorder.finalize(success=False)
                     return DemoResult.fail("unsafe", seg=seg.name, step=gate.violation_step)

@@ -126,6 +126,9 @@ class MotionSegment:
     #                                        transport run as an orientation-safe SERVO gate by default, only
     #                                        invoking cuRobo (which can tilt the held object) when the servo
     #                                        genuinely can't reach a far goal. See engine dispatch.
+    require_attach: bool = False           # after this segment's CLOSE grip, VERIFY AG actually attached the
+    #                                        held object (is_grasping == 1); else fail "no_attach" fast instead
+    #                                        of blindly carrying nothing through the rest of the rollout
     no_salvage: bool = False                # require a genuinely-successful (collision-free) cuRobo solve —
     #                                        skip the endpoint-tol salvage (which can keep a colliding path).
     #                                        The stack target transport sets this so a winding salvaged path
