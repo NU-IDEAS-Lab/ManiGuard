@@ -1777,3 +1777,52 @@ edge-middle grasps (a corner grasp cantilevers the flat board → tilts → t_pl
 (server + more attempts, not bugs). Per-trajectory randomness verified distinct — unique
 `SeedSequence([grasp_id, draw_k])` per variant + jitter give a consistent skeleton with mutually-distinct
 details. Local review artifact: `stack_family_review.html`. See [[project_maniguard_stack_sweep_findings]].
+
+## 2026-07-06 — jar_transport family: lid-ride close + hardened side-grasp transport (20/26)
+
+**Committed `4962d69e`** (`families/jar.py` + `jar_hinge.py` + `executor/contracts.py` + `engine.py`).
+Phase A = the user's teleop LID-RIDE maneuver: cuRobo plans the OPEN gripper into the free wedge under
+the flopped lid (finger plane ⊥ lid plane, bar ∥ hinge axis), then ONE straight fixed-orientation SERVO
+ride lifts the lid past its tipping point — the lid RESTS on the finger bar (unilateral contact, nothing
+drags the jar) and gravity closes it after a `replay_reverse` retreat. Parameterized per-jar from the lid
+link's measured collision hull (the slab floats 25–41 mm off the joint-anchor plane — knuckle offset).
+Rejected designs (kept for the record): radial straddle+orbit, closed-lid push, AG-drag, wrist-roll arc —
+each root-caused with per-step instrumentation. Phase B hardening: collision-aware `side_pre_grasp`,
+`require_attach` fail-fast (generic MotionSegment flag + engine AG check), orientation-locked SERVO
+lift/transport/to_goal with goal-aligned carry height, fixed low lift (content rides INSIDE the jar —
+clearance checks are unsatisfiable). First maniguard-bench sweep: **20/26 REACHED** (13 first-try, all 4
+jar models represented).
+
+## 2026-07-07 — jar_transport tail fixes + bench surgery: 26/26 collectable, variants synced
+
+**Committed `fea38918`** (`families/jar.py`, `jar_hinge.py`, `executor/contracts.py`, `driver.py`,
+`bench_builder/finalize_base.py`). Code (all compatibility-shaped; sentinels + full-family A/B): ride
+variant ladder (elevation × roll × bar-flip × skew, screened by `solve_segment` — the SAME collision-aware
+solve the real `lid_under` uses; default pose = rung one), attempt-alternating `lid_under` standoff
+(even draws keep the validated 4 cm-below pre; odd draws exit cuRobo's obstacle inflation sideways along
+the hinge axis), close-in adaptive carry, per-family `score_margin_floor()` hook (jar 0.2→0.15,
+relax-only), footprint-aware palm floor + `desk_top` clamped to the target's sitting plane, and the
+**finalize mount clamp**: `finalize_base` enforced `base_z = support AABB top + offset`, which hung
+task_0014's robot on its desk's privacy-divider top edge (0.844 vs the 0.531 sitting surface) and
+re-clobbered every manual fix on rerender.
+
+**Bench surgery** (task-local JSON, tools stay LOCAL: `jar_move_task/jar_swap_model/jar_swap_content/
+jar_rerender_base` + `probe_tail`): 0011 +8 cm toward robot; 0025 yaw+74°; 0013 content avocado→cumin
+(85 mm protrusion made the lid physically unclosable); 0015 DOUBLE swap vzwhbg→kijnrj + snow_globe→cumin
++ yaw (the widest jar's 179° dead-flat lid leaves no under-lid room and its hinge cannot hold any other
+angle); 0014 = divider-desk mount fix + gqtsam→kijnrj + egg→pepper_shaker + yaw−116°; 0009 +6 cm (lowest
+table × longest distance, per-attempt ~15% → 2/2); 0006 content→dill_seed (fixed the pre-existing
+(gqtsam, curry_powder) duplicate — family (jar, content) pairs now ALL UNIQUE). **Lid-direction law**
+(probe-verified): Phase A fails when the flopped lid hangs opposite the robot; the passing-task sweet
+band is lid↔robot 100–135°.
+
+**A goal-endpoint margin hard-filter was trialled and REVERTED**: a full-family A/B showed it dropped the
+empirically-winning grasp on 5/11 passing tasks (endpoint margin is one IK branch; task_0001 won with
+margin 0.01). Survives only as an env-gated diagnostic (`DATAGEN_DIAG_GOAL_MARGINS=1`), gated BEFORE its
+solves so the default call sequence stays byte-identical. Lesson: grasp-set changes need full-family A/B,
+point sentinels cannot cover them; family logic may only DROP provably-infeasible candidates.
+
+**Final: two-round confirm sweep (target 2/max 4) = 17 healthy (2/2) + 9 marginal (1/2) + 0 dead.**
+All 7 surgically-changed tasks' 4 perturbation variants REBUILT from the new bases via the original
+`perturb_{language,target,location,env}` builders; 35/35 consistency audit PASS; `review_grids` ×10
+regenerated. Review artifact: `jar_family_review.html` (two-round). See [[project_maniguard_jar_family]].
