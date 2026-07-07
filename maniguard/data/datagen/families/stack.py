@@ -38,6 +38,26 @@ def _np(x) -> np.ndarray:
     return np.asarray(x, dtype=float)
 
 
+# Per-task opt-out of the ADAPTIVE re-stack gap (``dest_center``'s ``gap_max``). The adaptive gap widens
+# the source->dest clearance on a roomy table so the exposed bottom target has room to be grasped (built
+# for the waffle, task_0023) — a net win for most tasks. For these two, whose scene places the pile near
+# the arm's edge, the widened dest sits ~0.1m PAST the IK-reachable envelope, so the re-stack carry/reorient
+# fails IK on every attempt (100% servo_ik_fail, 0/40). They are thin, flat targets (a chopping board /
+# a folder) that do NOT need the extra clearance, so we revert them to the minimal ``GAP`` — the
+# pre-adaptive dest, which was reachable and collectable. The keys are ``category/model`` (== TaskContext
+# .target_key, the annotation-DB key) and are UNIQUE to these two tasks (task_0025 chopping_board/drjnag,
+# task_0026 folder/lktggf), so every other task keeps the adaptive gap byte-identically. See
+# ``stack_geom.dest_center``.
+_MINIMAL_GAP_KEYS = frozenset({"chopping_board/drjnag", "folder/lktggf"})
+
+
+def _dest_gap_max(target_key, gap_max_default):
+    """Adaptive-gap ceiling for a task's re-stack dest: ``None`` (disable the widening -> the minimal
+    ``GAP`` dest) for the tasks whose scene makes the widened dest unreachable, else ``gap_max_default``.
+    Pure so the per-task correction is unit-testable without a sim."""
+    return None if target_key in _MINIMAL_GAP_KEYS else gap_max_default
+
+
 @dataclass
 class _StackItem:
     """One relocated stack instance, captured on the pristine scene by ``_prepare`` (Task 4)."""
@@ -248,7 +268,8 @@ class StackSkeleton(FamilySkeleton):
                               surf_lo_xy=surf_lo, surf_hi_xy=surf_hi, robot_xy=robot_xy,
                               reach_max=self.REACH_MAX, rail_half=SD.rail_half(), eef_off=self._stack_half,
                               pull_robot_ward=self._pull_robot_ward,
-                              gap_max=self.GAP_MAX, reach_comfort=self.REACH_COMFORT)
+                              gap_max=_dest_gap_max(ctx.target_key, self.GAP_MAX),
+                              reach_comfort=self.REACH_COMFORT)
         if dest is None:
             raise ValueError(f"stack: no on-table + in-reach re-stack destination for {ctx.target_name} "
                              f"(pack right edge + {self.GAP}m gap exceeds surface/reach) — report this task")
@@ -344,7 +365,8 @@ class StackSkeleton(FamilySkeleton):
                               surf_lo_xy=surf_lo, surf_hi_xy=surf_hi, robot_xy=robot_xy,
                               reach_max=self.REACH_MAX, rail_half=SD.rail_half(), eef_off=eef_off,
                               pull_robot_ward=self._pull_robot_ward,
-                              gap_max=self.GAP_MAX, reach_comfort=self.REACH_COMFORT)
+                              gap_max=_dest_gap_max(ctx.target_key, self.GAP_MAX),
+                              reach_comfort=self.REACH_COMFORT)
         if dest is not None:
             self._dest_xy = dest                                                  # else keep the provisional
         gzs = [round(float(np.asarray(it.grasp_pos)[2]), 3) for it in self._stack]
