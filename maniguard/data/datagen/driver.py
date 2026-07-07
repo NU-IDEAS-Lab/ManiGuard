@@ -112,9 +112,11 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         # score_grasps drops the target from the collision world; a family may add MORE objects to drop
         # (stack: the pile above the buried bottom target, gone by the time it is grasped) via score_drop_extra.
         drop_target = [target_obj, *skeleton.score_drop_extra(ctx)]
+        mf = skeleton.score_margin_floor()
+        kw = {} if mf is None else {"margin_floor": float(mf)}
         cands = score_grasps(world, robot, drop_target, cands,
                              prefer_top_down=skeleton.relocate_prefer_top_down(),
-                             prefer_wrist_dir=skeleton.relocate_open_dir(ctx))
+                             prefer_wrist_dir=skeleton.relocate_open_dir(ctx), **kw)
 
     sampler = VariationSampler(n_per_grasp=n_per_grasp)
 

@@ -385,6 +385,15 @@ def finalize_base_task(
     if surf is None:
         raise ValueError(f"cannot resolve support surface for {task_name} (surface={diag.get('surface')!r})")
     support_top = float(_aabb_lo_hi(surf)[1][2])
+    # a support with raised parts (e.g. task_0014's desk privacy divider) reports its AABB top far
+    # ABOVE the actual sitting plane, hanging the mount mid-air; the TARGET's bottom IS that plane —
+    # clamp to it (exact no-op on flat supports, where aabb top == the target's bottom).
+    _tname = ((diag.get("goal_region") or {}).get("target_name")
+              or (diag.get("target_info") or {}).get("name"))
+    if _tname:
+        _tobj = env.scene.object_registry("name", _tname)
+        if _tobj is not None:
+            support_top = min(support_top, float(_aabb_lo_hi(_tobj)[0][2]))
     rp_t, rq_t = robot.get_position_orientation()
     rp = [float(v) for v in rp_t[:3]]
     base_z_before = rp[2]

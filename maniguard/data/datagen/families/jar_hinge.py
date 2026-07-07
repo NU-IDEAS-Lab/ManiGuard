@@ -218,7 +218,8 @@ def _link_by_body(obj, body_path_attr):
 
 
 def ride_plan(anchor, axis, ext_dir, hull_pts, side_sign: float, close_dir: float = CLOSE_DIR,
-              open_deg: float = RIDE_OPEN_DEG):
+              open_deg: float = RIDE_OPEN_DEG, roll_flip: bool = False, bar_flip: bool = False,
+              skew_deg: float = 0.0):
     """The user's teleop close maneuver, parameterized from the lid link's MEASURED hull: a finger
     BAR (finger plane ⊥ lid plane: x̂ = hinge axis) laid in the free wedge UNDER the flopped lid,
     then ONE straight-line translation (fixed orientation) that lifts the lid — the lid rests on the
@@ -242,16 +243,33 @@ def ride_plan(anchor, axis, ext_dir, hull_pts, side_sign: float, close_dir: floa
     # bar direction: 12deg below the lid line, pointing INTO the wedge (toward the hinge, wrist at
     # the wedge mouth). Opening rotation = -close_dir about +axis.
     e_bar = rotate_vec_about_axis(e, ax, -close_dir * np.radians(float(open_deg)))
-    z = -_u(e_bar)                                         # wrist -> tips: from the lid tip toward the hinge
-    x = float(side_sign) * ax                              # finger-plane normal = hinge axis (user spec)
+    # bar_flip: fingers point OUTWARD (hinge->tip) and the WRIST sits under the lid — shortens the
+    # total reach by ~2x the finger length; the pads' last cm supports the lid near its RIM (max
+    # torque arm). Needed for FAR jar placements where the default (wrist beyond the lid tip) pose
+    # family is wholly outside the arm's envelope.
+    z = _u(e_bar) if bar_flip else -_u(e_bar)              # wrist -> tips
+    w_rob = float(side_sign) * ax                          # unit toward the robot side
+    if skew_deg:
+        # skew the bar toward the robot (a diagonal bar under the lid supports it just the same);
+        # pulls the WRIST several cm closer for far jar placements
+        g = np.radians(float(skew_deg))
+        z = _u(np.cos(g) * z - np.sin(g) * w_rob)
+    x = _u(np.cross(f, z))                                 # frame: y ~ disc normal, x ~ hinge axis
+    if float(np.dot(x, float(side_sign) * ax)) < 0.0:      # anchor the default branch to the ORIGINAL
+        x = -x                                             # orientation (x along side_sign*axis)
     y = _u(np.cross(z, x))
-    x = _u(np.cross(y, z))                                 # re-orthogonalize
+    if roll_flip:                                          # 180deg wrist-roll branch (same support
+        x, y = -x, -y                                      # mechanics, the other IK branch)
     quat = Rot.from_matrix(np.column_stack([x, y, z])).as_quat()
 
     d0 = RIDE_D0_FRAC * reach                              # initial contact station on the lid
-    tip = (anchor + (d0 + RIDE_TIP_EXTRA_M) * _u(e_bar) + (h_top + RIDE_START_CLEAR_M) * f
-           + y_mid * ax)                                   # fingertip deeper than the contact, below the face
-    eef_start = tip - FINGERTIP_M * z
+    if bar_flip:
+        # wrist directly under the lid at d0; fingertip pokes past the rim into free air
+        eef_start = (anchor + d0 * _u(e_bar) + (h_top + RIDE_START_CLEAR_M) * f + y_mid * ax)
+    else:
+        tip = (anchor + (d0 + RIDE_TIP_EXTRA_M) * _u(e_bar) + (h_top + RIDE_START_CLEAR_M) * f
+               + y_mid * ax)                               # fingertip deeper than the contact, below the face
+        eef_start = tip - FINGERTIP_M * z
 
     # ride translation: carry the CONTACT point to (above the hinge + toward the mouth)
     m = _u(np.array([-e[0], -e[1], 0.0]))                  # horizontal unit toward the mouth/closing side

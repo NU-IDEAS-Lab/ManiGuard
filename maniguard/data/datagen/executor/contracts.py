@@ -247,6 +247,13 @@ class FamilySkeleton(ABC):
         else the still-covered target scores 0-reachable and the sampler yields no variants."""
         return []
 
+    def score_margin_floor(self) -> float | None:
+        """Family override for ``score_grasps``' joint-limit margin floor (rad). Default ``None`` =
+        the shared ``MARGIN_FLOOR`` — other families are untouched. A family whose few viable side
+        grasps land just under the shared floor on edge placements (jar: best grasp ~0.17 after a
+        yaw surgery) may relax it slightly rather than yield 0 attempts."""
+        return None
+
     def relocate_prefer_top_down(self) -> bool:
         """Whether the driver should rank the TARGET's Phase-1 relocate grasps top-down-first (a
         straight vertical relocate lift stalls a side grasp's wrist; a top-down grasp lifts cleanly).
