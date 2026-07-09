@@ -1826,3 +1826,18 @@ point sentinels cannot cover them; family logic may only DROP provably-infeasibl
 All 7 surgically-changed tasks' 4 perturbation variants REBUILT from the new bases via the original
 `perturb_{language,target,location,env}` builders; 35/35 consistency audit PASS; `review_grids` ×10
 regenerated. Review artifact: `jar_family_review.html` (two-round). See [[project_maniguard_jar_family]].
+
+## 2026-07-09 — dusty_transfer family SHIPPED: 26/26 producible (`fa223425`)
+
+Fifth family closed. 50+ instrumented dev runs; every blocker root-caused from
+numeric telemetry/video before fixing (dust reload uuid-drop, single-axis LINEAR
+law, sponge-centric wipe targeting, gripper width-profile geometry -> boom-swing
+wipe, segment-boundary brake kicks -> single-segment uniform-glide carry, AG-held
+quaternion staleness -> AABB attitude inversion, pour 3-axis aim + energy budget).
+18 bench surgeries (7 dest / 9 source incl. cross-category prompt carry / 1 food
+full-rename / 1 layout mirror-swap), (food, source, dest) triple uniqueness 26/26
+re-audited after every swap. 4-level perturbations rebuilt from the final bases
+(60/60 variant audit), review_grids x10 regenerated. Review artifact:
+`dusty_family_review.html` (paged, per-task success videos). Engine extensions
+are additive-only; jar sentinel re-certified twice. See
+[[project_maniguard_dusty_family]].
