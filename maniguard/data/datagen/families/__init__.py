@@ -18,6 +18,7 @@ Planned (clutter first = template; per-family high-level manip plan co-designed 
 """
 from maniguard.data.datagen.families.cabinet import CabinetSkeleton
 from maniguard.data.datagen.families.clutter import ClutterSkeleton
+from maniguard.data.datagen.families.dusty import DustySkeleton
 from maniguard.data.datagen.families.jar import JarSkeleton
 from maniguard.data.datagen.families.stack import StackSkeleton
 
@@ -26,5 +27,6 @@ FAMILY = {
     "cabinet": CabinetSkeleton,
     "stack": StackSkeleton,
     "jar": JarSkeleton,
+    "dusty": DustySkeleton,
 }
 

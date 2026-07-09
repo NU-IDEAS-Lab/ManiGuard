@@ -17,7 +17,8 @@ import numpy as np
 
 from maniguard.data.datagen.executor import geometry
 from maniguard.data.datagen.executor.contracts import (
-    DemoResult, FamilySkeleton, Grip, Mode, MotionSegment, TaskContext,
+    DemoResult, FamilyAbort, FamilySkeleton, Grip, Mode, MotionSegment, SegmentSkip,
+    TaskContext,
 )
 from maniguard.data.datagen.executor.gate import SafetyGate
 from maniguard.data.datagen.primitives import obstacles
@@ -211,6 +212,13 @@ class DemoEngine:
         tp = np.asarray(tpos, float)
         step = seg.servo_step_m if seg.servo_step_m is not None else self.servo_step_m   # per-segment override
         n = max(2, int(np.ceil(float(np.linalg.norm(tp - sp)) / step)))
+        quat_path = None
+        if seg.orient_slerp:                       # ALSO ramp the orientation (dusty pour): widen n for
+            from scipy.spatial.transform import Rotation as _Rot   # the rotation, ~2° of tilt per waypoint
+            sq = _np(self.robot.eef_links[arm].get_position_orientation()[1])
+            ang = float((_Rot.from_quat(sq).inv() * _Rot.from_quat(np.asarray(tquat, float))).magnitude())
+            n = max(n, int(np.ceil(ang / 0.035)))
+            quat_path = geometry.servo_orient_waypoints(sq, np.asarray(tquat, float), n)
         print(f"[datagen.engine] {seg.name}: SERVO start_eef={sp.round(3)} -> target={tp.round(3)} "
               f"(delta={(tp - sp).round(3)}, |d|={np.linalg.norm(tp - sp):.3f}m, n={n} ik steps)", flush=True)
         quat_t = th.as_tensor(np.asarray(tquat, float), dtype=th.float32)
@@ -228,8 +236,9 @@ class DemoEngine:
         out, prev_cfg = [], None
         for i in range(1, n + 1):
             p = sp + (tp - sp) * (i / n)
+            q_i = quat_t if quat_path is None else th.as_tensor(quat_path[i - 1], dtype=th.float32)
             res = solve_ik(self.world.motion_gen, self.robot,
-                           th.as_tensor(p, dtype=th.float32), quat_t, q_seed,
+                           th.as_tensor(p, dtype=th.float32), q_i, q_seed,
                            timeout=self.timeout, ik_collision=False, label=f"{seg.name}:ik{i}/{n}")
             if res is None:
                 print(f"[datagen.engine] {seg.name}: servo IK failed at step {i}/{n}", flush=True)
@@ -461,8 +470,16 @@ class DemoEngine:
             if seg.compute == "aim_to_goal_center" and self._skip_to_goal:
                 continue                            # reach fallback already placed the object in the sphere
             self._cur_seg = seg.name               # label the DATAGEN_TRACE rows by segment
-            skeleton.on_segment(seg, ctx)          # family runtime side-effects (e.g. hold drawer open)
-            tpos, tquat = self._resolve_target(seg, ctx, skeleton)
+            try:
+                skeleton.on_segment(seg, ctx)      # family runtime side-effects (e.g. hold drawer open)
+                tpos, tquat = self._resolve_target(seg, ctx, skeleton)
+            except SegmentSkip:                    # family says this segment's objective is already met
+                continue
+            except FamilyAbort as e:               # family-declared clean failure (e.g. dusty's hard
+                #                                    wipe_incomplete gate) -> fail the attempt, driver retries
+                print(f"[datagen.engine] {seg.name} FAMILY-ABORT: {e.stage} {e.detail}", flush=True)
+                recorder.finalize(success=False)
+                return DemoResult.fail(e.stage, seg=seg.name, **e.detail)
             if seg.ignore_clutter:
                 # world-collision-off for the final grasp descent (drop every non-robot obstacle)
                 robots = set(self.env.robots)

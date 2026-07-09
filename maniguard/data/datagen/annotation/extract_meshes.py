@@ -94,6 +94,27 @@ def _stack_instance_names(diag: dict, scene: dict) -> list[str]:
     return names
 
 
+def _dusty_instance_names(diag: dict, scene: dict) -> list[str]:
+    """For ``dusty_transfer``: the two GRASPED objects are the sponge (``sponge_name``) and the
+    source container (role=``source`` in ``selection.spawn_specs``). ``_target_name``'s
+    goal_conditions fallback would return the DEST container instead — which is never grasped —
+    so for dusty these names REPLACE ``_graspable_names`` (gated on ``dust_system``)."""
+    sel = diag.get("selection") or {}
+    want = {(s.get("category"), s.get("model")) for s in sel.get("spawn_specs", [])
+            if s.get("role") == "source" and s.get("category") and s.get("model")}
+    names: list[str] = []
+    if diag.get("sponge_name"):
+        names.append(diag["sponge_name"])
+    seen: set = set()
+    for nm, info in scene.get("objects_info", {}).get("init_info", {}).items():
+        a = info.get("args", {})
+        cm = (a.get("category"), a.get("model"))
+        if cm in want and cm not in seen:
+            seen.add(cm)
+            names.append(nm)
+    return names
+
+
 def enumerate_targets(families) -> dict:
     """{``cat/model``: {category, model, upright_orientation_xyzw, source_task}} via pure
     JSON (no sim). Covers every GRASPED object (target + obstacle). First occurrence per
@@ -108,7 +129,9 @@ def enumerate_targets(families) -> dict:
                 scene = json.load(open(tdir / "scene_ep1.json"))
             except Exception:  # noqa: BLE001
                 continue
-            for nm in _graspable_names(diag) + _stack_instance_names(diag, scene):
+            names = (_dusty_instance_names(diag, scene) if diag.get("dust_system")
+                     else _graspable_names(diag) + _stack_instance_names(diag, scene))
+            for nm in names:
                 args = (scene.get("objects_info", {}).get("init_info", {})
                         .get(nm, {}).get("args", {}))
                 cat, model = args.get("category"), args.get("model")

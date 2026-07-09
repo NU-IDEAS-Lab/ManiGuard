@@ -160,3 +160,13 @@ def elbow_lateral_offset(shoulder_xy, elbow_xy, eef_xy):
         return None
     n = np.array([-v[1], v[0]]) / nv                              # horizontal normal to the reach plane
     return abs(float(np.dot(x - s, n)))
+
+
+def servo_orient_waypoints(start_quat_xyzw, target_quat_xyzw, n: int):
+    """n slerp'd orientations from start (exclusive) to target (inclusive), xyzw — the
+    per-waypoint orientation ramp for a SERVO segment with ``orient_slerp`` (dusty pour)."""
+    from scipy.spatial.transform import Rotation as R, Slerp
+    rots = R.from_quat(np.stack([np.asarray(start_quat_xyzw, float),
+                                 np.asarray(target_quat_xyzw, float)]))
+    s = Slerp([0.0, 1.0], rots)
+    return [s(i / n).as_quat() for i in range(1, n + 1)]

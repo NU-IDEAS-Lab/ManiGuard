@@ -133,6 +133,10 @@ class MotionSegment:
     #                                        skip the endpoint-tol salvage (which can keep a colliding path).
     #                                        The stack target transport sets this so a winding salvaged path
     #                                        never knocks the just-built re-stack pile.
+    orient_slerp: bool = False             # SERVO only: ALSO slerp the eef orientation from its live start
+    #                                        to eef_quat across the waypoints (uniform controlled tilt, e.g.
+    #                                        dusty's pour). False (default) = the original fixed-quat servo
+    #                                        path, byte-identical for every existing family.
 
 
 @dataclass
@@ -197,6 +201,26 @@ class DemoResult:
     @classmethod
     def fail(cls, stage: str, **detail: Any) -> DemoResult:
         return cls(ok=False, fail_stage=stage, detail=detail)
+
+
+class SegmentSkip(Exception):
+    """Raised by a family's ``resolve_compute`` to SKIP the current segment entirely —
+    no plan, no execution, no recorded frames. For budget-padded dynamic chains (dusty's
+    wipe_step/pour_step) whose objective is already met: executing them as zero-motion
+    no-ops froze the demo for seconds per leftover segment. No existing family raises
+    it, so engine behavior for them is unchanged."""
+
+
+class FamilyAbort(Exception):
+    """Raised by a family's ``on_segment``/``resolve_compute`` to FAIL the current attempt
+    cleanly (the engine converts it to ``DemoResult.fail(stage)`` and the driver retries the
+    next variant) — e.g. dusty's hard ``wipe_incomplete`` gate. No existing family raises it,
+    so engine behavior for them is unchanged."""
+
+    def __init__(self, stage: str, **detail: Any):
+        super().__init__(stage)
+        self.stage = str(stage)
+        self.detail = dict(detail)
 
 
 class FamilySkeleton(ABC):

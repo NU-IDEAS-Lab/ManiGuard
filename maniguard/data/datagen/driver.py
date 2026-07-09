@@ -74,9 +74,19 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         surface_name = spec.support_name
     else:
         ti = bundle.diagnostics.get("target_info")
-        if not ti:
+        if ti:
+            target_name = ti["name"]
+        elif bundle.diagnostics.get("dust_system"):
+            # dusty: target = the SOURCE carrier instance (food rides it; dest never grasped)
+            from maniguard.data.datagen.families.dusty import source_cat_model
+            cat, model = source_cat_model(bundle.diagnostics)
+            target_name = next(o.name for o in env.scene.objects
+                               if getattr(o, "category", None) == cat
+                               and getattr(o, "model", None) == model)
+            # let the skeleton find scene_ep1.json (its dust-restore guard reads the saved group)
+            bundle.diagnostics["_task_dir"] = str(task_dir)
+        else:
             raise ValueError(f"{task_dir} has neither goal_region nor target_info")
-        target_name = ti["name"]
         goal_center, goal_radius = np.zeros(3), 0.0          # unused by goal_conditions families
         surface_name = getattr(bundle.surface, "name", None)
     target_obj = env.scene.object_registry("name", target_name)
