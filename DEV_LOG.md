@@ -1841,3 +1841,22 @@ re-audited after every swap. 4-level perturbations rebuilt from the final bases
 `dusty_family_review.html` (paged, per-task success videos). Engine extensions
 are additive-only; jar sentinel re-certified twice. See
 [[project_maniguard_dusty_family]].
+
+## 2026-07-10 — lid_transport family SHIPPED: 30/30 producible, ALL SIX FAMILIES COMPLETE (`59bfd022`)
+
+Sixth family closed in one session (annotation -> skeleton -> sweep -> fixes -> surgery).
+User annotated 42 objects on LID-ON COMPOSITE meshes (assembled in the container root
+frame via T_F.T_M^-1 — grasp frame unchanged, existing annotations stayed valid).
+sweep-1: 15 healthy / 5 marginal / 10 zero -> systemic fix stack, each from numeric
+forensics: Phase-L held_name contract (engine attached the CONTAINER, not the lid),
+collision-filter reset per attempt (the attach patch's filter outlives scene resets —
+released lids fell THROUGH containers on every attempt-2+), fat-container attach bypass
+(cuRobo 32-collision-prim cap), goal_over/to_goal split, arch-aligned regrip
+(container-mesh PCA corridor + world-z wrist rotation), wrong-grab guards, pre-release
+alignment gate + low release + early snap. 9 bench surgeries (rotation, reach rescues
+incl. the GOAL sphere, 3 pair swaps, 1 food swap, 1 cross-category swap w/ full rename
+cascade for the can whose F meta-link is authored BELOW the mesh), config uniqueness
+30/30 re-audited per swap. Perturbations rebuilt (24/24 audit), review_grids x10.
+Review artifact: `lid_family_review.html` (paged, 30 per-task success videos,
+user-approved). Handoff: docs/datagen/LID_COLLECTION_HANDOFF.md. See
+[[project_maniguard_lid_family]].
