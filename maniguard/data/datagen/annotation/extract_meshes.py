@@ -129,8 +129,12 @@ def enumerate_targets(families) -> dict:
                 scene = json.load(open(tdir / "scene_ep1.json"))
             except Exception:  # noqa: BLE001
                 continue
-            names = (_dusty_instance_names(diag, scene) if diag.get("dust_system")
-                     else _graspable_names(diag) + _stack_instance_names(diag, scene))
+            if diag.get("dust_system"):
+                names = _dusty_instance_names(diag, scene)
+            elif diag.get("lid_info"):
+                names = _lid_instance_names(diag, scene)
+            else:
+                names = _graspable_names(diag) + _stack_instance_names(diag, scene)
             for nm in names:
                 args = (scene.get("objects_info", {}).get("init_info", {})
                         .get(nm, {}).get("args", {}))
@@ -144,6 +148,25 @@ def enumerate_targets(families) -> dict:
                            "upright_orientation_xyzw": _state_ori(scene, nm),
                            "source_task": f"{fam}/{tdir.parent.name}"}
     return db
+
+
+def _lid_instance_names(diag: dict, scene: dict) -> list[str]:
+    """lid family: the TWO grasped objects are the lid and the container (the food is
+    never grasped; the goal marker is not annotated). Resolved by (category, model)
+    match so BOTH bench naming generations work (roles ``container`` vs ``target``,
+    instance names ``lid_43`` vs ``lid_lid_ep1_1``). Gated on ``diag["lid_info"]``."""
+    sel = {x["role"]: x for x in diag["selection"]["spawn_specs"]}
+    cont_spec = sel.get("container") or sel.get("target")
+    wants = [(sel["lid"]["category"], sel["lid"]["model"]),
+             (cont_spec["category"], cont_spec["model"])]
+    out = []
+    for cat, model in wants:
+        for nm, info in scene["objects_info"]["init_info"].items():
+            a = info.get("args", {})
+            if (a.get("category"), a.get("model")) == (cat, model):
+                out.append(nm)
+                break
+    return out
 
 
 def extract_gripper(og) -> None:

@@ -114,6 +114,12 @@ class MotionSegment:
     #                                        (measured 5.2-5.8 mm > the 5 mm gate); that residual is absorbed by the
     #                                        following SERVO which re-aims from the LIVE target pose. Pair with rot_relax
     #                                        — at the far reach EITHER axis can bind first (whichever does => IK_FAIL).
+    clearance_exclude: tuple[str, ...] = ()  # object NAMES to ALSO exclude from the clearance
+    #                                        computations (lift_to_clearance aim + the post-segment
+    #                                        min_clearance verify). Default empty => behavior
+    #                                        unchanged. lid: the WELDED lid rides the held container
+    #                                        — counting it as "other clutter" makes the container's
+    #                                        bottom-vs-lid-top clearance permanently negative.
     reach_fallback: bool = False            # transport only: if the precise (eef→goal / object-centre→goal-centre)
     #                                        plan fails on a FAR goal, the engine may relax to the closest-to-goal
     #                                        placement that is IK-reachable AND still leaves the held object

@@ -95,13 +95,15 @@ class DemoEngine:
         if seg.compute == "lift_to_clearance":
             held = self._held(seg, ctx)
             st = geometry.surface_top_z(ctx.support)
+            extra_ex = [o for o in (ctx.env.scene.object_registry("name", n)
+                                    for n in seg.clearance_exclude) if o is not None]
             other_top, oname = geometry.max_other_top_z(
-                ctx.env, exclude=[held], robots=ctx.env.robots, support_top=st)
+                ctx.env, exclude=[held, *extra_ex], robots=ctx.env.robots, support_top=st)
             cup_lo = geometry.lowest_z(held)
             aim = seg.target_clearance_m or seg.min_clearance_m or 0.03   # 1.0–1.5× clearance (per-draw)
             dz = geometry.lift_delta_for_clearance(
                 ctx.env, ctx.target, robots=ctx.env.robots, support_top=st,
-                min_clearance=aim + self.lift_margin)
+                min_clearance=aim + self.lift_margin, extra_exclude=extra_ex)
             print(f"[datagen.engine] lift resolve: cup_lo={cup_lo:.3f} "
                   f"other_top={other_top:.3f}({oname}) aim={aim:.3f} dz={dz:.3f}(+{self.lift_margin}m PD) "
                   f"eef_z {ep[2]:.3f}->{ep[2] + dz:.3f}", flush=True)
@@ -479,7 +481,7 @@ class DemoEngine:
                 #                                    wipe_incomplete gate) -> fail the attempt, driver retries
                 print(f"[datagen.engine] {seg.name} FAMILY-ABORT: {e.stage} {e.detail}", flush=True)
                 recorder.finalize(success=False)
-                return DemoResult.fail(e.stage, seg=seg.name, **e.detail)
+                return DemoResult.fail(e.stage, **{"seg": seg.name, **e.detail})
             if seg.ignore_clutter:
                 # world-collision-off for the final grasp descent (drop every non-robot obstacle)
                 robots = set(self.env.robots)
@@ -631,8 +633,10 @@ class DemoEngine:
             if seg.min_clearance_m is not None:
                 held = self._held(seg, ctx)
                 st = geometry.surface_top_z(ctx.support)
+                extra_ex = [o for o in (ctx.env.scene.object_registry("name", n)
+                                        for n in seg.clearance_exclude) if o is not None]
                 other_top, oname = geometry.max_other_top_z(
-                    ctx.env, exclude=[held], robots=ctx.env.robots, support_top=st)
+                    ctx.env, exclude=[held, *extra_ex], robots=ctx.env.robots, support_top=st)
                 cup_lo = geometry.lowest_z(held)
                 ez = float(_np(self.robot.eef_links[self.robot.default_arm]
                                .get_position_orientation()[0])[2])

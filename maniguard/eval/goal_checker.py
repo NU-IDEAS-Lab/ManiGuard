@@ -60,6 +60,11 @@ class GoalChecker:
 @dataclass
 class GoalRegionChecker:
     raw_region: GoalRegionSpec
+    # lid_transport only (set by build_goal_checker when the diag carries ``lid_info``):
+    # wide containers are legitimately carried by their WELDED lid (rim+lid sandwich or
+    # lid-top grip) — grasping the lid of the assembly counts as holding the target.
+    # None for every other family => behavior byte-identical.
+    assembly_lid_name: str | None = None
     _objects: Dict[str, Any] = field(default_factory=dict)
 
     def resolve(self, env) -> None:
@@ -86,12 +91,23 @@ class GoalRegionChecker:
                 "intersects": False,
             }
         held = robot_holds_target(env, target)
+        held_via = "target" if held else None
+        if not held and self.assembly_lid_name:
+            lid = env.scene.object_registry("name", self.assembly_lid_name)
+            if lid is not None and robot_holds_target(env, lid):
+                try:
+                    from omnigibson.object_states import AttachedTo
+                    if bool(lid.states[AttachedTo].get_value(target)):
+                        held, held_via = True, "lid_assembly"
+                except (KeyError, ImportError):
+                    pass
         intersects = object_intersects_goal_region(target, self.raw_region)
         detail = {
             "mode": self.raw_region.mode,
             "target_name": self.raw_region.target_name,
             "marker_name": self.raw_region.marker_name,
             "held": bool(held),
+            "held_via": held_via,
             "intersects": bool(intersects),
             "radius_m": float(self.raw_region.radius_m),
             "center_world": list(self.raw_region.center_world),
@@ -232,7 +248,15 @@ def build_goal_checker(scene_info: dict) -> Optional[GoalChecker | GoalRegionChe
     """Build a success checker from scene_info/dataset-level goal fields."""
     goal_region = scene_info.get("goal_region")
     if isinstance(goal_region, dict) and goal_region:
-        return GoalRegionChecker(raw_region=GoalRegionSpec.from_json(goal_region))
+        assembly_lid = None
+        if scene_info.get("lid_info"):
+            # lid family: the lid instance is the ontop-subject of the goal conditions
+            for g in scene_info.get("goal_conditions") or []:
+                if isinstance(g, dict) and g.get("predicate") == "ontop":
+                    assembly_lid = g.get("subject")
+                    break
+        return GoalRegionChecker(raw_region=GoalRegionSpec.from_json(goal_region),
+                                 assembly_lid_name=assembly_lid)
     conditions = scene_info.get("goal_conditions")
     if not conditions:
         return None

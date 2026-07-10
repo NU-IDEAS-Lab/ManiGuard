@@ -20,6 +20,7 @@ from maniguard.data.datagen.families.cabinet import CabinetSkeleton
 from maniguard.data.datagen.families.clutter import ClutterSkeleton
 from maniguard.data.datagen.families.dusty import DustySkeleton
 from maniguard.data.datagen.families.jar import JarSkeleton
+from maniguard.data.datagen.families.lid import LidSkeleton
 from maniguard.data.datagen.families.stack import StackSkeleton
 
 FAMILY = {
@@ -28,5 +29,6 @@ FAMILY = {
     "stack": StackSkeleton,
     "jar": JarSkeleton,
     "dusty": DustySkeleton,
+    "lid": LidSkeleton,
 }
 

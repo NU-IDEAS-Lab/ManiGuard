@@ -54,7 +54,13 @@ def _needs_gpu_dynamics(diag: dict) -> bool:
     """True if the task carries a PhysX particle/fluid system that only simulates under the GPU
     dynamics pipeline. Clutter-liquid tasks declare ``selection.system_name`` (e.g. ``"water"``);
     under the default CPU pipeline the fluid particles deterministically NaN-segfault at water-system
-    init. Mirrors ``bench_builder.finalize_base._needs_gpu_dynamics`` (the canonical bench gating)."""
+    init. Mirrors ``bench_builder.finalize_base._needs_gpu_dynamics`` (the canonical bench gating).
+
+    lid_transport: liquid-mode tasks carry a LEGACY ``system_name="water"`` in the diag but the
+    bench scenes bake NO particles at all ("filled" is narrative) — GPU dynamics there is pure
+    risk (boot segfault seen on task_0023) with zero benefit. Gate them out on ``lid_info``."""
+    if diag.get("lid_info"):
+        return False
     return bool((diag.get("selection") or {}).get("system_name"))
 
 

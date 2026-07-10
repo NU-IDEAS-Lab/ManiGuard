@@ -83,10 +83,12 @@ def clearance(env, target, *, robots=(), support_top=None) -> float:
 
 
 def lift_delta_for_clearance(env, target, *, robots=(), support_top=None,
-                             min_clearance: float = 0.03) -> float:
+                             min_clearance: float = 0.03, extra_exclude=()) -> float:
     """Δz the eef must rise so the held target's lowest point clears the tallest other
-    on-surface object by >= ``min_clearance``. 0.0 if already clear (or nothing to clear)."""
-    other_top, _ = max_other_top_z(env, exclude=[target], robots=robots, support_top=support_top)
+    on-surface object by >= ``min_clearance``. 0.0 if already clear (or nothing to clear).
+    ``extra_exclude``: additional OBJECTS to skip (e.g. a lid welded onto the target)."""
+    other_top, _ = max_other_top_z(env, exclude=[target, *extra_exclude], robots=robots,
+                                   support_top=support_top)
     if not np.isfinite(other_top):
         return 0.0
     required_lowest = other_top + float(min_clearance)

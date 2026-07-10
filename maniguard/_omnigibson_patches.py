@@ -453,7 +453,11 @@ def _patch_attachable_for_f_link_objects() -> None:
             if not getattr(link, "is_meta_link", False):
                 continue
             # is_meta_link short-circuit makes meta_link_id safe to read.
-            if link.meta_link_id.endswith("F") \
+            # M side too: the taxonomy declares ``attachable`` for lid but NOT for cap
+            # (cap/* carries the M meta-link yet gets no AttachedTo state -> LidSnapper
+            # discovers zero pairs on every bottle-cap task). Any object with an
+            # attachment meta-link (either polarity) gets the ability.
+            if link.meta_link_id.endswith(("F", "M")) \
                     and "attachable" not in self._abilities:
                 self._abilities["attachable"] = {}
                 break
