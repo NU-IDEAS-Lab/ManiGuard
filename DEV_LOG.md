@@ -1860,3 +1860,19 @@ cascade for the can whose F meta-link is authored BELOW the mesh), config unique
 Review artifact: `lid_family_review.html` (paged, 30 per-task success videos,
 user-approved). Handoff: docs/datagen/LID_COLLECTION_HANDOFF.md. See
 [[project_maniguard_lid_family]].
+
+## 2026-07-11 — parallel to_lerobot: task-shard → merge, ~18x, byte-identical (`620039ed`)
+
+The serial `to_lerobot` converter is single-threaded / video-decode bound (~25 s/ep; dusty
+1040 eps = 243 min). New `to_lerobot_parallel` shards BY TASK — runs the UNMODIFIED converter
+on each task in its own process (symlink shard view), then merges the per-task LeRobot datasets
+(`lerobot_merge.merge_shards`) — using all cores (dusty: 13 min, 18.5x). Per-episode parquet
+data + videos are byte-identical by construction (converter unchanged); the merge only re-offsets
+the 3 global index columns (episode_index/index/task_index + their per-episode stats) and rebuilds
+meta. Proven byte-identical to a full serial run by field-level diff (`lerobot_diff`: all parquet
+columns + video md5 + meta) on a 2-task subset AND a shared-prompt task pair; the `--verify`
+self-check (default) validates the merge vs the converter's own build_prompt_table + per-episode
+indices + LeRobotDataset load + counts. Drop-in CLI:
+`python -m maniguard.data.datagen.to_lerobot_parallel --dataset v1 --family <fam> --repo-id <REPO>`.
+First used to convert + publish dusty (`datagen-dusty-v1-joint-5cam`, private, v2.1).
+See [[project_datagen_lerobot_converter]].
