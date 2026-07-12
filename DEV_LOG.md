@@ -1876,3 +1876,9 @@ indices + LeRobotDataset load + counts. Drop-in CLI:
 `python -m maniguard.data.datagen.to_lerobot_parallel --dataset v1 --family <fam> --repo-id <REPO>`.
 First used to convert + publish dusty (`datagen-dusty-v1-joint-5cam`, private, v2.1).
 See [[project_datagen_lerobot_converter]].
+
+## 2026-07-12 — codebase + docs cleanup (post-6-family)
+
+Retired dead code from the pre-datagen era and restructured the docs site to the finalized codebase.
+
+- C1: removed abandoned `maniguard/data/curobo/` demo-collection prototype (9 files) — superseded by `data/datagen`.
