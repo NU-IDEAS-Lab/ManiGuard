@@ -10,17 +10,15 @@ five oriented boxes in the grasp frame (perp=X, closing=Y, approach=Z):
 
 Candidate poses are seeded from convex-hull support points + uniform anchors, with
 the approach direction sampled in a cone around the inward surface normal. Each pose
-is scored by how much object material the swept box captures AND — NEW vs the
-reference sampler — how CENTERED that material is along the closing axis, so the two
+is scored by how much object material the swept box captures AND how CENTERED that
+material is along the closing axis, so the two
 fingers contact the object near-simultaneously on closing. (An off-center grasp lets
 the first-contacting finger shove the object out of the gripper before the second
 finger lands — the assisted-grasp raycast then misses and the grasp fails; this was
 the common push-away failure in teleop.)
 
-Replicated clean from the team's `rl/grasps/obb_sampler.py` (SimonZhan) + `mesh.py`,
-with the legacy/unused fields dropped and the centering criterion added. Franka
-constants are calibrated for the active `franka_panda_longfinger` asset + our AG
-raycast patch (`_omnigibson_patches.LONG_AG_Z`). datagen does not import the rl tree.
+Franka constants are calibrated for the active `franka_panda_longfinger` asset + our
+AG raycast patch (`_omnigibson_patches.LONG_AG_Z`).
 """
 from __future__ import annotations
 
@@ -56,7 +54,7 @@ class GraspConfig:
     center_sigma_m: float = 0.005     # closing-axis centering tolerance (push-away)
 
 
-# --- mesh extraction (replicated clean from rl/grasps/mesh.py) ----------------
+# --- mesh extraction ---------------------------------------------------------
 def _to_np(t) -> np.ndarray:
     if hasattr(t, "detach"):
         t = t.detach()

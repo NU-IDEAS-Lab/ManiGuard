@@ -1882,3 +1882,4 @@ See [[project_datagen_lerobot_converter]].
 Retired dead code from the pre-datagen era and restructured the docs site to the finalized codebase.
 
 - C1: removed abandoned `maniguard/data/curobo/` demo-collection prototype (9 files) — superseded by `data/datagen`.
+- C2: removed abandoned RL + GraspGen dead-ends — `maniguard/rl/` (SB3 PPO, 21 files), the GraspGen grasp-source tooling (sampler/render/survey + launchers + report), the `[rl]` pip extra, and their gitignored clone entries. RL support is now framed as under development.

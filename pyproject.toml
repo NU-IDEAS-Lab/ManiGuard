@@ -37,10 +37,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-rl = [
-    "gymnasium>=0.28.1",
-    "stable-baselines3[extra]>=2.0",
-]
 serve = [
     "websockets>=11.0",
     "pyzmq>=25.0",

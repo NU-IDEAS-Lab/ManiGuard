@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-# Shared margins (kept in sync with maniguard/rl/grasps/obb_sampler.py).
+# Shared margins for the OBB rectangle overlays.
 _OBB_S  = 0.002   # shrink margin for empty boxes
 _OBB_E  = 0.002   # expand margin for swept boxes
 _HAND_TO_EEF_OFFSET  = 0.1034   # panda_hand origin → eef_link along +z

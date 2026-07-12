@@ -20,9 +20,9 @@ behavior-1k/OmniGibson/omnigibson.egg-info/
 behavior-1k/OmniGibson/.pytest_cache/
 behavior-1k/OmniGibson/**/__pycache__/
 datasets/*
-# GraspGen client/server (NVlabs/GraspGen) — checkpoints + uv venv kept local
-GraspGen/
-GraspGenModels/
+
+# personal datagen dev logs (not for the public docs site)
+docs/datagen/debug_logs/
 
 # stack_pipeline raw raycast (122 MB; reproducible from scan_top_surface.py)
 maniguard/task_generation/utils/stack_pipeline/scan_top_full.json
