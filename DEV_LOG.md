@@ -1885,3 +1885,11 @@ Retired dead code from the pre-datagen era and restructured the docs site to the
 - C2: removed abandoned RL + GraspGen dead-ends — `maniguard/rl/` (SB3 PPO, 21 files), the GraspGen grasp-source tooling (sampler/render/survey + launchers + report), the `[rl]` pip extra, and their gitignored clone entries. RL support is now framed as under development.
 - C3: relocated `episode_prompt` into `maniguard/eval/prompt_utils.py` (eval reuse) and dropped the old `data/lerobot` export/joint-recovery modules (5 files); `data/lerobot` now holds only the teleop `multitask_lerobot_export` + `norm_stats`.
 - C4: restructured the mkdocs docs site to the finalized codebase — RL reframed as under-development; new datagen docs (grasp_annotation, lerobot_conversion); SFT docs made model-agnostic (one joint dataset → any VLA); eval docs consolidated under evaluation/; pipeline docs aligned to the 6 ManiGuard-Bench families (renamed to full names, content corrected, bench grid images); homepage + reference refreshed.
+
+## 2026-07-12 — pi0.5 SFT configs finalized (6 families, datagen v1)
+
+Replaced the stale 4-family batch-32 openpi TrainConfigs with the finalized 6-family
+set in `maniguard/openpi_sft/train_configs.py`, one entry per family (dataset
+`datagen-<fam>-v1-joint-5cam`, warm-start pi05_base, external_cam=left, ~2-epoch steps
+at batch 128); run names = `pi05-base_datagen_v1_<fam>_joint_2cam_lora`. register() all 6.
+Ready to run end-to-end once compute is available.
