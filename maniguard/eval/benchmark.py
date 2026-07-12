@@ -398,7 +398,7 @@ def main():
 
     for scene_idx, scene_info in enumerate(scenes):
         if cfg.prompt_template:
-            from maniguard.data.lerobot.lerobot_writer import episode_prompt
+            from maniguard.eval.prompt_utils import episode_prompt
             scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
         print(f"\n{'='*60}")
         print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}")

@@ -1883,3 +1883,4 @@ Retired dead code from the pre-datagen era and restructured the docs site to the
 
 - C1: removed abandoned `maniguard/data/curobo/` demo-collection prototype (9 files) — superseded by `data/datagen`.
 - C2: removed abandoned RL + GraspGen dead-ends — `maniguard/rl/` (SB3 PPO, 21 files), the GraspGen grasp-source tooling (sampler/render/survey + launchers + report), the `[rl]` pip extra, and their gitignored clone entries. RL support is now framed as under development.
+- C3: relocated `episode_prompt` into `maniguard/eval/prompt_utils.py` (eval reuse) and dropped the old `data/lerobot` export/joint-recovery modules (5 files); `data/lerobot` now holds only the teleop `multitask_lerobot_export` + `norm_stats`.

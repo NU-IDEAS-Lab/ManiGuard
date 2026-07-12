@@ -36,7 +36,7 @@ def frame_rows(traj: dict) -> list[dict]:
             for t in range(n)]
 
 
-# --- passthrough (ported + VERIFIED against lerobot 0.3.3; NOT imported from lerobot_writer) ---
+# --- passthrough (self-contained; VERIFIED against lerobot 0.3.3) ---
 
 def _png_to_mp4(png_path):
     """Map a would-be PNG path <root>/images/<key>/episode_NNNNNN/frame_MMMMMM.png to the pre-placed
