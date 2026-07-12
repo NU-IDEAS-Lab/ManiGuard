@@ -6,8 +6,8 @@ uv venv (which does NOT have the ``maniguard`` package installed). Importing thi
 module registers ``MODALITY_CONFIG`` under ``EmbodimentTag.NEW_EMBODIMENT``.
 
 Embodiment: Franka Panda, 8-D joint state/action (7 arm joints + 1 gripper),
-3 camera views. Mirrors GR00T's own joint-space reference (``oxe_droid``):
-arm = state-relative chunks, gripper = absolute, both ``NON_EEF``.
+2 camera views (one overview + wrist). Mirrors GR00T's own joint-space reference
+(``oxe_droid``): arm = state-relative chunks, gripper = absolute, both ``NON_EEF``.
 
 Data mapping (see ``MODALITY_JSON``): the ManiGuard LeRobot export stores state
 and action as the 8-D ``state`` / ``actions`` columns and videos under
@@ -15,12 +15,10 @@ and action as the 8-D ``state`` / ``actions`` columns and videos under
 points at those existing names, so NO columns or video files are renamed — the
 only on-disk change is adding ``meta/modality.json`` (+ generated stats).
 
-These are the SAME streams the pi0.5 SFT consumes, so GR00T and pi0.5 train on
-identical inputs (benchmark parity).
-
-3-cam by default. To fall back to 2-cam later, drop one overview key from BOTH
-``VIDEO_KEYS`` here and the resulting ``meta/modality.json`` (cab -> keep
-``image_right``; the others -> keep ``image_left``), then re-run stats.
+The active views (``image_left`` overview + wrist) are exactly what the pi0.5 SFT
+consumes (``external_cam="left"``), so GR00T and pi0.5 train on identical inputs
+(benchmark parity). GR00T natively supports more views — adding one back is a
+one-line change to ``VIDEO_KEYS`` (see below), then re-run stats.
 """
 
 from gr00t.configs.data.embodiment_configs import register_modality_config
@@ -37,11 +35,15 @@ from gr00t.data.types import (
 # LIBERO convention; open_loop_eval should use the same --action-horizon).
 ACTION_HORIZON = 16
 
-# Camera views fed to the VLM, in order. Maps to dataset video dirs via
-# ``MODALITY_JSON["video"]`` below. Comment a key out in BOTH places for 2-cam.
-VIDEO_KEYS = ["image_left", "image_right", "wrist"]
+# Active camera views fed to the VLM, in order: 2-cam (one overview + wrist),
+# matching the pi0.5 SFT (external_cam="left") for benchmark parity. GR00T natively
+# supports more views — to add one (e.g. "image_right"), append its key here; its
+# original_key mapping is already registered in ``_VIDEO_ORIGINAL_KEY`` below, then
+# re-run stats. Maps to dataset video dirs via ``MODALITY_JSON["video"]``.
+VIDEO_KEYS = ["image_left", "wrist"]
 
-# GR00T modality_key -> the video feature/dir actually present in the dataset.
+# Known GR00T modality_key -> dataset video feature/dir. A superset of the active
+# ``VIDEO_KEYS`` so extra overviews can be enabled by name without editing this map.
 _VIDEO_ORIGINAL_KEY = {
     "image_left": "image_left",
     "image_right": "image_right",

@@ -1893,3 +1893,12 @@ set in `maniguard/openpi_sft/train_configs.py`, one entry per family (dataset
 `datagen-<fam>-v1-joint-5cam`, warm-start pi05_base, external_cam=left, ~2-epoch steps
 at batch 128); run names = `pi05-base_datagen_v1_<fam>_joint_2cam_lora`. register() all 6.
 Ready to run end-to-end once compute is available.
+
+## 2026-07-12 — GR00T N1.6 datagen-v1 SFT wired (2-cam, shared cache, driver)
+
+Aligned the GR00T track to the finalized datagen v1 data: embodiment -> 2-cam (image_left +
+wrist, pi0.5 parity); new `tools/gr00t_sft/run_all.sh` drives one family or all 6 serially
+end-to-end (shared idempotent download -> prepare -> ~2-epoch train -> push), identity fixed /
+batch+workers as flags, HF/WANDB pre-flight; run_sft.sh -> online wandb + relative GR00T_HOME +
+2cam project. openpi + gr00t now share one dataset download via MANIGUARD_SFT_DATA_ROOT
+(default outputs/sft_datasets).

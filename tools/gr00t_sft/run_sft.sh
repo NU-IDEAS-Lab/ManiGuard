@@ -23,10 +23,10 @@
 set -euo pipefail
 
 MANIGUARD_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-GR00T_HOME="${GR00T_HOME:-$HOME/projects/Isaac-GR00T}"
+GR00T_HOME="${GR00T_HOME:-$MANIGUARD_HOME/../Isaac-GR00T}"
 MODALITY_CONFIG="$MANIGUARD_HOME/maniguard/gr00t_sft/maniguard_embodiment.py"
 BASE_MODEL="${BASE_MODEL:-nvidia/GR00T-N1.6-3B}"
-WANDB_PROJECT="${WANDB_PROJECT:-gr00t-n16-base-joint-3cam}"
+WANDB_PROJECT="${WANDB_PROJECT:-gr00t-n16-base-joint-2cam}"
 
 DATASET=""
 OUTPUT=""
@@ -72,9 +72,10 @@ export GLOBAL_BATCH_SIZE="$BATCH"
 export SAVE_STEPS="$SAVE_STEPS"
 export DATALOADER_NUM_WORKERS="$WORKERS"
 export USE_WANDB="${USE_WANDB:-1}"
-# wandb live (online) streaming drops history on this HPC node; record offline and
-# sync after the run (see the wandb sync block below) for reliable loss curves.
-export WANDB_MODE="${WANDB_MODE:-offline}"
+# wandb online by default for live training visibility (aligned with the openpi SFT).
+# If a specific server drops online history, set WANDB_MODE=offline to record locally;
+# the block after training then syncs the full run.
+export WANDB_MODE="${WANDB_MODE:-online}"
 
 echo "[run_sft] family=$EXP_NAME steps=$STEPS batch=$BATCH save_steps=$SAVE_STEPS save_limit=$SAVE_LIMIT"
 echo "[run_sft] dataset=$DATASET"
