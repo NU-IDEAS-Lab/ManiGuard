@@ -77,15 +77,39 @@
    pip install -e ".[serve]"        # with websocket policy server extras
    ```
 
-4. **ManiGuard-generated benchmark scenes** (our own `scene_ep*.json`
-   + `diagnostics.jsonl` bundles) are distributed separately from the
-   BEHAVIOR asset bundle — see
-   [`maniguard/task_generation/README.md`](maniguard/task_generation/README.md)
-   for how pipelines write them, and the HuggingFace-hosted benchmark
-   release for the frozen versions. (They live under a different root
-   than `behavior-1k/datasets/` on purpose: BEHAVIOR assets are
-   Stanford-licensed and not redistributable, whereas ManiGuard
-   benchmark scenes are ours.)
+4. **Install the ManiGuard-Bench robot asset** (required to run the benchmark).
+   The benchmark uses a Franka Panda with extended **fin-ray fingers** that is
+   *not* part of the stock OmniGibson robot set. Download it into the robot-assets
+   tree so the runtime patch can find it (default data root is `behavior-1k/datasets/`,
+   or `$OMNIGIBSON_DATA_PATH` if you set it):
+
+   ```bash
+   hf download IDEAS-Lab-Northwestern/franka-panda-longfinger --repo-type dataset \
+     --local-dir behavior-1k/datasets/omnigibson-robot-assets/models/franka/franka_panda_longfinger
+   ```
+
+   On `import maniguard`, `FrankaPanda` is auto-redirected to this bundle whenever
+   it is present at `<data_root>/omnigibson-robot-assets/models/franka/franka_panda_longfinger/`.
+
+5. **ManiGuard-Bench scenes.** The frozen benchmark (per-task `scene_ep1.json` +
+   `diagnostics.jsonl` + review videos) is hosted at
+   [`IDEAS-Lab-Northwestern/ManiGuard-Bench`](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench).
+   Eval accepts the HF repo id directly (snapshot-downloaded into the HF cache) or a
+   local directory:
+
+   ```bash
+   # A) let eval pull it (needs `huggingface-cli login` while the repo is private)
+   python -m maniguard.eval.benchmark --benchmark-root IDEAS-Lab-Northwestern/ManiGuard-Bench ...
+   # B) or download once and pass the local dir
+   hf download IDEAS-Lab-Northwestern/ManiGuard-Bench --repo-type dataset --local-dir datasets/maniguard-bench
+   ```
+
+   The bench scenes live under a different root than `behavior-1k/datasets/` on
+   purpose: BEHAVIOR assets are Stanford-licensed and not redistributable, whereas
+   the ManiGuard-Bench scenes + the longfinger robot asset are ours (CC BY 4.0 /
+   Apache-2.0 respectively). See
+   [`maniguard/task_generation/README.md`](maniguard/task_generation/README.md) for
+   how the pipelines write scenes.
 
 Importing `maniguard` applies a small set of runtime patches that extend
 OmniGibson with ManiGuard-specific object states, BDDL predicates, grasp-goal

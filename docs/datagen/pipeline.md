@@ -39,6 +39,22 @@ Environment for every step: `conda activate behavior`; sim steps also need
 `python -u` (the `exit 139` segfault at `og.sim.stop()` is a benign teardown). All commands
 assume `PYTHONPATH=$HOME/project/ManiGuard`.
 
+**Prerequisites — install the bench tasks + robot asset first.** This pipeline collects
+new demos *against ManiGuard-Bench tasks*, so it reads base tasks straight from a local copy
+of the bench (e.g. `outputs/lerobot_datasets/maniguard-bench/<family>/task_NNNN/base/`, passed
+as `--task-dir` in §D / discovered by `sweep` in §E), and every sim step loads the longfinger
+Franka. Install both if you have not already (full details in
+[Installation](../getting-started/installation.md)):
+
+```bash
+# bench tasks — the source scenes the executor replays
+hf download IDEAS-Lab-Northwestern/ManiGuard-Bench --repo-type dataset \
+  --local-dir outputs/lerobot_datasets/maniguard-bench
+# robot asset — required by every sim step (auto-picked up on `import maniguard`)
+hf download IDEAS-Lab-Northwestern/franka-panda-longfinger --repo-type dataset \
+  --local-dir behavior-1k/datasets/omnigibson-robot-assets/models/franka/franka_panda_longfinger
+```
+
 ---
 
 > The grasp-source stages (A–B + QC below) have a dedicated page with the full
