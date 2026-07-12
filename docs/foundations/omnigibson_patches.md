@@ -35,7 +35,7 @@ omnigibson` because downstream modules reference those names at module load.
 | `_patch_create_joint_skip_render` | skips `og.sim.render()` in `create_joint` when all poses are supplied | fixes an AG-path segfault (render invalidates articulation handles inside a physics callback) |
 | `_patch_attachable_for_f_link_objects` | auto-adds `attachable` to objects with an F meta-link | lid↔container coupling needs both sides attachable |
 | `_patch_attached_to_disable_collision` | filters collisions between attached child/parent | stops light containers flying apart on attach |
-| `apply_ag_throttle_from_env` | throttles assisted-grasp to every Nth substep | cuts redundant per-substep AG raycasts in RL |
+| `apply_ag_throttle_from_env` | throttles assisted-grasp to every Nth substep | cuts redundant per-substep AG raycasts in long rollouts |
 | `_register_bddl_predicates` | registers `upright`/`dropped`/`grasped`/`stashed` BDDL predicates | expose ManiGuard states to BDDL |
 
 !!! note "Remaining in-tree edits"

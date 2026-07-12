@@ -120,8 +120,8 @@ Key fields:
 
 The `pi05-base-pnp-clutter-n10x2-3cam-lora` checkpoint is a LoRA finetune that
 consumes **three real camera views** instead of one third-person + a padded
-wrist slot. The view-to-slot mapping matches the SFT recorder
-(`maniguard/data/curobo/_sft_recorder.py`) and exporter (`maniguard/data/lerobot/lerobot_export.py`):
+wrist slot. The view-to-slot mapping matches the datagen recorder + exporter
+(`maniguard/data/datagen/primitives/record.py` → `maniguard/data/datagen/to_lerobot.py`):
 
 | sim camera           | observation key            | pi0 slot           |
 | -------------------- | -------------------------- | ------------------ |

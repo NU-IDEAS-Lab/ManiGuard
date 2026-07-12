@@ -1,8 +1,8 @@
 # Installation
 
 ManiGuard runs in the **`behavior` conda env** — OmniGibson simulation, BDDL,
-teleop, task generation, RL, and eval. Policy training/serving via openpi uses
-its own venv (see the [SFT](../openpi_sim_teleop_sft.md) pages).
+teleop, task generation, scripted data generation, and eval. Policy training/serving
+via openpi uses its own venv (see the [SFT](../sft/index.md) pages).
 
 ## 1. Clone with submodules
 
@@ -34,7 +34,7 @@ Dependencies: `--omnigibson` requires `--bddl`; `--primitives` requires `--omnig
 ```bash
 conda activate behavior
 pip install -e .                 # base
-pip install -e ".[rl,serve]"     # with RL + policy-server extras
+pip install -e ".[serve]"        # with policy-server extras
 ```
 
 ## Optional: override the dataset path

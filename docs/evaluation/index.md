@@ -113,8 +113,8 @@ robustness. The perturbations are materialized at load by
 
 | Setup | Page |
 |---|---|
-| Single machine (RTX Pro 6000) | [Single-machine eval](../one_machine_pro6000_eval.md) |
-| Policy + sim on separate GPUs | [Two-machine eval](../two_machine_eval.md) |
+| Single machine (RTX Pro 6000) | [Single-machine eval](one_machine.md) |
+| Policy + sim on separate GPUs | [Two-machine eval](two_machine.md) |
 
 ## Code map
 

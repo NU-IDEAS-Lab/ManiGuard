@@ -4,9 +4,8 @@ This is the **`maniguard/data/datagen/`** pipeline: it turns the read-only
 **ManiGuard-Bench** base tasks into large numbers of **success + safe** manipulation
 demonstrations for SFT, fully scripted (no teleop, no per-trajectory human review).
 
-It supersedes the older reference pipeline in `maniguard/data/curobo/` (documented under
-`docs/data_collection/`, kept only as reference). The grasp source is **per-instance human
-annotation** (RoboTwin-style), not GraspGen.
+The grasp source is **per-instance human annotation** (RoboTwin-style): each grasp is authored once
+in a GUI and stored as an eef-target pose in the object-local frame (see §B).
 
 > **Design in one line:** a *generic executor* plans / executes / gates / records / scales any
 > family identically; each *family skeleton* only declares **which motion segments make up the
@@ -31,7 +30,7 @@ E. sweep               many tasks  ─► one subprocess per task, sharded/paral
    └─────────────────────────────────────────────────────────────────────┘
    ┌─ offline, no sim ───────────────────────────────────────────────────┐
 F. review              demos       ─► per-task montage MP4 (quick visual review)
-G. reader → converter  demos       ─► LeRobot v2.1 (future; pure file repackage)
+G. to_lerobot          demos       ─► LeRobot v2.1 per family (offline; video passthrough)
    └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -41,6 +40,9 @@ Environment for every step: `conda activate behavior`; sim steps also need
 assume `PYTHONPATH=$HOME/project/ManiGuard`.
 
 ---
+
+> The grasp-source stages (A–B + QC below) have a dedicated page with the full
+> workflow, conventions, and gotchas: **[Grasp annotation](grasp_annotation.md)**.
 
 ## A. Mesh extraction — `annotation/extract_meshes.py`
 
@@ -237,15 +239,19 @@ python -m maniguard.data.datagen.review --dataset v1 --family clutter_pickup --t
 
 ---
 
-## G. Reader + LeRobot conversion — `reader.py`
+## G. Reader + LeRobot conversion — `reader.py` → `to_lerobot.py`
 
 Each demo stores videos and numbers **separately**: 5 MP4 streams (pixels) + `traj.hdf5` (numeric
 only — no pixels) + `meta.json`. So **LeRobot conversion needs no sim and no replay** — it is a
 pure offline file repackage: read frames from the existing MP4s + joint arrays from the hdf5 +
-fields from meta, write into LeRobot v2.1 (parquet + per-camera video). Video can be passthrough
-(no re-encode). `reader.py` (`iter_traj_dirs` / `load_traj` / `read_frames` / `summarize`) is the
-single entry point the converter will use — keep the on-disk layout and the reader in sync. The
-converter itself is future work.
+fields from meta, write into LeRobot v2.1 (parquet + per-camera video), **videos passed through with
+no re-encode**. `reader.py` (`iter_traj_dirs` / `load_meta` / `load_traj` / `read_frames`) is the
+single entry point the converter uses — keep the on-disk layout and the reader in sync.
+
+The converter is **built and shipped** (`to_lerobot.py` serial + `to_lerobot_parallel.py`
+shard-by-task, proven byte-identical, ~18.5×). It runs in the **lerobot uv env**, not `behavior`.
+Full details, CLI, the byte-identity guarantee, and HF publishing are in
+**[lerobot_conversion.md](lerobot_conversion.md)**.
 
 ---
 
@@ -291,6 +297,61 @@ to_goal     LINEAR, hold    drive the held object's CENTRE to the goal-sphere ce
 Why boxy: top-down grasps are kinematically reachable (~1 mm / 0.1° IK error); failures are purely
 desk/clutter collision. "Lift to a safe height, then translate" structurally clears clutter, so
 cuRobo solves it directly.
+
+> **SERVO vs LINEAR.** Later families use `linear_servo` segments (labelled SERVO below) — pure
+> straight-line joint IK per waypoint — instead of `linear`, because this cuRobo fork's partial-pose
+> LINEAR_SERVO query is unreliable; SERVO gives the same straight motion without it.
+
+### cabinet (`families/cabinet.py`, bench `cabinet_pickup`) — drawer place
+
+`relocate blocker(s) → open sliding drawer → place target inside → close drawer`. Four phases, ~25
+segments: **P1 relocate** (pick blocker, carry off, inverted return-replay), **P2 open** (grasp
+handle, pull drawer, release), **P3 place** (grasp target, inverted-U over the rail, lower inside,
+release), **P4 close** (grasp handle/front, push shut). Gate = `inside(target, cabinet) &
+closed(cabinet)`; no `success_extra`. **Mechanic:** obstacle is relocated FIRST — opening the drawer
+into an un-moved object tips it → LTL upright violation → demo voided.
+
+### stack (`families/stack.py`, bench `stack_retrieve`) — unstack then retrieve
+
+`unstack the 3 identical top objects onto one right-side re-stack pile → retrieve the exposed bottom
+target left into the goal sphere (held)`. Per top object ×3: `s{i}_up/over/descend/lift/carry/
+reorient/realign/place` (shallow FREE-descend grasp, double-gated transfer at a fixed safe height,
+upright re-stack onto a growing pile); then the target tail `t_up/over/descend/lift/transport/place`.
+**`success_extra`:** reject the demo if any pick moved >1 object (`not _multigrab`). **Mechanic:**
+grasps filtered top-down-only; two unreachable tasks revert to a minimal re-stack gap.
+
+### jar (`families/jar.py`, bench `jar_transport`) — close lid, transport jar
+
+`close the hinged lid → grasp the jar body (side) → transport jar → goal`. **Phase A (close lid):**
+`lid_under` (bar into the wedge under the lid) → `lid_slip` → `lid_ride` (straight ride past the
+tipping point) → `lid_back` (retreat; gravity seats the lid). **Phase B:** `side_pre_grasp → descend
+(close) → lift → transport → to_goal`. **Mechanic:** the **lid-ride** — the open gripper pivots the
+articulated lid about its hinge (`arc_about_hinge` compute), the lid resting unilaterally on a finger
+bar; Phase B is restricted to SIDE grasps so the jar stays upright off the just-closed lid.
+
+### dusty (`families/dusty.py`, bench `dusty_transfer`) — wipe then pour
+
+`pick+place sponge → wipe the dest's dust → return the sponge → pick the source (food riding inside)
+→ tilt-pour the food into the dest`. Segments: sponge P&P + `wipe_step_{i}` peck-wipe tour →
+sponge return → source grasp + `pour_step_{i}` tilt ramp → `pour_settle`. **`success_extra`:** the
+dest must end **upright** (`up_z ≥ cos20°`) AND not displaced (>0.15 m → fail). **Family-hard gates:**
+dust must be 100% removed before pouring (`wipe_incomplete`), any finger brushing the food fails
+(`food_touched_by_agent`), no drop during pour (`pour_no_drop`); the episode ends in the tilted pour
+pose (teleop termination — no untilt/place-back). **Mechanic:** peck-wipe hops laterally *in air* so
+the sponge never friction-drags the dest; a sticky-grasp guard chain protects the food mid-grab.
+
+### lid (`families/lid.py`, bench `lid_transport`) — assemble then transport
+
+`pick(lid) → place onto the container's F meta-link → release → LidSnapper auto-welds → pick the
+container (or rim+lid sandwich) → transport → END HOLDING inside the goal sphere` (no place-down;
+teleop termination). Segments: lid place (`lid_pre/descend/lift/transit/place/align_verify/release/
+retreat/snap_verify`) → container transport (`cont_pre/descend/lift/goal_over/to_goal`).
+**`success_extra`:** the lid is still `AttachedTo` the container at the end. **LTL:**
+`(container_on_support U lid_on_container) & G(!container_dropped)`. **Mechanic:** three geometry
+classes — **plain** (top-knob vertical descend), **handle** (kettle/teapot: side grasp + horizontal
+insertion under the handle arch + replay-reverse exit), **cap** (small cap onto a tall mouth); a
+pre-release M↔F alignment gate rejects crooked drops; fat containers (>32 collision prims) carry
+with `attach=False`.
 
 ---
 

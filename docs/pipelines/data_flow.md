@@ -61,7 +61,7 @@ One-time object filtering (raycasts + simulator), produces JSON files committed 
 
 ### Manual overrides
 
-`docs/graspability_classified.csv` is the canonical readiness gate. Rows can be flipped manually (e.g. an asset that GraspGen marks `no_grasp` but is geometrically valid for transport) by tagging the note column with `;manual_override`. The override survives a future GraspGen survey re-run because the note tag is the marker — see commits matching `chore(graspability)` for examples.
+`docs/graspability_classified.csv` is the canonical readiness gate. Rows can be flipped manually (e.g. an asset marked `no_grasp` in the survey but geometrically valid for transport) by tagging the note column with `;manual_override`. The override survives a future regeneration of the CSV because the note tag is the marker — see commits matching `chore(graspability)` for examples.
 
 When CSV rows are flipped, regenerate the downstream pools:
 
@@ -135,5 +135,5 @@ Per-episode work between rollouts is just teleporting the next episode's objects
 
 ## See also
 
-- [Tabletop clutter](clutter.md), [Stack retrieval](stack.md), [Food transfer](transfer.md), [Lid transport](lid_transport.md), [Liquid transport](liquid_transport.md) — per-pipeline pages document the specific selection / placement code for that family.
+- [Clutter pickup](clutter_pickup.md), [Stack retrieve](stack_retrieve.md), [Food transfer](transfer.md), [Lid transport](lid_transport.md) — per-pipeline pages document the specific selection / placement code for that family.
 - [Architecture overview](../architecture/overview.md) — repo layout + LTL safety system.

@@ -147,8 +147,8 @@ Two things to check:
 |---|---|
 | `maniguard/data/teleop/gello_franka_teleop.py` | `GELLO_JOINT_OFFSETS`, optionally `GELLO_JOINT_SIGNS`, `GELLO_CALIBRATION_FRANKA_POSE`, calibration-date comment |
 
-No other files. The same constants are imported by `gello_grasp_batch.py`
-and any future GELLO entry, so a single edit is enough.
+No other files. The same constants are imported by any GELLO entry point,
+so a single edit is enough.
 
 ## Source
 

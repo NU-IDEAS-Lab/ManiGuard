@@ -5,7 +5,7 @@ site_description: LTL safety, task generation, and VLA policy eval on top of BEH
 site_url: https://nu-ideas-lab.github.io/ManiGuard/
 repo_name: NU-IDEAS-Lab/ManiGuard
 repo_url: https://github.com/NU-IDEAS-Lab/ManiGuard
-edit_uri: edit/main/docs/
+edit_uri: edit/dev/docs/
 
 theme:
   name: material
@@ -78,40 +78,38 @@ nav:
       - OmniGibson patches & configs: foundations/omnigibson_patches.md
   - Task Generation:
       - Pipelines overview: pipelines/index.md
-      - Data flow: pipelines/data_flow.md
-      - Add a custom pipeline: pipelines/custom_pipeline.md
-      - Tabletop clutter:
-          - pipelines/clutter.md
-          - "Liquid transport (variant)": pipelines/liquid_transport.md
-      - Stack retrieval: pipelines/stack.md
-      - Food transfer:
-          - pipelines/transfer.md
-          - "Dusty transfer (variant)": pipelines/dusty_transfer.md
-      - Lid transport: pipelines/lid_transport.md
-      - Wet transport: pipelines/wet_transport.md
-      - Empty scene: pipelines/empty_scene.md
-      - Empty invert: pipelines/empty_invert.md
-      - Cabinet pickup: pipelines/cabinet_pickup.md
-      - Jar transport: pipelines/jar_transport.md
+      - Bench families:
+          - Clutter pickup: pipelines/clutter_pickup.md
+          - Cabinet pickup: pipelines/cabinet_pickup.md
+          - Stack retrieve: pipelines/stack_retrieve.md
+          - Jar transport: pipelines/jar_transport.md
+          - Dusty transfer: pipelines/dusty_transfer.md
+          - Lid transport: pipelines/lid_transport.md
+      - Generation infrastructure:
+          - Data flow: pipelines/data_flow.md
+          - Add a custom pipeline: pipelines/custom_pipeline.md
+          - Empty-scene runner: pipelines/empty_scene.md
+          - Food transfer (base): pipelines/transfer.md
+      - Additional families: pipelines/other_families.md
   - Data Collection:
       - Overview: data_collection/index.md
+      - Sim datagen pipeline: datagen/pipeline.md
+      - Grasp annotation: datagen/grasp_annotation.md
+      - RAW → LeRobot conversion: datagen/lerobot_conversion.md
       - SO-101 ZMQ server: teleop/so101_server.md
       - SO-101 → Franka: teleop/so101_franka.md
       - GELLO → Franka: teleop/gello_franka.md
       - GELLO calibration: teleop/gello_calibration.md
-      - GELLO grasp batch: teleop/gello_grasp_batch.md
       - Playback render: teleop/playback.md
-      - cuRobo demo collection: data_collection/curobo.md
-      - GraspGen / cuRobo grasp pipeline: graspgen_pipeline.md
   - SFT:
-      - Controller, data, action & eval: sft/end_to_end.md
-      - OpenPI sim teleop SFT: openpi_sim_teleop_sft.md
-      - OpenPI real teleop SFT: openpi_real_teleop_sft.md
+      - Overview: sft/index.md
+      - Dataset & data-source configs: sft/dataset_and_config.md
+      - openpi / pi0.5: sft/openpi.md
+      - GR00T (N1.6): sft/gr00t.md
+      - SmolVLA: sft/smolvla.md
+      - Controller · data · action · eval: sft/end_to_end.md
   - Evaluation:
       - Overview: evaluation/index.md
-      - Single-machine (Pro 6000): one_machine_pro6000_eval.md
-      - Two-machine: two_machine_eval.md
-  - RL:
-      - Overview: rl/index.md
-      - PPO grasp training: rl_training.md
+      - Single-machine (Pro 6000): evaluation/one_machine.md
+      - Two-machine: evaluation/two_machine.md
   - Reference: reference.md

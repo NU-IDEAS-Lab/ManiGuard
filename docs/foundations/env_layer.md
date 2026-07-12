@@ -1,9 +1,8 @@
 # Environment layer
 
-`maniguard/envs/` does **not** define a live environment class — the active RL
-stack uses `maniguard.rl.tasks.pick_and_lift.PickAndLiftTask` directly. What
-remains are three building blocks that every downstream stage (task-gen replay,
-eval, RL reset) shares:
+`maniguard/envs/` does **not** define a live environment class — task-gen replay,
+datagen, and eval build OmniGibson envs directly from frozen scene snapshots. The
+three building blocks every downstream stage shares are:
 
 | Module | Role |
 |---|---|
@@ -90,7 +89,7 @@ OmniGibson headless and stops the sim on exit), `ReviewVideoRecorder` +
 ## Runtime perturbations (`perturbation_runtime.py`)
 
 When a scene's task metadata carries a `perturbation` spec (written by the
-[perturbation generator](../one_machine_pro6000_eval.md)),
+[perturbation generator](../evaluation/one_machine.md)),
 `apply_runtime_perturbations(env)` materializes it on the loaded scene:
 
 - **Visual overrides** — per-object diffuse color / texture swaps.

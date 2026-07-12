@@ -9,14 +9,13 @@ the section that documents it.
 |---|---|---|---|
 | `task_generation/` | generate frozen task scenes | [Task Generation](pipelines/index.md) | `python -m maniguard.task_generation.<name>_pipeline` · `…run_benchmark` |
 | `data/teleop/` | SO-101 / GELLO human teleop | [Data Collection](data_collection/index.md) | `python -m maniguard.data.teleop.{so101,gello}_franka_teleop` |
-| `data/curobo/` | scripted cuRobo demo collection | [cuRobo demo collection](data_collection/curobo.md) | `python -m maniguard.data.curobo.pick_and_place_from_dataset` |
+| `data/datagen/` | scripted sim demo collection → LeRobot | [Sim datagen](datagen/pipeline.md) | `python -m maniguard.data.datagen.{driver,sweep,to_lerobot}` |
 | `data/playback.py` | render teleop HDF5 → SFT obs | [Data Collection](data_collection/index.md) | `python -m maniguard.data.playback` |
-| `data/lerobot/` | HDF5 → LeRobot export + norm stats | [SFT](openpi_sim_teleop_sft.md) | `python -m maniguard.data.lerobot.{lerobot_export,multitask_lerobot_export,reexport_joint_actions,norm_stats}` |
-| `data/real_teleop/` | real npz → LeRobot / HDF5 | [SFT (real)](openpi_real_teleop_sft.md) | `python -m maniguard.data.real_teleop.real_teleop_to_droid` |
+| `data/lerobot/` | teleop HDF5 → LeRobot export + norm stats | [SFT](sft/index.md) | `python -m maniguard.data.lerobot.{multitask_lerobot_export,norm_stats}` |
+| `data/real_teleop/` | real npz → LeRobot (DROID joint) | [SFT (real)](sft/dataset_and_config.md) | `python -m maniguard.data.real_teleop.real_teleop_to_droid` |
 | `data/scene/` | benchmark-set prep | [Evaluation](evaluation/index.md) | `python -m maniguard.data.scene.{benchmark_repair,trim_scene_to_room,rewrite_scene_robot}` |
 | `eval/` | policy benchmark loop | [Evaluation](evaluation/index.md) | `python -m maniguard.eval.benchmark --config <yaml>` |
 | `serve/` | websocket policy server | [Evaluation](evaluation/index.md) | `python -m maniguard.serve.openpi_native` |
-| `rl/` | SB3 PPO + grasp pipeline | [RL](rl/index.md) | `python -m maniguard.rl.algorithms.{ppo,eval}` · `…rl.grasps.render_grasps` |
 | `utils/` | LTL safety, `task_spec`, geometry | [LTL safety](foundations/ltl_safety.md) | *(library)* |
 | `envs/` | scene registry + frozen-snapshot runtime | [Environment layer](foundations/env_layer.md) | *(library)* |
 | `object_states/` | `Dropped`, `Upright` | [LTL safety](foundations/ltl_safety.md) | *(library)* |

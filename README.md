@@ -1,12 +1,12 @@
 <h1 align="center">ManiGuard</h1>
 
 <p align="center">
-  <img src="docs/index_gallery/montage.jpg" alt="50 ManiGuard task instances" width="760">
+  <img src="docs/index_gallery/overview.png" alt="ManiGuard-Bench task overview" width="760">
 </p>
 
 <p align="center">
   LTL-safe task generation, teleop &amp; scripted data collection, VLA fine-tuning,
-  evaluation, and reinforcement learning — on top of
+  and evaluation — on top of
   <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson.
 </p>
 
@@ -30,10 +30,9 @@
 │   ├── utils/           #   ltl_utils, safety_monitor, task_spec, geometry
 │   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / cabinet / jar pipelines
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
-│   ├── data/            #   teleop, curobo, lerobot, real_teleop, scene + playback
+│   ├── data/            #   datagen (scripted SFT demo collection), teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery
-│   ├── serve/           #   websocket VLA policy server (openpi_native)
-│   └── rl/              #   SB3 PPO grasp training + GraspGen/cuRobo grasp pipeline
+│   └── serve/           #   websocket VLA policy server (openpi_native)
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
 ├── vla_models/          # VLA checkpoints (user-downloaded, .gitignore)
 ├── tests/               # maniguard-side tests
@@ -75,7 +74,7 @@
    ```bash
    conda activate behavior
    pip install -e .                 # base install
-   pip install -e ".[rl,serve]"    # with RL + websocket policy server extras
+   pip install -e ".[serve]"        # with websocket policy server extras
    ```
 
 4. **ManiGuard-generated benchmark scenes** (our own `scene_ep*.json`
@@ -210,26 +209,15 @@ the pipeline-generated `diagnostics.jsonl`.
 
 ## SFT + RL
 
-**SFT** — supervised fine-tuning of a VLA (pi0.5 / OpenPI) on collected demos
-uses openpi's native trainer. See the end-to-end recipes:
-[`docs/openpi_sim_teleop_sft.md`](docs/openpi_sim_teleop_sft.md) (sim) and
-[`docs/openpi_real_teleop_sft.md`](docs/openpi_real_teleop_sft.md) (real), plus
-[`docs/sft/end_to_end.md`](docs/sft/end_to_end.md) for the controller / action /
-eval consistency that ties collection to evaluation.
+**SFT** — supervised fine-tuning of a VLA on the collected demos. The dataset is
+**model-agnostic**: one joint-controller LeRobot v2.1 dataset feeds any VLA
+(openpi / GR00T / SmolVLA). See [`docs/sft/`](docs/sft/index.md) — the
+[dataset & data-source configs](docs/sft/dataset_and_config.md), the
+[openpi/pi0.5 recipe](docs/sft/openpi.md), and the
+[controller/action/eval consistency](docs/sft/end_to_end.md).
 
-**RL** — grasp / pick-and-lift policies are trained with Stable-Baselines3 PPO
-directly on OmniGibson (no external distributed-RL dependency):
-
-```bash
-conda activate behavior
-python -m maniguard.rl.algorithms.ppo \
-    --diagnostics-file datasets/<benchmark>/<task>/base/diagnostics.jsonl \
-    --num-envs 4 --total-timesteps 200000 --output-dir outputs/rl_ppo_run
-```
-
-See [`docs/rl_training.md`](docs/rl_training.md) for flags + scaling, and
-[`docs/graspgen_pipeline.md`](docs/graspgen_pipeline.md) for the GraspGen /
-cuRobo grasp-reset dataset.
+**RL** — grasp / pick-and-lift RL training (Stable-Baselines3 PPO on OmniGibson) is
+**under development** and not yet part of the mature pipeline.
 
 ## Teleoperation (SO-101 / GELLO → Franka)
 
