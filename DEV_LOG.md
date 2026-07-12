@@ -1902,3 +1902,18 @@ end-to-end (shared idempotent download -> prepare -> ~2-epoch train -> push), id
 batch+workers as flags, HF/WANDB pre-flight; run_sft.sh -> online wandb + relative GR00T_HOME +
 2cam project. openpi + gr00t now share one dataset download via MANIGUARD_SFT_DATA_ROOT
 (default outputs/sft_datasets).
+
+## 2026-07-12 — SmolVLA datagen-v1 SFT layer (from 0)
+
+Third and final VLA track. SmolVLA is LeRobot-native (fine-tuned via `lerobot-train`, no
+config registry / embodiment registration), so ManiGuard adds only a thin embodiment
+contract (`maniguard/smolvla_sft/embodiment.py` — 5-cam-flat -> 2-cam-standard key map,
+8-D joint dims) + CLI-wrapping tools. `prepare_dataset.py` rebuilds a 2-cam standard-keyed
+LeRobot copy (image_<cam>->observation.images.top, wrist_image->observation.images.wrist,
+state->observation.state, actions->action; drop 3 overviews + actions_commanded; videos
+passthrough / AV1->H.264) so lerobot-train's prefix-based feature derivation works.
+run_sft.sh wraps lerobot-train (freeze vision + train expert, no LoRA), push_to_hf.py pushes
+pretrained_model + card, run_all.sh drives all 6 families serially (2-epoch steps, shared
+MANIGUARD_SFT_DATA_ROOT cache, wandb online). Run names smolvla-base_datagen_v1_<fam>_joint_2cam.
+All 3 SFT tracks (pi0.5 / GR00T / SmolVLA) now code-complete; only compute + a lerobot
+version-pin check remain.
