@@ -5,8 +5,8 @@ connection, model-specific knobs (state/action), sim frequencies, and
 output settings.  CLI args override any field for quick ad-hoc tweaks.
 
 Usage:
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml --max-steps 500
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml --max-steps 500
 """
 
 from __future__ import annotations
@@ -64,7 +64,7 @@ class EvalConfig:
     controller_preset: Optional[str] = None
     override_controller_config: Optional[Dict[str, Any]] = None
     # Robot grasping semantics, forced on the eval robot AFTER scene load (the
-    # 6fam-base scene's baked grasping_mode is overridden). MUST match the grasp
+    # ManiGuard-Bench scene's baked grasping_mode is overridden). MUST match the grasp
     # mode used to COLLECT the training data, or the policy's learned gripper
     # behaviour won't grasp: "sticky" welds an object on ANY single-finger
     # contact, "assisted" requires two fingers, "physical" is pure friction.

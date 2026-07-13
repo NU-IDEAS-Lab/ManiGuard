@@ -5,8 +5,8 @@ set -euo pipefail
 # OmniGibson segfaults on og.clear() between scenes, so one python per scene.
 #
 # Usage:
-#   bash scripts/run_benchmark_all_scenes.sh --config configs/eval/sim_table_25k.yaml
-#   bash scripts/run_benchmark_all_scenes.sh --config configs/eval/sim_table_25k.yaml --max-steps 500
+#   bash scripts/run_benchmark_all_scenes.sh --config configs/eval/clutter_pickup_joint.yaml
+#   bash scripts/run_benchmark_all_scenes.sh --config configs/eval/clutter_pickup_joint.yaml --max-steps 500
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"

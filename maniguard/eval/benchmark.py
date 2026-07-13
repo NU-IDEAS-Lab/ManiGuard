@@ -2,8 +2,8 @@
 """Evaluate a websocket VLA policy on the ManiGuard benchmark.
 
 Usage:
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml --max-steps 500
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml --max-steps 500
 """
 from __future__ import annotations
 
@@ -496,7 +496,7 @@ def main():
                 robot.reload_controllers(override_cc)
 
             # Force grasping semantics to match the training data's grasp mode.
-            # The 6fam-base scene bakes its own grasping_mode (often 'assisted'),
+            # The ManiGuard-Bench scene bakes its own grasping_mode (often 'assisted'),
             # but the policy was trained under the teleop mode (joint families =
             # 'sticky'); a mismatch means the learned gripper actions never grasp.
             # OmniGibson reads grasping_mode per step, so setting it now takes

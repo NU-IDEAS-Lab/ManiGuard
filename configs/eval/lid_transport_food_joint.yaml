@@ -1,5 +1,5 @@
-# Eval config — lid-transport-food JointController checkpoint
-# (pi05-base-lid-transport-food-joint-2cam-lora). Mirrors its train config so the
+# Eval config — lid JointController checkpoint
+# (pi05-base-datagen-v1-lid-joint-2cam-lora). Mirrors its train config so the
 # policy stays in distribution: joint state/action, single left overview + wrist,
 # JointController fed the server-reconstructed absolute joint targets (no IK).
 #
@@ -10,13 +10,13 @@
 #
 # Run (two processes; see docs/evaluation):
 #   1. policy server: serve the checkpoint with config
-#      pi05_base_lid_transport_food_joint_2cam_lora on port 8000
+#      pi05-base_datagen_v1_lid_joint_2cam_lora on port 8000
 #   2. python -m maniguard.eval.benchmark --config configs/eval/lid_transport_food_joint.yaml
 name: eval_lid_transport_food_joint
 
-# -- Benchmark source: every task_*/base scene under the lid family --
-benchmark_root: outputs/lerobot_datasets/6fam-base/lid_transport
-scene_filter: "*/base"
+# -- Benchmark source: the whole family (base + 4 OOD levels); eval_family.sh picks the instance + level via --scenes --
+benchmark_root: outputs/lerobot_datasets/maniguard-bench/lid_transport
+scene_filter: ""           # empty: eval_family.sh selects instance + level via --scenes (ID=base, OOD=target/language/location/env)
 
 # -- Policy server --
 host: 127.0.0.1
@@ -33,7 +33,7 @@ gripper_binarize: true
 # -- Controller: exact teleop/playback JointController (raw radians, no impedance) --
 controller_preset: joint_position_raw
 ik_eef_to_joint: false     # server already outputs absolute joint targets; feed straight
-grasping_mode: assisted      # MUST match training/teleop grasp mode (NOT recorded in dataset)
+grasping_mode: sticky        # MUST match datagen grasp mode (lid skeleton -> sticky)
 
 # -- Sim / eval --
 max_steps: 2000            # hard cap; ends early on success / safety termination
@@ -46,5 +46,5 @@ output_dir: outputs/eval_logs/lid_transport_food_joint   # base; each run -> a t
 
 # Informational (not read by benchmark.py; the server is launched separately).
 # Point the server at the local checkpoint dir for this config:
-serve_config_name: pi05_base_lid_transport_food_joint_2cam_lora
+serve_config_name: pi05-base_datagen_v1_lid_joint_2cam_lora
 checkpoint: ""             # local checkpoint dir/step, set when launching the server
