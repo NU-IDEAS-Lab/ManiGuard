@@ -66,8 +66,6 @@ extra_javascript:
 exclude_docs: |
   graspability_classified.csv
   graspability_classified.html
-  evaluation/one_machine.md
-  evaluation/two_machine.md
 
 nav:
   - Home: index.md
