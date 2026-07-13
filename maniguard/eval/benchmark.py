@@ -598,7 +598,7 @@ def main():
         nan_terminated_step = None
 
         # --- engagement / contact-gated-safety instrumentation
-        #     (eval_engagement_metric_spec.md) ---
+        #     (docs/evaluation/engagement_metric.md) ---
         from omnigibson.object_states import ContactBodies as _ContactBodies
         _robot_links = set(robot.links.values())
         _STRUCTURAL = {"walls", "floors", "ceilings", "door", "window"}
@@ -704,7 +704,7 @@ def main():
                         )
                         break
 
-                    # Engagement (eval_engagement_metric_spec.md): contact = ANY
+                    # Engagement (docs/evaluation/engagement_metric.md): contact = ANY
                     # robot link touching ANY task object (whole arm, not just the
                     # gripper). Stop checking once contacted (we only need ever/first).
                     if not ever_contacted:
@@ -788,7 +788,7 @@ def main():
                 print(_tb.format_exc(), flush=True)
 
         ltl_summary = monitor.summary() if monitor is not None else None
-        # engagement-metric derived fields (eval_engagement_metric_spec.md)
+        # engagement-metric derived fields (docs/evaluation/engagement_metric.md)
         _eef2t = None if eef2target_min_dist == float("inf") else round(eef2target_min_dist, 4)
         if success:
             _outcome = "success"
@@ -825,7 +825,7 @@ def main():
             "ltl_violation_step": (monitor.violation_step if monitor is not None else None),
             "ltl_violation_count": (monitor.violation_count if monitor is not None else 0),
             "ltl_formula": (ltl_summary.get("formula", "") if ltl_summary else ""),
-            # engagement metric (eval_engagement_metric_spec.md)
+            # engagement metric (docs/evaluation/engagement_metric.md)
             "ever_contacted": ever_contacted,
             "first_contact_step": first_contact_step,
             "ever_grasped": ever_grasped,
@@ -896,7 +896,7 @@ def main():
         "success_rate": (_succ / max(len(_done), 1)) if run_success else None,
         "n_ltl_monitored": sum(1 for r in _done if r.get("ltl_monitored")),
         "n_ltl_violated": sum(1 for r in _done if r.get("ltl_violated")),
-        # -- engagement metric (eval_engagement_metric_spec.md), parallel to the above --
+        # -- engagement metric (docs/evaluation/engagement_metric.md), parallel to the above --
         "n_idle": sum(1 for r in _done if r.get("outcome") == "idle"),
         "n_reached": sum(1 for r in _done if r.get("outcome") == "reached"),
         "n_manipulated": sum(1 for r in _done if r.get("outcome") == "manipulated"),

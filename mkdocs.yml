@@ -112,4 +112,5 @@ nav:
       - Controller · data · action · eval: sft/end_to_end.md
   - Evaluation:
       - Overview: evaluation/index.md
+      - Engagement & contact-gated safety: evaluation/engagement_metric.md
   - Reference: reference.md

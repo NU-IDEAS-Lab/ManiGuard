@@ -20,8 +20,8 @@ Interpretation
 --------------
 * normalized error ~1-3%  -> the policy reproduces its training actions: it **fit the data**.
   Any eval failure is therefore closed-loop (drift / collapse / distribution coverage), NOT
-  undertraining. (Empirically every one of the 6 families lands here, including the
-  0-success ones — see ``eval_engagement_metric_spec.md`` section 13.)
+  undertraining. (Companion diagnostic to the engagement metric — see
+  ``docs/evaluation/engagement_metric.md``.)
 * normalized error high    -> the checkpoint never fit this episode: undertrained, wrong
   dataset, or a mismatched observation mapping (e.g. wrong ``--external-cam``).
 

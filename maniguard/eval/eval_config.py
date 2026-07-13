@@ -105,10 +105,10 @@ class EvalConfig:
     # single-frame false positives (a transient brush / AG-grasp flicker / the
     # target passing through the goal region). 1 = legacy first-frame behaviour.
     success_hold_steps: int = 10
-    # -- Engagement metric (eval_engagement_metric_spec.md) outcome thresholds.
-    # Placeholder defaults; calibrate from the pilot's raw target2spawn_max_dist /
-    # eef2target_min_dist distributions. They only affect the derived `outcome`
-    # label, NOT the raw per-rollout signals (which are always logged).
+    # -- Engagement metric outcome thresholds (docs/evaluation/engagement_metric.md).
+    # These only affect the derived `outcome` label, NOT the raw per-rollout signals
+    # (target2spawn_max_dist / eef2target_min_dist), which are always logged, so the
+    # labels can be recomputed offline. The defaults separate cleanly across families.
     tau_move: float = 0.05    # target drifted > this (m) from spawn -> "manipulated"
     tau_reach: float = 0.12   # eef came within this (m) of target -> "reached"
     camera_resolution: int = 256

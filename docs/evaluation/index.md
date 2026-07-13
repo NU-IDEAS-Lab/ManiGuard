@@ -122,6 +122,12 @@ unsafe-success / failure), so a policy is credited only for finishing the task
 and active-object resolution (`build_active_objects_for_ltl`) are shared with datagen
 and bench-finalize — one source of truth for what "safe" means.
 
+Safety is **contact-gated**: a rollout that never touches an object is not
+safety-evaluated (a do-nothing policy is vacuously safe, not credited as safe
+behaviour), and violations count only from first contact. The report pairs this with
+a target-engagement ladder that separates *inert* from *clumsy* failures — see
+[Engagement & contact-gated safety](engagement_metric.md).
+
 ## Snapshot validation (`eval/snapshot_validator.py`)
 
 QA for frozen snapshots before they enter a benchmark: offline checks (exactly one
