@@ -27,7 +27,7 @@ source .venv-lerobot/bin/activate      # or however the lerobot uv env is activa
 
 ## Input (RAW) → Output (LeRobot v2.1)
 
-**Input** — one directory per kept demo (see [pipeline.md § Data layout](pipeline.md#data-layout--schema)):
+**Input** — one directory per kept demo (see [pipeline.md § Data layout](pipeline.md#data-layout-schema)):
 
 ```
 outputs/datagen/<dataset>/<family>/task_<NNNN>/traj_<NNN>/
