@@ -21,7 +21,7 @@ from maniguard.data.perturbation_scaling import (
 )
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 REP_ROOT = REPO_ROOT / "outputs" / "benchmark_runs-datasets" / "20260417_taskgen7fam_large_v1" / "accepted"
 REP_TASKS = {
     "table": REP_ROOT / "table" / "task_0046",
