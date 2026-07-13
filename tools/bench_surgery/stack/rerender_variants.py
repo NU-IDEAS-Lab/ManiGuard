@@ -40,7 +40,8 @@ def _worker_env() -> dict:
     env = os.environ.copy()
     env.setdefault("OMNI_KIT_ACCEPT_EULA", "yes")
     env.setdefault("VK_ICD_FILENAMES", "/usr/share/vulkan/icd.d/nvidia_icd.json")
-    env.setdefault("OMNIGIBSON_DATA_PATH", "/home/yiyanpeng/project/SENTINEL-Lite-data/datasets")
+    # OMNIGIBSON_DATA_PATH is inherited from the environment (like the sibling
+    # swap/rehome scripts); OmniGibson resolves its own default when unset.
     env["OMNIGIBSON_HEADLESS"] = "1"
     env.setdefault("PYTHONUNBUFFERED", "1")
     return env
