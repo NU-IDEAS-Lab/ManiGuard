@@ -7,8 +7,8 @@ language). Each cell is the task's last review frame with a ``task_NNNN`` tag; a
 the level. Missing/undecodable clips become a grey "MISSING" cell so the grid stays 1:1 with tasks.
 
 Usage:
-  python -m tools.cabinet_review_grid --family cabinet_pickup --view left_shoulder
-  python -m tools.cabinet_review_grid --family cabinet_pickup --view opposite_side_front --levels base
+  python -m tools.bench_surgery.cabinet.review_grid --family cabinet_pickup --view left_shoulder
+  python -m tools.bench_surgery.cabinet.review_grid --family cabinet_pickup --view opposite_side_front --levels base
 """
 from __future__ import annotations
 

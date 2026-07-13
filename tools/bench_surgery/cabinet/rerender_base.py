@@ -32,11 +32,11 @@ success is judged by output presence, not exit code).
 
 Usage:
   # one task (validation)
-  python -m tools.cabinet_rerender_base --tasks task_0034
+  python -m tools.bench_surgery.cabinet.rerender_base --tasks task_0034
   # the 17 modified tasks (default), single GPU process
-  python -m tools.cabinet_rerender_base
+  python -m tools.bench_surgery.cabinet.rerender_base
   # explicit subset, modest parallel fan-out
-  python -m tools.cabinet_rerender_base --tasks task_0001,task_0003 --jobs 2
+  python -m tools.bench_surgery.cabinet.rerender_base --tasks task_0001,task_0003 --jobs 2
 """
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def _run_worker(base_dir: Path, episode: int, src_base: Path | None = None) -> N
 
 def _spawn_worker(base_dir: Path, episode: int, env: dict, timeout: int, src_base: Path | None = None):
     cmd = [
-        sys.executable, "-m", "tools.cabinet_rerender_base",
+        sys.executable, "-m", "tools.bench_surgery.cabinet.rerender_base",
         "--worker", "--base-dir", str(base_dir), "--episode", str(episode),
     ]
     if src_base is not None:
