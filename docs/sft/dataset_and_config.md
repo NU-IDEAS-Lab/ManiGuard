@@ -95,7 +95,7 @@ bash scripts/render_teleop_to_lerobot.sh --stage2   # rendered HDF5 → LeRobot 
   with `FileExistsError`). Push the local dataset directly with
   `LeRobotDataset(...).push_to_hub(tag_version=True, push_videos=True, private=True)`.
 
-Naming: `sim-<fam>-30-joint-3cam`. Reference: `IDEAS-Lab-Northwestern/sim-dusty-transfer-30-joint-3cam`.
+Naming: `<org>/sim-<fam>-30-joint-3cam` (e.g. `IDEAS-Lab-Northwestern/sim-dusty-transfer-30-joint-3cam`).
 
 ## Source 3 — Real teleop
 
@@ -107,7 +107,7 @@ convention (openpi's DROID pretrained convention is joint-space):
   --input-dir outputs/real_teleop \
   --repo-id maniguard/<task> --prompt "<instruction>" \
   --root outputs/lerobot_datasets/maniguard/<task> \
-  --push-to-hub IDEAS-Lab-Northwestern/<task> --hub-private
+  --push-to-hub <org>/<task> --hub-private
 ```
 
 `real_teleop_to_droid` assembles 8-D state `[joint_position(7), gripper]` + 8-D

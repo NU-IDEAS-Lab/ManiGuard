@@ -102,7 +102,7 @@ run identity so a fresh box / another person / an agent can launch from just
 `--config`:
 
 - `project_name="maniguard-sft"` — the wandb project for all ManiGuard SFT.
-- `policy_metadata` (openpi never interprets it; used as a handoff carrier):
+- `policy_metadata` (openpi never interprets it; carries publish metadata):
   - `default_exp` — experiment / wandb run name + `outputs/sft_runs/<exp>/` folder.
   - `hf_repo` — the model repo checkpoints push to.
   - `hf_private` — push visibility (`False` = public model repo; datasets stay private).
@@ -185,7 +185,7 @@ repo's `<remote_label>/params/`, checked against HF itself. Both upload `params/
 ```bash
 python tools/openpi_sft/hf_push.py \
   --ckpt-dir outputs/sft_runs/<exp>/checkpoints/<config>/<exp> \
-  --repo IDEAS-Lab-Northwestern/<model-repo> \
+  --repo <org>/<model-repo> \
   --num-train-steps <steps> [--readme docs/cards/<card>.md] [--private]
 ```
 

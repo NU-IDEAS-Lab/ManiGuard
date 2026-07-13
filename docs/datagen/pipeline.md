@@ -4,8 +4,8 @@ This is the **`maniguard/data/datagen/`** pipeline: it turns the read-only
 **ManiGuard-Bench** base tasks into large numbers of **success + safe** manipulation
 demonstrations for SFT, fully scripted (no teleop, no per-trajectory human review).
 
-The grasp source is **per-instance human annotation** (RoboTwin-style): each grasp is authored once
-in a GUI and stored as an eef-target pose in the object-local frame (see §B).
+The grasp source is **per-instance human annotation**: each grasp is authored once in a GUI and
+stored as a 6-DOF end-effector target pose in the object-local frame (see §B).
 
 > **Design in one line:** a *generic executor* plans / executes / gates / records / scales any
 > family identically; each *family skeleton* only declares **which motion segments make up the
@@ -13,6 +13,37 @@ in a GUI and stored as an eef-target pose in the object-local frame (see §B).
 > is "new task semantics, everything else reused."
 
 ---
+
+## Pre-collected datasets & continued collection
+
+The task source is **ManiGuard-Bench** — 6 families, **200 base tasks**, each with a clean
+in-distribution (ID) instance plus 4 out-of-distribution (OOD) perturbations (appearance /
+language / location / environment). This pipeline has already collected a large demonstration
+set against **every** base task, and it is **open-ended**: point it at any task and collect as
+many more demos as you want.
+
+**Shipped v1 datasets (public on Hugging Face).** For every base task, **40 mutually-distinct,
+success + LTL-safe** trajectories — **8,000 episodes / ~11.6 M frames** total — published as
+**LeRobot v2.1** (8-D joint state/action, 4 third-person + 1 wrist camera, 30 FPS, 256×256):
+
+| Family (bench) | Base tasks | Episodes (×40) | Frames | HF dataset (`<org>/…`) |
+|---|---:|---:|---:|---|
+| `clutter_pickup` | 55 | 2,200 | 901,520 | `datagen-clutter-v1-joint-5cam` |
+| `cabinet_pickup` | 35 | 1,400 | 4,172,962 | `datagen-cabinet-v1-joint-5cam` |
+| `stack_retrieve` | 28 | 1,120 | 2,652,083 | `datagen-stack-v1-joint-5cam` |
+| `jar_transport` | 26 | 1,040 | 946,870 | `datagen-jar-v1-joint-5cam` |
+| `dusty_transfer` | 26 | 1,040 | 1,879,498 | `datagen-dusty-v1-joint-5cam` |
+| `lid_transport` | 30 | 1,200 | 1,055,142 | `datagen-lid-v1-joint-5cam` |
+| **Total** | **200** | **8,000** | **11,608,075** | |
+
+(e.g. `IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam`.) The exact RAW / LeRobot schema is
+in the **Data layout & schema** section below.
+
+**Continued collection.** The bench tasks + this pipeline are the durable artifacts; the shipped
+40/task is a starting point, not a cap. Run the driver (§D) or `sweep` (§E) against any base task
+with a higher success target to collect more in the identical format, then append them with the
+RAW → LeRobot converter (§G). A consumer can grow any family's dataset to whatever scale their
+training needs.
 
 ## 0. The whole flow
 

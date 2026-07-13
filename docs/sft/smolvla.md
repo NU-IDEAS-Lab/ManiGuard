@@ -56,8 +56,9 @@ truth) and applied by `prepare_dataset.py`.
 
 Training runs against a **`huggingface/lerobot` clone** (pinned tag, installed with
 the `smolvla` extra) in the same environment that produces the prepared dataset.
-Model repos are pushed as
-`IDEAS-Lab-Northwestern/smolvla-base-datagen-v1-<fam>-joint-2cam`; run/experiment
+Model repos follow
+`<org>/smolvla-base-datagen-v1-<fam>-joint-2cam` (e.g.
+`IDEAS-Lab-Northwestern/smolvla-base-datagen-v1-clutter-joint-2cam`); run/experiment
 names follow `smolvla-base_datagen_v1_<fam>_joint_2cam` (no `_lora` suffix — SmolVLA
 does not use LoRA).
 

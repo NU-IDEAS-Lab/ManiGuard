@@ -120,19 +120,15 @@ printing `VERDICT: IDENTICAL`.
 
 ## Publishing to Hugging Face
 
-Publishing is a **separate** step from conversion, driven by the **`datagen-publish` skill**
-(`.claude/skills/datagen-publish/`). Key points that bite:
+Publishing is a **separate** step from conversion. Key points that bite:
 
 - Push **PRIVATE by default**.
 - You MUST `create_tag` the dataset's `codebase_version` (**`v2.1`**) after upload, or
   `LeRobotDataset` raises `RevisionNotFoundError` when someone loads it.
 - HF ops (upload / tag / verify) run under the **`behavior` conda** python (has `huggingface_hub`);
   the conversion itself runs under the **lerobot uv** env. Don't mix them.
-- Repo id convention: `IDEAS-Lab-Northwestern/datagen-<family-short>-v1-joint-5cam`.
-
-Always keep a **local backup** of both the raw dataset and the converted LeRobot dataset
-(e.g. `~/Desktop/maniguard-finalize-datagen/{v1,v1_lerobot_format}/<family>/`) before tearing down
-any collection box.
+- Repo id convention: `<org>/datagen-<family-short>-v1-joint-5cam`
+  (e.g. `IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam`).
 
 ---
 
