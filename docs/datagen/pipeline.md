@@ -68,7 +68,7 @@ G. to_lerobot          demos       ─► LeRobot v2.1 per family (offline; vide
 Environment for every step: `conda activate behavior`; sim steps also need
 `OMNIGIBSON_HEADLESS=1 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json` and run with
 `python -u` (the `exit 139` segfault at `og.sim.stop()` is a benign teardown). All commands
-assume `PYTHONPATH=$HOME/project/ManiGuard`.
+assume `PYTHONPATH` is set to the repo root.
 
 **Prerequisites — install the bench tasks + robot asset first.** This pipeline collects
 new demos *against ManiGuard-Bench tasks*, so it reads base tasks straight from a local copy
@@ -402,10 +402,10 @@ with `attach=False`.
 
 ---
 
-## Gotchas (hard-won)
+## Gotchas
 
 - **LINEAR_SERVO rejected by this cuRobo build** → the engine falls back to an unconstrained solve
-  for LINEAR-mode segments (`grasp.py:140-147` pattern).
+  for LINEAR-mode segments.
 - **Grasp descent blocked by collision** → `MotionSegment.ignore_clutter` drops every non-robot
   obstacle for that short controlled descent; safety = physics + AG + the LTL gate.
 - **Lift undershoots clearance** (PD steady-state droop under load) → re-command the final waypoint

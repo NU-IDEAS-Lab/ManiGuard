@@ -67,7 +67,7 @@ in **first-seen order**; each episode's `task_index` points into that list (LeRo
 ```bash
 python -m maniguard.data.datagen.to_lerobot \
     --dataset v1 --family clutter_pickup \
-    --repo-id IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam
+    --repo-id <org>/datagen-clutter-v1-joint-5cam
 # --out-root default: outputs/datagen/<dataset>_lerobot_format   (writes <out_root>/<family>/)
 # --limit N  : convert only the first N trajs (smoke)
 ```
@@ -92,13 +92,13 @@ The serial converter is single-threaded and video-decode bound. On a many-core b
 ```bash
 python -m maniguard.data.datagen.to_lerobot_parallel \
     --dataset v1 --family dusty_transfer \
-    --repo-id IDEAS-Lab-Northwestern/datagen-dusty-v1-joint-5cam \
+    --repo-id <org>/datagen-dusty-v1-joint-5cam \
     [--procs N]        # max concurrent shard procs (default: cpu-2)
     [--no-verify]      # skip the merged-dataset self-check (on by default)
 ```
 
-Drop-in replacement for a serial run (same `--dataset/--family/--repo-id/--out-root`). Measured
-**18.5×** (dusty: 243 min → 13 min, 2026-07-11).
+Drop-in replacement for a serial run (same `--dataset/--family/--repo-id/--out-root`), roughly
+**18× faster** than serial on a many-core host.
 
 **Why it is safe (byte-identical to serial).**
 - **Per-episode data + videos**: each shard runs `to_lerobot.convert` UNCHANGED on one task, through

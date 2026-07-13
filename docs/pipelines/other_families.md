@@ -11,7 +11,7 @@ pipelines for experimentation and possible future benchmark expansion.
 ## `wet_transport` — carry over a water-sensitive zone
 
 A water-filled container starts on the left edge of the table; water-sensitive
-objects (books, laptops, keyboards, … from `WATER_SENSITIVE_POOL`) are scattered
+objects (books, laptops, keyboards, … from `water_sensitive_pool.json`) are scattered
 across the rest of the surface. The robot must carry the container across the
 table **without ever passing it overhead** any zone object (configurable XY
 margin) and without dropping it. Combines liquid filling with overhead-forbidden

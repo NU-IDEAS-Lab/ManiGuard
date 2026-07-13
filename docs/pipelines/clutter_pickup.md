@@ -14,7 +14,7 @@ goal sphere on the left side of the object pack."
 A subset replaces the dry pickup with carrying an already-**filled** container
 (cup, decanter, …) to the goal, adding the constraint that **the liquid must not
 spill** (no tilt past the difficulty-specific limit). This subset needs GPU
-dynamics; its target pool is `LIQUID_CONTAINER_POOL`, the container is filled
+dynamics; its target pool is `fillable_container_pool.json`, the container is filled
 after placement, and liquid-specific LTL layers on top of the clutter set.
 
 ## How it's generated

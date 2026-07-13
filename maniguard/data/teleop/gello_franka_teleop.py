@@ -20,7 +20,7 @@ Differs from so101_franka_teleop.py in three ways:
 Usage:
     python -m maniguard.data.teleop.gello_franka_teleop \
         --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
-        --output-hdf5 outputs/jixing_teleop2_hdf5/table/scene_ep0000.hdf5
+        --output-hdf5 outputs/teleop/table/scene_ep0000.hdf5
 
 Hotkeys (need GUI focus on the OmniGibson viewport):
     SPACE = toggle gripper open/close
@@ -78,7 +78,7 @@ from maniguard.data.teleop.so101_franka_teleop import _read_first_jsonl  # noqa:
 # Re-run gello_get_offset.py and update these if you re-flash IDs / replace
 # servos / change finger geometry.
 # ---------------------------------------------------------------------------
-GELLO_PORT = "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTB8HNJP-if00-port0"
+GELLO_PORT = "/dev/ttyUSB0"  # override per machine with --gello-port (see `ls /dev/serial/by-id/`)
 GELLO_JOINT_IDS = (1, 2, 3, 4, 5, 6, 7)
 GELLO_JOINT_OFFSETS = [
     # 2026-05-10 recal: ran gello_get_offset.py with --start-joints 0 0 0 0 0 0 0.

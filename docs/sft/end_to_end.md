@@ -30,7 +30,7 @@ anywhere:
 | scripted datagen (cuRobo joint) | absolute joint | `joint_position` / `joint_position_impedance` |
 | GELLO teleop (joint mirroring) | absolute joint | `joint_position` / `joint_position_impedance` |
 
-Set the controller on the [`EvalConfig`](../evaluation/one_machine.md)
+Set the controller on the [`EvalConfig`](../evaluation/index.md)
 (`maniguard/eval/eval_config.py`); the eval loader overrides the scene-baked
 controller with `controller_preset`. The policy emits absolute joint targets, so
 `controller_preset: joint_position` (or `joint_position_impedance` for tighter
@@ -44,12 +44,11 @@ tracking) drives the arm directly.
       overview choice back from the checkpoint's train config, or it sees an
       out-of-distribution viewpoint.
 
-!!! note "Legacy delta-EEF path"
-    An earlier track collected EEF-delta data (SO-101 IK / OSC) and evaluated
-    through `osc` or a Jacobian-IK `ik_eef_to_joint` shim. ManiGuard has since
-    standardized on the joint convention above; the EEF path is not used in the
-    current pipeline (EEF-native VLAs are still supported via the model's own data
-    config, but the ManiGuard datasets are absolute joint).
+!!! note "EEF-native policies"
+    ManiGuard datasets are absolute joint, and the pipeline is joint-space
+    end-to-end. An EEF-native VLA can still be evaluated: serve it with its own
+    data config and run through the `osc` controller, or map its EEF deltas to
+    joint targets with the Jacobian-IK `ik_eef_to_joint` shim.
 
 ## Where each piece lives
 

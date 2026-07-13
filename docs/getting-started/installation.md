@@ -2,7 +2,8 @@
 
 ManiGuard runs in the **`behavior` conda env** — OmniGibson simulation, BDDL,
 teleop, task generation, scripted data generation, and eval. Policy training/serving
-via openpi uses its own venv (see the [SFT](../sft/index.md) pages).
+runs in each model's own environment (openpi / GR00T / SmolVLA — see the
+[SFT](../sft/index.md) pages).
 
 ## 1. Clone with submodules
 
@@ -64,7 +65,7 @@ runtime). Set `SENTINEL_SKIP_LONGFINGER=1` to keep the stock Franka instead.
 the HF cache) or a local directory:
 
 ```bash
-# A) let eval pull it (needs `huggingface-cli login` while the repo is private)
+# A) let eval pull it (run `hf auth login` first)
 python -m maniguard.eval.benchmark --benchmark-root IDEAS-Lab-Northwestern/ManiGuard-Bench ...
 # B) or download once and pass the local dir
 hf download IDEAS-Lab-Northwestern/ManiGuard-Bench --repo-type dataset --local-dir datasets/maniguard-bench

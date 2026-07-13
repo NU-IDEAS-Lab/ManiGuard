@@ -9,9 +9,9 @@ principle here is **one dataset, any model**:
 > SmolVLA, or any other VLA. Each model only differs in *its own config* (how it
 > maps the shared cameras/state/action into its expected slots), not in the data.
 
-Everything in this project standardizes on the **JointController** convention
-(post-June "正本清源" refactor): collection, dataset, SFT, and eval are all
-joint-space — no end-effector / IK anywhere in the loop.
+Everything in this project standardizes on the **JointController** convention:
+collection, dataset, SFT, and eval are all joint-space — no end-effector / IK
+anywhere in the loop.
 
 ## The shared dataset (model-agnostic)
 

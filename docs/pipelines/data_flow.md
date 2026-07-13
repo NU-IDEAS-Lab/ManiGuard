@@ -61,7 +61,7 @@ One-time object filtering (raycasts + simulator), produces JSON files committed 
 
 ### Manual overrides
 
-`docs/graspability_classified.csv` is the canonical readiness gate. Rows can be flipped manually (e.g. an asset marked `no_grasp` in the survey but geometrically valid for transport) by tagging the note column with `;manual_override`. The override survives a future regeneration of the CSV because the note tag is the marker — see commits matching `chore(graspability)` for examples.
+`docs/graspability_classified.csv` is the canonical readiness gate. Rows can be flipped manually (e.g. an asset marked `no_grasp` in the survey but geometrically valid for transport) by tagging the note column with `;manual_override`. The override survives a future regeneration of the CSV because the note tag is the marker.
 
 When CSV rows are flipped, regenerate the downstream pools:
 
@@ -99,7 +99,7 @@ CLI overrides (`--target-model`, `--item-model`, `--food-model`, `--source-model
 
 `pipeline_common.pick_scene_from_placeable` picks a `(scene, support_object, region_of_object)` triple that fits the pipeline's `required_area_m2` (computed from the selected objects' footprints via `estimate_object_set_footprint`).
 
-The picker reads pre-computed surface profiles from `dev_surface_profiles/` per scene/object. Each profile is a 24×24 raycast at the placeable plane that yields connected-component regions (with area, x/y bounds, top-z) — so a 2-region desk like `desk/puapey` (split by a centerline divider) exposes both halves independently.
+The picker reads pre-computed surface profiles from `placeable_surfaces_v1.json` per scene/object. Each profile is a 24×24 raycast at the placeable plane that yields connected-component regions (with area, x/y bounds, top-z) — so a 2-region desk like `desk/puapey` (split by a centerline divider) exposes both halves independently.
 
 CLI pins:
 
@@ -117,8 +117,8 @@ Output of the picker becomes `args._picked_surface = {"scene_model", "category",
 
 `BasePipeline._setup_session` orchestrates placement in this order:
 
-1. **`env.reset()`** — load the picked scene from its snapshot. Partial-room load (`load_room_instances=[...]`) is used by default for speed, **except when GPU dynamics is on** (PhysX articulation pool sized to the partial scene crashes when new task objects are spawned — see `fix(pipeline)` 8ec4484f).
-2. **Spawn task objects upfront** for ALL episodes via `spawn_objects` (with episode-labelled inst_ids like `bowl_ep1_1`, and role-prefixed object *names* like `target_bowl_ep1_1` / `fragile_cup_ep1_2` so downstream code can filter task objects by role); ep > 0 are parked at `z = −100`. Spec-level `abilities` are merged INTO the BEHAVIOR taxonomy abilities (not replacing — see same fix).
+1. **`env.reset()`** — load the picked scene from its snapshot. Partial-room load (`load_room_instances=[...]`) is used by default for speed, **except when GPU dynamics is on** (PhysX articulation pool sized to the partial scene crashes when new task objects are spawned).
+2. **Build task-object configs upfront** for ALL episodes via `build_task_object_cfgs` (into `cfg["objects"]`, spawned at env load), with episode-labelled inst_ids like `bowl_ep1_1`, and role-prefixed object *names* like `target_bowl_ep1_1` / `fragile_cup_ep1_2` so downstream code can filter task objects by role); ep > 0 are parked at `z = −100`. Spec-level `abilities` are merged INTO the BEHAVIOR taxonomy abilities (not replacing).
 3. **Find the support object** by `(category, model)` from the picked surface; pin to world.
 4. **`clear_support_area`** removes non-structural scene props overlapping the picked region + a margin. Excludes the support, spawned task objects, and `env.robots` (the FrankaMounted at world origin would otherwise be deleted in scenes where the surface is near origin).
 5. **`identify_objects` + `place_objects`** (pipeline-specific). The shared placement primitives are:

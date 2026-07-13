@@ -23,8 +23,6 @@ the section that documents it.
 
 ## Environment variables
 
-These keep the `SENTINEL_` prefix for backward compatibility.
-
 | Variable | Effect |
 |---|---|
 | `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` | skip all runtime patches (no simulator needed) |

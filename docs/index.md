@@ -31,7 +31,7 @@ manipulation in simulated households. Reinforcement-learning training is under d
 
 -   :material-brain: **[SFT](sft/end_to_end.md)**
 
-    The model-agnostic joint dataset + per-model recipes (openpi / GR00T), and collection↔eval consistency.
+    The model-agnostic joint dataset + per-model recipes (openpi / GR00T / SmolVLA), and collection↔eval consistency.
 
 -   :material-broadcast: **[Evaluation](evaluation/index.md)**
 

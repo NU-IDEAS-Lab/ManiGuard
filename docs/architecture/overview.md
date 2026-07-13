@@ -16,7 +16,7 @@ foundation layer. The docs are organized the same way.
                  └─────────────────────────────────────────────────────────────────────┘
                                               ▲ (used by every stage)
   Task generation ──► Data collection ──► SFT ──► Evaluation
-   (task_generation)   (teleop · datagen)  (data/ → openpi)   (eval/, serve/)
+   (task_generation)   (teleop · datagen)  (data/ → SFT)      (eval/, serve/)
 
   RL training (grasp policies) is under development.
 ```
@@ -25,7 +25,7 @@ foundation layer. The docs are organized the same way.
 |---|---|---|
 | **Task generation** | `maniguard/task_generation/` | Frozen scene snapshots + BDDL + `ltl_safety.json` |
 | **Data collection** | `maniguard/data/teleop/`, `maniguard/data/datagen/` | Teleop / scripted demo HDF5s + videos |
-| **SFT** | `maniguard/data/` → vendored `openpi/` | LeRobot v2.1 datasets + norm stats |
+| **SFT** | `maniguard/data/` → per-model SFT (openpi / GR00T / SmolVLA) | LeRobot v2.1 datasets + trained checkpoints |
 | **Evaluation** | `maniguard/eval/`, `maniguard/serve/` | Benchmark results, success metrics |
 | **RL** *(under development)* | — | Grasp policies (planned) |
 
@@ -41,7 +41,7 @@ foundation layer. The docs are organized the same way.
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
 │   ├── data/            #   datagen (scripted SFT collection), teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery
-│   └── serve/           #   websocket VLA policy server (openpi_native)
+│   └── serve/           #   websocket VLA policy adapters (openpi reference)
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2 (upstream)
 ├── tests/               # maniguard-side pytest suites
 ├── configs/             # eval / RL / SFT YAML configs
@@ -49,22 +49,14 @@ foundation layer. The docs are organized the same way.
 └── docs/                # this site
 ```
 
-!!! note "Stale-doc cleanup"
-    Earlier revisions listed `maniguard/tasks/`, `maniguard/rlinf/`, `maniguard/openpi/`,
-    `maniguard/rl/`, and `maniguard/data/curobo/` subpackages plus an `RLinf/` submodule —
-    **none of those remain.** The scripted sim data-collection pipeline is
-    `maniguard/data/datagen/`, OpenPI is consumed from the vendored top-level `openpi/`
-    checkout, and RL training is under development.
-
 ## Upstream boundary
 
 Anything under `behavior-1k/` is **upstream** — never edit that tree.
 ManiGuard stays decoupled by:
 
 - **Runtime patching** OmniGibson via `maniguard._omnigibson_patches` (see
-  [OmniGibson patches](../foundations/omnigibson_patches.md)). Two upstream files
-  still carry local edits on this branch (`utils/bddl_utils.py`,
-  `tasks/grasp_task.py`); extracting them is tracked follow-up work.
+  [OmniGibson patches](../foundations/omnigibson_patches.md)) — applied automatically
+  on `import maniguard`, so the `behavior-1k/` tree is never edited.
 - Building env configs from **frozen scene snapshots** rather than subclassing
   the env (see [Environment layer](../foundations/env_layer.md)).
 
@@ -83,7 +75,7 @@ BDDL activity + scene  ──►  task_generation pipeline
    datagen → RAW → LeRobot                                  run VLA policy)
         │                                                        ▲
         ▼                                                        │
-   LeRobot v2.1 dataset ──► SFT (openpi) ──► policy checkpoint ──┘
+   LeRobot v2.1 dataset ──► per-model SFT ──► policy checkpoint ──┘
 ```
 
 LTL safety monitoring runs *alongside* the rollout at every stage: a

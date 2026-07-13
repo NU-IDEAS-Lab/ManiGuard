@@ -77,16 +77,11 @@ cache (`MANIGUARD_SFT_DATA_ROOT`, default `outputs/sft_datasets/`, shared with t
 openpi and GR00T tracks), prepares the 2-cam copy, trains ~2 epochs, and pushes.
 Steps derive from each dataset's frame count as `ceil(frames × 2 / batch)`.
 
-## Status / open items
-
-The code layer is complete; the following are confirmed **on the box** at SFT time
-(left open here intentionally — see the version-pin caveat in `run_sft.sh`):
+## Notes
 
 - **LeRobot version pin.** The `lerobot-train` flag surface has changed across
   releases (e.g. `--policy.path` vs the older `--policy.type`). Clone
   `huggingface/lerobot` at a pinned tag, `pip install -e .[smolvla]`, and verify the
-  flags in `run_sft.sh` against `lerobot-train --help` for that tag before a real
-  run. *(Pinned tag: TBD.)*
+  flags in `run_sft.sh` against `lerobot-train --help` for that tag.
 - **Compute knobs** (batch size, num_workers, save frequency, LR schedule): the
-  defaults in `run_all.sh` / `run_sft.sh` are starting points; tune per box.
-- **Trained checkpoints + eval numbers**: pending compute.
+  defaults in `run_all.sh` / `run_sft.sh` are starting points; tune for your hardware.

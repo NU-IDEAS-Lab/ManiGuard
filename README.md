@@ -370,7 +370,7 @@ for snap in outputs/teleop_scenes/table/scene_ep*.json; do
 done
 ```
 
-Output dir defaults to `outputs/jixing_teleop2_hdf5/<family>/` (SO-101)
+Output dir defaults to `outputs/teleop/<family>/` (SO-101)
 or whatever you point GELLO's `--output-hdf5` at; cross-family
 `scene_ep<NNNN>` collisions are avoided by per-family subdirectories.
 

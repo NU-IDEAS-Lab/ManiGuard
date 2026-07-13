@@ -76,7 +76,8 @@ are locked across pipelines: `action_normalize=False` (raw radians/meters) and
 |---|---|---|
 | `joint_position` | `JointController`, absolute position | teleop replay, validation, default |
 | `joint_position_impedance` | `JointController` + impedances, `input_limits=None` | cuRobo Phase-A replays (accurate tracking, no clip) |
-| `osc` | `OperationalSpaceController`, raw 6-D pose-delta | pnp Phase-B replay, VLA policies emitting EEF deltas (OpenPI pi0.5) |
+| `joint_position_raw` | `JointController`, raw-radian, no command clipping (rigid Isaac drive) | datagen + benchmark rollouts (`BENCH_CONTROLLER_PRESET`) |
+| `osc` | `OperationalSpaceController`, raw 6-D pose-delta | pnp Phase-B replay, VLA policies emitting EEF deltas |
 | `ik` | `InverseKinematicsController`, binary gripper | live teleop (GELLO / SO-101) |
 
 Other runtime helpers: `FrozenTaskRuntimeSession` (context manager that boots
@@ -89,7 +90,7 @@ OmniGibson headless and stops the sim on exit), `ReviewVideoRecorder` +
 ## Runtime perturbations (`perturbation_runtime.py`)
 
 When a scene's task metadata carries a `perturbation` spec (written by the
-[perturbation generator](../evaluation/one_machine.md)),
+[perturbation generator](../evaluation/index.md)),
 `apply_runtime_perturbations(env)` materializes it on the loaded scene:
 
 - **Visual overrides** — per-object diffuse color / texture swaps.

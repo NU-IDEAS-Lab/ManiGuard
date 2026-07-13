@@ -34,7 +34,7 @@ Code: `maniguard/data/datagen/annotation/`. Data: `outputs/grasp_annotation/`
 
 ```bash
 conda activate behavior
-export PYTHONPATH=$HOME/project/ManiGuard          # repo root
+export PYTHONPATH=/path/to/ManiGuard               # repo root
 # sim steps (Phase A / validate_grasps) also need:
 export OMNIGIBSON_HEADLESS=1
 export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json   # point at a valid local ICD

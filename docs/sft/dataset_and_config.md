@@ -105,8 +105,8 @@ convention (openpi's DROID pretrained convention is joint-space):
 ```bash
 .venv-lerobot/bin/python -m maniguard.data.real_teleop.real_teleop_to_droid \
   --input-dir outputs/real_teleop \
-  --repo-id maniguard/<task> --prompt "<instruction>" \
-  --root outputs/lerobot_datasets/maniguard/<task> \
+  --repo-id <org>/<task> --prompt "<instruction>" \
+  --root outputs/lerobot_datasets/<org>/<task> \
   --push-to-hub <org>/<task> --hub-private
 ```
 

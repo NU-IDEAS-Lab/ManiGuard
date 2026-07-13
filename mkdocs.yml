@@ -66,6 +66,8 @@ extra_javascript:
 exclude_docs: |
   graspability_classified.csv
   graspability_classified.html
+  evaluation/one_machine.md
+  evaluation/two_machine.md
 
 nav:
   - Home: index.md
@@ -110,6 +112,4 @@ nav:
       - Controller · data · action · eval: sft/end_to_end.md
   - Evaluation:
       - Overview: evaluation/index.md
-      - Single-machine (Pro 6000): evaluation/one_machine.md
-      - Two-machine: evaluation/two_machine.md
   - Reference: reference.md

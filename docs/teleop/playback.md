@@ -10,6 +10,15 @@ env, restores state each step, and applies the recorded actions.
 Observations are not in the recording by default — pass `--record` to
 re-render RGB into a new HDF5.
 
+!!! note "Two playback entry points"
+    - **Teleop → SFT rendering (general):** `maniguard/data/playback.py`
+      (`ManiGuardPlaybackWriter`) is the canonical step that turns any teleop HDF5
+      into SFT-ready observations. It selects the state convention
+      (`--controller joint|eef`, joint is the ManiGuard default) and camera count
+      (`--cams 2|3`), and writes the 8-D `obs/state` used by the SFT datasets.
+    - **SO-101 replay (this page):** `so101_franka_playback.py` is the SO-101-specific
+      replay/render entry documented below.
+
 ## Prerequisites
 
 | Item | Notes |

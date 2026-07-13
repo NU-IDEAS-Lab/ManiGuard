@@ -33,6 +33,6 @@ follow `gr00t-n16-base_datagen_v1_<fam>_joint_2cam`. `run_all.sh` drives one fam
 (`--family <fam>`) or all six serially (download → prepare → ~2-epoch train → push),
 sharing the dataset cache (`MANIGUARD_SFT_DATA_ROOT`) with the openpi + SmolVLA tracks.
 
-!!! note "Status"
-    The GR00T track is used for a GR00T-vs-pi0.5 benchmark across the 6 families.
-    Fill in the concrete per-box recipe here as it stabilizes.
+The GR00T track consumes the same 6-family joint datasets as the other models;
+`tools/gr00t_sft/run_all.sh` runs one family or all six end-to-end (download →
+prepare → train → push).

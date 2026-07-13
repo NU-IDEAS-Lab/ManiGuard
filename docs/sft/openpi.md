@@ -126,10 +126,11 @@ visibility default from the config, so the minimal launch is just `--config`:
 ```bash
 cd ManiGuard
 tools/openpi_sft/run_sft.sh \
-  --config pi05_base_dusty_transfer_joint_2cam_lora \
+  --config pi05-base_datagen_v1_dusty_joint_2cam_lora \
   --norm-stats
-# → exp=dusty_transfer_joint_2cam, push → .../pi05-base-dusty-transfer-joint-2cam-lora,
-#   artifacts under outputs/sft_runs/dusty_transfer_joint_2cam/
+# → exp=pi05-base_datagen_v1_dusty_joint_2cam_lora,
+#   push → <org>/pi05-base-datagen-v1-dusty-joint-2cam-lora (from the config's policy_metadata),
+#   artifacts under outputs/sft_runs/pi05-base_datagen_v1_dusty_joint_2cam_lora/
 ```
 
 Run it inside tmux (training is long); detach with `Ctrl+b d`. Override anything:

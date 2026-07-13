@@ -38,23 +38,15 @@ omnigibson` because downstream modules reference those names at module load.
 | `apply_ag_throttle_from_env` | throttles assisted-grasp to every Nth substep | cuts redundant per-substep AG raycasts in long rollouts |
 | `_register_bddl_predicates` | registers `upright`/`dropped`/`grasped`/`stashed` BDDL predicates | expose ManiGuard states to BDDL |
 
-!!! note "Remaining in-tree edits"
-    Two upstream files still carry local ManiGuard edits on this branch
-    (`OmniGibson/.../utils/bddl_utils.py`, `tasks/grasp_task.py`). Fully
-    extracting them needs upstream PRs or a `sys.modules` override and is tracked
-    follow-up work — they are the reason the `behavior-1k/` submodule shows as
-    modified.
-
 ## Environment variables
 
-These keep the `SENTINEL_` prefix for backward compatibility with existing
-scripts and deployments.
+Runtime toggles for the patch layer (all read at `import maniguard`):
 
 | Variable | Effect |
 |---|---|
 | `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` | skip all patches (no sim needed) |
 | `SENTINEL_SKIP_LONGFINGER=1` | skip the long-finger Franka asset patch |
-| `SENTINEL_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps (`10` ≈ once per env step at 300/30) |
+| `SENTINEL_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps (set N ≈ physics-steps-per-action-step to fire once per env step) |
 
 These variables are read at runtime by the patch module; nothing else needs to
 be configured to enable the patches.
