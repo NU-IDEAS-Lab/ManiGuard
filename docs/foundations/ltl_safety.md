@@ -1,6 +1,6 @@
 # LTL safety system
 
-ManiGuard's namesake feature: every rollout — task-gen, teleop replay, eval, RL —
+ManiGuard's namesake feature: every rollout — task-gen, datagen, teleop replay, eval —
 can be checked against **Linear Temporal Logic (LTL)** safety constraints, step
 by step. The system has two layers:
 

@@ -11,35 +11,34 @@ architecture every pipeline shares: offline JSON pool generation (raycast
 scans + admission filters) → object selection → scene + surface selection →
 placement.
 
-## Pipelines
+## ManiGuard-Bench families
 
-Two families share the runtime contract.
+The released [ManiGuard-Bench](../datagen/pipeline.md) is these **6 families**
+(200 base tasks). Each page states the task goal + safety and how the family's
+scenes are generated:
 
-**Tabletop (in-scene)** — auto-discover a real support surface in a named
-`--scene-model`:
+| Family | Tasks | One-liner |
+|---|---:|---|
+| [Clutter pickup](clutter_pickup.md) | 55 | Pick a named target out of a cluttered pack into the goal region (+ liquid subset) |
+| [Cabinet pickup](cabinet_pickup.md) | 35 | Open a drawer, place the target inside, close it |
+| [Lid transport](lid_transport.md) | 30 | Put the lid on before lifting the container to the goal |
+| [Stack retrieve](stack_retrieve.md) | 28 | Pull the bottom object out from under a stack without toppling it |
+| [Jar transport](jar_transport.md) | 26 | Close a hinged jar before carrying it to the goal |
+| [Dusty transfer](dusty_transfer.md) | 26 | Wipe a dusty pot clean, then transfer food into it with the tool |
 
-| Pipeline | Module | One-liner |
-|---|---|---|
-| [Tabletop clutter](clutter.md) | `clutter_scene_pipeline` | Retrieve target from fragile clutter |
-| ↳ [Liquid transport](liquid_transport.md) — *variant* | `liquid_transport_pipeline` | Clutter with a liquid-filled target; no spill or tip |
-| [Stack retrieval](stack.md) | `stack_scene_pipeline` | Retrieve target from under a stack |
-| [Food transfer](transfer.md) | `transfer_scene_pipeline` | Move food between containers without touching it |
-| ↳ [Dusty transfer](dusty_transfer.md) — *variant* | `dusty_transfer_pipeline` | Transfer, but wipe the dusty destination clean first |
-| [Lid transport](lid_transport.md) | `lid_transport_pipeline` | Cover a container before lifting it (close-before-lift) |
-| [Wet transport](wet_transport.md) | `wet_transport_pipeline` | Carry a container without passing it over water-sensitive objects |
+## Generation infrastructure
 
-**Empty-scene** — start from a bare floor and synthesize a surface (no `--scene-model`):
+Shared machinery every family builds on:
 
-| Pipeline | Module | One-liner |
-|---|---|---|
-| [Empty scene](empty_scene.md) | `empty_scene_pipeline` | Random surface + a clutter / stack / transfer setup |
-| [Empty invert](empty_invert.md) | `empty_invert_pipeline` | Empty a liquid container before inverting it; keep the table dry |
-| [Cabinet pickup](cabinet_pickup.md) | `cabinet_pickup_pipeline` | Open a drawer and retrieve a target that fits its cavity |
-| [Jar transport](jar_transport.md) | `jar_transport_pipeline` | Close a hinged jar before lifting it to a goal region |
+- [Data flow](data_flow.md) — the four-stage architecture (offline pools → selection → surface → placement).
+- [Add a custom pipeline](custom_pipeline.md) — author a new `BasePipeline` subclass.
+- [Empty-scene runner](empty_scene.md) — synthesize a surface on a bare floor (used by the empty-scene families).
+- [Food transfer (base)](transfer.md) — the transfer base that dusty transfer extends.
 
-Each page documents what the pipeline does plus its gate checks and LTL safety
-constraints — with example renders (where available) from the `6fam-base`
-dataset.
+## Additional families
+
+[Other families](other_families.md) the pipeline can generate but that are **not**
+in the shipped bench (`wet_transport`, `empty_invert`).
 
 ## Multi-scene benchmark
 

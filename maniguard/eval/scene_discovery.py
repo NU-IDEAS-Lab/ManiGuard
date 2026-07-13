@@ -51,6 +51,21 @@ def _scene_key(root: Path, scene_dir: Path) -> str:
 STRUCTURAL_CATEGORIES = {"walls", "floors", "ceilings", "door", "window"}
 
 
+def _match_category(init_info: dict, category: str):
+    """First scene-object name whose category == ``category`` (else None)."""
+    if not category:
+        return None
+    for obj_name, obj_info in init_info.items():
+        if obj_info.get("args", {}).get("category") == category:
+            return obj_name
+    return None
+
+
+def _category_from_synset(synset: str) -> str:
+    """'potato.n.01' -> 'potato'; '' or a non-synset string -> ''."""
+    return synset.split(".n.")[0] if ".n." in synset else ""
+
+
 def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
     """Discover valid benchmark scenes with diagnostics.
 
@@ -67,10 +82,21 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         scene_file = scene_dir / "scene_ep1.json"
         diag_file = scene_dir / "diagnostics.jsonl"
         scene_key = _scene_key(root, scene_dir)
-        if scene_names and scene_key not in scene_names and scene_dir.name not in scene_names:
+        # Match a requested name exactly ("task_0000/base"), as a task-dir
+        # prefix ("task_0000" -> task_0000/base, task_0000/env), or by leaf
+        # dir name — so `--scenes task_0000` selects a single task ergonomically.
+        if scene_names and not any(
+            scene_key == n or scene_key.startswith(f"{n}/") or scene_dir.name == n
+            for n in scene_names
+        ):
             continue
 
-        diag = json.loads(diag_file.read_text(encoding="utf-8").strip().split("\n")[0])
+        # diagnostics.jsonl holds one JSON record; it may be a single line OR a
+        # pretty-printed multi-line object (older pipelines, e.g. dusty). Decode
+        # the first complete JSON value rather than assuming a single line.
+        diag = json.JSONDecoder().raw_decode(
+            diag_file.read_text(encoding="utf-8").lstrip()
+        )[0]
         scene_info_json = json.loads(scene_file.read_text(encoding="utf-8"))
         init_info = scene_info_json.get("objects_info", {}).get("init_info", {})
         sel = diag.get("selection", {})
@@ -84,52 +110,58 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         target_name = None
         prompt = str(diag.get("prompt") or "").strip() or None
 
-        if pipeline in ("lid_transport_food", "lid_transport_liquid"):
-            container_synset = sel.get("container_synset", "")
-            container_label = container_synset.split(".n.")[0].replace("_", " ") if ".n." in container_synset else container_synset
-            container_cat = sel.get("container_category", "")
-            for obj_name, obj_info in init_info.items():
-                if obj_info.get("args", {}).get("category") == container_cat:
-                    target_name = obj_name
-                    break
-            if prompt is None:
-                prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))
-
-        elif pipeline == "transfer":
+        # Resolve the manipulation target per 6fam-base family, keyed on the
+        # diagnostics `pipeline` field. Families with sub-variants (clutter,
+        # lid, stack) group their variant names into one branch; the names do
+        # not overlap across families. else = safety skip only.
+        if pipeline == "dusty_transfer":
+            # Target = transferred food. The clean dustify batch carries
+            # food_synset (+ a baked prompt); the merged food_transfer remnants
+            # have empty categories / no synset / no prompt — skip them
+            # (see incomplete_source_note.txt).
             food_synset = sel.get("food_synset", "")
-            source_synset = sel.get("source_synset", "")
-            dest_synset = sel.get("dest_synset", "")
-            food_label = food_synset.split(".n.")[0].replace("_", " ") if ".n." in food_synset else "food"
-            source_label = source_synset.split(".n.")[0].replace("_", " ") if ".n." in source_synset else "source"
-            dest_label = dest_synset.split(".n.")[0].replace("_", " ") if ".n." in dest_synset else "destination"
-            food_cat = food_synset.split(".n.")[0] if ".n." in food_synset else ""
-            for obj_name, obj_info in init_info.items():
-                if obj_info.get("args", {}).get("category") == food_cat:
-                    target_name = obj_name
-                    break
-            if prompt is None:
-                prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))
+            if not food_synset:
+                print(f"  Skipping {scene_key}: dusty degraded merge batch (no synset/prompt)")
+                continue
+            target_name = _match_category(init_info, _category_from_synset(food_synset))
+
+        elif pipeline == "jar_transport":
+            # Target = the jar (lid closed, then carried).
+            target_name = _match_category(init_info, sel.get("jar_category", ""))
+
+        elif pipeline == "cabinet_pickup":
+            # Target = the object placed into the drawer.
+            target_name = _match_category(init_info, sel.get("target_category", ""))
+
+        elif pipeline in ("liquid_transport", "table"):
+            # clutter: pick the target out of the clutter (a liquid-filled
+            # container, or a plain table pick). Both carry target_synset.
+            target_name = _match_category(init_info, _category_from_synset(sel.get("target_synset", "")))
+
+        elif pipeline in ("lid_transport_food", "lid_transport_liquid"):
+            # lid: place the lid on the container, then move the container.
+            target_name = _match_category(init_info, sel.get("container_category", ""))
+
+        elif pipeline in ("stack_same", "stack_flat"):
+            # stack: retrieve the bottom object from the stack.
+            target_name = _match_category(init_info, _category_from_synset(sel.get("target_synset", "")))
 
         else:
-            for entry in diag.get("active_object_summary", []):
-                if entry.get("role") == "target":
-                    target_name = entry.get("scene_object_name")
-                    break
-            if not target_name:
-                target_synset = sel.get("target_synset", "")
-                target_cat = target_synset.split(".n.")[0] if ".n." in target_synset else ""
-                for obj_name, obj_info in init_info.items():
-                    if obj_info.get("args", {}).get("category") == target_cat:
-                        target_name = obj_name
-                        break
-            target_synset = sel.get("target_synset", "")
-            target_label = target_synset.split(".n.")[0].replace("_", " ") if ".n." in target_synset else "object"
-            if prompt is None:
-                prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))
+            # Safety: a pipeline that belongs to no 6fam-base family.
+            print(f"  Skipping {scene_key}: unrecognized pipeline '{pipeline}' (not a 6fam-base family)")
+            continue
 
         if not target_name:
             print(f"  Skipping {scene_key}: could not resolve target object (pipeline={pipeline})")
             continue
+        # Every 6fam-base family bakes its prompt into diagnostics; rebuild from
+        # task fields only as a fallback so a missing prompt stays in-distribution
+        # rather than dropping to the generic surface line.
+        if prompt is None:
+            try:
+                prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))
+            except Exception:
+                prompt = None
         if not prompt:
             prompt = f"Manipulate the objects on the {surface_label}."
 
@@ -156,6 +188,7 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             "cameras": diag.get("cameras", []),
             "goal_conditions": diag.get("goal_conditions", []),
             "goal_region": diag.get("goal_region"),
+            "ltl_safety": diag.get("ltl_safety") or {},
         })
 
     if max_scenes:

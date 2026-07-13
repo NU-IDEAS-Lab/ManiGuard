@@ -18,9 +18,9 @@ override points:
 | **1 — offline pools** | *(no hook)* | only if asset-fit-constrained | Build a committed JSON pool + a `select.py`, as in `utils/stack_pipeline/` etc. Skip it if your roles have no fit constraint (clutter/empty just hand-pick). |
 | **2 — selection** | `activity_prefix()` | ✅ | Default activity-name prefix, e.g. `"auto_clutter_on"`. |
 | | `select_objects(args, rng)` | ✅ | A dict with `required_area_m2` (drives Stage 3) plus your chosen synsets/models. |
-| | `generate_activity(name, support_synset, support_room, args, rng)` | ✅ | The activity spec — `spawn_specs` + the `ltl_safety` dict — usually by delegating to a `generate_*_activity()` builder in `maniguard.utils.task_spec`. |
+| | `generate_activity(name, support_category, support_room, args, rng)` | ✅ | The activity spec — `spawn_specs` + the `ltl_safety` dict — usually by delegating to a `generate_*_activity()` builder in `maniguard.utils.task_spec`. |
 | | `configure_env(selection)` | optional | Flip macros before env creation (e.g. enable GPU dynamics for liquids). |
-| **3 — scene + surface** | *(none)* | — | `BasePipeline.pick_scene_from_placeable` uses your `required_area_m2`; you don't override anything. |
+| **3 — scene + surface** | *(none)* | — | `pipeline_common.pick_scene_from_placeable` uses your `required_area_m2`; you don't override anything. |
 | **4 — placement & rollout** | `identify_objects(ctx)` | ✅ | Group the spawned objects by role on `ctx` (set `ctx.target_obj`, etc.). |
 | | `place_objects(ctx)` | ✅ | Arrange objects on the surface; set `ctx.active_objects` + `ctx._active_object_summary`. |
 | | `make_edge_objects(ctx)` | ✅ | A tuple of `EdgeAlignObject` so the robot edge-picker knows what to avoid. |
@@ -57,10 +57,10 @@ class MyPipeline(BasePipeline):
             # ... any other picks your generate_activity needs
         }
 
-    def generate_activity(self, activity_name, support_synset, support_room, args, rng):
+    def generate_activity(self, activity_name, support_category, support_room, args, rng):
         # build spawn_specs + an ltl_safety spec (see the LTL safety page)
         return generate_mytask_activity(
-            activity_name, support_synset, support_room,
+            activity_name, support_category, support_room,
             rng=rng, pre_selection=args._pre_selection,
         )
 

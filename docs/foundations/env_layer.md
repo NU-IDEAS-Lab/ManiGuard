@@ -1,9 +1,8 @@
 # Environment layer
 
-`maniguard/envs/` does **not** define a live environment class — the active RL
-stack uses `maniguard.rl.tasks.pick_and_lift.PickAndLiftTask` directly. What
-remains are three building blocks that every downstream stage (task-gen replay,
-eval, RL reset) shares:
+`maniguard/envs/` does **not** define a live environment class — task-gen replay,
+datagen, and eval build OmniGibson envs directly from frozen scene snapshots. The
+three building blocks every downstream stage shares are:
 
 | Module | Role |
 |---|---|
@@ -77,7 +76,8 @@ are locked across pipelines: `action_normalize=False` (raw radians/meters) and
 |---|---|---|
 | `joint_position` | `JointController`, absolute position | teleop replay, validation, default |
 | `joint_position_impedance` | `JointController` + impedances, `input_limits=None` | cuRobo Phase-A replays (accurate tracking, no clip) |
-| `osc` | `OperationalSpaceController`, raw 6-D pose-delta | pnp Phase-B replay, VLA policies emitting EEF deltas (OpenPI pi0.5) |
+| `joint_position_raw` | `JointController`, raw-radian, no command clipping (rigid Isaac drive) | datagen + benchmark rollouts (`BENCH_CONTROLLER_PRESET`) |
+| `osc` | `OperationalSpaceController`, raw 6-D pose-delta | pnp Phase-B replay, VLA policies emitting EEF deltas |
 | `ik` | `InverseKinematicsController`, binary gripper | live teleop (GELLO / SO-101) |
 
 Other runtime helpers: `FrozenTaskRuntimeSession` (context manager that boots
@@ -90,7 +90,7 @@ OmniGibson headless and stops the sim on exit), `ReviewVideoRecorder` +
 ## Runtime perturbations (`perturbation_runtime.py`)
 
 When a scene's task metadata carries a `perturbation` spec (written by the
-[perturbation generator](../one_machine_pro6000_eval.md)),
+[perturbation generator](../evaluation/index.md)),
 `apply_runtime_perturbations(env)` materializes it on the loaded scene:
 
 - **Visual overrides** — per-object diffuse color / texture swaps.

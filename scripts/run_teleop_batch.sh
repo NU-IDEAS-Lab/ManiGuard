@@ -11,7 +11,7 @@
 #
 # Args:
 #   SCENE_DIR  — directory of scene_ep*.json snapshots (default: stack_same family)
-#   OUT_DIR    — explicit output dir (default: outputs/jixing_teleop2_hdf5/<scene_basename>)
+#   OUT_DIR    — explicit output dir (default: outputs/teleop/<scene_basename>)
 #
 # Flags:
 #   --task <NAME>   Shorthand for SCENE_DIR=$TASK_ROOT/<NAME>, where TASK_ROOT
@@ -95,12 +95,12 @@ else
     SCENE_DIR="${POS_ARGS[0]:-outputs/teleop_scenes/stack_same}"
 fi
 # Default OUT_DIR nests under a subdirectory named after SCENE_DIR's basename
-# (e.g. SCENE_DIR=outputs/teleop_scenes/table -> OUT_DIR=outputs/jixing_teleop2_hdf5/table).
+# (e.g. SCENE_DIR=outputs/teleop_scenes/table -> OUT_DIR=outputs/teleop/table).
 # This prevents cross-task collisions when the same scene_ep<NNNN>.json filenames
 # exist in multiple SCENE_DIRs (e.g. table/scene_ep0000.json and transfer/scene_ep0000.json
 # would otherwise both write to scene_ep0000.hdf5 in a flat OUT_DIR and overwrite each other).
 # Pass an explicit second positional arg to override and write directly into a chosen path.
-OUT_ROOT="${POS_ARGS[1]:-outputs/jixing_teleop2_hdf5}"
+OUT_ROOT="${POS_ARGS[1]:-outputs/teleop}"
 if [[ -n "${POS_ARGS[1]:-}" ]]; then
     OUT_DIR="$OUT_ROOT"
 else

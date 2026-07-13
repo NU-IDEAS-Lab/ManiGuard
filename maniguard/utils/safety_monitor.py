@@ -89,6 +89,32 @@ _STATE_CONFIGURABLE_PARAMS: Dict[Any, list] = {
 }
 
 
+def _is_open_via_joints(obj, frac: float = 0.05) -> bool:
+    """Open-check computed straight from joint angles.
+
+    Used as a fallback for objects that have no ``openable`` ability
+    (``hinged_jar`` ships with ``abilities={}``), so OmniGibson never
+    attaches an ``Open`` state and ``obj.states[Open]`` raises ``KeyError``.
+
+    Mirrors ``open_state``'s default convention (no metadata): a joint is
+    "open" once it moves past ``frac`` of its range away from the lower
+    (closed) limit, and the object is open if *any* joint is open. Joint
+    positions are read per-joint via ``joint.get_state()[0]`` exactly as
+    OmniGibson's ``Open._get_value`` does, to avoid any DOF-ordering skew.
+    """
+    for joint in obj.joints.values():
+        lo, hi = float(joint.lower_limit), float(joint.upper_limit)
+        if hi <= lo:  # continuous / unlimited joint -> open/closed undefined
+            continue
+        try:
+            pos = float(joint.get_state()[0])
+        except Exception:
+            continue
+        if pos > (1.0 - frac) * lo + frac * hi:  # closed=lo, open=hi
+            return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 #  ObjectResolver
 # ---------------------------------------------------------------------------
@@ -195,25 +221,35 @@ class SafetyPropositionEvaluator:
         subjects = self._resolver.resolve_patterns(prop_def.get("over", []))
         check = prop_def.get("check", "any")
         params = prop_def.get("params", {})
+        negated = bool(prop_def.get("negated", False))
 
         print(
             f"[LTL] unary {state_cls.__name__} over "
             f"{prop_def.get('over', [])} -> {len(subjects)} subject(s): "
-            f"{sorted(subjects.keys())}",
+            f"{sorted(subjects.keys())}{' (negated)' if negated else ''}",
             flush=True,
         )
 
         # Apply configurable params from JSON onto each object's state instance.
         self._apply_state_params(subjects, state_cls, params)
 
-        def eval_fn(_subj=subjects, _cls=state_cls, _chk=check):
+        def eval_fn(_subj=subjects, _cls=state_cls, _chk=check, _neg=negated):
             results = []
             for name, obj in _subj.items():
                 try:
-                    results.append(bool(obj.states[_cls].get_value()))
+                    val = bool(obj.states[_cls].get_value())
                 except Exception as exc:
-                    log.warning("unary %s check failed for %s: %s", _cls.__name__, name, exc)
-                    results.append(False)
+                    if _cls is Open:
+                        # Object has no `openable` ability (e.g. hinged_jar with
+                        # abilities={}) so its Open state is never attached —
+                        # read the hinge angle directly instead of failing.
+                        val = _is_open_via_joints(obj)
+                    else:
+                        log.warning("unary %s check failed for %s: %s", _cls.__name__, name, exc)
+                        val = False
+                if _neg:
+                    val = not val
+                results.append(val)
             if not results:
                 return False if _chk == "any" else True
             return any(results) if _chk == "any" else all(results)
@@ -541,6 +577,85 @@ def _try_parse_instance_state_ap(
                 # Binary states need a relative_to, which we can't infer.
                 continue
     return None
+
+
+# ---------------------------------------------------------------------------
+#  Active-object resolution (shared by every TaskLTLMonitor caller)
+# ---------------------------------------------------------------------------
+
+_OBJECT_TAXONOMY = None
+
+
+def category_synset_lemma(category: str) -> str:
+    """OmniGibson category -> its BDDL synset lemma (``roasting_pan`` -> ``roaster``).
+    LTL patterns name objects by synset lemma, which is not always the OG category;
+    bridging via the object taxonomy lets those patterns resolve. ``""`` if unavailable."""
+    global _OBJECT_TAXONOMY
+    if not category:
+        return ""
+    try:
+        if _OBJECT_TAXONOMY is None:
+            from bddl.object_taxonomy import ObjectTaxonomy
+            _OBJECT_TAXONOMY = ObjectTaxonomy()
+        syn = _OBJECT_TAXONOMY.get_synset_from_category(category)
+        return syn.split(".n.")[0] if syn else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def build_active_objects_for_ltl(env, ltl_safety: dict, surface_name: str | None) -> dict:
+    """Reconstruct ``{inst_id: obj}`` so a task's diagnostics LTL glob patterns resolve to the
+    loaded scene objects (``agent.*`` -> robot; ``<cat>_*`` / ``<synset>.n.*_*`` -> category /
+    synset / role matches; an unresolved synset -> the support-surface backstop). The single
+    source used by the eval runner, datagen, and any other TaskLTLMonitor caller."""
+    patterns = set()
+    for pdef in ((ltl_safety or {}).get("propositions") or {}).values():
+        for key in ("over", "relative_to"):
+            v = pdef.get(key)
+            if isinstance(v, list):
+                patterns.update(v)
+            elif isinstance(v, str):
+                patterns.add(v)
+
+    robot = env.robots[0] if env.robots else None
+    objs = list(env.scene.objects)
+    cat2lemma = {}
+    for o in objs:
+        c = getattr(o, "category", "")
+        if c and c not in cat2lemma:
+            cat2lemma[c] = category_synset_lemma(c)
+    surface_obj = (
+        env.scene.object_registry("name", surface_name) if surface_name else None
+    )
+
+    active: Dict[str, Any] = {}
+    for pat in patterns:
+        prefix = pat[:-2] if pat.endswith("_*") else pat
+        if prefix.startswith("agent"):
+            if robot is not None:
+                active[f"{prefix}_0"] = robot
+            continue
+        base = prefix.split(".n.")[0]
+        matched = [
+            o for o in objs
+            if getattr(o, "category", "") == base
+            or cat2lemma.get(getattr(o, "category", "")) == base
+        ]
+        matched += [
+            o for o in objs
+            if o not in matched and fnmatch.fnmatch(getattr(o, "name", ""), pat)
+        ]
+        if not matched and ".n." in prefix:
+            role_matched = [o for o in objs if getattr(o, "name", "").startswith(base + "_")]
+            if role_matched:
+                matched = role_matched
+            elif surface_obj is not None:
+                print(f"  [LTL] pattern {pat!r} unresolved by category/synset; "
+                      f"using diagnostics surface {surface_name!r}", flush=True)
+                matched = [surface_obj]
+        for i, obj in enumerate(matched):
+            active[f"{prefix}_{i}"] = obj
+    return active
 
 
 # ---------------------------------------------------------------------------

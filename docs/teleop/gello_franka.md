@@ -36,7 +36,7 @@ conda activate behavior
 
 python -m maniguard.data.teleop.gello_franka_teleop \
     --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
-    --output-hdf5 outputs/jixing_teleop2_hdf5/table/scene_ep0000.hdf5
+    --output-hdf5 outputs/teleop/table/scene_ep0000.hdf5
 ```
 
 `VK_ICD_FILENAMES` is set with `os.environ.setdefault` to
@@ -50,11 +50,15 @@ register.
 
 | Key | Action |
 |---|---|
+| B | **Begin recording** — starts the trajectory; frames streamed before B are discarded |
 | SPACE | Toggle gripper open/close |
 | S | Toggle success flag (forces save under `--only-successes`) |
 | C | Save checkpoint (only when recording) |
 | R | Roll back to last checkpoint (only when recording) |
 | Q | Clean exit (writes HDF5) |
+
+You **must press B to start recording**: until then the leader drives the arm live but
+nothing is written, so `--output-hdf5` would otherwise save an empty trajectory.
 
 ## How it works
 

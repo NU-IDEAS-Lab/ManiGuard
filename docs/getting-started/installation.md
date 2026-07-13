@@ -1,8 +1,9 @@
 # Installation
 
 ManiGuard runs in the **`behavior` conda env** — OmniGibson simulation, BDDL,
-teleop, task generation, RL, and eval. Policy training/serving via openpi uses
-its own venv (see the [SFT](../openpi_sim_teleop_sft.md) pages).
+teleop, task generation, scripted data generation, and eval. Policy training/serving
+runs in each model's own environment (openpi / GR00T / SmolVLA — see the
+[SFT](../sft/index.md) pages).
 
 ## 1. Clone with submodules
 
@@ -34,7 +35,40 @@ Dependencies: `--omnigibson` requires `--bddl`; `--primitives` requires `--omnig
 ```bash
 conda activate behavior
 pip install -e .                 # base
-pip install -e ".[rl,serve]"     # with RL + policy-server extras
+pip install -e ".[serve]"        # with policy-server extras
+```
+
+## 4. ManiGuard-Bench + robot asset
+
+To **run the benchmark** you need two ManiGuard-owned artifacts (both separate from
+the Stanford-licensed BEHAVIOR asset bundle, both hosted on HuggingFace).
+
+**4a. Robot asset (required).** The benchmark uses a Franka Panda with extended
+**fin-ray fingers** — not part of the stock OmniGibson robot set. Drop it into the
+robot-assets tree so the runtime patch (`maniguard._omnigibson_patches`) finds it.
+It must land at `<data_root>/omnigibson-robot-assets/models/franka/franka_panda_longfinger/`,
+where `<data_root>` is `behavior-1k/datasets/` (or `$OMNIGIBSON_DATA_PATH`):
+
+```bash
+hf download IDEAS-Lab-Northwestern/franka-panda-longfinger --repo-type dataset \
+  --local-dir behavior-1k/datasets/omnigibson-robot-assets/models/franka/franka_panda_longfinger
+```
+
+On `import maniguard`, `FrankaPanda.usd_path` is auto-redirected to this bundle when
+present (it ships the OmniGibson runtime USD + cuRobo description; no URDF needed at
+runtime). Set `SENTINEL_SKIP_LONGFINGER=1` to keep the stock Franka instead.
+
+**4b. Benchmark scenes.** The frozen benchmark (per-task `scene_ep1.json` +
+`diagnostics.jsonl` + review videos) lives at
+[`IDEAS-Lab-Northwestern/ManiGuard-Bench`](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench).
+`maniguard.eval.benchmark` accepts the HF repo id directly (snapshot-downloaded into
+the HF cache) or a local directory:
+
+```bash
+# A) let eval pull it (run `hf auth login` first)
+python -m maniguard.eval.benchmark --benchmark-root IDEAS-Lab-Northwestern/ManiGuard-Bench ...
+# B) or download once and pass the local dir
+hf download IDEAS-Lab-Northwestern/ManiGuard-Bench --repo-type dataset --local-dir datasets/maniguard-bench
 ```
 
 ## Optional: override the dataset path

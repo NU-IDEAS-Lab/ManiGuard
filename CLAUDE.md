@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) that adds LTL (Linear Temporal Logic) safety checking, task-generation pipelines, and VLA policy eval for robotic manipulation in simulated household environments. It integrates physics simulation (OmniGibson/NVIDIA Omniverse), formal task specification (BDDL), safety verification (LTL/Spot), and RL training (Stable-Baselines3 PPO).
+ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) that adds LTL (Linear Temporal Logic) safety checking, task-generation pipelines, scripted demo-data generation for SFT, and VLA policy eval for robotic manipulation in simulated household environments. It integrates physics simulation (OmniGibson/NVIDIA Omniverse), formal task specification (BDDL), and safety verification (LTL/Spot). RL training (Stable-Baselines3 PPO) is under development.
 
 ## Architecture
 
@@ -28,10 +28,9 @@ ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/S
 │   ├── utils/           #   ltl_utils, safety_monitor, task_spec, geometry
 │   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / cabinet / jar pipelines
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
-│   ├── data/            #   teleop, curobo, lerobot, real_teleop, scene + playback
+│   ├── data/            #   datagen (scripted SFT demo collection), teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery, snapshot validator
-│   ├── serve/           #   websocket VLA policy server (openpi_native)
-│   └── rl/              #   SB3 PPO grasp training + GraspGen/cuRobo grasp pipeline
+│   └── serve/           #   websocket VLA policy server (openpi_native)
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
 │                        #   contains OmniGibson/, bddl3/, joylo/, docs/,
 │                        #   asset_pipeline/, knowledgebase/, eval-jobqueue/
@@ -46,7 +45,7 @@ ManiGuard is a Python package built on top of [BEHAVIOR-1K](https://github.com/S
 
 **Upstream boundary**: anything under `behavior-1k/` is upstream. Do not modify that tree — patch behaviors via `maniguard._omnigibson_patches` instead.
 
-**Key data flow**: BDDL task definition → OmniGibson scene sampling → Environment reset/step → LTL safety monitoring → Agent observation → Policy action → Physics simulation → Reward signal → RL training (SB3 PPO)
+**Key data flow**: BDDL task definition → OmniGibson scene sampling → Environment reset/step → LTL safety monitoring → Agent observation → Policy action → Physics simulation → demonstration recording (scripted datagen → SFT). An RL training loop (reward signal → policy update) is under development.
 
 ### LTL Safety System
 
@@ -87,7 +86,7 @@ cd ..
 # Install maniguard (editable)
 conda activate behavior
 pip install -e .                     # base
-pip install -e ".[rl,serve]"        # with RL + policy-server extras
+pip install -e ".[serve]"           # with policy-server extras
 
 # (Override the dataset path only if you keep BEHAVIOR assets elsewhere,
 # e.g. HPC shared storage. Default resolves to behavior-1k/datasets/.)
@@ -142,19 +141,18 @@ mkdocs serve    # Preview at localhost:8000
 mkdocs build    # Build static site
 ```
 
-### GraspGen pipeline (per-object grasp eval + RL reset dataset)
+### Datagen pipeline (scripted demo collection for SFT)
 
-End-to-end install + server + run instructions for the
-`maniguard.rl.grasps.render_grasps` pipeline (NVlabs/GraspGen ZMQ server
-→ cuRobo motion plan → physics validation → `.pt` for
-`GraspDatasetResetter` + diagnostic PNGs + success MP4):
-[`docs/graspgen_pipeline.md`](docs/graspgen_pipeline.md).
+The mature sim scripted data-collection pipeline lives in `maniguard/data/datagen/`: it turns the
+finalized ManiGuard-Bench base tasks into success+safe demonstrations, then converts RAW → LeRobot v2.1.
+See [`docs/datagen/pipeline.md`](docs/datagen/pipeline.md) and
+[`docs/datagen/lerobot_conversion.md`](docs/datagen/lerobot_conversion.md).
 
 ## Environment Setup
 
 Primary env: **`behavior` conda env** — OmniGibson simulation, BDDL, teleop,
 task generation, RL, and eval. Policy SFT/serving via openpi uses its own venv
-(see `docs/openpi_sim_teleop_sft.md`).
+(see `docs/sft/`).
 
 Key environment variables (headless deployment):
 - `ISAAC_PATH` — path to Isaac Sim package

@@ -125,14 +125,18 @@ class LiquidTransportPipeline(ClutterPipeline):
         )
 
         preset = LIQUID_PRESETS[args.difficulty]
-        target_synset = selection["target_synset"]
-        # fragile_picks is a list of [synset, cat, model] triples.
-        fragile_synsets = sorted({p[0] for p in selection.get("fragile_picks", [])})
+        # Container + every NON-target task object (fragile + clutter) by REALIZED category
+        # (picks are [synset, category, model]); synset stems mis-resolve multi-category synsets.
+        target_category = selection["target_category"]
+        obstacle_categories = sorted(
+            {p[1] for p in selection.get("fragile_picks", [])}
+            | {p[1] for p in selection.get("clutter_picks", [])}
+        )
 
         ltl_safety = generate_liquid_transport_ltl_safety_json(
             activity_name=activity_name,
-            container_synsets=[target_synset],
-            fragile_synsets=fragile_synsets,
+            container_synsets=[target_category],
+            fragile_synsets=obstacle_categories,
             system_name=args.system_name,
             spill_threshold=preset["spill_threshold"],
             max_tilt_deg=preset["max_tilt_deg"],

@@ -3,7 +3,7 @@
 
 Consumes the npz files written by the real-franka teleop capture
 (outputs/real_teleop/<id>.npz) and emits one HDF5 per episode that
-matches the schema `maniguard.data.lerobot.lerobot_export` expects:
+matches the schema `maniguard.data.lerobot.multitask_lerobot_export` expects:
 
     data/demo_0/obs/image        (N+1, H, W, 3) uint8   <- cam0, resized
     data/demo_0/obs/wrist_image  (N+1, H, W, 3) uint8   <- cam1, resized

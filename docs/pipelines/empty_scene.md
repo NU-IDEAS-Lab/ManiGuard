@@ -19,7 +19,7 @@ There are no setup-specific extra gate checks (unlike the in-scene clutter / tra
 
 ## LTL constraints
 
-Delegated to the same generator as the chosen setup (`generate_clutter_activity` / `generate_stack_activity` / `generate_transfer_activity` in `maniguard.utils.task_spec`). The resulting `ltl_safety.json` is identical in shape to the matching in-scene pipeline; see `clutter.md`, `stack.md`, or `transfer.md` for the constraint set.
+Delegated to the same generator as the chosen setup (`generate_clutter_activity` / `generate_stack_activity` / `generate_transfer_activity` in `maniguard.utils.task_spec`). The resulting `ltl_safety.json` is identical in shape to the matching in-scene pipeline; see `clutter_pickup.md`, `stack_retrieve.md`, or `transfer.md` for the constraint set.
 
 ## Source
 

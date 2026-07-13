@@ -1,12 +1,12 @@
 <h1 align="center">ManiGuard</h1>
 
 <p align="center">
-  <img src="docs/index_gallery/montage.jpg" alt="50 ManiGuard task instances" width="760">
+  <img src="docs/index_gallery/overview.png" alt="ManiGuard-Bench task overview" width="760">
 </p>
 
 <p align="center">
   LTL-safe task generation, teleop &amp; scripted data collection, VLA fine-tuning,
-  evaluation, and reinforcement learning — on top of
+  and evaluation — on top of
   <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson.
 </p>
 
@@ -14,6 +14,8 @@
   <a href="https://nu-ideas-lab.github.io/ManiGuard/"><b>📖 Documentation</b></a>
   &nbsp;·&nbsp;
   <a href="#installation">Installation</a>
+  &nbsp;·&nbsp;
+  <a href="#maniguard-bench">ManiGuard-Bench</a>
   &nbsp;·&nbsp;
   <a href="#task-generation--benchmark">Task generation</a>
   &nbsp;·&nbsp;
@@ -28,12 +30,11 @@
 │   ├── _omnigibson_patches.py   # runtime patches on vanilla OmniGibson
 │   ├── object_states/   #   Dropped, Upright
 │   ├── utils/           #   ltl_utils, safety_monitor, task_spec, geometry
-│   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / cabinet / jar pipelines
+│   ├── task_generation/ #   clutter / cabinet / stack / jar / lid / dusty / transfer / liquid pipelines
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
-│   ├── data/            #   teleop, curobo, lerobot, real_teleop, scene + playback
+│   ├── data/            #   datagen (scripted SFT demo collection), bench_builder, teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery
-│   ├── serve/           #   websocket VLA policy server (openpi_native)
-│   └── rl/              #   SB3 PPO grasp training + GraspGen/cuRobo grasp pipeline
+│   └── serve/           #   websocket VLA policy server (openpi_native)
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
 ├── vla_models/          # VLA checkpoints (user-downloaded, .gitignore)
 ├── tests/               # maniguard-side tests
@@ -75,18 +76,8 @@
    ```bash
    conda activate behavior
    pip install -e .                 # base install
-   pip install -e ".[rl,serve]"    # with RL + websocket policy server extras
+   pip install -e ".[serve]"        # with websocket policy server extras
    ```
-
-4. **ManiGuard-generated benchmark scenes** (our own `scene_ep*.json`
-   + `diagnostics.jsonl` bundles) are distributed separately from the
-   BEHAVIOR asset bundle — see
-   [`maniguard/task_generation/README.md`](maniguard/task_generation/README.md)
-   for how pipelines write them, and the HuggingFace-hosted benchmark
-   release for the frozen versions. (They live under a different root
-   than `behavior-1k/datasets/` on purpose: BEHAVIOR assets are
-   Stanford-licensed and not redistributable, whereas ManiGuard
-   benchmark scenes are ours.)
 
 Importing `maniguard` applies a small set of runtime patches that extend
 OmniGibson with ManiGuard-specific object states, BDDL predicates, grasp-goal
@@ -95,33 +86,112 @@ hold-step counting, a link-fallback-aware grasp reward, and a tensor-safe
 patches entirely (useful for pure-Python consumers that don't need
 OmniGibson at runtime).
 
+## ManiGuard-Bench
+
+ManiGuard-Bench is the frozen evaluation benchmark: safety-critical tabletop
+manipulation across six task families —
+**clutter pickup**, **cabinet pickup** (open → place-inside → close),
+**stack retrieve**, **jar transport**, **lid transport**, and **dusty transfer**.
+
+Every base task ships four **out-of-distribution perturbation levels**, so a policy
+is scored in-distribution *and* under distribution shift:
+
+| Level | Perturbation |
+|---|---|
+| `base` | the in-distribution task (ID) |
+| `target` | the manipulated object is swapped for another |
+| `language` | the instruction is reworded |
+| `location` | the object layout is moved |
+| `env` | the surrounding scene is changed |
+
+Each task instance is a **frozen scene snapshot** (`scene_ep1.json`) plus a
+`diagnostics.jsonl` carrying the prompt, goal conditions, LTL safety spec, and
+camera rig, alongside review videos. Rollouts are scored on **two independent axes**
+— task success ([`maniguard/eval/goal_checker.py`](maniguard/eval/goal_checker.py))
+and LTL safety ([`maniguard/utils/safety_monitor.py`](maniguard/utils/safety_monitor.py))
+— with contact-gated engagement, so a policy is credited only for finishing the task
+*without* tipping, dropping, or spilling. See the
+[evaluation docs](https://nu-ideas-lab.github.io/ManiGuard/evaluation/) for the
+metric and the policy-integration contract.
+
+Two downloads set it up (both required to run the benchmark):
+
+1. **The robot asset.** The benchmark uses a Franka Panda with extended **fin-ray
+   fingers** that is *not* part of the stock OmniGibson robot set. Download it into
+   the robot-assets tree so the runtime patch can find it (default data root is
+   `behavior-1k/datasets/`, or `$OMNIGIBSON_DATA_PATH` if you set it):
+
+   ```bash
+   hf download IDEAS-Lab-Northwestern/franka-panda-longfinger --repo-type dataset \
+     --local-dir behavior-1k/datasets/omnigibson-robot-assets/models/franka/franka_panda_longfinger
+   ```
+
+   On `import maniguard`, `FrankaPanda` is auto-redirected to this bundle whenever it
+   is present at `<data_root>/omnigibson-robot-assets/models/franka/franka_panda_longfinger/`.
+
+2. **The bench scenes**, hosted at
+   [`IDEAS-Lab-Northwestern/ManiGuard-Bench`](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench).
+   Eval accepts the HF repo id directly (snapshot-downloaded into the HF cache) or a
+   local directory:
+
+   ```bash
+   # A) let eval pull it (needs `huggingface-cli login` while the repo is private)
+   python -m maniguard.eval.benchmark --benchmark-root IDEAS-Lab-Northwestern/ManiGuard-Bench ...
+   # B) or download once and pass the local dir
+   hf download IDEAS-Lab-Northwestern/ManiGuard-Bench --repo-type dataset --local-dir datasets/maniguard-bench
+   ```
+
+The bench scenes live under a different root than `behavior-1k/datasets/` on purpose:
+BEHAVIOR assets are Stanford-licensed and not redistributable, whereas the
+ManiGuard-Bench scenes and the longfinger robot asset are ours (CC BY 4.0 /
+Apache-2.0 respectively).
+
 ## LTL safety monitoring
 
-- Atomic propositions are generated from the BDDL object scope in
-  [`maniguard/utils/ltl_utils.py`](maniguard/utils/ltl_utils.py)
-  (`AtomicPropositionGenerator`).
-- `LTLMonitor` converts LTL formulas to LDBA form and tracks automaton
-  state per step.
-- A `TaskLTLMonitor` is attached to task-gen / eval rollouts; its `step()`
-  advances the automaton and reports violations each step (no standalone env class).
-- [`maniguard/utils/safety_monitor.py`](maniguard/utils/safety_monitor.py)
-  wraps activity-level + scene-level `ltl_safety.json` files into a
-  ready-to-use monitor.
+- `LTLMonitor` ([`maniguard/utils/ltl_utils.py`](maniguard/utils/ltl_utils.py))
+  compiles each LTL formula to a deterministic **Spot** monitor automaton and
+  tracks its state per step; a state from which no accepting state is reachable
+  (`doomed`) is a safety violation.
+- Propositions (`upright`, `dropped`, `ontop`, `open`, …) are evaluated from
+  live OmniGibson object states each step by `SafetyPropositionEvaluator`.
+- `TaskLTLMonitor`
+  ([`maniguard/utils/safety_monitor.py`](maniguard/utils/safety_monitor.py))
+  wires the two together for a rollout — `step()` advances the automaton and
+  records violations (no standalone env class). It is driven by both task-gen
+  rollouts and the VLA policy eval
+  ([`maniguard/eval/benchmark.py`](maniguard/eval/benchmark.py), where safety
+  only records and never ends the episode).
 
-Safety-constraint JSON locations:
+Where the spec comes from: task-gen pipelines embed each task's `ltl_safety`
+spec (constraints + propositions + combined LTL formula) inline in its
+`diagnostics.jsonl`; both datagen and the VLA eval pass that dict straight to
+`TaskLTLMonitor` (the eval constructs it with `scene_model=None`, so there is no
+filesystem lookup). This embedded spec is the single source of truth.
 
-- Task-level: `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json`
-- Scene-level: `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json`
+(`TaskLTLMonitor` still *supports* loading a scene-level
+`scenes/<scene_model>/safety/ltl_safety.json` when given a non-null
+`scene_model` — a dormant path from before specs were self-contained; the
+benchmark does not use it.)
 
-Spot is an optional dependency; if it's unavailable, LTL validation is
-skipped with a warning.
+Object resolution: propositions reference objects by glob pattern (`teacup_*`,
+`roaster_*`, `desk.n.01_*`). With a BDDL `object_scope` they resolve against it;
+for scenes without one (e.g. the benchmark's `DummyTask`), the eval reconstructs
+`{inst_id: obj}` from the patterns — matching each to a loaded object by
+category, by synset lemma (via `bddl`'s `ObjectTaxonomy`, so `roaster_*` finds a
+`roasting_pan`), or by name.
+
+Spot is an optional dependency for task-gen (LTL is skipped with a warning if
+missing), but the policy eval **fails fast**: a benchmark carrying a safety spec
+refuses to run without a functional Spot runtime
+(`conda install -c conda-forge spot` — not `pip install spot`, a different
+package).
 
 ## Task generation + benchmark
 
 Pipelines live in [`maniguard/task_generation/`](maniguard/task_generation/).
 Each pipeline auto-discovers a surface in the target scene, generates a
-BDDL problem and `ltl_safety.json`, spawns objects, places the mounted
-Franka, and runs an LTL-monitored rollout. See
+BDDL problem, embeds an LTL safety spec in the task's `diagnostics.jsonl`,
+spawns objects, places the mounted Franka, and runs an LTL-monitored rollout. See
 [`maniguard/task_generation/README.md`](maniguard/task_generation/README.md)
 for flags + the full taxonomy of available pipelines.
 
@@ -148,7 +218,7 @@ on headless nodes.
 ## VLA policy evaluation
 
 ManiGuard evaluates vision-language-action policies over websocket: the
-policy runs in its own process (Pi0.5 / GR00T / GR00T-N1.6), the
+policy runs in its own process (pi0.5 / GR00T / SmolVLA), the
 environment loop runs in another, and
 [`maniguard/eval/benchmark.py`](maniguard/eval/benchmark.py) drives one
 scene at a time off a local dir or HuggingFace dataset repo. A per-scene
@@ -162,12 +232,12 @@ JAX vs PyTorch checkpoints):
 
 ```bash
 openpi/.venv/bin/python -m maniguard.serve.openpi_native \
-    --config pi05_clutter_libero_lora \
+    --config pi05-base_datagen_v1_clutter_joint_2cam_lora \
     --checkpoint vla_models/<ckpt>/<step>
 ```
 
 The observation / action schema is driven by the eval config (`state_mode` /
-`obs_layout`) plus the policy's training config — see
+`external_cam`) plus the policy's training config — see
 [`docs/sft/end_to_end.md`](docs/sft/end_to_end.md).
 
 **Terminal 2 — drive the eval loop**:
@@ -175,12 +245,12 @@ The observation / action schema is driven by the eval config (`state_mode` /
 ```bash
 # Single scene (local dir)
 python -m maniguard.eval.benchmark \
-    --benchmark-root datasets/safety-benchmark \
+    --benchmark-root datasets/maniguard-bench \
     --host 127.0.0.1 --port 8000 --max-steps 300 --save-video
 
 # All scenes in a HuggingFace-hosted benchmark (per-scene subprocess)
 bash scripts/run_benchmark_all_scenes.sh \
-    --benchmark-root IDEAS-Lab-Northwestern/sentinel-lite-taskgen-staging-20260415-v1 \
+    --benchmark-root IDEAS-Lab-Northwestern/ManiGuard-Bench \
     --host <policy_host> --port 8000 --max-steps 300 --save-video
 ```
 
@@ -191,26 +261,15 @@ the pipeline-generated `diagnostics.jsonl`.
 
 ## SFT + RL
 
-**SFT** — supervised fine-tuning of a VLA (pi0.5 / OpenPI) on collected demos
-uses openpi's native trainer. See the end-to-end recipes:
-[`docs/openpi_sim_teleop_sft.md`](docs/openpi_sim_teleop_sft.md) (sim) and
-[`docs/openpi_real_teleop_sft.md`](docs/openpi_real_teleop_sft.md) (real), plus
-[`docs/sft/end_to_end.md`](docs/sft/end_to_end.md) for the controller / action /
-eval consistency that ties collection to evaluation.
+**SFT** — supervised fine-tuning of a VLA on the collected demos. The dataset is
+**model-agnostic**: one joint-controller LeRobot v2.1 dataset feeds any VLA
+(openpi / GR00T / SmolVLA). See [`docs/sft/`](docs/sft/index.md) — the
+[dataset & data-source configs](docs/sft/dataset_and_config.md), the
+[openpi/pi0.5 recipe](docs/sft/openpi.md), and the
+[controller/action/eval consistency](docs/sft/end_to_end.md).
 
-**RL** — grasp / pick-and-lift policies are trained with Stable-Baselines3 PPO
-directly on OmniGibson (no external distributed-RL dependency):
-
-```bash
-conda activate behavior
-python -m maniguard.rl.algorithms.ppo \
-    --diagnostics-file datasets/<benchmark>/<task>/base/diagnostics.jsonl \
-    --num-envs 4 --total-timesteps 200000 --output-dir outputs/rl_ppo_run
-```
-
-See [`docs/rl_training.md`](docs/rl_training.md) for flags + scaling, and
-[`docs/graspgen_pipeline.md`](docs/graspgen_pipeline.md) for the GraspGen /
-cuRobo grasp-reset dataset.
+**RL** — grasp / pick-and-lift RL training (Stable-Baselines3 PPO on OmniGibson) is
+**under development** and not yet part of the mature pipeline.
 
 ## Teleoperation (SO-101 / GELLO → Franka)
 
@@ -301,6 +360,7 @@ python -m maniguard.data.teleop.gello_franka_teleop \
 | Key | Action |
 |---|---|
 | `SPACE` | Toggle gripper open/close (no physical gripper yet — keyboard substitutes) |
+| `B` | Begin recording (the trajectory only starts once you press B; frames before it are dropped) |
 | `S` | Toggle success flag (with `--only-successes`, episodes only persist if S was pressed) |
 | `C` | Save checkpoint |
 | `R` | Rollback to last checkpoint |
@@ -339,7 +399,7 @@ for snap in outputs/teleop_scenes/table/scene_ep*.json; do
 done
 ```
 
-Output dir defaults to `outputs/jixing_teleop2_hdf5/<family>/` (SO-101)
+Output dir defaults to `outputs/teleop/<family>/` (SO-101)
 or whatever you point GELLO's `--output-hdf5` at; cross-family
 `scene_ep<NNNN>` collisions are avoided by per-family subdirectories.
 

@@ -240,20 +240,21 @@ class DustyTransferPipeline(TransferPipeline):
         ctx.og.sim.step()
 
     def make_edge_objects(self, ctx):
-        """Include the sponge in the pack centroid so the Franka stays
-        within reach of the sponge as well as the source/dest.
-        """
-        from maniguard.utils.franka_edge_align import EdgeAlignObject
+        """Robot edge-alignment must use ONLY the source/dest/food pack —
+        deliberately NOT the sponge.
 
-        parent = list(super().make_edge_objects(ctx))
-        if ctx._sponge_obj is not None:
-            pos = ctx._sponge_obj.get_position_orientation()[0]
-            parent.append(EdgeAlignObject(
-                name=ctx._sponge_ids[0],
-                role="sponge",
-                position_xy=(float(pos[0]), float(pos[1])),
-            ))
-        return tuple(parent)
+        ``_place_sponge_next_to_layout`` parks the sponge at the surface's
+        +Y edge, far off the X-aligned source/dest centerline. Feeding it
+        into the edge-align pack stretches the pack's Y extent past its X
+        extent, which flips ``select_best_table_edge`` from a y-edge mount
+        (robot faces ±Y, perpendicular to the source/dest line → the two
+        containers sit left / right of the arm) to an x-edge mount (robot
+        faces ±X, parallel to the line → containers front-to-back, a
+        90°-rotated layout). The bench's ``replay_empty`` re-snaps the
+        sponge to the source/dest midpoint regardless, so excluding it from
+        the pack costs nothing and keeps the canonical left/right layout.
+        """
+        return super().make_edge_objects(ctx)
 
     # -- Success criteria --------------------------------------------------
 

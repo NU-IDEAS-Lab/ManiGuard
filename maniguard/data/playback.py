@@ -1,27 +1,35 @@
 #!/usr/bin/env python3
 """Replay a teleop HDF5 with physics and render SFT-ready observations.
 
-Stage 1 of the teleop → SFT pipeline. For each step:
-  obs/image       : cam_opposite RGB, uint8 (H, W, 3), 256x256 by default
-  obs/wrist_image : wrist sensor RGB, uint8 (H, W, 3), 256x256 by default
-  obs/state       : [eef_pos(3), eef_axisangle(3), gripper_qpos(2)] float32 (8D)
-action            : copied from the input HDF5 (7D Franka IK delta, unchanged)
+Stage 1 of the teleop → SFT pipeline. Two orthogonal knobs control what each
+step records (defaults: --controller joint, --cams 3):
 
-State layout matches IsaacLab-Stack-Cube convention so we can reuse the
-norm_stats / weight init from Pi0.5 ckpts trained on that dataset. Both
-finger qpos are kept separately, not averaged.
+  --controller  state convention recorded under obs/state (float32, 8D):
+      joint (default): [arm_q(7), gripper_pos(1)]  -- absolute joint config for
+                       a JointController policy; gripper_pos is the mean of the
+                       two finger qpos. Matches sentinel-pnp-clutter-joint.
+      eef:             [eef_pos(3), eef_axisangle(3), gripper_qpos(2)]  -- legacy
+                       LIBERO / IsaacLab-Stack-Cube layout (both fingers kept).
 
-Output HDF5 is consumed by Stage 2 (tools/hdf5_to_lerobot.py), which writes
-a LeRobot v2.1 dataset.
+  --cams        camera set recorded as image obs (see CAMERA_SETS):
+      3 (default): image_left + image_right + wrist_image  (cam_left/cam_right
+                   overviews + wrist; matches sentinel-pnp-clutter-joint).
+      2:           image + wrist_image  (cam_opposite overview + wrist; LIBERO).
+
+`action` is copied from the input HDF5 unchanged (the raw teleop 8D joint
+target); the Stage 2 LeRobot export decides eef-delta vs joint handling.
+
+Output HDF5 is consumed by Stage 2 (maniguard.data.lerobot.*), which writes a
+LeRobot v2.1 dataset.
 
 Run once per teleop trajectory (one traj per process keeps Isaac Sim's
 scene-teardown quirks contained):
 
     VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json \
     CUDA_VISIBLE_DEVICES=0 \
-    python tools/playback_teleop_to_hdf5.py \
-        --input outputs/teleop/traj_0.hdf5 \
-        --output outputs/teleop_rendered/traj_0.hdf5
+    python -m maniguard.data.playback \
+        --input outputs/teleop_collected/dusty_transfer/task_0000_traj_001.hdf5 \
+        --output outputs/teleop_rendered_joint/dusty_transfer/task_0000_traj_001.hdf5
 """
 
 from __future__ import annotations
@@ -31,6 +39,7 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch as th
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -59,25 +68,40 @@ def _quat2axisangle(quat: th.Tensor) -> th.Tensor:
     return (axis * angle).to(th.float32)
 
 
-def _find_main_key(obs: dict) -> str:
-    """Flat-obs key for cam_opposite's RGB."""
-    exact = "external::cam_opposite::rgb"
+# Camera composition per --cams choice, mapping each camera to its LeRobot image key. 
+#   - The first entry is always the robot wrist camera; 
+#   - the rest are external third-person views (built as external VisionSensors). 
+# 2-cam is the LIBERO-style single overview; 
+# 3-cam uses left/right overviews
+CAMERA_SETS = {
+    2: {"wrist": "wrist_image", "cam_opposite": "image"},
+    3: {"wrist": "wrist_image", "cam_left": "image_left", "cam_right": "image_right"},
+}
+
+
+def _find_external_key(obs: dict, cam_name: str) -> str:
+    """Flat-obs key for a named external camera's RGB."""
+    exact = f"external::{cam_name}::rgb"
     if exact in obs:
         return exact
     for k in obs:
-        if k.startswith("external::") and k.endswith("::rgb") and "cam_opposite" in k:
+        if k.startswith("external::") and k.endswith("::rgb") and cam_name in k:
             return k
     raise RuntimeError(
-        f"No cam_opposite::rgb key found. Available keys: {sorted(obs.keys())}"
+        f"No {cam_name}::rgb key found. Available keys: {sorted(obs.keys())}"
     )
 
 
-def _find_wrist_key(obs: dict, robot_name: str) -> str | None:
-    """Flat-obs key for the robot's wrist camera RGB."""
+def _find_wrist_key(obs: dict, robot_name: str) -> str:
+    """Flat-obs key for the robot's wrist camera RGB. Raises if absent
+    (every teleop trajectory carries a wrist camera; a missing one is a bug)."""
     prefix = f"{robot_name}::"
     candidates = [k for k in obs if k.startswith(prefix) and k.endswith("::rgb")]
     if not candidates:
-        return None
+        raise RuntimeError(
+            f"No wrist camera RGB key found for robot '{robot_name}'. "
+            f"Available keys: {sorted(obs.keys())}"
+        )
     lowered = {k.lower(): k for k in candidates}
     for pattern in (":eef_link:camera:0::rgb", ":camera_link:camera:0::rgb"):
         for low, full in lowered.items():
@@ -91,67 +115,87 @@ def _find_wrist_key(obs: dict, robot_name: str) -> str | None:
 
 
 class ManiGuardPlaybackWriter(DataPlaybackWrapper):
-    """DataPlaybackWrapper that emits exactly the obs fields needed for SFT.
+    """DataPlaybackWrapper that emits the obs fields needed for SFT.
 
     The parent stores whatever `_process_obs` returns under
-    `data/demo_X/obs/<key>`. We return three keys: image, wrist_image, state.
-    `action` / `state` (sim state for rollback) / reward / etc. are handled
-    by the parent class and copied through unchanged.
+    `data/demo_X/obs/<key>`; `action` / sim `state` / reward / etc. are copied
+    through unchanged. Two orthogonal knobs (overridden per-run by main() on the
+    instance) select what `_process_obs` emits:
+      _controller_mode: "eef"   -> eef_8d state [eef_pos(3), axisangle(3), grip(2)]
+                        "joint" -> joint_8d state [arm_q(7), gripper_pos(1)]
+      _n_cams:          2 | 3   -> picks a CAMERA_SETS entry (image keys + cams)
+    Action is the raw teleop 8D joint passthrough either way; the LeRobot export
+    stage decides eef-delta vs joint handling.
     """
+
+    _controller_mode = "joint"
+    _n_cams = 3
+    _keys_resolved = False
 
     def _process_obs(self, obs, info):
         robot = self.env.robots[0]
 
-        # Resolve flat-dict keys once. DataPlaybackWrapper sets
+        # Resolve each camera's flat-dict key once ("wrist" -> robot wrist
+        # sensor, others -> external sensors). DataPlaybackWrapper sets
         # flatten_obs_space=True so obs uses "::"-separated flat keys.
-        if not getattr(self, "_keys_resolved", False):
-            self._main_key = _find_main_key(obs)
-            self._wrist_key = _find_wrist_key(obs, robot.name)
-            print(f"[Playback] main_key = {self._main_key}")
-            print(f"[Playback] wrist_key = {self._wrist_key or '<none — will emit zeros>'}")
+        if not self._keys_resolved:
+            self._obs_keys = {
+                cam: (_find_wrist_key(obs, robot.name) if cam == "wrist"
+                      else _find_external_key(obs, cam))
+                for cam in CAMERA_SETS[self._n_cams]
+            }
+            print(f"[Playback] controller={self._controller_mode}, n_cams={self._n_cams}")
+            print(f"[Playback] obs keys = {self._obs_keys}")
             self._keys_resolved = True
 
-        # 8D policy state: eef_pos(3) + eef_axisangle(3) + gripper_qpos(2).
-        # Matches IsaacLab-Stack-Cube's _wrap_obs so Pi0.5 ckpts trained on
-        # that dataset (state/action projection dims, norm_stats layout)
-        # transfer cleanly as SFT init.
-        eef_pos = robot.get_relative_eef_position().to(th.float32)
-        eef_quat = robot.get_relative_eef_orientation().to(th.float32)
-        eef_axisangle = _quat2axisangle(eef_quat)
-        gripper_idx = robot.gripper_control_idx[robot.default_arm]
-        gripper_qpos = robot.get_joint_positions()[gripper_idx].to(th.float32)
-        state = th.cat([eef_pos, eef_axisangle, gripper_qpos])
+        # State (controller-dependent).
+        if self._controller_mode == "joint":
+            qpos = robot.get_joint_positions()
+            arm_q = qpos[robot.arm_control_idx[robot.default_arm]].to(th.float32)
+            gripper_pos = qpos[robot.gripper_control_idx[robot.default_arm]].to(th.float32).mean().reshape(1)
+            state = th.cat([arm_q, gripper_pos])
+        else:  # "eef"
+            eef_pos = robot.get_relative_eef_position().to(th.float32)
+            eef_axisangle = _quat2axisangle(robot.get_relative_eef_orientation().to(th.float32))
+            gripper_qpos = robot.get_joint_positions()[
+                robot.gripper_control_idx[robot.default_arm]
+            ].to(th.float32)
+            state = th.cat([eef_pos, eef_axisangle, gripper_qpos])
 
-        # Main + wrist camera RGB (drop alpha, uint8 HWC).
-        main_rgb = obs[self._main_key][..., :3].to(th.uint8)
-        if self._wrist_key is not None:
-            wrist_rgb = obs[self._wrist_key][..., :3].to(th.uint8)
-        else:
-            wrist_rgb = th.zeros_like(main_rgb)
-
-        return {
-            "image": main_rgb,
-            "wrist_image": wrist_rgb,
-            "state": state,
+        # Images: one entry per camera, keyed by its LeRobot output name
+        # (drop alpha, uint8 HWC).
+        out = {
+            lerobot_key: obs[self._obs_keys[cam]][..., :3].to(th.uint8)
+            for cam, lerobot_key in CAMERA_SETS[self._n_cams].items()
         }
+        out["state"] = state
+        return out
 
 
 def _dump_mp4s(hdf5_path: str, fps: int = 30) -> None:
-    """Write {stem}_main.mp4 and {stem}_wrist.mp4 from an obs-rendered HDF5."""
+    """Dump one MP4 per recorded image stream next to an obs-rendered HDF5.
+
+    Handles both schemas: 2-cam (image, wrist_image) and 3-cam (image_left,
+    image_right, wrist_image) -- dumps whichever image obs are present.
+    """
     import h5py
     import imageio.v2 as imageio
 
+    # LeRobot image key -> mp4 suffix (only present keys are dumped).
+    KEY_SUFFIX = {
+        "image": "main", "image_left": "left",
+        "image_right": "right", "wrist_image": "wrist",
+    }
     stem, _ = os.path.splitext(hdf5_path)
     with h5py.File(hdf5_path, "r") as f:
         demo_keys = sorted(f["data"].keys())
         if not demo_keys:
             print("[Playback] No demos in HDF5, skipping MP4 export")
             return
-        demo = f["data"][demo_keys[0]]
-        main = demo["obs/image"][:]
-        wrist = demo["obs/wrist_image"][:]
+        obs = f["data"][demo_keys[0]]["obs"]
+        streams = {suf: obs[k][:] for k, suf in KEY_SUFFIX.items() if k in obs}
 
-    for suffix, frames in (("main", main), ("wrist", wrist)):
+    for suffix, frames in streams.items():
         path = f"{stem}_{suffix}.mp4"
         writer = imageio.get_writer(path, fps=fps, codec="libx264", quality=7)
         for frame in frames:
@@ -160,43 +204,29 @@ def _dump_mp4s(hdf5_path: str, fps: int = 30) -> None:
         print(f"[Playback] MP4: {path}  ({len(frames)} frames)")
 
 
-def _setup_cameras_from_scene(env) -> None:
-    """Position cam_opposite like teleop did.
+def _stamp_metadata(hdf5_path: str, controller_mode: str, n_cams: int) -> None:
+    """Fingerprint the playback config into the output HDF5's `data` group.
 
-    Mirrors so101_franka_teleop.py: find support_surface + a target object,
-    call build_video_view_specs + setup_cameras to place the external
-    camera(s) at the canonical "opposite-side overview" pose, and
-    synchronise the viewer camera to match.
+    The LeRobot export stage reads this to auto-select the schema: eef and joint
+    `obs/state` are both 8D float, indistinguishable from the array alone, so the
+    controller mode must be recorded explicitly. n_cams is stored too (though it
+    is also inferable from the obs image keys) to keep the record self-describing.
     """
-    try:
-        from maniguard.task_generation.utils.video import (
-            build_video_view_specs,
-            setup_cameras,
-        )
-    except ImportError as e:
-        print(f"[Playback] WARNING: camera setup helpers not importable ({e}); "
-              f"cam_opposite will stay at its default pose.")
-        return
+    import h5py
+    with h5py.File(hdf5_path, "a") as f:
+        f["data"].attrs["controller_mode"] = controller_mode
+        f["data"].attrs["n_cams"] = int(n_cams)
 
-    scene = env.scene
-    robot = env.robots[0]
-    support_obj = scene.object_registry("name", "support_surface")
-    if support_obj is None:
-        print("[Playback] WARNING: scene has no 'support_surface' object; "
-              "cam_opposite stays at default pose (teleop placement needs it).")
-        return
 
-    # Pick any non-robot, non-support object as the "target" for the lookat.
-    target_obj = next(
-        (obj for obj in scene.objects if obj is not robot and obj is not support_obj),
-        support_obj,
-    )
-    views = build_video_view_specs(
-        None, robot, target_obj, support_obj=support_obj,
-    )
-    setup_cameras(env, views)
-    print(f"[Playback] Positioned cam_opposite via setup_cameras "
-          f"(target={target_obj.name}, support={support_obj.name}).")
+def _setup_cameras_from_scene(env) -> None:
+    """Position the external cameras like teleop did.
+
+    Thin wrapper over the shared single-source-of-truth helper in
+    maniguard.utils.camera_setup so playback re-render, teleop, and eval all
+    place cam_opposite / cam_left / cam_right at identical poses (no OOD).
+    """
+    from maniguard.utils.camera_setup import setup_external_cameras_robot_frame
+    setup_external_cameras_robot_frame(env)
 
 
 def _force_sensor_resolution(env, resolution: int) -> None:
@@ -235,8 +265,17 @@ def main():
     p.add_argument("--all-episodes", action="store_true",
                    help="Process every demo_* in the input HDF5 instead of one")
     p.add_argument("--save-mp4", action="store_true",
-                   help="Also dump {stem}_main.mp4 and {stem}_wrist.mp4 next to "
-                        "the rendered HDF5 for quick visual review.")
+                   help="Also dump per-camera MP4s next to the rendered HDF5 "
+                        "for quick visual review.")
+    p.add_argument("--controller", choices=["eef", "joint"], default="joint",
+                   help="State convention to record (default: joint). "
+                        "'joint' = joint_8d [arm_q(7), gripper_pos(1)] for a "
+                        "JointController policy; 'eef' = eef_8d (legacy LIBERO "
+                        "path). Independent of --cams.")
+    p.add_argument("--cams", type=int, choices=[2, 3], default=3,
+                   help="Camera set (default: 3; see CAMERA_SETS). "
+                        "3 = cam_left + cam_right + wrist; "
+                        "2 = cam_opposite + wrist. Independent of --controller.")
     args = p.parse_args()
 
     # DataPlaybackWrapper precondition.
@@ -247,8 +286,9 @@ def main():
     # Force 256x256 for both main and wrist cameras. The teleop HDF5 was
     # recorded at Kit's default (~1280x720) but we need square 256x256 for
     # the Pi0.5 / OmniGibsonDataConfig pipeline.
+    external_names = [c for c in CAMERA_SETS[args.cams] if c != "wrist"]
     external_cfg = build_external_camera_configs(
-        names=("cam_opposite",),
+        names=external_names,
         resolution=args.resolution,
     )
     robot_sensor_cfg = {
@@ -273,6 +313,10 @@ def main():
         include_contacts=True,
     )
 
+    # Thread the two orthogonal knobs into the writer's _process_obs.
+    env._controller_mode = args.controller
+    env._n_cams = args.cams
+
     _force_sensor_resolution(env.env, args.resolution)
 
     # Reproduce the teleop-time camera view. Teleop runs setup_cameras()
@@ -288,7 +332,9 @@ def main():
         env.playback_episode(episode_id=args.episode, record_data=True)
 
     env.save_data()
-    print(f"[Playback] Wrote: {args.output}")
+    _stamp_metadata(args.output, args.controller, args.cams)
+    print(f"[Playback] Wrote: {args.output}  "
+          f"(controller={args.controller}, n_cams={args.cams})")
 
     if args.save_mp4:
         _dump_mp4s(args.output)

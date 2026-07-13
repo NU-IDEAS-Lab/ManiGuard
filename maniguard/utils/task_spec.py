@@ -764,8 +764,19 @@ def _load_footprint_catalog():
         return json.load(f)
 
 
+# OmniGibson categories that differ from the WordNet synset stem. A synset can map to MULTIPLE
+# categories (the spawned model decides — e.g. goblet.n.01 -> goblet/chalice/cocktail_glass), so
+# callers should pass the REALIZED category where known; this map only resolves single-category
+# mismatches, and the function is idempotent on categories (passthrough when there is no synset
+# suffix). Passing the wrong (stem) name silently de-syncs the LTL `over` patterns from the
+# realized object names, leaving safety propositions vacuous.
+_SYNSET_CATEGORY_OVERRIDE = {"carafe.n.01": "decanter"}
+
+
 def _synset_to_category(synset):
-    return synset.split(".")[0]
+    if "." not in synset:                       # already a realized category -> passthrough
+        return synset
+    return _SYNSET_CATEGORY_OVERRIDE.get(synset, synset.split(".")[0])
 
 
 def estimate_object_set_footprint(triples, margin_factor=1.3):
@@ -908,11 +919,15 @@ def generate_clutter_activity(
         spawn_specs.append(_make_spawn_spec(synset, count, "clutter",
                                             category=category, model=model))
 
-    fragile_synsets = {s for s, _, _ in fragile_picks} | {s for s, _, _ in clutter_picks}
+    # Monitor every NON-target task object (fragile + clutter) and the target by their REALIZED
+    # category (picks are (synset, category, model)) — synset stems mis-resolve multi-category
+    # synsets (goblet -> chalice/cocktail_glass, carafe -> decanter). _synset_to_category is
+    # idempotent on categories, so passing categories here is correct.
+    obstacle_categories = {c for _, c, _ in fragile_picks} | {c for _, c, _ in clutter_picks}
     ltl_safety = generate_ltl_safety_json(
         activity_name=activity_name,
-        fragile_synsets=sorted(fragile_synsets),
-        target_synsets=[target_synset],
+        fragile_synsets=sorted(obstacle_categories),
+        target_synsets=[target_category],
     )
 
     selection = {
@@ -1445,6 +1460,10 @@ def generate_jar_transport_ltl_safety_json(
             "state": "ontop",
             "relative_to": [f"{support_synset}_*"],
         },
+        # jar_closed = NOT(open). The safety evaluator honours `negated` and,
+        # because hinged_jar ships with abilities={} (no `openable` ability, so
+        # OmniGibson never attaches the Open state), falls back to the raw hinge
+        # angle. See maniguard.utils.safety_monitor._is_open_via_joints.
         "jar_closed": {
             "check": "all",
             "over": jar_patterns,

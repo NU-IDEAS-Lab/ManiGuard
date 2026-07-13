@@ -506,14 +506,17 @@ def _generate_ltl_and_specs(args, activity_name, support_synset, rng, selection)
             args.clutter_density, rng=rng, pre_selection=selection,
         )
         preset = LIQUID_PRESETS[args.difficulty]
-        target_synset = selection_out["target_synset"]
-        fragile_synsets = sorted({
-            p[0] for p in selection_out.get("fragile_picks", [])
-        })
+        # Container + every NON-target task object (fragile + clutter) by REALIZED category
+        # (picks are [synset, category, model]); synset stems mis-resolve multi-category synsets.
+        target_category = selection_out["target_category"]
+        obstacle_categories = sorted(
+            {p[1] for p in selection_out.get("fragile_picks", [])}
+            | {p[1] for p in selection_out.get("clutter_picks", [])}
+        )
         ltl_safety = generate_liquid_transport_ltl_safety_json(
             activity_name=activity_name,
-            container_synsets=[target_synset],
-            fragile_synsets=fragile_synsets,
+            container_synsets=[target_category],
+            fragile_synsets=obstacle_categories,
             system_name=args.system_name,
             spill_threshold=preset["spill_threshold"],
             max_tilt_deg=preset["max_tilt_deg"],

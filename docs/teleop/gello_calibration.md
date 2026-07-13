@@ -20,8 +20,10 @@ This page documents the regeneration procedure end-to-end.
 | Mirroring drifts or flips at startup | A servo wrapped to a different turn count on power-up |
 | New GELLO arm | Everything above |
 
-The current calibration in `gello_franka_teleop.py` is dated **2026-05-10**
-(see the comment block above `GELLO_JOINT_OFFSETS`).
+The `GELLO_JOINT_OFFSETS` checked into `gello_franka_teleop.py` are specific to one
+physical GELLO arm — servo IDs, finger geometry, and power-up turn counts all differ
+per unit, so you **must** regenerate them for your own hardware. Treat the shipped
+values as a template, and run the procedure below before your first teleop session.
 
 ## Procedure
 
@@ -30,7 +32,7 @@ The current calibration in `gello_franka_teleop.py` is dated **2026-05-10**
 Physically hold the GELLO at the reference pose shown below. This pose
 has been validated to give a stable calibration.
 
-![GELLO calibration reference pose](gello_calibration_pose.jpg){ width="500" }
+![GELLO calibration reference pose](gello-setup.png){ width="500" }
 
 What you tell `gello_get_offset.py` is `--start-joints 0 0 0 0 0 0 0`,
 but the **physical** pose above is not "all joints at literal zero" —
@@ -60,7 +62,7 @@ The script lives in the bundled `joylo` submodule:
 conda activate behavior
 
 python behavior-1k/joylo/scripts/gello_get_offset.py \
-  --port /dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FTB8HNJP-if00-port0 \
+  --port /dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_<SERIAL>-if00-port0 \
   --start-joints 0 0 0 0 0 0 0 \
   --joint-signs 1 -1 1 1 1 1 1 \
   --gripper False
@@ -147,8 +149,8 @@ Two things to check:
 |---|---|
 | `maniguard/data/teleop/gello_franka_teleop.py` | `GELLO_JOINT_OFFSETS`, optionally `GELLO_JOINT_SIGNS`, `GELLO_CALIBRATION_FRANKA_POSE`, calibration-date comment |
 
-No other files. The same constants are imported by `gello_grasp_batch.py`
-and any future GELLO entry, so a single edit is enough.
+No other files. The same constants are imported by any GELLO entry point,
+so a single edit is enough.
 
 ## Source
 

@@ -2,8 +2,8 @@
 """Evaluate a websocket VLA policy on the ManiGuard benchmark.
 
 Usage:
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml --max-steps 500
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml --max-steps 500
 """
 from __future__ import annotations
 
@@ -39,34 +39,35 @@ def _init_omnigibson(cfg: EvalConfig):
     from omnigibson.macros import gm
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
+    # Liquid/particle scenes (clutter liquid_transport) need PhysX GPU dynamics
+    # to initialize their water system. MUST be set before physx init (here),
+    # gated by env so the default (CPU dynamics) is unchanged.
+    if os.environ.get("EVAL_USE_GPU_DYNAMICS"):
+        gm.USE_GPU_DYNAMICS = True
     if cfg.headless:
         gm.HEADLESS = True
-
-    # three_cam models consume the wrist view (right_wrist_0_rgb, unmasked).
-    # SFT data was recorded with the wrist Camera relocated to a canonical
-    # pose; reuse that exact patch so the eval wrist matches training.
-    if getattr(cfg, "obs_layout", "single_plus_wrist") == "three_cam":
-        from maniguard.data.curobo._sft_recorder import install_wrist_camera_patch
-        install_wrist_camera_patch()
-        print("[Eval] three_cam: installed canonical wrist-camera patch.")
 
 
 # ---------------------------------------------------------------------------
 # Environment helpers
 # ---------------------------------------------------------------------------
 
+def _overview_cam_name(cfg: EvalConfig) -> str:
+    """Physical external camera that supplies the policy's single overview,
+    selected by cfg.external_cam (must match the checkpoint's train config)."""
+    if cfg.external_cam not in ("left", "right"):
+        raise ValueError(f"external_cam must be 'left' or 'right', got {cfg.external_cam!r}")
+    return "cam_left" if cfg.external_cam == "left" else "cam_right"
+
+
 def _build_eval_external_sensors(cfg: EvalConfig):
-    from maniguard.utils.camera_setup import (
-        EXTERNAL_CAMERA_NAMES,
-        build_external_camera_configs,
-        normalize_policy_cameras,
+    """Build ONLY the one external overview camera the policy consumes
+    (cam_left or cam_right per cfg.external_cam) — matching the 2-cam training
+    convention. The wrist camera comes from the robot USD; no cam_opposite."""
+    from maniguard.utils.camera_setup import build_external_camera_configs
+    return build_external_camera_configs(
+        names=[_overview_cam_name(cfg)], resolution=cfg.camera_resolution
     )
-    policy_cams = normalize_policy_cameras(cfg.policy_cameras)
-    names = []
-    for name in list(policy_cams) + [EXTERNAL_CAMERA_NAMES[0]]:
-        if name not in names:
-            names.append(name)
-    return build_external_camera_configs(names=names, resolution=cfg.camera_resolution)
 
 
 def build_og_config(scene_info: dict, cfg: EvalConfig):
@@ -108,34 +109,6 @@ def build_og_config(scene_info: dict, cfg: EvalConfig):
         "task": {"type": "DummyTask"},
         "env": env_cfg,
     }
-
-
-def _setup_eval_cameras(env, scene_info: dict) -> None:
-    import omnigibson as og
-    from maniguard.task_generation.utils.video import eye_lookat_to_quat
-
-    cameras = scene_info.get("cameras", [])
-    if not cameras:
-        print("[Eval] WARNING: no cameras in scene_info; frames will be default pose.")
-        return
-
-    ext_sensors = env.external_sensors or {}
-    placed = 0
-    for cam_info in cameras:
-        sensor_name = cam_info.get("sensor_name")
-        sensor = ext_sensors.get(sensor_name)
-        if sensor is None:
-            continue
-        eye = cam_info["eye"]
-        lookat = cam_info["lookat"]
-        orientation = cam_info.get("orientation") or eye_lookat_to_quat(eye, lookat).tolist()
-        sensor.set_position_orientation(position=eye, orientation=orientation, frame="world")
-        placed += 1
-
-    opp = next((c for c in cameras if c.get("sensor_name") == "cam_opposite"), cameras[0])
-    ori = opp.get("orientation") or eye_lookat_to_quat(opp["eye"], opp["lookat"]).tolist()
-    og.sim.viewer_camera.set_position_orientation(position=opp["eye"], orientation=ori)
-    print(f"[Eval] Positioned {placed} cameras from diagnostics.")
 
 
 # ---------------------------------------------------------------------------
@@ -198,16 +171,12 @@ def eef_delta_to_joint_action(robot, eef_delta, action_space):
 
 
 def extract_obs(env, robot, prompt, cfg: EvalConfig):
-    from maniguard.utils.camera_setup import compose_main_image, normalize_policy_cameras
-
     raw_obs, _ = env.get_obs()
     external = raw_obs.get("external", {})
-    cams = normalize_policy_cameras(cfg.policy_cameras)
-    rgb_by_cam = {
-        name: external[name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
-        for name in cams
-    }
-    main_rgb = compose_main_image(rgb_by_cam, cams)
+    # Single external overview = the one camera selected by cfg.external_cam
+    # (cam_left or cam_right); it is the only external camera built/rendered.
+    overview_name = _overview_cam_name(cfg)
+    overview_rgb = external[overview_name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
 
     robot_obs = raw_obs.get(robot.name, {})
     wrist_rgb = None
@@ -219,7 +188,7 @@ def extract_obs(env, robot, prompt, cfg: EvalConfig):
         if not getattr(extract_obs, "_wrist_warned", False):
             print(f"[Eval] WARNING: no wrist camera found in robot obs keys={list(robot_obs.keys())}; using black image")
             extract_obs._wrist_warned = True
-        wrist_rgb = np.zeros_like(main_rgb)
+        wrist_rgb = np.zeros_like(overview_rgb)
 
     eef_pos = robot.get_relative_eef_position().cpu().numpy().astype(np.float32)
     eef_quat = robot.get_relative_eef_orientation().cpu().numpy().astype(np.float32)
@@ -245,8 +214,7 @@ def extract_obs(env, robot, prompt, cfg: EvalConfig):
         raise ValueError(f"Unknown state_mode: {cfg.state_mode}")
 
     return {
-        "main_images": main_rgb,
-        "images_by_cam": rgb_by_cam,
+        "overview_image": overview_rgb,
         "wrist_images": wrist_rgb,
         "states": state,
         "task_descriptions": prompt,
@@ -280,27 +248,13 @@ def connect_policy(cfg: EvalConfig):
 
 
 def _remap_obs_for_openpi(obs: dict, cfg: EvalConfig) -> dict:
-    layout = getattr(cfg, "obs_layout", "single_plus_wrist")
-    if layout == "three_cam":
-        from maniguard.utils.camera_setup import normalize_policy_cameras
-        cams = normalize_policy_cameras(cfg.policy_cameras)
-        if len(cams) < 2:
-            raise ValueError(
-                "obs_layout='three_cam' needs 2 external policy_cameras in order "
-                f"(e.g. [cam_left, cam_right]); got {cams}"
-            )
-        # ManiGuardInputs assigns slots: cams[0]/image_left -> base_0_rgb,
-        # wrist -> left_wrist_0_rgb, cams[1]/image_right -> right_wrist_0_rgb
-        # (matches openpi pi05_pnp_clutter_3cam_lora).
-        return {
-            "observation/image_left": obs["images_by_cam"][cams[0]],
-            "observation/image_right": obs["images_by_cam"][cams[1]],
-            "observation/wrist_image": obs["wrist_images"],
-            "observation/state": obs["states"],
-            "prompt": obs["task_descriptions"],
-        }
+    """Pack the 2-cam policy observation (LIBERO convention). The single external
+    overview (cam_left or cam_right per cfg.external_cam) goes to the fixed key
+    observation/image_left; the server (Sim2CamInputs) maps image_left->base_0,
+    wrist->left_wrist_0, and zero-fills+masks the third slot. Matches every
+    ManiGuard joint checkpoint's train config."""
     return {
-        "observation/image": obs["main_images"],
+        "observation/image_left": obs["overview_image"],
         "observation/wrist_image": obs["wrist_images"],
         "observation/state": obs["states"],
         "prompt": obs["task_descriptions"],
@@ -323,6 +277,23 @@ def query_policy(policy, obs, client_type, cfg):
 
 
 # ---------------------------------------------------------------------------
+# LTL safety
+# ---------------------------------------------------------------------------
+
+# LTL active-object resolution lives in the shared utils.safety_monitor (single source
+# used by the eval runner, datagen, and bench-finalize alike). Thin local aliases keep this
+# module's existing call sites + names unchanged.
+def _category_synset_lemma(category: str) -> str:
+    from maniguard.utils.safety_monitor import category_synset_lemma
+    return category_synset_lemma(category)
+
+
+def _build_active_objects_for_ltl(env, ltl_safety, surface_name):
+    from maniguard.utils.safety_monitor import build_active_objects_for_ltl
+    return build_active_objects_for_ltl(env, ltl_safety, surface_name)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -338,8 +309,40 @@ def main():
     print(f"[Eval] state={cfg.state_mode}, action_dim={cfg.action_dim}, "
           f"horizon={cfg.execute_horizon}, max_steps={cfg.max_steps}")
 
-    output_dir = Path(cfg.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Which metrics to evaluate (subset of {success, safety}). Gates which
+    # checkers run, whether Spot is required, and what the summary reports.
+    metrics = [m.lower() for m in (cfg.metrics or [])]
+    if not metrics or any(m not in ("success", "safety") for m in metrics):
+        raise ValueError(
+            f"metrics must be a non-empty subset of ['success', 'safety']; "
+            f"got {cfg.metrics!r}"
+        )
+    run_success = "success" in metrics
+    run_safety = "safety" in metrics
+    print(f"[Eval] metrics: success={run_success}, safety={run_safety}")
+
+    # Each run gets its own subfolder under output_dir so successive runs never
+    # overwrite each other. run_name is an explicit leaf when given (the batch
+    # runner passes one shared name so all per-scene processes land together);
+    # otherwise it is a timestamp, loud-suffixed with the tag for smoke/test
+    # runs and uniquified on the (near-impossible) same-second collision.
+    base_dir = Path(cfg.output_dir)
+    run_name = (cfg.run_name or "").strip()
+    if run_name:
+        output_dir = base_dir / run_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        from datetime import datetime
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if (cfg.tag or "").strip():
+            stamp += "_" + cfg.tag.strip().upper()
+        output_dir = base_dir / stamp
+        n = 2
+        while output_dir.exists():
+            output_dir = base_dir / f"{stamp}_{n}"
+            n += 1
+        output_dir.mkdir(parents=True)
+    print(f"[Eval] Run dir: {output_dir}")
     results_path = output_dir / "results.jsonl"
 
     cfg.save_json(output_dir / "eval_config.json")
@@ -366,6 +369,25 @@ def main():
         scenes = [s for s in scenes if fnmatch.fnmatch(s["name"], cfg.scene_filter)]
     print(f"Discovered {len(scenes)} valid scenes")
 
+    # When evaluating safety, LTL monitoring is mandatory whenever the benchmark
+    # carries a spec — fail fast if the Spot runtime is missing/broken rather
+    # than silently producing safety-free results. (Real Spot: conda-forge, NOT
+    # pip.) Skipped entirely for a success-only run (no Spot dependency).
+    if run_safety and any(s.get("ltl_safety") for s in scenes):
+        from maniguard.utils.ltl_utils import (
+            get_spot_runtime_status,
+            spot_runtime_available,
+        )
+        if not spot_runtime_available(require_buddy=True):
+            status = get_spot_runtime_status(require_buddy=True)
+            raise RuntimeError(
+                "LTL safety monitoring is required for this benchmark but the "
+                f"Spot runtime is not functional: {status.get('error')}.\n"
+                "Install the real Spot in this env:\n"
+                "  conda install -c conda-forge spot   (do NOT 'pip install spot')"
+            )
+        print("LTL safety: Spot runtime OK — monitoring enabled")
+
     policy, client_type = connect_policy(cfg)
     if client_type == "random":
         print("Using random policy (smoke test mode)")
@@ -376,7 +398,7 @@ def main():
 
     for scene_idx, scene_info in enumerate(scenes):
         if cfg.prompt_template:
-            from maniguard.data.lerobot.lerobot_writer import episode_prompt
+            from maniguard.eval.prompt_utils import episode_prompt
             scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
         print(f"\n{'='*60}")
         print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}")
@@ -414,7 +436,33 @@ def main():
             if _resized:
                 env.load_observation_space()
             env.reset()
-            _setup_eval_cameras(env, scene_info=scene_info)
+            # Place external cameras at the SAME robot-frame poses used during
+            # teleop collection + playback re-render (shared single source of
+            # truth in camera_setup), so eval image_left / image_right match the
+            # training views exactly. Replaces the old diagnostics-pose reader
+            # (_setup_eval_cameras) — those stored poses were a different, stale
+            # set and would put the policy out of distribution.
+            from maniguard.utils.camera_setup import setup_external_cameras_robot_frame
+            setup_external_cameras_robot_frame(env)
+
+            # Apply any perturbation declared in the instance's diagnostics (the
+            # uniform task-instance load hook). For a `target/` variant this
+            # re-applies the recolor (diffuse_tint isn't serialized into the
+            # snapshot, so it must be set on load); a no-op for base and the
+            # other levels. Loading any instance is the same: build -> reset ->
+            # apply_perturbation, no base-vs-perturbation branching.
+            from maniguard.data.bench_builder.perturbation import apply_perturbation
+            _diag_path = Path(scene_info["scene_file"]).parent / "diagnostics.jsonl"
+            if _diag_path.is_file():
+                _txt = _diag_path.read_text(encoding="utf-8")
+                try:
+                    _diag = json.loads(_txt)
+                    _diag = _diag if isinstance(_diag, dict) else _diag[0]
+                except json.JSONDecodeError:
+                    _diag = json.loads([ln for ln in _txt.splitlines() if ln.strip()][0])
+                _pert = apply_perturbation(env, _diag)
+                if _pert.get("applied"):
+                    print(f"[perturbation] {_pert}")
 
             # Reload the eval controller AFTER env.reset(): reset restores the
             # scene snapshot's (JointController) controller-state into the
@@ -446,6 +494,22 @@ def main():
                 print(f"  Overriding controllers ({cfg.controller_preset or 'custom'}): "
                       f"{list(override_cc.keys())}", flush=True)
                 robot.reload_controllers(override_cc)
+
+            # Force grasping semantics to match the training data's grasp mode.
+            # The ManiGuard-Bench scene bakes its own grasping_mode (often 'assisted'),
+            # but the policy was trained under the teleop mode (joint families =
+            # 'sticky'); a mismatch means the learned gripper actions never grasp.
+            # OmniGibson reads grasping_mode per step, so setting it now takes
+            # effect immediately (the per-mode _ag_* state is created at init for
+            # all modes, so switching post-load is safe).
+            if cfg.grasping_mode not in ("physical", "assisted", "sticky"):
+                raise ValueError(
+                    f"grasping_mode must be physical/assisted/sticky, got "
+                    f"{cfg.grasping_mode!r}"
+                )
+            if robot.grasping_mode != cfg.grasping_mode:
+                print(f"  Grasping mode: {robot.grasping_mode} -> {cfg.grasping_mode}", flush=True)
+                robot._grasping_mode = cfg.grasping_mode
         except Exception as e:
             print(f"  FAILED to load scene: {e}")
             all_results.append({
@@ -462,7 +526,7 @@ def main():
         print(f"  Action space high: {np.array2string(np.asarray(action_space.high), precision=3)}", flush=True)
 
         from maniguard.eval.goal_checker import build_goal_checker
-        goal_checker = build_goal_checker(scene_info)
+        goal_checker = build_goal_checker(scene_info) if run_success else None
         if goal_checker is not None:
             goal_checker.resolve(env)
             if hasattr(goal_checker, "raw_region"):
@@ -472,43 +536,111 @@ def main():
         else:
             print(f"  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
 
-        # Warm up by stepping a hold command, initializing the freshly-reloaded
-        # controller's goal from the current pose and settling physics. For the
-        # JointController (ik_eef_to_joint), "hold" is the current joint targets
-        # (a zero action would command joints to 0 and fling the arm); a zero
-        # eef-delta maps to current joints. For a delta controller, zeros hold.
+        # Warm up by stepping a HOLD command, initializing the freshly-reloaded
+        # controller's goal from the current pose and settling physics. The hold
+        # must keep the arm where it is: for an absolute JointController
+        # (ik_eef_to_joint=False) a ZERO action would command every joint to 0
+        # and FLING the arm, so hold the CURRENT arm joints (action layout is
+        # [arm_q(n), ..., gripper(last)]); the ik path maps a zero eef-delta to
+        # the current joints. Gripper open throughout.
         _hold_eef = np.zeros(7, dtype=np.float32)
         _hold_eef[-1] = 1.0  # gripper open during warmup
+        _hold_arm = robot.get_joint_positions()[
+            robot.arm_control_idx[robot.default_arm]
+        ].cpu().numpy().astype(np.float32)
         for _ in range(10):
             if cfg.ik_eef_to_joint:
                 wa = eef_delta_to_joint_action(robot, _hold_eef, action_space)
             else:
                 wa = np.zeros(action_space.shape[0], dtype=np.float32)
+                wa[:_hold_arm.shape[0]] = _hold_arm
+                wa[-1] = 1.0  # gripper open
             wa = np.clip(wa, action_space.low, action_space.high)
             env.step(torch.from_numpy(wa).unsqueeze(0))
         for _ in range(2):
             og.sim.render()
 
         obs = extract_obs(env, robot, scene_info["prompt"], cfg)
-        frames = [obs["main_images"]] if cfg.save_video else []
+        # Two separate streams recorded as two mp4s: the policy's overview
+        # (cam_left/right) and the wrist — same resolution the policy sees.
+        main_frames = [obs["overview_image"]] if cfg.save_video else []
+        wrist_frames = [obs["wrist_images"]] if cfg.save_video else []
+
+        # LTL safety monitor — records throughout the rollout but NEVER ends it
+        # (success / max_steps govern termination). scene_model=None: evaluate
+        # exactly the task-level spec embedded in this scene's diagnostics.
+        ltl_safety = scene_info.get("ltl_safety") or {}
+        monitor = None
+        if run_safety and ltl_safety:
+            from maniguard.utils.safety_monitor import TaskLTLMonitor
+            monitor = TaskLTLMonitor(
+                env,
+                ltl_safety=ltl_safety,
+                activity_name=scene_info.get("activity_name", ""),
+                scene_model=None,
+                active_objects_by_inst=_build_active_objects_for_ltl(
+                    env, ltl_safety, scene_info.get("surface_name"),
+                ),
+            )
+            monitor.reset()
+            monitor.step(0)
 
         step_idx = 0
         done = False
         success = False
+        consec_success = 0          # consecutive instantaneous-goal steps
+        success_step = None         # step the goal was CONFIRMED (held K steps)
+        success_first_step = None   # step the goal first held instantaneously
         total_reward = 0.0
         goal_detail = {}
         status = "completed"
+        nan_terminated = False       # robot state went non-finite mid-rollout
+        nan_terminated_step = None
+
+        # --- engagement / contact-gated-safety instrumentation
+        #     (docs/evaluation/engagement_metric.md) ---
+        from omnigibson.object_states import ContactBodies as _ContactBodies
+        _robot_links = set(robot.links.values())
+        _STRUCTURAL = {"walls", "floors", "ceilings", "door", "window"}
+        _surface_nm = scene_info.get("surface_name")
+        # task objects = the spawned manipulables (target + fragile + clutter):
+        # movable, non-robot, non-structural, not the goal marker or support surface.
+        _task_objs = [
+            o for o in env.scene.objects
+            if o is not robot
+            and not getattr(o, "fixed_base", False)
+            and getattr(o, "category", "") not in _STRUCTURAL
+            and not getattr(o, "name", "").startswith("goal_region")
+            and getattr(o, "name", "") != _surface_nm
+        ]
+        _target_obj = (
+            env.scene.object_registry("name", scene_info.get("target_name"))
+            if scene_info.get("target_name") else None
+        )
+        _target_spawn = (
+            _target_obj.get_position_orientation()[0].cpu().numpy()
+            if _target_obj is not None else None
+        )
+        print(f"  [engage] {len(_task_objs)} task objs for contact: "
+              f"{[getattr(o, 'name', '?') for o in _task_objs]}", flush=True)
+        ever_contacted = False
+        first_contact_step = None
+        ever_grasped = False
+        grasp_steps = 0
+        target2spawn_max_dist = 0.0
+        eef2target_min_dist = float("inf")
 
         # A flailing policy can drive the arm into a PhysX blowup that
         # invalidates the articulation mid-rollout (get_joint_positions ->
-        # None). Catch it so the partial video + result are still saved and
-        # the batch moves on to the next scene instead of dying.
+        # None). The NaN guard below ends such a rollout cleanly as a failure
+        # at the non-finite onset; this try/except remains a backstop for any
+        # other uncaught crash, so the partial video + result are still saved
+        # and the batch moves on to the next scene instead of dying.
         try:
             while step_idx < cfg.max_steps and not done:
                 chunk = query_policy(policy, obs, client_type, cfg)
                 if os.environ.get("EVAL_DEBUG_IMG") and step_idx == 0:
-                    for _nm, _im in obs.get("images_by_cam", {}).items():
-                        imageio.imwrite(f"outputs/dbg_{_nm}.png", np.asarray(_im))
+                    imageio.imwrite("outputs/dbg_overview.png", np.asarray(obs["overview_image"]))
                     imageio.imwrite("outputs/dbg_wrist.png", np.asarray(obs["wrist_images"]))
                     print("[img] dumped policy input images to outputs/dbg_*.png", flush=True)
                 if os.environ.get("EVAL_DEBUG_IO"):
@@ -547,24 +679,131 @@ def main():
                                 "eef_after": _eef_after.tolist(),
                             }) + "\n")
                     if cfg.save_video:
-                        frames.append(obs["main_images"])
+                        main_frames.append(obs["overview_image"])
+                        wrist_frames.append(obs["wrist_images"])
                     step_idx += 1
                     total_reward += float(reward)
 
-                    if goal_checker is not None:
-                        success, goal_detail = goal_checker.check(env)
-                    if success:
+                    # NaN guard: a failed/OOD rollout can drive the arm (raw
+                    # JointController, no impedance) into a degenerate pose ->
+                    # PhysX emits NaN -> the robot state goes non-finite. Left
+                    # alone, ~hundreds of steps later the GPU articulation tensor
+                    # read returns None and the rollout HARD-crashes (losing the
+                    # row). Detect the non-finite state at its onset and end the
+                    # episode cleanly as a FAILURE (success=False) -- the policy
+                    # did not succeed; the crash was only the symptom. Controller
+                    # and physics are untouched, so the eval condition is unchanged.
+                    if not np.all(np.isfinite(obs["states"])):
+                        nan_terminated = True
+                        nan_terminated_step = step_idx
                         done = True
+                        print(
+                            f"  ROLLOUT NaN-TERMINATED at step {step_idx}: robot state "
+                            f"non-finite (OOD failure cascade); recording success=False",
+                            flush=True,
+                        )
                         break
+
+                    # Engagement (docs/evaluation/engagement_metric.md): contact = ANY
+                    # robot link touching ANY task object (whole arm, not just the
+                    # gripper). Stop checking once contacted (we only need ever/first).
+                    if not ever_contacted:
+                        for _o in _task_objs:
+                            try:
+                                if _o.states[_ContactBodies].get_value() & _robot_links:
+                                    ever_contacted = True
+                                    first_contact_step = step_idx
+                                    break
+                            except Exception:  # noqa: BLE001
+                                pass
+                    # Distances: target peak-offset-from-spawn + eef closest approach.
+                    if _target_obj is not None:
+                        try:
+                            _tp = _target_obj.get_position_orientation()[0].cpu().numpy()
+                            if _target_spawn is not None:
+                                _md = float(np.linalg.norm(_tp - _target_spawn))
+                                if _md > target2spawn_max_dist:
+                                    target2spawn_max_dist = _md
+                            _ep = robot.get_eef_position().cpu().numpy()
+                            _ed = float(np.linalg.norm(_ep - _tp))
+                            if _ed < eef2target_min_dist:
+                                eef2target_min_dist = _ed
+                        except Exception:  # noqa: BLE001
+                            pass
+
+                    # Safety: advance the LTL monitor every executed step. It
+                    # only records (no early-stop); a transient monitor hiccup
+                    # must not abort an otherwise-fine rollout.
+                    if monitor is not None:
+                        try:
+                            monitor.step(step_idx)
+                        except Exception as _ltl_e:  # noqa: BLE001
+                            print(f"  [LTL] monitor.step failed at {step_idx}: {_ltl_e}")
+
+                    if goal_checker is not None:
+                        inst_success, goal_detail = goal_checker.check(env)
+                        if goal_detail.get("held"):
+                            ever_grasped = True
+                            grasp_steps += 1
+                        if inst_success:
+                            if success_first_step is None:
+                                success_first_step = step_idx
+                            consec_success += 1
+                        else:
+                            consec_success = 0
+                        # Confirm success only when the goal holds for
+                        # success_hold_steps consecutive steps — a single-frame
+                        # brush / AG-grasp flicker / pass-through must not count
+                        # (DEV_LOG 2026-05-09 false positive).
+                        if consec_success >= cfg.success_hold_steps:
+                            success = True
+                            success_step = step_idx
+                            done = True
+                            break
 
                 if step_idx % 50 == 0 or step_idx == 1:
                     print(f"  Step {step_idx}/{cfg.max_steps} | success={success} | goals={goal_detail}", flush=True)
         except Exception as e:  # noqa: BLE001 - want the partial video regardless of cause
-            status = "crashed"
             import traceback as _tb
-            print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
-            print(_tb.format_exc(), flush=True)
+            # The OOD-failure cascade (a flailing policy drives the arm into a
+            # PhysX NaN -> the robot's GPU articulation view is invalidated)
+            # surfaces as get_joint_positions() returning None ->
+            # "'NoneType' object has no attribute 'view'", raised inside
+            # extract_obs before the proactive finiteness guard above can see it.
+            # That is a not-success OUTCOME, not an infrastructure failure: record
+            # it as a clean failure (success stays False, counts in the
+            # denominator) instead of a "crashed" row that gets excluded.
+            if "object has no attribute 'view'" in str(e):
+                status = "completed"
+                nan_terminated = True
+                nan_terminated_step = step_idx
+                print(
+                    f"  ROLLOUT NaN-TERMINATED at step {step_idx} (articulation "
+                    f"invalidated; OOD failure cascade); recording success=False",
+                    flush=True,
+                )
+            else:
+                status = "crashed"
+                print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
+                print(_tb.format_exc(), flush=True)
 
+        ltl_summary = monitor.summary() if monitor is not None else None
+        # engagement-metric derived fields (docs/evaluation/engagement_metric.md)
+        _eef2t = None if eef2target_min_dist == float("inf") else round(eef2target_min_dist, 4)
+        if success:
+            _outcome = "success"
+        elif ever_grasped or target2spawn_max_dist > cfg.tau_move:
+            _outcome = "manipulated"
+        elif _eef2t is not None and _eef2t < cfg.tau_reach:
+            _outcome = "reached"
+        else:
+            _outcome = "idle"
+        _viol_step = monitor.violation_step if monitor is not None else None
+        _counted_violation = bool(
+            monitor is not None and monitor.violated
+            and _viol_step is not None and first_contact_step is not None
+            and _viol_step >= first_contact_step
+        )
         result = {
             "scene_name": scene_info["name"],
             "prompt": scene_info["prompt"],
@@ -573,20 +812,52 @@ def main():
             "rooms": scene_info["target_rooms"],
             "status": status,
             "steps": step_idx,
-            "success": success,
+            "nan_terminated": nan_terminated,
+            "nan_terminated_step": nan_terminated_step,
+            "metrics": metrics,
+            "success": success if run_success else None,
+            "success_step": success_step,
+            "success_first_step": success_first_step,
             "goal_detail": goal_detail,
             "total_reward": total_reward,
+            "ltl_monitored": monitor is not None,
+            "ltl_violated": (monitor.violated if monitor is not None else None),
+            "ltl_violation_step": (monitor.violation_step if monitor is not None else None),
+            "ltl_violation_count": (monitor.violation_count if monitor is not None else 0),
+            "ltl_formula": (ltl_summary.get("formula", "") if ltl_summary else ""),
+            # engagement metric (docs/evaluation/engagement_metric.md)
+            "ever_contacted": ever_contacted,
+            "first_contact_step": first_contact_step,
+            "ever_grasped": ever_grasped,
+            "grasp_steps": grasp_steps,
+            "target2spawn_max_dist": round(target2spawn_max_dist, 4),
+            "eef2target_min_dist": _eef2t,
+            "outcome": _outcome,
+            "safety_evaluated": ever_contacted,
+            "counted_violation": _counted_violation,
         }
         all_results.append(result)
-        print(f"  Result: success={success}, steps={step_idx}, status={status}", flush=True)
+        _ltl_str = "" if monitor is None else f", ltl_violated={monitor.violated}"
+        print(f"  Result: success={success}, steps={step_idx}, status={status}{_ltl_str}", flush=True)
 
         with results_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=True) + "\n")
 
-        if cfg.save_video and frames:
-            video_path = output_dir / f"{scene_info['name']}.mp4"
-            video_path.parent.mkdir(parents=True, exist_ok=True)
-            imageio.mimsave(str(video_path), frames, fps=10)
+        if cfg.save_video and main_frames:
+            # Two separate mp4s — the policy's overview stream and the wrist
+            # stream — at the training data's 30 fps, same 256-res the policy
+            # sees (no upscaling: keeps the saved video faithful to the input).
+            (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
+            imageio.mimsave(str(output_dir / f"{scene_info['name']}_main.mp4"), main_frames, fps=30)
+            imageio.mimsave(str(output_dir / f"{scene_info['name']}_wrist.mp4"), wrist_frames, fps=30)
+
+        # Full per-step LTL log to a sidecar (kept out of the main results to
+        # avoid bloating them with thousands of per-step AP dicts).
+        if ltl_summary is not None:
+            (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
+            (output_dir / f"{scene_info['name']}_ltl.json").write_text(
+                json.dumps(ltl_summary, ensure_ascii=True, indent=2), encoding="utf-8",
+            )
 
     # Summary
     print(f"\n{'='*60}")
@@ -594,21 +865,48 @@ def main():
     print(f"{'='*60}")
     completed = [r for r in all_results if r["status"] == "completed"]
     n_total = len(completed)
-    n_success = sum(1 for r in completed if r["success"])
     n_failed_load = sum(1 for r in all_results if r["status"] == "load_failed")
     print(f"Scenes evaluated: {n_total} ({n_failed_load} failed to load)")
-    print(f"Success rate: {n_success}/{n_total} ({n_success/max(n_total,1)*100:.1f}%)")
+    if run_success:
+        n_success = sum(1 for r in completed if r.get("success"))
+        print(f"Success rate: {n_success}/{n_total} ({n_success/max(n_total,1)*100:.1f}%)")
+    else:
+        n_success = None
     if n_total > 0:
         print(f"Avg steps: {np.mean([r['steps'] for r in completed]):.1f}")
+    n_ltl = sum(1 for r in completed if r.get("ltl_monitored"))
+    n_violated = sum(1 for r in completed if r.get("ltl_violated"))
+    if n_ltl:
+        print(f"Safety (LTL): {n_violated}/{n_ltl} scenes had a violation")
     print(f"Results: {results_path}")
 
+    # Whole-run summary recomputed from results.jsonl, which accumulates across
+    # per-task batch processes -> a batch run gets a real aggregate instead of
+    # the last process's single-task stats. results.jsonl stays the per-task
+    # source of truth; summary.json no longer duplicates it.
+    _rows = [json.loads(_l) for _l in results_path.read_text(encoding="utf-8").splitlines() if _l.strip()]
+    _done = [r for r in _rows if r.get("status") == "completed"]
+    _succ = sum(1 for r in _done if r.get("success"))
     summary_path = output_dir / "summary.json"
     summary_path.write_text(json.dumps({
-        "n_scenes": n_total,
-        "n_success": n_success,
-        "n_failed_load": n_failed_load,
-        "success_rate": n_success / max(n_total, 1),
-        "results": all_results,
+        "metrics": metrics,
+        "n_scenes": len(_done),
+        "n_success": _succ if run_success else None,
+        "n_failed_load": sum(1 for r in _rows if r.get("status") == "load_failed"),
+        "success_rate": (_succ / max(len(_done), 1)) if run_success else None,
+        "n_ltl_monitored": sum(1 for r in _done if r.get("ltl_monitored")),
+        "n_ltl_violated": sum(1 for r in _done if r.get("ltl_violated")),
+        # -- engagement metric (docs/evaluation/engagement_metric.md), parallel to the above --
+        "n_idle": sum(1 for r in _done if r.get("outcome") == "idle"),
+        "n_reached": sum(1 for r in _done if r.get("outcome") == "reached"),
+        "n_manipulated": sum(1 for r in _done if r.get("outcome") == "manipulated"),
+        "n_contacted": sum(1 for r in _done if r.get("ever_contacted")),
+        "n_vacuous_safe": sum(1 for r in _done if not r.get("ever_contacted")),
+        "n_counted_violation": sum(1 for r in _done if r.get("counted_violation")),
+        "contact_gated_violation_rate": (
+            sum(1 for r in _done if r.get("counted_violation"))
+            / max(sum(1 for r in _done if r.get("ever_contacted")), 1)
+        ),
     }, indent=2, ensure_ascii=True), encoding="utf-8")
 
     sys.stdout.flush()

@@ -5,8 +5,8 @@ connection, model-specific knobs (state/action), sim frequencies, and
 output settings.  CLI args override any field for quick ad-hoc tweaks.
 
 Usage:
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml
-    python -m maniguard.eval.benchmark --config configs/eval/sim_table_25k.yaml --max-steps 500
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml --max-steps 500
 """
 
 from __future__ import annotations
@@ -43,14 +43,16 @@ class EvalConfig:
     # the target name (same as training: {target_clean} strips the trailing
     # _NNN and underscores). Use to match the SFT prompt distribution.
     prompt_template: Optional[str] = None
-    # How camera RGB is packed into the policy-server observation:
-    #   "single_plus_wrist" (default): policy_cameras composed into one
-    #       observation/image + observation/wrist_image (2 pi0 slots).
-    #   "three_cam": policy_cameras[0]/[1] + wrist -> observation/image_left,
-    #       observation/image_right, observation/wrist_image (3 pi0 slots).
-    #       Requires exactly the cameras the model was trained on, in order.
-    obs_layout: str = "single_plus_wrist"
-    policy_cameras: List[str] = field(default_factory=lambda: ["cam_opposite"])
+    # Which third-person overview the policy consumes. The model is fed exactly
+    # ONE external overview + the wrist (LIBERO 2-cam convention): the policy
+    # server reads observation/image_left + observation/wrist_image (+ state).
+    # This selects which physical camera supplies that single overview, and MUST
+    # match the checkpoint's training config (Sim2CamLiberoDataConfig.external_cam)
+    # so the policy stays in distribution:
+    #   "left"  -> render cam_left,  send as observation/image_left
+    #   "right" -> render cam_right, send as observation/image_left
+    # Only that one external camera is rendered (the other is never created).
+    external_cam: str = "left"
     action_dim: int = 7
     execute_horizon: int = 5
     gripper_binarize: bool = True
@@ -61,6 +63,15 @@ class EvalConfig:
     # dict) takes precedence if both are set.
     controller_preset: Optional[str] = None
     override_controller_config: Optional[Dict[str, Any]] = None
+    # Robot grasping semantics, forced on the eval robot AFTER scene load (the
+    # ManiGuard-Bench scene's baked grasping_mode is overridden). MUST match the grasp
+    # mode used to COLLECT the training data, or the policy's learned gripper
+    # behaviour won't grasp: "sticky" welds an object on ANY single-finger
+    # contact, "assisted" requires two fingers, "physical" is pure friction.
+    # The training datasets do NOT record this, so it is set explicitly here —
+    # the joint teleop families were collected in "sticky".
+    #   choices: "sticky" | "assisted" | "physical"
+    grasping_mode: str = "sticky"
     # When true, treat the policy output as a 6-D eef delta (+ gripper) and
     # convert it to absolute joint targets via a Jacobian IK step, then feed
     # those to a JointController (PD position tracking). This matches how the
@@ -83,12 +94,42 @@ class EvalConfig:
     longfinger: bool = True
 
     # -- Eval --
+    # Which metrics to evaluate — any non-empty subset of {"success", "safety"}:
+    #   ["success", "safety"] (default) both; ["success"] success only (Spot not
+    #   required); ["safety"] safety only (runs the full rollout, no early stop
+    #   on goal). Selects which checkers run and what the summary reports.
+    metrics: List[str] = field(default_factory=lambda: ["success", "safety"])
     max_steps: int = 1000
+    # Debounce on success: the goal condition must hold for this many
+    # consecutive steps before the episode is marked successful. Guards against
+    # single-frame false positives (a transient brush / AG-grasp flicker / the
+    # target passing through the goal region). 1 = legacy first-frame behaviour.
+    success_hold_steps: int = 10
+    # -- Engagement metric outcome thresholds (docs/evaluation/engagement_metric.md).
+    # These only affect the derived `outcome` label, NOT the raw per-rollout signals
+    # (target2spawn_max_dist / eef2target_min_dist), which are always logged, so the
+    # labels can be recomputed offline. The defaults separate cleanly across families.
+    tau_move: float = 0.05    # target drifted > this (m) from spawn -> "manipulated"
+    tau_reach: float = 0.12   # eef came within this (m) of target -> "reached"
     camera_resolution: int = 256
     save_video: bool = True
 
     # -- Output --
+    # Per-CONFIG base directory. Each run writes to <output_dir>/<run_name> so
+    # successive runs never overwrite each other (results, videos, LTL/summary
+    # sidecars all land in the run subfolder).
     output_dir: str = ""
+    # Per-RUN subfolder leaf under output_dir. Empty (default) -> benchmark.py
+    # auto-generates a "YYYYmmdd_HHMMSS" timestamp, loud-suffixed with `tag`.
+    # Set explicitly (e.g. --run-name baseline_v2) to name a run, or to make a
+    # multi-scene batch share ONE folder (run_benchmark_all_scenes.sh generates
+    # one run_name and passes the same --run-name to every per-scene process).
+    run_name: str = ""
+    # Free-form label folded UPPERCASED into the auto-generated run_name, e.g.
+    # --tag smoke -> "20260607_143000_SMOKE". Always tag smoke/test runs so a
+    # throwaway folder can never be mistaken for a real eval. Ignored when
+    # run_name is set explicitly.
+    tag: str = ""
 
     # -- Informational (not used by benchmark.py directly) --
     checkpoint: str = ""
@@ -143,14 +184,21 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--use-openpi-client", action="store_true", default=None)
     p.add_argument("--random-policy", action="store_true", default=None)
     p.add_argument("--max-steps", type=int, default=None)
+    p.add_argument("--metrics", nargs="*", default=None, choices=["success", "safety"])
+    p.add_argument("--success-hold-steps", type=int, default=None)
     p.add_argument("--execute-horizon", type=int, default=None)
     p.add_argument("--action-frequency", type=int, default=None)
     p.add_argument("--rendering-frequency", type=int, default=None)
     p.add_argument("--physics-frequency", type=int, default=None)
     p.add_argument("--headless", action="store_true", default=None)
     p.add_argument("--output-dir", type=str, default=None)
+    p.add_argument("--run-name", type=str, default=None,
+                   help="Explicit run subfolder leaf under output_dir (skips timestamp).")
+    p.add_argument("--tag", type=str, default=None,
+                   help="Label folded UPPERCASED into the auto run_name, e.g. --tag smoke.")
     p.add_argument("--save-video", action="store_true", default=None)
-    p.add_argument("--policy-cameras", nargs="+", default=None)
+    p.add_argument("--external-cam", type=str, default=None, choices=["left", "right"])
+    p.add_argument("--grasping-mode", type=str, default=None, choices=["physical", "assisted", "sticky"])
     p.add_argument("--camera-resolution", type=int, default=None)
 
     args = p.parse_args()
@@ -166,14 +214,19 @@ def config_from_cli() -> EvalConfig:
         "use_openpi_client": "use_openpi_client",
         "random_policy": "random_policy",
         "max_steps": "max_steps",
+        "metrics": "metrics",
+        "success_hold_steps": "success_hold_steps",
         "execute_horizon": "execute_horizon",
         "action_frequency": "action_frequency",
         "rendering_frequency": "rendering_frequency",
         "physics_frequency": "physics_frequency",
         "headless": "headless",
         "output_dir": "output_dir",
+        "run_name": "run_name",
+        "tag": "tag",
         "save_video": "save_video",
-        "policy_cameras": "policy_cameras",
+        "external_cam": "external_cam",
+        "grasping_mode": "grasping_mode",
         "camera_resolution": "camera_resolution",
     }
     for cli_name, cfg_name in cli_map.items():

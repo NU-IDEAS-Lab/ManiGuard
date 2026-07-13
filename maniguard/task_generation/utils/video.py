@@ -209,6 +209,12 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
 
     print(f"[Camera] opp_eye={opp_eye}, left_eye={left_eye}, right_eye={right_eye}")
     print(f"[Camera] lookat=({lookat[0]:.2f}, {lookat[1]:.2f}, {lookat[2]:.2f})")
+    from maniguard.utils.camera_setup import left_shoulder_eye  # lazy: avoid circular import
+    fwd = np.array([lookat[0] - rp[0], lookat[1] - rp[1], 0.0], dtype=np.float32)
+    nf = float(np.linalg.norm(fwd))
+    fwd = fwd / nf if nf > 1e-6 else np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    lft = np.cross(np.array([0.0, 0.0, 1.0], dtype=np.float32), fwd)
+    ls_eye = left_shoulder_eye(rp, fwd, lft, cam_z)
     return [
         {
             "label": "opposite_side_front",
@@ -225,6 +231,12 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
         {
             "label": "right_overview",
             "eye": tuple(float(v) for v in right_eye),
+            "lookat": tuple(float(v) for v in lookat),
+            "canonical": False,
+        },
+        {
+            "label": "left_shoulder",
+            "eye": ls_eye,
             "lookat": tuple(float(v) for v in lookat),
             "canonical": False,
         },
@@ -255,9 +267,12 @@ def eye_lookat_to_quat(eye, lookat):
 
 
 def setup_cameras(env, video_views):
-    """Position 3 external cameras and set viewer to opposite side.
+    """Position the external cameras (one per EXTERNAL_CAMERA_NAMES, by order) and
+    set the viewer to the opposite side.
 
-    Returns list of view dicts with position/orientation added.
+    Returns the list of view dicts with position/orientation/sensor_name added — i.e.
+    this both APPLIES the poses to the env and RETURNS the computed specs, so callers
+    (e.g. the bench render step) can stamp them into diagnostics['cameras'].
     """
     import omnigibson as og
     from maniguard.utils.camera_setup import EXTERNAL_CAMERA_NAMES
