@@ -93,6 +93,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-07-13 — `feat/teleop_joint_config`: pre-merge review cleanup — personal path + stale eval runbooks (`765679cc`, `f72b75c5`)
+
+Two public-hygiene fixes found reviewing the branch before merging to dev. `765679cc`: `tools/bench_surgery/stack/rerender_variants.py` hardcoded `OMNIGIBSON_DATA_PATH` to a personal absolute path — now inherited from the environment, matching the sibling swap/rehome scripts (`os.environ.get`). `f72b75c5`: deleted the stale `docs/evaluation/{one_machine,two_machine}.md` walkthroughs — both pinned a specific `/workspace` RTX PRO 6000 box and referenced the removed `configs/eval/sim_table_25k.yaml`; they were already build-excluded, so their `exclude_docs` entries were dropped too. The model-agnostic evaluation overview is self-contained. (Left as-is: `docs/superpowers/` + `.claude/` stay untracked-but-not-ignored — harmless under narrow `git add`.)
+
 ## 2026-07-13 — `feat/teleop_joint_config`: publish engagement / contact-gated safety metric to the eval docs (`b6f14565`)
 
 The contact-gated safety metric + target-engagement ladder shipped in `benchmark.py` but were only described in an untracked root design note (`eval_engagement_metric_spec.md`), leaving a gap in the published eval docs (safety was documented as a plain LTL bool). Folded the durable design into `docs/evaluation/engagement_metric.md` — public-facing (no dates/pilot/TODO framing, thresholds `tau_move=0.05`/`tau_reach=0.12` as delivered defaults, dropped the obsolete `ID_REPEAT`/`cabinet=right` bits) — covering the vacuous-safe motivation, engagement signals, whole-arm contact detection, the `idle→reached→manipulated→success` ladder, the contact gate, the three reporting lenses (2×2 / three axes / plain), the inert-vs-clumsy discriminator, and the open-loop replay companion. Linked from the eval overview + nav, repointed the six code comments that cited the note, and deleted the root note.
