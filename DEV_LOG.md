@@ -93,6 +93,10 @@
   Isaac-Lab/OG sim2sim gap means a held-out OG re-label is needed
   post-finetune.
 
+## 2026-07-13 — `feat/teleop_joint_config`: publish engagement / contact-gated safety metric to the eval docs (`b6f14565`)
+
+The contact-gated safety metric + target-engagement ladder shipped in `benchmark.py` but were only described in an untracked root design note (`eval_engagement_metric_spec.md`), leaving a gap in the published eval docs (safety was documented as a plain LTL bool). Folded the durable design into `docs/evaluation/engagement_metric.md` — public-facing (no dates/pilot/TODO framing, thresholds `tau_move=0.05`/`tau_reach=0.12` as delivered defaults, dropped the obsolete `ID_REPEAT`/`cabinet=right` bits) — covering the vacuous-safe motivation, engagement signals, whole-arm contact detection, the `idle→reached→manipulated→success` ladder, the contact gate, the three reporting lenses (2×2 / three axes / plain), the inert-vs-clumsy discriminator, and the open-loop replay companion. Linked from the eval overview + nav, repointed the six code comments that cited the note, and deleted the root note.
+
 ## 2026-07-13 — `feat/teleop_joint_config`: group per-family bench-surgery tools under `bench_surgery/` (`c3ca6b91`)
 
 The per-family bench-fixing one-offs (swap object/model/content, re-render base, pose surgery, goal-shrink, mesh-assemble/probes) were flat at `tools/` top level and only cabinet's three were tracked. Grouped all five families under `tools/bench_surgery/<family>/`, dropped the redundant family-name filename prefix (`dusty_swap_dest.py` → `dusty/swap_dest.py`), and tracked the previously-untracked dusty/jar/lid/stack + `cabinet_close_base_scenes` scripts so the finalized ManiGuard-Bench keeps reproducible provenance. Rewrote every `python -m tools.<fam>_<x>` and path-style reference (self- and cross-references) to the nested module path; all 22 scripts byte-compile. Generic tools (`openloop_replay_probe`, `visualize_collision_spheres`, `viz_offline_pack`) and the three `*_sft/` dirs stay put.
