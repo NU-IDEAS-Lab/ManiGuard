@@ -8,7 +8,7 @@ minimal cost of keeping ManiGuard-specific code out of the OmniGibson tree so
 OmniGibson can be pinned as an upstream dependency; see
 :mod:`maniguard._omnigibson_patches` for details.
 
-Set ``SENTINEL_SKIP_OMNIGIBSON_PATCH=1`` to skip the patches entirely (e.g.
+Set ``MANIGUARD_SKIP_OMNIGIBSON_PATCH=1`` to skip the patches entirely (e.g.
 for lightweight pure-Python consumers that don't need OmniGibson).
 """
 

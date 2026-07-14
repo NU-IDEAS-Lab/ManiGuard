@@ -29,7 +29,7 @@ modifications live. Two kinds of patches are applied:
      (``upright`` / ``dropped`` / ``grasped`` / ``stashed``) registered from
      :mod:`maniguard.utils.bddl_predicates`.
 
-Set ``SENTINEL_SKIP_OMNIGIBSON_PATCH=1`` in the environment to opt out.
+Set ``MANIGUARD_SKIP_OMNIGIBSON_PATCH=1`` in the environment to opt out.
 
 Two upstream files still carry ManiGuard modifications on this branch
 (``utils/bddl_utils.py``, ``tasks/grasp_task.py``). Extracting them requires
@@ -645,14 +645,14 @@ def _patch_throttle_assisted_grasping(interval: int) -> None:
 
 
 def apply_ag_throttle_from_env() -> None:
-    """Read ``SENTINEL_AG_SUBSTEP_INTERVAL`` and install the throttle.
+    """Read ``MANIGUARD_AG_SUBSTEP_INTERVAL`` and install the throttle.
 
     Called from wrappers.build_vec_env so the patch lands after OG is
     imported but before env construction. Reading from env (rather than
     forcing every caller through a Python API) keeps the patch out of OG's
     import order — and lets profile scripts opt in via shell.
     """
-    raw = os.environ.get("SENTINEL_AG_SUBSTEP_INTERVAL")
+    raw = os.environ.get("MANIGUARD_AG_SUBSTEP_INTERVAL")
     if not raw:
         return
     try:
@@ -671,7 +671,7 @@ def _apply_eager_patches() -> None:
     _patch_grasp_reward()
     _patch_sampling_utils()
     _patch_create_joint_skip_render()
-    if not os.environ.get("SENTINEL_SKIP_LONGFINGER"):
+    if not os.environ.get("MANIGUARD_SKIP_LONGFINGER"):
         _patch_franka_longfinger()
     apply_ag_throttle_from_env()
     _register_bddl_predicates()
@@ -682,7 +682,7 @@ def _apply_eager_patches() -> None:
 
 def apply() -> None:
     """Install the ManiGuard OmniGibson patches. Idempotent."""
-    if os.environ.get("SENTINEL_SKIP_OMNIGIBSON_PATCH"):
+    if os.environ.get("MANIGUARD_SKIP_OMNIGIBSON_PATCH"):
         return
 
     _install_import_hook()

@@ -27,7 +27,7 @@ REVIEW_CAMERA_LABELS = {
 @lru_cache(maxsize=1)
 def resolve_runtime_python() -> Path:
     candidates: list[Path] = []
-    override = os.environ.get("SENTINEL_RUNTIME_PYTHON")
+    override = os.environ.get("MANIGUARD_RUNTIME_PYTHON")
     if override:
         candidates.append(Path(override).expanduser())
     candidates.append(Path(sys.executable).expanduser())
@@ -49,7 +49,7 @@ def resolve_runtime_python() -> Path:
         if probe.returncode == 0:
             return candidate
     raise RuntimeError(
-        "Could not find a runtime python with torch. Set SENTINEL_RUNTIME_PYTHON or install/use the behavior env."
+        "Could not find a runtime python with torch. Set MANIGUARD_RUNTIME_PYTHON or install/use the behavior env."
     )
 
 

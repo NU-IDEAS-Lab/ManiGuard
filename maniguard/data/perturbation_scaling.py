@@ -46,7 +46,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _default_activity_root() -> Path:
-    override = os.environ.get("SENTINEL_ACTIVITY_ROOT")
+    override = os.environ.get("MANIGUARD_ACTIVITY_ROOT")
     if override:
         return Path(override).expanduser().resolve()
     candidates = [

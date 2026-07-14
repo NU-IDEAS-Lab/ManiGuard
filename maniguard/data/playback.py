@@ -7,13 +7,13 @@ step records (defaults: --controller joint, --cams 3):
   --controller  state convention recorded under obs/state (float32, 8D):
       joint (default): [arm_q(7), gripper_pos(1)]  -- absolute joint config for
                        a JointController policy; gripper_pos is the mean of the
-                       two finger qpos. Matches sentinel-pnp-clutter-joint.
+                       two finger qpos.
       eef:             [eef_pos(3), eef_axisangle(3), gripper_qpos(2)]  -- legacy
                        LIBERO / IsaacLab-Stack-Cube layout (both fingers kept).
 
   --cams        camera set recorded as image obs (see CAMERA_SETS):
       3 (default): image_left + image_right + wrist_image  (cam_left/cam_right
-                   overviews + wrist; matches sentinel-pnp-clutter-joint).
+                   overviews + wrist).
       2:           image + wrist_image  (cam_opposite overview + wrist; LIBERO).
 
 `action` is copied from the input HDF5 unchanged (the raw teleop 8D joint

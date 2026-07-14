@@ -27,7 +27,7 @@ def build_prompt(target_synset: str, support_label: str | None = None) -> str:
     return f"Pick up the {target_name}."
 
 
-DEFAULT_SENTINEL_ROBOT_NAME = "agent_0"
+DEFAULT_ROBOT_NAME = "agent_0"
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ def _is_scene_robot(obj_info: dict) -> bool:
 
 def extract_scene_robot_setup(
     scene_info: dict,
-    robot_name: str = DEFAULT_SENTINEL_ROBOT_NAME,
+    robot_name: str = DEFAULT_ROBOT_NAME,
 ) -> dict | None:
     init_info = scene_info.get("objects_info", {}).get("init_info", {})
     state_registry = _scene_object_registry(scene_info)

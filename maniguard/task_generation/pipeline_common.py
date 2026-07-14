@@ -1498,7 +1498,7 @@ class BasePipeline(ABC):
         # That avoids the mid-play ``add_object`` race that corrupts
         # the GPU pose buffer for newly-added rigid prims under
         # ``USE_GPU_DYNAMICS=True`` and produces NaN orientations during
-        # the first ``sim.step()`` (see DEV_LOG 2026-05-12 entry).
+        # the first ``sim.step()``.
         # All objects parked deep below the floor at z=-100 with a
         # distinct horizontal row per episode — under the scene mesh so
         # no collisions, no contact-driven angular velocity, and no

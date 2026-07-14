@@ -44,7 +44,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _default_activity_root() -> Path:
-    override = os.environ.get("SENTINEL_ACTIVITY_ROOT")
+    override = os.environ.get("MANIGUARD_ACTIVITY_ROOT")
     if override:
         return Path(override).expanduser().resolve()
     candidates = [
@@ -58,10 +58,10 @@ def _default_activity_root() -> Path:
 
 
 DEFAULT_ACTIVITY_ROOT = _default_activity_root()
-DEFAULT_SENTINEL_ROBOT_NAME = "agent_0"
+DEFAULT_ROBOT_NAME = "agent_0"
 DEFAULT_VALIDATOR_ROBOT_CFG = {
     "type": "FrankaMounted",
-    "name": DEFAULT_SENTINEL_ROBOT_NAME,
+    "name": DEFAULT_ROBOT_NAME,
     "obs_modalities": [],
     "include_sensor_names": None,
     "exclude_sensor_names": None,
@@ -120,7 +120,7 @@ def strip_scene_robots_from_scene_info(scene_info: dict[str, Any]) -> dict[str, 
 
 def extract_scene_robot_setup(
     scene_info: dict[str, Any],
-    robot_name: str = DEFAULT_SENTINEL_ROBOT_NAME,
+    robot_name: str = DEFAULT_ROBOT_NAME,
 ) -> dict[str, Any] | None:
     init_info = scene_info.get("objects_info", {}).get("init_info", {})
     state_registry = _scene_object_registry(scene_info)

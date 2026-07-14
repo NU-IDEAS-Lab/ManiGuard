@@ -18,7 +18,6 @@ The schema is auto-selected from the playback fingerprint stamped on each HDF5
     controller=eef   -> state eef_8d, actions [dpos, drot, gripper] (7, delta)
     n_cams=3         -> image_left + image_right + wrist_image
     n_cams=2         -> image + wrist_image
-(joint + 3-cam matches IDEAS-Lab-Northwestern/sentinel-pnp-clutter-joint.)
 
 Usage:
     .venv-lerobot/bin/python -m maniguard.data.lerobot.multitask_lerobot_export \\

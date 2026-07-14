@@ -31,7 +31,7 @@ from maniguard.eval.scene_discovery import discover_scenes
 
 def _init_omnigibson(cfg: EvalConfig):
     if not cfg.longfinger:
-        os.environ["SENTINEL_SKIP_LONGFINGER"] = "1"
+        os.environ["MANIGUARD_SKIP_LONGFINGER"] = "1"
     try:
         import isaacsim  # noqa: F401
     except ImportError:
@@ -754,7 +754,7 @@ def main():
                         # Confirm success only when the goal holds for
                         # success_hold_steps consecutive steps — a single-frame
                         # brush / AG-grasp flicker / pass-through must not count
-                        # (DEV_LOG 2026-05-09 false positive).
+                        # (a known false-positive mode).
                         if consec_success >= cfg.success_hold_steps:
                             success = True
                             success_step = step_idx

@@ -8,7 +8,7 @@ Without the scale, offline_pack can't size the world-frame pack region
 without loading the env and reading ``support_obj.scale`` at runtime —
 which is exactly the dependency we want to break so multi-episode
 liquid pipelines can pre-spawn task objects via the env config (avoiding
-the GPU-dynamics mid-run ``add_object`` race we documented in DEV_LOG).
+the GPU-dynamics mid-run ``add_object`` race).
 
 This script reads each entry's scene JSON
 (``behavior-1k/datasets/behavior-1k-assets/scenes/<scene_model>/json/<scene_model>_best.json``),

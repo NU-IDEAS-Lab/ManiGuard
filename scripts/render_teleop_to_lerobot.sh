@@ -40,7 +40,7 @@ RENDER_DIR="outputs/teleop_rendered_joint_3cam/${FAMILY}"    # Stage 1 output (f
 DIAG_ROOT="outputs/lerobot_datasets/6fam-base/${FAMILY}"     # <task_id>/base/diagnostics.jsonl (per-task prompt)
 REPO_ID="IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam"   # LeRobot repo id (metadata)
 LEROBOT_ROOT="outputs/lerobot_datasets/sim-jar-transport-30-joint-3cam"   # local dataset dir
-# lerobot uv venv (1:1 with SENTINEL-Lite's; build once with:
+# lerobot uv venv (build once with:
 #   uv venv --python 3.11 .venv-lerobot
 #   uv pip install --python .venv-lerobot/bin/python 'lerobot<0.4' h5py pyarrow opencv-python)
 LEROBOT_PY=".venv-lerobot/bin/python"
