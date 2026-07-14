@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/teleop/so101_server/">
+        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/teleop/teleop_to_lerobot/">
       
       
-        <link rel="prev" href="../so101_franka/">
+        <link rel="prev" href="../playback/">
       
       
-        <link rel="next" href="../gello_franka/">
+        <link rel="next" href="../real_teleop/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>SO-101 ZMQ server - ManiGuard</title>
+        <title>Sim teleop → LeRobot - ManiGuard</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#so-101-zmq-server" class="md-skip">
+        <a href="#sim-teleop-lerobot" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              SO-101 ZMQ server
+              Sim teleop → LeRobot
             
           </span>
         </div>
@@ -1450,37 +1450,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SO-101 ZMQ server
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../so101_server/" class="md-nav__link">
         
   
   
@@ -1496,81 +1469,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-it-does" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What it does
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How it works
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Source
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1664,10 +1562,19 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../teleop_to_lerobot/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1683,6 +1590,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -2261,69 +2169,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-it-does" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What it does
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How it works
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Source
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -2339,7 +2184,7 @@
 
 
   
-    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/teleop/so101_server.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/teleop/teleop_to_lerobot.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2347,112 +2192,35 @@
   
 
 
-<h1 id="so-101-zmq-server">SO-101 ZMQ server<a class="headerlink" href="#so-101-zmq-server" title="Permanent link">&para;</a></h1>
-<h2 id="what-it-does">What it does<a class="headerlink" href="#what-it-does" title="Permanent link">&para;</a></h2>
-<p>Reads joint positions from a physical SO-101 leader arm (5 arm joints +
-gripper) over USB serial, computes forward kinematics to get the
-end-effector pose, and publishes the result as a pickled dict on a ZMQ PUB
-socket at a fixed rate (default 60 Hz). Runs in the <code>lerobot</code> Python 3.12
-venv. A <code>--mock</code> mode emits a sinusoidal trajectory with no hardware.</p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Item</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Python env</td>
-<td>dedicated <code>lerobot</code> venv (Python 3.12) — <code>pip install lerobot pyzmq placo</code></td>
-</tr>
-<tr>
-<td>Hardware</td>
-<td>SO-101 leader arm + Feetech STS3215 servos + 6-8 V external power</td>
-</tr>
-<tr>
-<td>USB</td>
-<td><code>/dev/ttyACM*</code> accessible (<code>sudo usermod -aG dialout $USER</code>, then re-login)</td>
-</tr>
-<tr>
-<td>Calibration</td>
-<td>run <code>lerobot-calibrate --teleop.type=so101_leader --teleop.port=/dev/ttyACM0</code> once per arm</td>
-</tr>
-<tr>
-<td>URDF</td>
-<td>clone <code>https://github.com/TheRobotStudio/SO-ARM100.git</code> to get <code>Simulation/SO101/so101_new_calib.urdf</code> and the <code>assets/*.stl</code> meshes (URDF references meshes via relative paths, so run from the URDF's parent directory or pass an absolute path)</td>
-</tr>
-</tbody>
-</table>
-<h2 id="run">Run<a class="headerlink" href="#run" title="Permanent link">&para;</a></h2>
-<p>Mock mode (no hardware):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>lerobot
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python<span class="w"> </span>teleop_bridge/so101_server.py<span class="w"> </span>--mock
+<h1 id="sim-teleop-lerobot">Sim teleop → LeRobot<a class="headerlink" href="#sim-teleop-lerobot" title="Permanent link">&para;</a></h1>
+<p>Turns raw sim-teleop captures (SO-101 / GELLO → the OmniGibson Franka) into a
+LeRobot v2.1 dataset for SFT. Two stages, both driven by the template
+<code>scripts/render_teleop_to_lerobot.sh</code> (edit only its CONFIG block per family):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w">            </span><span class="c1"># both stages</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage1<span class="w">   </span><span class="c1"># re-render raw teleop → joint+3cam HDF5</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage2<span class="w">   </span><span class="c1"># rendered HDF5 → LeRobot v2.1 (local build)</span>
 </code></pre></div>
-<p>Real hardware with FK:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>lerobot
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>teleop_bridge/SO-ARM100/Simulation/SO101
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>python<span class="w"> </span>&lt;repo&gt;/teleop_bridge/so101_server.py<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span>--port<span class="w"> </span>/dev/ttyACM0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>--urdf<span class="w"> </span>&lt;repo&gt;/teleop_bridge/SO-ARM100/Simulation/SO101/so101_new_calib.urdf
-</code></pre></div>
-<p>Expected startup log:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ZMQ PUB bound on tcp://*:5557
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>SO-101 leader connected on /dev/ttyACM0
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>FK solver loaded from ...
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>Publishing at 60.0 Hz. Press Ctrl+C to stop.
-</code></pre></div></p>
-<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>Per tick (~16.7 ms at 60 Hz):</p>
-<ol>
-<li><code>SO101LeRobotReader.read()</code> calls <code>lerobot</code>'s <code>SO101Leader.get_action()</code>
-   to obtain <code>{"shoulder_pan.pos": deg, ..., "gripper.pos": 0-100}</code>. Arm
-   joints are returned in degrees; gripper is normalised to <code>[0, 1]</code>.</li>
-<li><code>SO101FKComputer.compute()</code> (placo-based <code>RobotKinematics</code>) targets
-   <code>gripper_frame_link</code> and returns a 4x4 transform; the server splits it
-   into <code>(pos: (3,), rot: (3,3))</code>.</li>
-<li>The dict is pickled and sent via <code>zmq.PUB</code> on <code>tcp://*:&lt;zmq-port&gt;</code>.</li>
-</ol>
-<p>Message schema (pickled Python dict):</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>ee_pos</code></td>
-<td><code>np.ndarray (3,)</code></td>
-<td>EE position in metres</td>
-</tr>
-<tr>
-<td><code>ee_rot</code></td>
-<td><code>np.ndarray (3,3)</code></td>
-<td>EE rotation matrix</td>
-</tr>
-<tr>
-<td><code>gripper</code></td>
-<td><code>float</code></td>
-<td>normalised 0-1</td>
-</tr>
-<tr>
-<td><code>joints_deg</code></td>
-<td><code>np.ndarray (5,)</code></td>
-<td>raw arm joints (debugging)</td>
-</tr>
-<tr>
-<td><code>timestamp</code></td>
-<td><code>float</code></td>
-<td><code>time.time()</code> at publish</td>
-</tr>
-</tbody>
-</table>
-<h2 id="source">Source<a class="headerlink" href="#source" title="Permanent link">&para;</a></h2>
-<p><code>teleop_bridge/so101_server.py</code></p>
+<ul>
+<li><strong>Stage 1 — render</strong> — <code>maniguard.data.playback --input &lt;raw&gt; --output &lt;rendered&gt;</code>
+  (defaults <code>--controller joint --cams 3</code>). Replays the raw teleop HDF5 with
+  physics and records 8-D joint state/action + <code>image_left</code> / <code>image_right</code> /
+  <code>wrist_image</code> at 256×256. Resume-safe; the <code>og.clear()</code> teardown segfault
+  <em>after</em> a complete write is expected and harmless (success = a non-empty
+  <code>action</code> dataset, not the exit code). See <a href="../playback/">Playback / render</a>.</li>
+<li><strong>Stage 2 — export</strong> — <code>maniguard.data.lerobot.multitask_lerobot_export</code>
+  discovers <code>task_*_traj_*.hdf5</code>, looks up each task's prompt from
+  <code>&lt;diag-root&gt;/&lt;task&gt;/base/diagnostics.jsonl</code>, and writes one multitask dataset
+  with per-frame <code>task_index</code>. The schema is auto-detected from the playback
+  fingerprint (no schema flags). The template builds locally (no push).</li>
+<li><strong>Push</strong> (separate, explicit) — do <strong>not</strong> re-run the exporter with
+  <code>--push-to-hub</code> on an already-built dataset (<code>LeRobotDataset.create()</code> aborts
+  with <code>FileExistsError</code>). Push the local dataset directly with
+  <code>LeRobotDataset(...).push_to_hub(tag_version=True, push_videos=True, private=True)</code>.</li>
+</ul>
+<p>Naming: <code>&lt;org&gt;/sim-&lt;fam&gt;-30-joint-3cam</code> (e.g. <code>&lt;org&gt;/sim-dusty-transfer-30-joint-3cam</code>).
+The resulting dataset uses the same absolute-joint LeRobot schema as the other
+sources — see <a href="../../sft/dataset_and_config/">SFT dataset &amp; data-source configs</a>.</p>
 
 
 
