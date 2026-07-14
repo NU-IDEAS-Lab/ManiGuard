@@ -5,7 +5,6 @@
 extend-exclude = [
     "behavior-1k/",
     "vla_models/",
-    "Omnireset/",
     "outputs/",
     "log_dir/",
 ]

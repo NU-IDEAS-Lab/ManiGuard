@@ -5,14 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "maniguard"
 dynamic = ["version"]
-description = "LTL safety monitoring, task generation, and VLA policy evaluation for BEHAVIOR-1K manipulation tasks"
+description = "A safety-aware benchmark and toolkit for vision-language-action manipulation: LTL-monitored task generation, data collection, SFT, and policy evaluation on BEHAVIOR-1K / OmniGibson"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "NU-IDEAS Lab" }]
 keywords = ["robotics", "simulation", "LTL", "safety", "BEHAVIOR-1K", "OmniGibson", "VLA"]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Operating System :: POSIX :: Linux",
@@ -66,11 +67,11 @@ exclude = [
 
 [tool.setuptools.package-data]
 maniguard = [
-    "eval/profiles/*.yaml",
-    "task_generation/utils/*.json",
-    "task_generation/curation/*.json",
+    "task_generation/**/*.json",
+    "task_generation/**/*.csv",
     "task_generation/*.md",
-    "task_generation/curation/*.md",
+    "data/**/*.json",
+    "data/datagen/*.md",
 ]
 
 # Version is derived from the latest ``v*`` git tag, so ``pyproject.toml``
