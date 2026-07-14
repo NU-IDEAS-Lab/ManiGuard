@@ -30,3 +30,7 @@ maniguard/task_generation/utils/stack_pipeline/__pycache__/
 
 # mkdocs build output (regenerable via `mkdocs build`)
 site/
+
+# local-only
+CLAUDE.md
+.claude/
