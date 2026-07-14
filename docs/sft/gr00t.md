@@ -23,7 +23,6 @@ and its cameras. The modality config lives in
 | Dataset prep (ManiGuard LeRobot → GR00T layout, AV1→H.264) | `tools/gr00t_sft/prepare_dataset.py` |
 | SFT launcher | `tools/gr00t_sft/run_sft.sh` |
 | End-to-end 6-family driver | `tools/gr00t_sft/run_all.sh` |
-| Rollout / eval driver | `tools/gr00t_sft/run_rollout.sh` |
 | Push checkpoints to HF | `tools/gr00t_sft/push_to_hf.py` |
 
 Training runs against an Isaac-GR00T clone (`n1.6-release`). Model repos follow

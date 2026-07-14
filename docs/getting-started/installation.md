@@ -56,7 +56,7 @@ hf download IDEAS-Lab-Northwestern/franka-panda-longfinger --repo-type dataset \
 
 On `import maniguard`, `FrankaPanda.usd_path` is auto-redirected to this bundle when
 present (it ships the OmniGibson runtime USD + cuRobo description; no URDF needed at
-runtime). Set `SENTINEL_SKIP_LONGFINGER=1` to keep the stock Franka instead.
+runtime). Set `MANIGUARD_SKIP_LONGFINGER=1` to keep the stock Franka instead.
 
 **4b. Benchmark scenes.** The frozen benchmark (per-task `scene_ep1.json` +
 `diagnostics.jsonl` + review videos) lives at

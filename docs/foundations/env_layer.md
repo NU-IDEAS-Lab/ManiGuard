@@ -85,7 +85,7 @@ OmniGibson headless and stops the sim on exit), `ReviewVideoRecorder` +
 `position_diagnostics_cameras()` (taskgen-style multi-camera review MP4s),
 `step_idle()`, `compute_floor_z()`, `save_scene_snapshot()`, and
 `resolve_runtime_python()` (locates a torch-capable interpreter; override with
-`SENTINEL_RUNTIME_PYTHON`).
+`MANIGUARD_RUNTIME_PYTHON`).
 
 ## Runtime perturbations (`perturbation_runtime.py`)
 

@@ -69,49 +69,15 @@ family via the policy config's `external_cam`.
 
 ## Source 2 — Sim teleop
 
-GELLO / SO-101 teleop demos, re-rendered joint + 3-cam and exported to a
-multitask dataset. Driven by the template `scripts/render_teleop_to_lerobot.sh`
-(edit only its CONFIG block per family):
+GELLO / SO-101 teleop demos, re-rendered to joint + 3-cam and exported to a
+multitask LeRobot dataset. Full recipe (Stage 1 render → Stage 2 export, the
+`render_teleop_to_lerobot.sh` template): **[Sim teleop → LeRobot](../teleop/teleop_to_lerobot.md)**.
 
-```bash
-conda activate behavior
-bash scripts/render_teleop_to_lerobot.sh            # both stages
-bash scripts/render_teleop_to_lerobot.sh --stage1   # re-render raw teleop → joint+3cam HDF5
-bash scripts/render_teleop_to_lerobot.sh --stage2   # rendered HDF5 → LeRobot v2.1 (local build)
-```
-
-- **Stage 1** — `maniguard.data.playback --input <raw> --output <rendered>`
-  (defaults `--controller joint --cams 3`). Records 8-D joint state/action +
-  `image_left`/`image_right`/`wrist_image` at 256×256. Resume-safe; the
-  `og.clear()` teardown segfault *after* a complete write is expected and
-  harmless (success = non-empty `action` dataset, not exit code).
-- **Stage 2** — `maniguard.data.lerobot.multitask_lerobot_export` discovers
-  `task_*_traj_*.hdf5`, looks up each task's prompt from
-  `<diag-root>/<task>/base/diagnostics.jsonl`, and writes one multitask dataset
-  with per-frame `task_index`. Schema is auto-detected from the playback
-  fingerprint (no schema flags). The template builds locally (no push).
-- **Push** (separate, explicit) — do **not** re-run the exporter with
-  `--push-to-hub` on an already-built dataset (`LeRobotDataset.create()` aborts
-  with `FileExistsError`). Push the local dataset directly with
-  `LeRobotDataset(...).push_to_hub(tag_version=True, push_videos=True, private=True)`.
-
-Naming: `<org>/sim-<fam>-30-joint-3cam` (e.g. `IDEAS-Lab-Northwestern/sim-dusty-transfer-30-joint-3cam`).
+Naming: `<org>/sim-<fam>-30-joint-3cam` (e.g. `<org>/sim-dusty-transfer-30-joint-3cam`).
 
 ## Source 3 — Real teleop
 
 Real Franka teleop capture (`.npz`) → LeRobot v2.1 in the DROID **joint**
-convention (openpi's DROID pretrained convention is joint-space):
-
-```bash
-.venv-lerobot/bin/python -m maniguard.data.real_teleop.real_teleop_to_droid \
-  --input-dir outputs/real_teleop \
-  --repo-id <org>/<task> --prompt "<instruction>" \
-  --root outputs/lerobot_datasets/<org>/<task> \
-  --push-to-hub <org>/<task> --hub-private
-```
-
-`real_teleop_to_droid` assembles 8-D state `[joint_position(7), gripper]` + 8-D
-action `[joint_velocity(7), gripper[t+1]]`, decodes/crops/resizes the cameras,
-and (via `--push-to-hub`) creates the required v2.1 tag. This is joint-space
-throughout — consistent with the sim tracks. (fps 15; the DROID schema keeps
-state columns separate rather than a single `state` column.)
+convention: 8-D state `[joint_position(7), gripper]` + 8-D action, joint-space
+throughout (consistent with the sim tracks), fps 15. Full recipe:
+**[Real-robot teleop → LeRobot](../teleop/real_teleop.md)**.

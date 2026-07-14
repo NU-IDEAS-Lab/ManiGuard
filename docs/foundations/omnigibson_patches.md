@@ -9,7 +9,7 @@ behaviors it needs that aren't in upstream are installed at runtime by
 import maniguard   # calls maniguard._omnigibson_patches.apply()
 ```
 
-`apply()` is idempotent. Set `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` to skip it
+`apply()` is idempotent. Set `MANIGUARD_SKIP_OMNIGIBSON_PATCH=1` to skip it
 entirely (e.g. lightweight pure-Python consumers that never touch the
 simulator). If OmniGibson isn't importable, the eager patches are silently
 skipped so non-sim tooling still works.
@@ -44,9 +44,9 @@ Runtime toggles for the patch layer (all read at `import maniguard`):
 
 | Variable | Effect |
 |---|---|
-| `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` | skip all patches (no sim needed) |
-| `SENTINEL_SKIP_LONGFINGER=1` | skip the long-finger Franka asset patch |
-| `SENTINEL_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps (set N ≈ physics-steps-per-action-step to fire once per env step) |
+| `MANIGUARD_SKIP_OMNIGIBSON_PATCH=1` | skip all patches (no sim needed) |
+| `MANIGUARD_SKIP_LONGFINGER=1` | skip the long-finger Franka asset patch |
+| `MANIGUARD_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps (set N ≈ physics-steps-per-action-step to fire once per env step) |
 
 These variables are read at runtime by the patch module; nothing else needs to
 be configured to enable the patches.

@@ -11,8 +11,8 @@ the section that documents it.
 | `data/teleop/` | SO-101 / GELLO human teleop | [Data Collection](data_collection/index.md) | `python -m maniguard.data.teleop.{so101,gello}_franka_teleop` |
 | `data/datagen/` | scripted sim demo collection → LeRobot | [Sim datagen](datagen/pipeline.md) | `python -m maniguard.data.datagen.{driver,sweep,to_lerobot}` |
 | `data/playback.py` | render teleop HDF5 → SFT obs | [Data Collection](data_collection/index.md) | `python -m maniguard.data.playback` |
-| `data/lerobot/` | teleop HDF5 → LeRobot export + norm stats | [SFT](sft/index.md) | `python -m maniguard.data.lerobot.{multitask_lerobot_export,norm_stats}` |
-| `data/real_teleop/` | real npz → LeRobot (DROID joint) | [SFT (real)](sft/dataset_and_config.md) | `python -m maniguard.data.real_teleop.real_teleop_to_droid` |
+| `data/lerobot/` | sim teleop HDF5 → LeRobot multitask export | [Sim teleop → LeRobot](teleop/teleop_to_lerobot.md) | `python -m maniguard.data.lerobot.multitask_lerobot_export` |
+| `data/real_teleop/` | real npz → LeRobot (DROID joint) | [Real teleop](teleop/real_teleop.md) | `python -m maniguard.data.real_teleop.real_teleop_to_droid` |
 | `data/scene/` | benchmark-set prep | [Evaluation](evaluation/index.md) | `python -m maniguard.data.scene.{benchmark_repair,trim_scene_to_room,rewrite_scene_robot}` |
 | `eval/` | policy benchmark loop | [Evaluation](evaluation/index.md) | `python -m maniguard.eval.benchmark --config <yaml>` |
 | `serve/` | websocket policy server | [Evaluation](evaluation/index.md) | `python -m maniguard.serve.openpi_native` |
@@ -25,10 +25,10 @@ the section that documents it.
 
 | Variable | Effect |
 |---|---|
-| `SENTINEL_SKIP_OMNIGIBSON_PATCH=1` | skip all runtime patches (no simulator needed) |
-| `SENTINEL_SKIP_LONGFINGER=1` | skip the long-finger Franka asset patch |
-| `SENTINEL_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps |
-| `SENTINEL_RUNTIME_PYTHON` | torch-capable interpreter for frozen-task replay |
+| `MANIGUARD_SKIP_OMNIGIBSON_PATCH=1` | skip all runtime patches (no simulator needed) |
+| `MANIGUARD_SKIP_LONGFINGER=1` | skip the long-finger Franka asset patch |
+| `MANIGUARD_AG_SUBSTEP_INTERVAL=N` | fire assisted-grasp once per N physics substeps |
+| `MANIGUARD_RUNTIME_PYTHON` | torch-capable interpreter for frozen-task replay |
 | `OMNIGIBSON_HEADLESS=1` · `VK_ICD_FILENAMES` | headless GPU rendering |
 | `OMNIGIBSON_DATA_PATH` | override the BEHAVIOR dataset root |
 | `CUDA_VISIBLE_DEVICES` | GPU selection |
