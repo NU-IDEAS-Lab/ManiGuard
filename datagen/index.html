@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/datagen/grasp_annotation/">
+        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/datagen/">
       
       
-        <link rel="prev" href="../pipeline/">
+        <link rel="prev" href="../teleop/real_teleop/">
       
       
-        <link rel="next" href="../lerobot_conversion/">
+        <link rel="next" href="annotation/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Grasp annotation - ManiGuard</title>
+        <title>Scripted datagen - ManiGuard</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="../../stylesheets/mg-carousel.css">
+      <link rel="stylesheet" href="../stylesheets/mg-carousel.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#grasp-annotation" class="md-skip">
+        <a href="#scripted-datagen" class="md-skip">
           Skip to content
         </a>
       
@@ -96,7 +96,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="ManiGuard" class="md-header__button md-logo" aria-label="ManiGuard" data-md-component="logo">
+    <a href=".." title="ManiGuard" class="md-header__button md-logo" aria-label="ManiGuard" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Grasp annotation
+              Scripted datagen
             
           </span>
         </div>
@@ -221,7 +221,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
   
@@ -242,7 +242,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../getting-started/installation/" class="md-tabs__link">
+        <a href="../getting-started/installation/" class="md-tabs__link">
           
   
   
@@ -264,29 +264,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../architecture/overview/" class="md-tabs__link">
-          
-  
-  
-    
-  
-  Concepts & Foundations
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../pipelines/" class="md-tabs__link">
+        <a href="../pipelines/" class="md-tabs__link">
           
   
   
@@ -310,7 +288,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../data_collection/" class="md-tabs__link">
+        <a href="../data_collection/" class="md-tabs__link">
           
   
   
@@ -332,7 +310,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../sft/" class="md-tabs__link">
+        <a href="../sft/" class="md-tabs__link">
           
   
   
@@ -354,7 +332,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../evaluation/" class="md-tabs__link">
+        <a href="../evaluation/" class="md-tabs__link">
           
   
   
@@ -373,8 +351,30 @@
   
   
   
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Foundations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
     <li class="md-tabs__item">
-      <a href="../../reference/" class="md-tabs__link">
+      <a href="../reference/" class="md-tabs__link">
         
   
   
@@ -415,7 +415,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="ManiGuard" class="md-nav__button md-logo" aria-label="ManiGuard" data-md-component="logo">
+    <a href=".." title="ManiGuard" class="md-nav__button md-logo" aria-label="ManiGuard" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -445,7 +445,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -528,7 +528,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/installation/" class="md-nav__link">
+      <a href="../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -566,6 +566,8 @@
     
       
         
+          
+        
       
         
       
@@ -589,191 +591,8 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Concepts & Foundations
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Concepts & Foundations
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../architecture/overview/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture overview
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../foundations/env_layer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Environment layer
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../foundations/ltl_safety/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    LTL safety system
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../foundations/omnigibson_patches/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    OmniGibson patches & configs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
-        
-          
           <div class="md-nav__link md-nav__container">
-            <a href="../../pipelines/" class="md-nav__link ">
+            <a href="../pipelines/" class="md-nav__link ">
               
   
   
@@ -791,14 +610,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -844,10 +663,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
         
           
-          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
             
   
   
@@ -865,8 +684,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_2">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -883,7 +702,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/clutter_pickup/" class="md-nav__link">
+      <a href="../pipelines/clutter_pickup/" class="md-nav__link">
         
   
   
@@ -911,7 +730,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/cabinet_pickup/" class="md-nav__link">
+      <a href="../pipelines/cabinet_pickup/" class="md-nav__link">
         
   
   
@@ -939,7 +758,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/stack_retrieve/" class="md-nav__link">
+      <a href="../pipelines/stack_retrieve/" class="md-nav__link">
         
   
   
@@ -967,7 +786,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/jar_transport/" class="md-nav__link">
+      <a href="../pipelines/jar_transport/" class="md-nav__link">
         
   
   
@@ -995,7 +814,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/dusty_transfer/" class="md-nav__link">
+      <a href="../pipelines/dusty_transfer/" class="md-nav__link">
         
   
   
@@ -1023,7 +842,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/lid_transport/" class="md-nav__link">
+      <a href="../pipelines/lid_transport/" class="md-nav__link">
         
   
   
@@ -1082,10 +901,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
         
           
-          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
             
   
   
@@ -1103,8 +922,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_3">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1121,7 +940,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/data_flow/" class="md-nav__link">
+      <a href="../pipelines/data_flow/" class="md-nav__link">
         
   
   
@@ -1149,7 +968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/custom_pipeline/" class="md-nav__link">
+      <a href="../pipelines/custom_pipeline/" class="md-nav__link">
         
   
   
@@ -1177,7 +996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/empty_scene/" class="md-nav__link">
+      <a href="../pipelines/empty_scene/" class="md-nav__link">
         
   
   
@@ -1205,7 +1024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/transfer/" class="md-nav__link">
+      <a href="../pipelines/transfer/" class="md-nav__link">
         
   
   
@@ -1241,7 +1060,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/other_families/" class="md-nav__link">
+      <a href="../pipelines/other_families/" class="md-nav__link">
         
   
   
@@ -1304,11 +1123,11 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../data_collection/" class="md-nav__link ">
+            <a href="../data_collection/" class="md-nav__link ">
               
   
   
@@ -1326,14 +1145,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1384,10 +1203,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
         
           
-          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
             
   
   
@@ -1405,8 +1224,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_2">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1423,7 +1242,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../teleop/so101_franka/" class="md-nav__link">
+      <a href="../teleop/so101_franka/" class="md-nav__link">
         
   
   
@@ -1451,7 +1270,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../teleop/so101_server/" class="md-nav__link">
+      <a href="../teleop/so101_server/" class="md-nav__link">
         
   
   
@@ -1479,7 +1298,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../teleop/gello_franka/" class="md-nav__link">
+      <a href="../teleop/gello_franka/" class="md-nav__link">
         
   
   
@@ -1507,7 +1326,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../teleop/gello_calibration/" class="md-nav__link">
+      <a href="../teleop/gello_calibration/" class="md-nav__link">
         
   
   
@@ -1535,7 +1354,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../teleop/playback/" class="md-nav__link">
+      <a href="../teleop/playback/" class="md-nav__link">
         
   
   
@@ -1563,7 +1382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../teleop/teleop_to_lerobot/" class="md-nav__link">
+      <a href="../teleop/teleop_to_lerobot/" class="md-nav__link">
         
   
   
@@ -1591,7 +1410,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../teleop/real_teleop/" class="md-nav__link">
+      <a href="../teleop/real_teleop/" class="md-nav__link">
         
   
   
@@ -1632,6 +1451,12 @@
     
       
         
+          
+        
+      
+        
+      
+        
       
         
       
@@ -1653,11 +1478,12 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="">
-            
+          <div class="md-nav__link md-nav__container">
+            <a href="./" class="md-nav__link md-nav__link--active">
+              
   
   
   <span class="md-ellipsis">
@@ -1671,11 +1497,17 @@
   
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
+            </a>
+            
+              
+              <label class="md-nav__link md-nav__link--active" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5_3">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_3">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1686,20 +1518,22 @@
           <ul class="md-nav__list" data-md-scrollfix>
             
               
+            
+              
                 
   
   
   
   
     <li class="md-nav__item">
-      <a href="../pipeline/" class="md-nav__link">
+      <a href="annotation/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Pipeline
+    Grasp annotation
   
 
     
@@ -1717,44 +1551,17 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Grasp annotation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="collection/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Grasp annotation
+    Collection
   
 
     
@@ -1763,125 +1570,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-shared-grasp-database" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The shared grasp database
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Environment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Workflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-a-mesh-extraction-needs-sim-one-time" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase A — mesh extraction (needs sim, one-time)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-b-gui-annotation-annotate_tool-no-sim" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase B — GUI annotation (annotate_tool, no sim)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#qc-trio-after-annotating" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        QC trio — after annotating
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#optional-programmatic-top-down-grasps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optional — programmatic top-down grasps
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#gotchas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Gotchas
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#per-family-quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-family quick reference
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1894,14 +1582,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../lerobot_conversion/" class="md-nav__link">
+      <a href="conversion/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    RAW → LeRobot conversion
+    Review & conversion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="families/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Families & gotchas
   
 
     
@@ -1966,11 +1682,11 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../sft/" class="md-nav__link ">
+            <a href="../sft/" class="md-nav__link ">
               
   
   
@@ -1988,14 +1704,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2014,7 +1730,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/dataset_and_config/" class="md-nav__link">
+      <a href="../sft/dataset_and_config/" class="md-nav__link">
         
   
   
@@ -2042,7 +1758,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/openpi/" class="md-nav__link">
+      <a href="../sft/openpi/" class="md-nav__link">
         
   
   
@@ -2070,7 +1786,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/gr00t/" class="md-nav__link">
+      <a href="../sft/gr00t/" class="md-nav__link">
         
   
   
@@ -2098,7 +1814,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/smolvla/" class="md-nav__link">
+      <a href="../sft/smolvla/" class="md-nav__link">
         
   
   
@@ -2126,7 +1842,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/end_to_end/" class="md-nav__link">
+      <a href="../sft/end_to_end/" class="md-nav__link">
         
   
   
@@ -2182,11 +1898,11 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../evaluation/" class="md-nav__link ">
+            <a href="../evaluation/" class="md-nav__link ">
               
   
   
@@ -2204,14 +1920,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2230,7 +1946,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../evaluation/engagement_metric/" class="md-nav__link">
+      <a href="../evaluation/engagement_metric/" class="md-nav__link">
         
   
   
@@ -2264,8 +1980,189 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
-      <a href="../../reference/" class="md-nav__link">
+      <a href="../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../foundations/env_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environment layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../foundations/ltl_safety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTL safety system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../foundations/omnigibson_patches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OmniGibson patches & configs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
         
   
   
@@ -2312,10 +2209,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-shared-grasp-database" class="md-nav__link">
+  <a href="#the-six-stages" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The shared grasp database
+        The six stages
       
     </span>
   </a>
@@ -2323,10 +2220,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#environment" class="md-nav__link">
+  <a href="#pre-collected-datasets-continued-collection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment
+        Pre-collected datasets &amp; continued collection
       
     </span>
   </a>
@@ -2334,76 +2231,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#workflow" class="md-nav__link">
+  <a href="#environment-prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Workflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-a-mesh-extraction-needs-sim-one-time" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase A — mesh extraction (needs sim, one-time)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#phase-b-gui-annotation-annotate_tool-no-sim" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase B — GUI annotation (annotate_tool, no sim)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#qc-trio-after-annotating" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        QC trio — after annotating
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#optional-programmatic-top-down-grasps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optional — programmatic top-down grasps
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#gotchas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Gotchas
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#per-family-quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-family quick reference
+        Environment &amp; prerequisites
       
     </span>
   </a>
@@ -2427,7 +2258,7 @@
 
 
   
-    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/datagen/grasp_annotation.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/datagen/index.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2435,132 +2266,170 @@
   
 
 
-<h1 id="grasp-annotation">Grasp annotation<a class="headerlink" href="#grasp-annotation" title="Permanent link">&para;</a></h1>
-<p>The scripted <a href="../pipeline/">datagen pipeline</a> does not auto-generate grasps — its
-grasp source is <strong>per-instance human annotation</strong>. Each object that ever needs to
-be grasped (a task target, a relocated obstacle, a cabinet handle) gets its grasp
-poses annotated once against its mesh and stored in <strong>one JSON database shared by
-all six families</strong>. At collection time the executor looks each grasp up by
-<code>category/model</code> and feeds it to cuRobo.</p>
-<p>Because a grasp is annotated on the <em>object model</em>, it is <strong>family-agnostic</strong>:
-switching family only changes which objects you filter to annotate (<code>--family</code>).</p>
-<p>Code: <code>maniguard/data/datagen/annotation/</code>. Data: <code>outputs/grasp_annotation/</code>
-(<strong>gitignored</strong> — it is user data).</p>
-<h2 id="the-shared-grasp-database">The shared grasp database<a class="headerlink" href="#the-shared-grasp-database" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>File</strong>: <code>outputs/grasp_annotation/grasp_annotations.json</code></li>
-<li><strong>Key</strong>: <code>"category/model"</code> (per-object, <em>not</em> per-task/per-family) — all six
-  families read and extend the same file.</li>
-<li><strong>Each grasp</strong> = a target pose for the <strong><code>eef_link</code></strong>, stored in the
-  <strong>object-local frame</strong>: <code>position</code> + <code>orientation_xyzw</code>.</li>
-<li><strong>Runtime bridge</strong> (<code>grasp_db.py</code>): <code>T_eef_world = T_object_world @ T_grasp_local</code>
-  → fed straight to cuRobo IK, <strong>zero conversion</strong> (verified object-relative and
-  exact to ~1e-16; <code>validate_grasps</code> confirms 0.0 mm in sim).</li>
-<li><strong>Gripper eef-local frame</strong> (sim-measured): fingertips / <strong>approach = eef +Z</strong>,
-  <strong>closing (between fingers) = eef −Y</strong>. The GUI draws the real longfinger
-  gripper at the draft pose using this frame.</li>
-<li><strong>Prerequisite mesh DB</strong>: <code>outputs/grasp_annotation/mesh_db.json</code> (Phase A
-  output; the GUI renders objects from it). Cabinet also uses <code>cabinet_geom.json</code>
-  (handle / drawer geometry).</li>
-</ul>
-<h2 id="environment">Environment<a class="headerlink" href="#environment" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PYTHONPATH</span><span class="o">=</span>/path/to/ManiGuard<span class="w">               </span><span class="c1"># repo root</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># sim steps (Phase A / validate_grasps) also need:</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OMNIGIBSON_HEADLESS</span><span class="o">=</span><span class="m">1</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">VK_ICD_FILENAMES</span><span class="o">=</span>/usr/share/vulkan/icd.d/nvidia_icd.json<span class="w">   </span><span class="c1"># point at a valid local ICD</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CUDA_VISIBLE_DEVICES</span><span class="o">=</span><span class="m">0</span>
+<h1 id="scripted-datagen">Scripted datagen<a class="headerlink" href="#scripted-datagen" title="Permanent link">&para;</a></h1>
+<p>The <strong><code>maniguard/data/datagen/</code></strong> pipeline turns the read-only <strong>ManiGuard-Bench</strong>
+base tasks into large numbers of <strong>success + safe</strong> demonstrations — fully scripted,
+no teleop, no per-trajectory human review. The only human input is the grasp source:
+each grasp is <strong>authored once</strong> in a GUI and stored as a 6-DOF end-effector pose.</p>
+<video autoplay muted loop playsinline controls width="768" style="max-width:100%; border-radius:6px;">
+  <source src="datagen_6fam_montage.mp4" type="video/mp4">
+</video>
+<p style="text-align:center;"><em>One representative scripted demonstration per family — collected fully autonomously.</em></p>
+
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>grasp annotation DB ─►┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                      ├─►  cuRobo planning  ─►  per-family motion segments  ─►  demo
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>frozen bench task  ─► ┘         (execute + record every step)                   │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                                                                success gate ───┤ keep only
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                                                                LTL safety gate ┘ success+safe
 </code></pre></div>
-<h2 id="workflow">Workflow<a class="headerlink" href="#workflow" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Phase A: extract meshes (sim, one-time)  →  Phase B: GUI annotate (no sim)  →  QC trio (mostly no sim)
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  extract_meshes / extract_cabinet          annotate_tool                     fix_approach_tags → mesh_review → validate_grasps
+<div class="admonition abstract">
+<p class="admonition-title">Design in one line</p>
+<p>A <em>generic executor</em> plans / executes / gates / records / scales every family
+identically; each <em>family skeleton</em> only declares <strong>which motion segments make up
+the task</strong>. They meet at one interface (<code>MotionSegment</code> + <code>FamilySkeleton</code>), so
+adding a family is "new task semantics, everything else reused."</p>
+</div>
+<h2 id="the-six-stages">The six stages<a class="headerlink" href="#the-six-stages" title="Permanent link">&para;</a></h2>
+<p>Three groups — <strong>prep</strong> (once per object set), <strong>collection</strong> (per base task), and
+<strong>offline</strong> repackaging — documented as one step per page:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>   ┌─ one-time, per object set ──────────────────────────────────────────┐
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>1. extract_meshes      bench tasks ─► object-local GLB + bbox + gripper mesh   (1 OG session)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>2. annotate_tool       viser GUI   ─► grasp_annotations.json (eef-target poses) (NO sim)
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>   └─────────────────────────────────────────────────────────────────────┘
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>   ┌─ collection, per base task (one OG process each) ───────────────────┐
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>3. driver.run_task     base task   ─► N success+safe demos (reset-reuse loop) (sim)
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>4. sweep               many tasks  ─► one subprocess per task, sharded/parallel
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>   └─────────────────────────────────────────────────────────────────────┘
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>   ┌─ offline, no sim ───────────────────────────────────────────────────┐
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>5. review              demos       ─► per-task montage MP4 (quick visual review)
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>6. to_lerobot          demos       ─► LeRobot v2.1 per family (video passthrough)
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>   └─────────────────────────────────────────────────────────────────────┘
 </code></pre></div>
-<h2 id="phase-a-mesh-extraction-needs-sim-one-time">Phase A — mesh extraction (needs sim, one-time)<a class="headerlink" href="#phase-a-mesh-extraction-needs-sim-one-time" title="Permanent link">&para;</a></h2>
-<p>OmniGibson assets are encrypted USD — meshes can only be read through OG. This
-step enumerates each family's grasp <strong>targets</strong>, spawns them, and exports each
-object's local mesh → GLB + bbox + upright orientation into <code>mesh_db.json</code>
-(distractors are not grasped, so not extracted).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--families<span class="w"> </span>clutter_pickup<span class="w">   </span><span class="c1"># [--limit N] [--gripper]</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># the cabinet&#39;s articulated handle (all cabinet tasks share one cabinet model):</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_cabinet
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Page</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1–2 · mesh extraction + grasp annotation</td>
+<td><a href="annotation/">Grasp annotation</a></td>
+</tr>
+<tr>
+<td>3–4 · executor + multi-task sweep</td>
+<td><a href="collection/">Collection</a></td>
+</tr>
+<tr>
+<td>5–6 · review montage + RAW → LeRobot</td>
+<td><a href="conversion/">Review &amp; conversion</a></td>
+</tr>
+<tr>
+<td>per-family task semantics + gotchas</td>
+<td><a href="families/">Families &amp; gotchas</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="pre-collected-datasets-continued-collection">Pre-collected datasets &amp; continued collection<a class="headerlink" href="#pre-collected-datasets-continued-collection" title="Permanent link">&para;</a></h2>
+<p>The task source is
+<strong><a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench">ManiGuard-Bench</a></strong>
+— 6 families, <strong>200 base tasks</strong>, each with a clean in-distribution (ID) instance plus
+4 out-of-distribution (OOD) perturbations (appearance / language / location /
+environment). This pipeline has already collected a large demonstration set against
+<strong>every</strong> base task, and it is <strong>open-ended</strong>: point it at any task and collect as many
+more demos as you want.</p>
+<p><strong>Shipped v1 datasets (public on Hugging Face).</strong> For every base task, <strong>40
+mutually-distinct, success + LTL-safe</strong> trajectories — <strong>8,000 episodes / ~11.6 M
+frames</strong> total — published as <strong>LeRobot v2.1</strong> (8-D joint state/action, 4 third-person +
+1 wrist camera, 30 FPS, 256×256):</p>
+<table>
+<thead>
+<tr>
+<th>Family (bench)</th>
+<th style="text-align: right;">Base tasks</th>
+<th style="text-align: right;">Episodes (×40)</th>
+<th style="text-align: right;">Frames</th>
+<th>HF dataset (<code>&lt;org&gt;/…</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam"><code>clutter_pickup</code></a></td>
+<td style="text-align: right;">55</td>
+<td style="text-align: right;">2,200</td>
+<td style="text-align: right;">901,520</td>
+<td><code>datagen-clutter-v1-joint-5cam</code></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/datagen-cabinet-v1-joint-5cam"><code>cabinet_pickup</code></a></td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">1,400</td>
+<td style="text-align: right;">4,172,962</td>
+<td><code>datagen-cabinet-v1-joint-5cam</code></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/datagen-stack-v1-joint-5cam"><code>stack_retrieve</code></a></td>
+<td style="text-align: right;">28</td>
+<td style="text-align: right;">1,120</td>
+<td style="text-align: right;">2,652,083</td>
+<td><code>datagen-stack-v1-joint-5cam</code></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/datagen-jar-v1-joint-5cam"><code>jar_transport</code></a></td>
+<td style="text-align: right;">26</td>
+<td style="text-align: right;">1,040</td>
+<td style="text-align: right;">946,870</td>
+<td><code>datagen-jar-v1-joint-5cam</code></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/datagen-dusty-v1-joint-5cam"><code>dusty_transfer</code></a></td>
+<td style="text-align: right;">26</td>
+<td style="text-align: right;">1,040</td>
+<td style="text-align: right;">1,879,498</td>
+<td><code>datagen-dusty-v1-joint-5cam</code></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/datagen-lid-v1-joint-5cam"><code>lid_transport</code></a></td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">1,200</td>
+<td style="text-align: right;">1,055,142</td>
+<td><code>datagen-lid-v1-joint-5cam</code></td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td style="text-align: right;"><strong>200</strong></td>
+<td style="text-align: right;"><strong>8,000</strong></td>
+<td style="text-align: right;"><strong>11,608,075</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Continued collection.</strong> The bench tasks + this pipeline are the durable artifacts; the
+shipped 40/task is a starting point, not a cap. Run the <a href="collection/">driver or sweep</a>
+against any base task with a higher success target, then append with the
+<a href="conversion/">converter</a> — the format is identical, so a family's dataset grows to
+whatever scale training needs.</p>
+<h2 id="environment-prerequisites">Environment &amp; prerequisites<a class="headerlink" href="#environment-prerequisites" title="Permanent link">&para;</a></h2>
+<p>Every step: <code>conda activate behavior</code>, <code>PYTHONPATH</code> = repo root. Sim steps (1, 3–5)
+also need <code>OMNIGIBSON_HEADLESS=1</code> +
+<code>VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json</code> and run with <code>python -u</code>
+(the <code>exit 139</code> segfault at <code>og.sim.stop()</code> is a benign teardown). Step 6 runs in a
+separate <code>lerobot</code> env.</p>
+<div class="admonition warning">
+<p class="admonition-title">Install the bench tasks + robot asset first</p>
+<p>The pipeline reads base tasks from a local copy of the bench, and every sim step
+loads the longfinger Franka (details in
+<a href="../getting-started/installation/">Installation</a>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># bench tasks — the source scenes the executor replays</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>hf<span class="w"> </span>download<span class="w"> </span>IDEAS-Lab-Northwestern/ManiGuard-Bench<span class="w"> </span>--repo-type<span class="w"> </span>dataset<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--local-dir<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># robot asset — required by every sim step (auto-picked up on `import maniguard`)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>hf<span class="w"> </span>download<span class="w"> </span>IDEAS-Lab-Northwestern/franka-panda-longfinger<span class="w"> </span>--repo-type<span class="w"> </span>dataset<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--local-dir<span class="w"> </span>behavior-1k/datasets/omnigibson-robot-assets/models/franka/franka_panda_longfinger
 </code></pre></div>
-<h2 id="phase-b-gui-annotation-annotate_tool-no-sim">Phase B — GUI annotation (<code>annotate_tool</code>, no sim)<a class="headerlink" href="#phase-b-gui-annotation-annotate_tool-no-sim" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.annotate_tool<span class="w"> </span>--family<span class="w"> </span>clutter
-</code></pre></div>
-<ul>
-<li>The terminal prints <strong><code>http://localhost:8080</code></strong> — open it for the
-  <a href="https://viser.studio">viser</a> GUI. The object is shown <strong>upright</strong> (its scene
-  orientation) with the world XYZ axes and the longfinger gripper drawn at the
-  current draft grasp.</li>
-<li><strong>Two input modes, both producing the same stored record:</strong></li>
-<li><strong>Guided</strong> (default): click a surface point + pick an approach preset
-    (<code>top_down</code> / <code>side_*</code>) + drag the yaw/depth sliders. Fastest for regular
-    top/side grasps.</li>
-<li><strong>Free</strong> (toggle): a 6-DoF drag gizmo on the gripper for odd semantic grasps
-    (rim / handle / stem).</li>
-<li><strong>Save</strong> with <strong>Enter</strong> (or "✚ save grasp"): each grasp is written
-  <strong>incrementally</strong> to <code>grasp_annotations.json</code>; reopening <strong>auto-resumes</strong> and
-  never overwrites existing grasps. One object may carry several grasps.</li>
-<li><code>--family X</code> only filters which objects are listed; omit it for all objects.</li>
-</ul>
-<h2 id="qc-trio-after-annotating">QC trio — after annotating<a class="headerlink" href="#qc-trio-after-annotating" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong><code>fix_approach_tags.py</code></strong> (no sim) rewrites each grasp's <code>approach_hint</code> from
-   its <strong>actual stored pose</strong> (the GUI dropdown is often left wrong). Bands:
-   <code>top_down 0–60° / side 60–120° / bottom_up 120–180°</code>; ambiguous cases are
-   reported, not changed. Default dry-run; <code>--apply</code> writes back.
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.fix_approach_tags<span class="w"> </span>--family<span class="w"> </span>clutter<span class="w"> </span>--apply
-</code></pre></div></li>
-<li><strong><code>mesh_review.py</code></strong> (no sim, seconds/object — the point-cloud review) writes
-   <strong>one PNG per object</strong>: the object point cloud + the gripper point cloud drawn
-   at each annotated grasp, from 3 viewpoints (oblique / side / top) with a fixed
-   world-XYZ triad. The labelled approach is derived from the stored pose (not the
-   dropdown). Use it immediately after annotating to eyeball that the grasps sit
-   where intended.
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.mesh_review<span class="w"> </span>--family<span class="w"> </span>clutter<span class="w">   </span><span class="c1"># [--object cat/model]</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># → outputs/grasp_annotation/mesh_review/&lt;cat__model&gt;.png</span>
-</code></pre></div></li>
-<li><strong><code>validate_grasps.py</code></strong> (heavy sim, run later in a time block) loads each
-   grasp into its source task, teleports the robot base so <code>eef_link</code> lands
-   <strong>exactly</strong> on the grasp (no IK ambiguity), hides the non-gripper arm, and
-   renders the 4 bench cameras + a matplotlib 3D closeup — confirming the grasp
-   really lands on the intended part. Run <strong>one object per process</strong>.
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.validate_grasps<span class="w"> </span>--object<span class="w"> </span>&lt;cat&gt;/&lt;model&gt;<span class="w">   </span><span class="c1"># key = DB category/model; [--limit N]</span>
-</code></pre></div></li>
-</ol>
-<p><strong>Recommended cadence:</strong> annotate a family → <code>fix_approach_tags --apply</code> →
-<code>mesh_review</code> (seconds-scale self-check) → confirm → next family. Defer the heavy
-<code>validate_grasps</code> sim to a later consolidated pass (mesh-vs-sim cross-check).</p>
-<h2 id="optional-programmatic-top-down-grasps">Optional — programmatic top-down grasps<a class="headerlink" href="#optional-programmatic-top-down-grasps" title="Permanent link">&para;</a></h2>
-<p>For <strong>sticky-grasp</strong> families where force-closure is impossible (e.g. a cabinet
-slab wider than the gripper; sticky grasping engages on first contact),
-<code>generate_topdown_grasps.py</code> synthesizes straight-down grasps: approach = world
-−Z, a fan of yaws about the vertical axis, centred over the object's top face.
-Vertical descent avoids the failure modes of hand-annotated edge grasps on slabs
-(reorient about a tilted axis → tip-over, off-centre → wrist droop, palm-flip →
-wrist near limit). Default dry-run; <code>--apply</code> writes into the DB.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.generate_topdown_grasps<span class="w"> </span>--cabinet-all<span class="w"> </span>--n-yaw<span class="w"> </span><span class="m">6</span><span class="w"> </span>--apply
-</code></pre></div>
-<h2 id="gotchas">Gotchas<a class="headerlink" href="#gotchas" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong><code>validate_grasps</code> is one-object-per-process</strong>: <code>og.clear()</code> across tasks
-  breaks the cameras, so pass <code>--object</code> and run singly (headless mid-run camera
-  reposition doesn't re-render, hence the matplotlib closeup).</li>
-<li>Sim steps run with <code>python -u</code>; the <code>og.sim.stop()</code> <strong>exit 139</strong> at teardown is
-  a benign segfault.</li>
-<li>The DB is <strong>gitignored</strong> user data — to move to another machine, either re-run
-  the annotation or sync <code>outputs/grasp_annotation/</code> (mesh GLBs included).</li>
-<li>After re-annotating, the consumer (the datagen executor via <code>grasp_db.py</code>)
-  needs no change — the next collection reads the new DB automatically.</li>
-</ul>
-<h2 id="per-family-quick-reference">Per-family quick reference<a class="headerlink" href="#per-family-quick-reference" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># 1) extract meshes (sim, once)          2) GUI annotate (browser)          3) QC trio</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--families<span class="w"> </span>&lt;FAM&gt;_pickup
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>python<span class="w">    </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.annotate_tool<span class="w">  </span>--family<span class="w"> </span>&lt;FAM&gt;<span class="w">       </span><span class="c1">#  → localhost:8080, Enter to save</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>python<span class="w">    </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.fix_approach_tags<span class="w"> </span>--family<span class="w"> </span>&lt;FAM&gt;<span class="w"> </span>--apply
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>python<span class="w">    </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.mesh_review<span class="w">       </span>--family<span class="w"> </span>&lt;FAM&gt;<span class="w">    </span><span class="c1"># point-cloud self-check</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.validate_grasps<span class="w">   </span>--object<span class="w"> </span>&lt;cat&gt;/&lt;model&gt;<span class="w">   </span><span class="c1"># later, one object per process</span>
-</code></pre></div>
+</div>
+<p><strong>Next step →</strong> <a href="annotation/">Grasp annotation</a></p>
 
 
 
@@ -2616,12 +2485,12 @@ wrist near limit). Default dry-run; <code>--apply</code> writes into the DB.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
-        <script src="../../javascripts/mg-carousel.js"></script>
+        <script src="../javascripts/mg-carousel.js"></script>
       
     
   </body>
