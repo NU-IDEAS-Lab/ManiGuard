@@ -28,7 +28,8 @@ cd ..
 
 Available flags: `--omnigibson`, `--bddl`, `--joylo`, `--dataset`, `--eval`,
 `--asset-pipeline`, `--primitives`, `--dev`.
-Dependencies: `--omnigibson` requires `--bddl`; `--primitives` requires `--omnigibson`.
+Dependencies: `--omnigibson` requires `--bddl`; `--primitives` and `--dataset` require
+`--omnigibson`; `--eval` requires `--omnigibson` + `--joylo`.
 
 ## 3. Install ManiGuard (editable)
 

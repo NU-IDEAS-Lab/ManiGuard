@@ -3,16 +3,11 @@
 The data-collection stage turns a frozen task (from [task generation](../pipelines/index.md))
 into manipulation demonstrations. There are two collection methods:
 
-1. **Teleop** (human-driven) — drive the **simulated** Franka with an SO-101 or
-   GELLO leader (raw HDF5 → playback render → LeRobot v2.1), or convert **real**
-   Franka teleop captures (npz → LeRobot). See
-   [Sim teleop → LeRobot](../teleop/teleop_to_lerobot.md) and
-   [Real-robot teleop](../teleop/real_teleop.md).
-2. **Scripted datagen** (autonomous, sim only) — the mature 6-family pipeline
-   replays a frozen bench task and executes it autonomously (cuRobo motion
-   planning + a per-instance human grasp-annotation DB), recording success+safe
-   demos and converting RAW → LeRobot v2.1. See
-   [Sim datagen pipeline](../datagen/pipeline.md).
+1. **[Teleop](#teleop)** (human-driven) — drive the **simulated** Franka with an
+   SO-101 or GELLO leader arm; real Franka teleop captures convert the same way.
+2. **[Scripted datagen](#scripted-datagen)** (autonomous, sim only) — the primary
+   data engine: the 6-family pipeline replays a frozen bench task and executes it
+   autonomously, keeping only success + LTL-safe demos.
 
 ```
 task-gen / bench frozen scene
@@ -30,55 +25,61 @@ All dataset-producing code lives under `maniguard/data/`, grouped by function:
 
 | Subpackage | Role | Documented in |
 |---|---|---|
-| `data/teleop/` | SO-101 / GELLO human teleop → raw HDF5 | this section |
-| `data/datagen/` | scripted 6-family sim demo collection → RAW → LeRobot | [Sim datagen](../datagen/pipeline.md) |
+| `data/teleop/` | SO-101 / GELLO human teleop → raw HDF5 | [Teleop](#teleop) |
+| `data/datagen/` | scripted 6-family sim demo collection → RAW → LeRobot | [Scripted datagen](#scripted-datagen) |
 | `data/playback.py` | replay a teleop HDF5 with physics, render SFT observations | [playback](../teleop/playback.md) |
 | `data/lerobot/` | sim teleop HDF5 → LeRobot v2.1 multitask export | [Sim teleop → LeRobot](../teleop/teleop_to_lerobot.md) |
 | `data/real_teleop/` | real-robot npz → LeRobot (DROID joint / sim-compatible HDF5) | [Real teleop](../teleop/real_teleop.md) |
 | `data/scene/` | benchmark / scene snapshot utilities (repair, trim, robot rewrite, HF resolve) | [Evaluation](../evaluation/index.md) |
 | `data/perturbation_scaling.py` | generate single-level perturbation task sets from base tasks | [Evaluation](../evaluation/index.md) |
 
-The teleop + playback rows are covered here; scripted datagen has its own
-[section](../datagen/pipeline.md); the rest produce or prepare data for the SFT and
-Evaluation stages and are documented there.
-
 ## Teleop
 
-Two physical leaders drive the sim Franka, plus a tool that replays recorded
-sessions:
+Two leader arms drive the simulated Franka — both record the same raw-HDF5 stream,
+and the downstream render/export flow is identical:
 
-| Leader | Follower control | Entry point |
+```
+leader arm (SO-101 / GELLO)  ─►  sim Franka  ─►  raw HDF5  ─►  playback render  ─►  LeRobot v2.1
+```
+
+| Leader | Mapping | Setup & usage |
 |---|---|---|
-| SO-101 (LeRobot, 5-DoF) | EE delta → IK | [`...teleop.so101_franka_teleop`](../teleop/so101_franka.md) |
-| GELLO (7-DoF Dynamixel) | Joint mirroring (no IK) | [`...teleop.gello_franka_teleop`](../teleop/gello_franka.md) |
-| Recorded HDF5 | DataPlaybackWrapper | [`...teleop.so101_franka_playback`](../teleop/playback.md) |
+| **SO-101** (LeRobot, 5-DoF) | EE delta → IK | [SO-101 → Franka](../teleop/so101_franka.md) · [ZMQ server](../teleop/so101_server.md) |
+| **GELLO** (7-DoF Dynamixel) | 1:1 joint mirroring | [GELLO → Franka](../teleop/gello_franka.md) · [calibration](../teleop/gello_calibration.md) |
 
-The SO-101 leader needs LeRobot (Python 3.12) while OmniGibson / Isaac need
-Python 3.10, so it runs split across two processes bridged by a ZMQ PUB/SUB
-socket; GELLO's Dynamixel SDK is import-compatible with the `behavior` env and
-runs in a single process with 1:1 joint mirroring.
+After a session: [Playback / render](../teleop/playback.md) replays the raw HDF5
+with physics and renders SFT observations;
+[Sim teleop → LeRobot](../teleop/teleop_to_lerobot.md) exports the result to a
+LeRobot v2.1 dataset. **Real** Franka teleop captures (npz) convert through the
+same export — see [Real-robot teleop](../teleop/real_teleop.md).
 
-```
-Terminal 1 (Python 3.12)              Terminal 2 (Python 3.10)
-┌──────────────────────┐             ┌──────────────────────────┐
-│  lerobot venv         │   ZMQ PUB  │  behavior conda env       │
-│  SO-101 leader arm    │ ─────────► │  OmniGibson + Franka      │
-│  joint reading + FK   │   60 Hz    │  IK controller + physics  │
-│  so101_server.py      │            │  so101_franka_teleop.py   │
-└──────────────────────┘             └──────────────────────────┘
-```
-
-Raw teleop HDF5 is then rendered into SFT observations by
-[`data/playback.py`](../teleop/playback.md) and exported to a LeRobot dataset —
-see [Sim teleop → LeRobot](../teleop/teleop_to_lerobot.md). Real Franka teleop
-captures convert the same way — see [Real-robot teleop](../teleop/real_teleop.md).
+Teleop is one way to produce demos (and the reference for task feasibility), but
+the datasets that actually feed SFT at scale come from the scripted pipeline below.
 
 ## Scripted datagen
 
-Instead of a human, the mature datagen pipeline replays a frozen bench task and
-executes it autonomously: cuRobo motion planning drives boxy per-family motion
-segments, grasps come from a per-instance human annotation DB, and an LTL gate plus
-a success gate keep only success+safe demos. This scales demo collection to thousands
-of trajectories without hardware, then converts RAW → LeRobot v2.1. See
-[Sim datagen pipeline](../datagen/pipeline.md) and
-[RAW → LeRobot conversion](../datagen/lerobot_conversion.md).
+Instead of a human, the executor replays a frozen bench task and performs it
+**autonomously** — no hardware, no per-trajectory review — scaling collection to
+thousands of trajectories. This is the primary data engine behind the shipped
+`datagen-<fam>-v1-joint-5cam` datasets.
+
+```
+grasp annotation DB ─►┐
+                      ├─►  cuRobo planning  ─►  per-family motion segments  ─►  demo
+frozen bench task  ─► ┘         (execute + record every step)                   │
+                                                                success gate ───┤ keep only
+                                                                LTL safety gate ┘ success+safe
+```
+
+| What | How |
+|---|---|
+| Grasps | per-instance **human annotation DB** — authored once per object in a GUI |
+| Motion | **cuRobo** plans boxy per-family motion segments (one skeleton per family) |
+| Filtering | a demo is kept only if it ends in **success** and was **never LTL-violated** |
+| Output | RAW (MP4 + HDF5) → **LeRobot v2.1** per family, ready for SFT |
+
+The full recipe is documented step by step in the **Scripted datagen** section of the
+sidebar: [Overview & datasets](../datagen/index.md) →
+[Grasp annotation](../datagen/annotation.md) → [Collection](../datagen/collection.md) →
+[Review & conversion](../datagen/conversion.md) →
+[Families & gotchas](../datagen/families.md).

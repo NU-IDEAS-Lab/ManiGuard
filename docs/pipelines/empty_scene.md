@@ -2,7 +2,7 @@
 
 ## What it does
 
-Starts from a bare Scene (floor plane only), spawns a randomized support surface from `placeable.json` plus task objects via the env config `objects` list (grasp_task_demo pattern), then runs one of the standard table tasks (clutter / stack / transfer) on top. Every per-episode random choice — surface model, target, fragile, clutter — is drawn from the same pools as the in-scene pipelines, so a single run produces broad domain randomization without needing a curated room.
+Starts from a bare Scene (floor plane only), spawns a randomized support surface from `placeable_surfaces_v1.json` plus task objects via the env config `objects` list (grasp_task_demo pattern), then runs one of the standard table tasks (clutter / stack / transfer) on top. Every per-episode random choice — surface model, target, fragile, clutter — is drawn from the same pools as the in-scene pipelines, so a single run produces broad domain randomization without needing a curated room.
 
 This pipeline does not subclass `BasePipeline`; it has its own argparse + run loop.
 

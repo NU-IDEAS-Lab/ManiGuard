@@ -28,8 +28,6 @@ mounts the Franka at a reachable edge, and runs an LTL-monitored rollout.
 
 - Shared base gate: robot/target poses finite, base near the floor plane, mount
   pose collision-free, target inside the reach band (0.20–1.10 m).
-- Pack integrity: `validate_pack_integrity` confirms every object landed at its
-  planned position within `integrity_tol_xy`.
 
 ## Safety (LTL)
 

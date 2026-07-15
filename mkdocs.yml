@@ -71,11 +71,6 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: getting-started/installation.md
-  - Concepts & Foundations:
-      - Architecture overview: architecture/overview.md
-      - Environment layer: foundations/env_layer.md
-      - LTL safety system: foundations/ltl_safety.md
-      - OmniGibson patches & configs: foundations/omnigibson_patches.md
   - Task Generation:
       - Pipelines overview: pipelines/index.md
       - Bench families:
@@ -102,9 +97,11 @@ nav:
           - Sim teleop → LeRobot: teleop/teleop_to_lerobot.md
           - Real-robot teleop: teleop/real_teleop.md
       - Scripted datagen:
-          - Pipeline: datagen/pipeline.md
-          - Grasp annotation: datagen/grasp_annotation.md
-          - RAW → LeRobot conversion: datagen/lerobot_conversion.md
+          - datagen/index.md
+          - Grasp annotation: datagen/annotation.md
+          - Collection: datagen/collection.md
+          - Review & conversion: datagen/conversion.md
+          - Families & gotchas: datagen/families.md
   - SFT:
       - Overview: sft/index.md
       - Dataset & data-source configs: sft/dataset_and_config.md
@@ -115,4 +112,9 @@ nav:
   - Evaluation:
       - Overview: evaluation/index.md
       - Engagement & contact-gated safety: evaluation/engagement_metric.md
+  - Foundations:
+      - Architecture overview: architecture/overview.md
+      - Environment layer: foundations/env_layer.md
+      - LTL safety system: foundations/ltl_safety.md
+      - OmniGibson patches & configs: foundations/omnigibson_patches.md
   - Reference: reference.md

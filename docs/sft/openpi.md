@@ -187,7 +187,7 @@ repo's `<remote_label>/params/`, checked against HF itself. Both upload `params/
 python tools/openpi_sft/hf_push.py \
   --ckpt-dir outputs/sft_runs/<exp>/checkpoints/<config>/<exp> \
   --repo <org>/<model-repo> \
-  --num-train-steps <steps> [--readme docs/cards/<card>.md] [--private]
+  --num-train-steps <steps> [--readme <path/to/model_card.md>] [--private]
 ```
 
 ## 7. Gotchas

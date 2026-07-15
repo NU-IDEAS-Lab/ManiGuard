@@ -27,8 +27,9 @@ and its cameras. The modality config lives in
 
 Training runs against an Isaac-GR00T clone (`n1.6-release`). Model repos follow
 `<org>/gr00t-n16-base-datagen-v1-<fam>-joint-2cam` (e.g.
-`IDEAS-Lab-Northwestern/gr00t-n16-base-datagen-v1-clutter-joint-2cam`); run names
-follow `gr00t-n16-base_datagen_v1_<fam>_joint_2cam`. `run_all.sh` drives one family
+`IDEAS-Lab-Northwestern/gr00t-n16-base-datagen-v1-clutter-joint-2cam`); training runs
+log to the `gr00t-n16-base-joint-2cam` wandb project with the family as the
+experiment name. `run_all.sh` drives one family
 (`--family <fam>`) or all six serially (download → prepare → ~2-epoch train → push),
 sharing the dataset cache (`MANIGUARD_SFT_DATA_ROOT`) with the openpi + SmolVLA tracks.
 

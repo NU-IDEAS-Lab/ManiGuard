@@ -9,7 +9,7 @@ the section that documents it.
 |---|---|---|---|
 | `task_generation/` | generate frozen task scenes | [Task Generation](pipelines/index.md) | `python -m maniguard.task_generation.<name>_pipeline` · `…run_benchmark` |
 | `data/teleop/` | SO-101 / GELLO human teleop | [Data Collection](data_collection/index.md) | `python -m maniguard.data.teleop.{so101,gello}_franka_teleop` |
-| `data/datagen/` | scripted sim demo collection → LeRobot | [Sim datagen](datagen/pipeline.md) | `python -m maniguard.data.datagen.{driver,sweep,to_lerobot}` |
+| `data/datagen/` | scripted sim demo collection → LeRobot | [Scripted datagen](datagen/index.md) | `python -m maniguard.data.datagen.{driver,sweep,to_lerobot}` |
 | `data/playback.py` | render teleop HDF5 → SFT obs | [Data Collection](data_collection/index.md) | `python -m maniguard.data.playback` |
 | `data/lerobot/` | sim teleop HDF5 → LeRobot multitask export | [Sim teleop → LeRobot](teleop/teleop_to_lerobot.md) | `python -m maniguard.data.lerobot.multitask_lerobot_export` |
 | `data/real_teleop/` | real npz → LeRobot (DROID joint) | [Real teleop](teleop/real_teleop.md) | `python -m maniguard.data.real_teleop.real_teleop_to_droid` |

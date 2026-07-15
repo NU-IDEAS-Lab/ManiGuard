@@ -37,32 +37,8 @@ manipulation in simulated households. Reinforcement-learning training is under d
 
     Websocket policy eval, goal checking, and benchmark preparation.
 
--   :material-database-cog: **[Sim data generation](datagen/pipeline.md)**
+-   :material-database-cog: **[Sim data generation](datagen/index.md)**
 
     The scripted 6-family demo-collection pipeline + RAW → LeRobot conversion.
 
 </div>
-
-## Repository layout
-
-```
-.
-├── maniguard/            # ManiGuard package (LTL, task-gen, envs, data, eval, serve)
-├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2
-├── tests/               # maniguard-side pytest suites
-├── configs/             # eval / RL / SFT training configs
-├── scripts/             # shell entrypoints
-├── tools/               # one-off utilities
-└── docs/                # this site
-```
-
-**Upstream boundary:** anything under `behavior-1k/` is upstream. Don't modify
-that tree — patch behaviors via `maniguard._omnigibson_patches` instead.
-
-## Building these docs locally
-
-```bash
-pip install mkdocs-material
-mkdocs serve            # preview at http://127.0.0.1:8000
-mkdocs build --strict   # build to ./site, fail on warnings
-```

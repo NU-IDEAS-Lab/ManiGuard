@@ -13,7 +13,7 @@ placement.
 
 ## ManiGuard-Bench families
 
-The released [ManiGuard-Bench](../datagen/pipeline.md) is these **6 families**
+The released [ManiGuard-Bench](../datagen/index.md) is these **6 families**
 (200 base tasks). Each page states the task goal + safety and how the family's
 scenes are generated:
 

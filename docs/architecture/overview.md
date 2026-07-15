@@ -33,20 +33,24 @@ foundation layer. The docs are organized the same way.
 
 ```
 .
-├── maniguard/            # ManiGuard package (all maniguard-owned code)
+├── maniguard/            # ManiGuard Python package (all maniguard-owned code)
 │   ├── _omnigibson_patches.py   # runtime OmniGibson patches (applied on import)
 │   ├── object_states/   #   Dropped, Upright
 │   ├── utils/           #   LTL (ltl_utils, safety_monitor), task_spec, geometry
-│   ├── task_generation/ #   clutter / stack / transfer / lid / liquid / … pipelines
+│   ├── task_generation/ #   clutter / cabinet / stack / jar / lid / dusty / transfer / liquid pipelines
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
-│   ├── data/            #   datagen (scripted SFT collection), teleop, lerobot, real_teleop, scene + playback
+│   ├── data/            #   datagen (scripted SFT demos), bench_builder, teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery
-│   └── serve/           #   websocket VLA policy adapters (openpi reference)
-├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K @ v3.7.2 (upstream)
+│   ├── {openpi,gr00t,smolvla}_sft/  # per-model SFT configs / embodiment
+│   └── serve/           #   websocket VLA policy server (openpi_native)
+├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K (upstream)
+├── docs/                # this documentation site (mkdocs sources)
+├── configs/             # eval / SFT training configs
+├── tools/               # SFT drivers + per-family bench-surgery utilities
+├── scripts/             # shell entrypoints
 ├── tests/               # maniguard-side pytest suites
-├── configs/             # eval / RL / SFT YAML configs
-├── scripts/ · tools/    # shell entrypoints / one-off utilities
-└── docs/                # this site
+├── teleop_bridge/       # ZMQ bridge for SO-101 teleop
+└── vla_models/          # VLA checkpoints (user-downloaded, gitignored)
 ```
 
 ## Upstream boundary

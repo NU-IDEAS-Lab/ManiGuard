@@ -94,7 +94,7 @@ builds an evaluator, compiles the combined formula, and logs the first violation
 
 ### Proposition generation
 
-`AtomicPropositionGenerator(task)` builds an `AtomicPropositionSet` from a BDDL
+`AtomicPropositionGenerator(task)` builds a `PropositionSet` from a BDDL
 task's `object_scope` and the supported predicates — one `AtomicProposition`
 (name, type, `eval_fn`, description) per unary state and per object pair for
 binary relations. `PropositionSet.get_label_dict(env)` returns `{name: bool}` for

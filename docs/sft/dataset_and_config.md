@@ -62,8 +62,8 @@ LeRobot v2.1. This is the current main SFT data source.
 outputs/datagen/<dataset>/<family>/task_*/traj_*   →   to_lerobot   →   datagen-<fam>-v1-joint-5cam
 ```
 
-Full recipe: **[Sim datagen pipeline](../datagen/pipeline.md)** and
-**[RAW → LeRobot conversion](../datagen/lerobot_conversion.md)**. The datagen
+Full recipe: **[Scripted datagen](../datagen/index.md)** (collection
+through RAW → LeRobot conversion). The datagen
 dataset ships all 4 bench overviews + wrist (5 streams); pick the overview per
 family via the policy config's `external_cam`.
 
