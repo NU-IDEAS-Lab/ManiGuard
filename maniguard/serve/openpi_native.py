@@ -4,16 +4,16 @@ Serve an openpi policy natively over websocket.
 Uses openpi's own model loading and serving infrastructure.
 
 Usage:
-    # DROID (CPU, for single-GPU machines)
-    sudo CUDA_VISIBLE_DEVICES="" JAX_PLATFORMS=cpu \
-        <path-to-openpi-venv>/bin/python3 tools/serve_openpi_native.py --config pi05_droid
+    # CPU (for single-GPU machines)
+    CUDA_VISIBLE_DEVICES="" JAX_PLATFORMS=cpu \
+        <path-to-openpi-venv>/bin/python3 -m maniguard.serve.openpi_native --config <train-config>
 
-    # DROID (GPU, needs separate GPU from sim)
-    sudo <path-to-openpi-venv>/bin/python3 tools/serve_openpi_native.py --config pi05_droid
+    # GPU (needs a separate GPU from the sim)
+    <path-to-openpi-venv>/bin/python3 -m maniguard.serve.openpi_native --config <train-config>
 
     # Custom checkpoint path
-    sudo <path-to-openpi-venv>/bin/python3 tools/serve_openpi_native.py \
-        --config pi05_droid --checkpoint /path/to/checkpoint
+    <path-to-openpi-venv>/bin/python3 -m maniguard.serve.openpi_native \
+        --config <train-config> --checkpoint /path/to/checkpoint
 """
 from __future__ import annotations
 

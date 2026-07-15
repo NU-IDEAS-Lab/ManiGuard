@@ -35,7 +35,7 @@ pipeline_tag: robotics
 tags: [robotics, vla, gr00t, gr00t-n1.6, manipulation, maniguard, franka]
 ---
 
-# GR00T-N1.6 - {title} (joint, 3-cam)
+# GR00T-N1.6 - {title} (joint, 2-cam)
 
 NVIDIA Isaac **GR00T-N1.6-3B** fine-tuned on the ManiGuard **{task}** base task (sim
 Franka Panda). Part of the ManiGuard VLA benchmark - GR00T vs pi0.5 on the same task
@@ -44,7 +44,7 @@ families with identical data, cameras, and controller.
 ## Model
 - **Base:** [nvidia/GR00T-N1.6-3B](https://huggingface.co/nvidia/GR00T-N1.6-3B) - Cosmos-Reason VLM + flow-matching DiT action head
 - **Embodiment:** NEW_EMBODIMENT - Franka Panda, **8-D joint** state/action (7 arm joints + 1 gripper)
-- **Cameras (3):** image_left, image_right, wrist (256x256)
+- **Cameras (2):** image_left (overview) + wrist (256x256)
 - **Action:** arm = state-relative chunks, gripper = absolute; 16-step horizon; NON_EEF (joint space)
 - **Tuning:** GR00T-N1.6 default - VLM (LLM + visual) **frozen**, train projector + diffusion action head (**no LoRA**)
 
@@ -55,7 +55,7 @@ families with identical data, cameras, and controller.
 ## Usage
 Load with `Gr00tPolicy` from [Isaac-GR00T (n1.6-release)](https://github.com/NVIDIA/Isaac-GR00T/tree/n1.6-release), `--embodiment-tag NEW_EMBODIMENT`. The included `experiment_cfg/` carries the modality config + normalization stats.
 
-> WARNING - Convention (must match at eval): joint-space JointController (absolute joint targets, NON_EEF) + 3 cameras (image_left, image_right, wrist). A mismatched controller or camera set silently feeds an out-of-distribution input.
+> WARNING - Convention (must match at eval): joint-space JointController (absolute joint targets, NON_EEF) + 2 cameras (image_left overview + wrist). A mismatched controller or camera set silently feeds an out-of-distribution input.
 """
 
 

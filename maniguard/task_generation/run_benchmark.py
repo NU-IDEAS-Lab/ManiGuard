@@ -194,10 +194,10 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         cmd.extend(["--stack-mode", stack_mode])
         if args.stack_height:
             cmd.extend(["--stack-height", args.stack_height])
-        if args.target_synset:
-            cmd.extend(["--target-synset", args.target_synset])
-        if args.stack_synset:
-            cmd.extend(["--stack-synset", args.stack_synset])
+        if args.target_model:
+            cmd.extend(["--target-model", args.target_model])
+        if args.stack_model:
+            cmd.extend(["--stack-model", args.stack_model])
 
     log_path = os.path.join(run_dir, "stdout.log")
     result = {
@@ -342,8 +342,8 @@ def parse_args():
     p.add_argument("--goal-predicate", default=None, help="(transfer) Override goal predicate")
     # Stack pipeline flags.
     p.add_argument("--stack-height", default=None, help="(stack) Stack height preset")
-    p.add_argument("--target-synset", default=None, help="(stack) Override target synset")
-    p.add_argument("--stack-synset", default=None, help="(stack) Override stack synset")
+    p.add_argument("--target-model", default=None, help="(stack) Override target (bottom) model id")
+    p.add_argument("--stack-model", default=None, help="(stack) Override stack-item model id")
     p.add_argument("--output-dir", default=None,
                    help="Output directory (default: outputs/benchmark_runs/<timestamp>)")
     p.add_argument("--resume", default=None,
@@ -451,8 +451,8 @@ def main():
     if args.pipeline.startswith("stack"):
         config_data.update({
             "stack_height": args.stack_height,
-            "target_synset": args.target_synset,
-            "stack_synset": args.stack_synset,
+            "target_model": args.target_model,
+            "stack_model": args.stack_model,
         })
     with open(config_path, "w") as f:
         json.dump(config_data, f, indent=2)
