@@ -2,170 +2,122 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/reference/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/architecture/overview/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/data_collection/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/datagen/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/datagen/annotation/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/datagen/collection/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/datagen/conversion/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/datagen/families/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/evaluation/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/evaluation/engagement_metric/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/foundations/env_layer/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/foundations/ltl_safety/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/foundations/omnigibson_patches/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/getting-started/installation/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/cabinet_pickup/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/clutter_pickup/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/custom_pipeline/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/data_flow/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/dusty_transfer/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/empty_scene/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/jar_transport/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/lid_transport/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/other_families/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/stack_retrieve/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/transfer/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/sft/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/sft/dataset_and_config/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/sft/end_to_end/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/sft/gr00t/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/sft/openpi/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/sft/smolvla/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/superpowers/plans/2026-06-30-yaw-free-rotate-in-place/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/superpowers/specs/2026-06-30-yaw-free-rotate-in-place-design/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/teleop/gello_calibration/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/teleop/gello_franka/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/teleop/playback/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/teleop/real_teleop/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/teleop/so101_franka/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/teleop/so101_server/</loc>
-         <lastmod>2026-07-15</lastmod>
-    </url>
-    <url>
-         <loc>https://nu-ideas-lab.github.io/ManiGuard/teleop/teleop_to_lerobot/</loc>
-         <lastmod>2026-07-15</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
 </urlset>
