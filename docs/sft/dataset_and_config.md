@@ -62,7 +62,7 @@ LeRobot v2.1. This is the current main SFT data source.
 outputs/datagen/<dataset>/<family>/task_*/traj_*   →   to_lerobot   →   datagen-<fam>-v1-joint-5cam
 ```
 
-Full recipe: **[Scripted datagen](../datagen/index.md)** (collection
+Full recipe: **[Scripted datagen](../data_collection/index.md#scripted-datagen)** (collection
 through RAW → LeRobot conversion). The datagen
 dataset ships all 4 bench overviews + wrist (5 streams); pick the overview per
 family via the policy config's `external_cam`.
@@ -71,7 +71,7 @@ family via the policy config's `external_cam`.
 
 GELLO / SO-101 teleop demos, re-rendered to joint + 3-cam and exported to a
 multitask LeRobot dataset. Full recipe (Stage 1 render → Stage 2 export, the
-`render_teleop_to_lerobot.sh` template): **[Sim teleop → LeRobot](../teleop/teleop_to_lerobot.md)**.
+`render_teleop_to_lerobot.sh` template): **[Sim teleop → LeRobot](../data_collection/index.md#sim-teleop-lerobot)**.
 
 Naming: `<org>/sim-<fam>-30-joint-3cam` (e.g. `<org>/sim-dusty-transfer-30-joint-3cam`).
 
@@ -80,4 +80,4 @@ Naming: `<org>/sim-<fam>-30-joint-3cam` (e.g. `<org>/sim-dusty-transfer-30-joint
 Real Franka teleop capture (`.npz`) → LeRobot v2.1 in the DROID **joint**
 convention: 8-D state `[joint_position(7), gripper]` + 8-D action, joint-space
 throughout (consistent with the sim tracks), fps 15. Full recipe:
-**[Real-robot teleop → LeRobot](../teleop/real_teleop.md)**.
+**[Real-robot teleop → LeRobot](../data_collection/index.md#real-robot-teleop-lerobot)**.

@@ -37,7 +37,7 @@ manipulation in simulated households. Reinforcement-learning training is under d
 
     Websocket policy eval, goal checking, and benchmark preparation.
 
--   :material-database-cog: **[Sim data generation](datagen/index.md)**
+-   :material-database-cog: **[Sim data generation](data_collection/index.md#scripted-datagen)**
 
     The scripted 6-family demo-collection pipeline + RAW → LeRobot conversion.
 

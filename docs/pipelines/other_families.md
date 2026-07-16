@@ -1,7 +1,7 @@
 # Additional families (generatable, not in ManiGuard-Bench)
 
 The [task-generation pipelines](index.md) can produce a few more task families
-that are **not part of the shipped [ManiGuard-Bench](../datagen/index.md)**
+that are **not part of the shipped [ManiGuard-Bench](../data_collection/index.md#scripted-datagen)**
 (the released benchmark is the 6 families in the index). They are kept as working
 pipelines for experimentation and possible future benchmark expansion.
 

@@ -33,7 +33,7 @@ demos are generated (and therefore what config declares the source):
 |---|---|---|---|
 | **Scripted datagen** (primary) | the mature 6-family pipeline → `data/datagen` → `to_lerobot` | `datagen-<fam>-v1-joint-5cam` | current main source |
 | **Sim teleop** | GELLO/SO-101 teleop → `data/playback` → `multitask_lerobot_export` | `sim-<fam>-30-joint-3cam` | supported |
-| **Real teleop** | real Franka teleop npz → [`real_teleop_to_droid`](../teleop/real_teleop.md) | `<task>` (DROID joint) | supported |
+| **Real teleop** | real Franka teleop npz → [`real_teleop_to_droid`](../data_collection/index.md#real-robot-teleop-lerobot) | `<task>` (DROID joint) | supported |
 
 ## Per-model SFT recipes
 
