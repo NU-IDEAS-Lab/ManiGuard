@@ -24,6 +24,11 @@ from __future__ import annotations
 
 RESOLUTION = 256
 FPS = 30
+# Keyframe interval for the recorded trajectory MP4s. Datasets are consumed by
+# random-frame access in the SFT dataloader, so a keyframe every VIDEO_GOP frames
+# keeps that decode cheap (a large GOP forces decoding ~GOP/2 frames per sample,
+# which starves the GPU). 10 kills the decode tail at ~2.6x the file size.
+VIDEO_GOP = 10
 ROBOT_TYPE = "FrankaPanda"
 
 ARM_DOF = 7

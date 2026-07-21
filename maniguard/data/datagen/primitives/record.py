@@ -48,6 +48,10 @@ def _open_video(path: Path, fps: int, h: int, w: int) -> dict:
     stream.width = int(w)
     stream.height = int(h)
     stream.pix_fmt = "yuv420p"
+    # Dense keyframes: the SFT dataloader reads random single frames, so a large
+    # GOP (h264 default ~250) forces decoding ~GOP/2 frames per sample and starves
+    # the GPU. VIDEO_GOP keyframes make random-frame decode cheap. See data_format.
+    stream.codec_context.gop_size = data_format.VIDEO_GOP
     return {"container": container, "stream": stream}
 
 
