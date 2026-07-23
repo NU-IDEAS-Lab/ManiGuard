@@ -218,15 +218,27 @@ def _stamp_metadata(hdf5_path: str, controller_mode: str, n_cams: int) -> None:
         f["data"].attrs["n_cams"] = int(n_cams)
 
 
-def _setup_cameras_from_scene(env) -> None:
-    """Position the external cameras like teleop did.
+def _setup_cameras_from_scene(env, diagnostics_path: str | None = None) -> None:
+    """Position the external cameras at the task's PRESET poses.
 
-    Thin wrapper over the shared single-source-of-truth helper in
-    maniguard.utils.camera_setup so playback re-render, teleop, and eval all
-    place cam_opposite / cam_left / cam_right at identical poses (no OOD).
+    Thin wrapper over the shared load-side rule in maniguard.utils.camera_setup
+    (place_recorded_task_cameras): if --diagnostics points at the source task's
+    diagnostics.jsonl, its recorded ``cameras`` poses are applied — the same
+    views datagen/eval/teleop use; without it, the canonical robot-frame
+    recompute is the (warned) fallback.
     """
-    from maniguard.utils.camera_setup import setup_external_cameras_robot_frame
-    setup_external_cameras_robot_frame(env)
+    import json
+
+    from maniguard.utils.camera_setup import place_recorded_task_cameras
+
+    diagnostics = None
+    if diagnostics_path and os.path.isfile(diagnostics_path):
+        with open(diagnostics_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    diagnostics = json.loads(line)
+                    break
+    place_recorded_task_cameras(env, diagnostics, set_viewer=True)
 
 
 def _force_sensor_resolution(env, resolution: int) -> None:
@@ -276,6 +288,10 @@ def main():
                    help="Camera set (default: 3; see CAMERA_SETS). "
                         "3 = cam_left + cam_right + wrist; "
                         "2 = cam_opposite + wrist. Independent of --controller.")
+    p.add_argument("--diagnostics", type=str, default=None,
+                   help="Path to the source task's diagnostics.jsonl; its recorded "
+                        "cameras poses are applied (the shared load-side rule). "
+                        "Omit only for legacy scenes without recorded poses.")
     args = p.parse_args()
 
     # DataPlaybackWrapper precondition.
@@ -319,12 +335,10 @@ def main():
 
     _force_sensor_resolution(env.env, args.resolution)
 
-    # Reproduce the teleop-time camera view. Teleop runs setup_cameras()
-    # which places cam_opposite at an overhead "opposite-side" pose based
-    # on robot/target/support geometry. DataPlaybackWrapper doesn't, so
-    # without this, cam_opposite sits at the default (0,0,0) pose pointing
-    # at nothing -> rendered obs is a uniform gray image.
-    _setup_cameras_from_scene(env.env)
+    # Place the external cameras at the task's preset poses.
+    # DataPlaybackWrapper doesn't position them, so without this cam_* sit at
+    # the default (0,0,0) pose pointing at nothing -> uniform gray images.
+    _setup_cameras_from_scene(env.env, diagnostics_path=args.diagnostics)
 
     if args.all_episodes:
         env.playback_dataset(record_data=True)

@@ -48,10 +48,12 @@ class EvalConfig:
     # server reads observation/image_left + observation/wrist_image (+ state).
     # This selects which physical camera supplies that single overview, and MUST
     # match the checkpoint's training config (Sim2CamLiberoDataConfig.external_cam)
-    # so the policy stays in distribution:
-    #   "left"  -> render cam_left,  send as observation/image_left
-    #   "right" -> render cam_right, send as observation/image_left
-    # Only that one external camera is rendered (the other is never created).
+    # so the policy stays in distribution. Choices = the datagen contract
+    # (data_format.EXTERNAL_CAM_CHOICES): opposite / left / right / left_shoulder;
+    # cam_<name> is rendered and sent as observation/image_left. Only that one
+    # external camera is rendered (the others are never created); its POSE is
+    # loaded from the task's diagnostics["cameras"] (same as datagen), never
+    # recomputed.
     external_cam: str = "left"
     action_dim: int = 7
     execute_horizon: int = 5

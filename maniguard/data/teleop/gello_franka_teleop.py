@@ -244,58 +244,18 @@ def _build_from_snapshot(
 # Camera placement (copied from so101_franka_teleop.main; same logic)
 # ---------------------------------------------------------------------------
 def _setup_cameras_for_scene(env, robot, args):
-    import omnigibson.utils.transform_utils as _T
-    support_obj = env.scene.object_registry("name", "support_surface")
+    """Place the external cameras at the task's PRESET poses (the shared
+    load-side rule, camera_setup.place_recorded_task_cameras): the
+    diagnostics.jsonl next to --snapshot carries the recorded ``cameras``
+    poses — the same views datagen/eval/playback use — with the canonical
+    robot-frame recompute as the (warned) fallback for legacy snapshots."""
+    from maniguard.utils.camera_setup import place_recorded_task_cameras
 
-    if support_obj is not None:
-        target_obj = next(
-            (obj for obj in env.scene.objects
-             if obj is not robot and obj is not support_obj),
-            support_obj,
-        )
-        from maniguard.task_generation.utils.video import (
-            build_video_view_specs, setup_cameras,
-        )
-        views = build_video_view_specs(args, robot, target_obj, support_obj=support_obj)
-        setup_cameras(env, views)
-        print(f"[Gello] Camera mode = support_surface; target={target_obj.name}")
-        return
-
-    # Robot-frame fallback for HF furnished scenes.
-    from maniguard.task_generation.utils.video import setup_cameras
-
-    rp_t, rq_t = robot.get_position_orientation()
-    rp = np.asarray(rp_t.cpu().numpy() if hasattr(rp_t, "cpu") else rp_t,
-                    dtype=np.float32)
-    rmat_t = _T.quat2mat(rq_t)
-    rmat = np.asarray(rmat_t.cpu().numpy() if hasattr(rmat_t, "cpu") else rmat_t,
-                      dtype=np.float32)
-    forward = rmat[:, 0].copy()
-    forward[2] = 0.0
-    n = float(np.linalg.norm(forward))
-    forward = forward / n if n > 1e-6 else np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    left = np.cross(np.array([0.0, 0.0, 1.0], dtype=np.float32), forward)
-
-    cam_height_off = 0.9
-    back_off = 1.2
-    side_off = 1.0
-    side_forward_off = 0.2
-
-    workspace = rp + forward * 0.45 + np.array([0, 0, 0.05], dtype=np.float32)
-    opp_eye = rp - forward * back_off + np.array([0, 0, cam_height_off], dtype=np.float32)
-    left_eye = rp + left * side_off + forward * side_forward_off \
-                  + np.array([0, 0, cam_height_off], dtype=np.float32)
-    right_eye = rp - left * side_off + forward * side_forward_off \
-                   + np.array([0, 0, cam_height_off], dtype=np.float32)
-    views = [
-        {"label": "opposite_side_front", "eye": opp_eye.tolist(),  "lookat": workspace.tolist()},
-        {"label": "left_overview",       "eye": left_eye.tolist(), "lookat": workspace.tolist()},
-        {"label": "right_overview",      "eye": right_eye.tolist(),"lookat": workspace.tolist()},
-    ]
-    setup_cameras(env, views)
-    print(f"[Gello] Camera mode = robot-frame; "
-          f"robot_pos=({rp[0]:.2f},{rp[1]:.2f},{rp[2]:.2f}), "
-          f"forward=({forward[0]:.2f},{forward[1]:.2f})")
+    diagnostics = None
+    diag_path = os.path.join(os.path.dirname(args.snapshot), "diagnostics.jsonl")
+    if os.path.isfile(diag_path):
+        diagnostics = _read_first_jsonl(diag_path)
+    place_recorded_task_cameras(env, diagnostics, set_viewer=True)
 
 
 # ---------------------------------------------------------------------------

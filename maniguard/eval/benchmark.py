@@ -54,16 +54,20 @@ def _init_omnigibson(cfg: EvalConfig):
 
 def _overview_cam_name(cfg: EvalConfig) -> str:
     """Physical external camera that supplies the policy's single overview,
-    selected by cfg.external_cam (must match the checkpoint's train config)."""
-    if cfg.external_cam not in ("left", "right"):
-        raise ValueError(f"external_cam must be 'left' or 'right', got {cfg.external_cam!r}")
-    return "cam_left" if cfg.external_cam == "left" else "cam_right"
+    selected by cfg.external_cam (must match the checkpoint's train config).
+    Choices mirror the datagen contract (data_format.EXTERNAL_CAM_CHOICES):
+    opposite / left / right / left_shoulder -> the bench cam_<name> sensor."""
+    from maniguard.data.datagen.data_format import EXTERNAL_CAM_CHOICES
+    if cfg.external_cam not in EXTERNAL_CAM_CHOICES:
+        raise ValueError(
+            f"external_cam must be one of {EXTERNAL_CAM_CHOICES}, got {cfg.external_cam!r}")
+    return f"cam_{cfg.external_cam}"
 
 
 def _build_eval_external_sensors(cfg: EvalConfig):
     """Build ONLY the one external overview camera the policy consumes
-    (cam_left or cam_right per cfg.external_cam) — matching the 2-cam training
-    convention. The wrist camera comes from the robot USD; no cam_opposite."""
+    (cam_<external_cam> per cfg.external_cam) — matching the 2-cam training
+    convention. The wrist camera comes from the robot USD."""
     from maniguard.utils.camera_setup import build_external_camera_configs
     return build_external_camera_configs(
         names=[_overview_cam_name(cfg)], resolution=cfg.camera_resolution
@@ -173,8 +177,8 @@ def eef_delta_to_joint_action(robot, eef_delta, action_space):
 def extract_obs(env, robot, prompt, cfg: EvalConfig):
     raw_obs, _ = env.get_obs()
     external = raw_obs.get("external", {})
-    # Single external overview = the one camera selected by cfg.external_cam
-    # (cam_left or cam_right); it is the only external camera built/rendered.
+    # Single external overview = the one camera selected by cfg.external_cam;
+    # it is the only external camera built/rendered.
     overview_name = _overview_cam_name(cfg)
     overview_rgb = external[overview_name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
 
@@ -436,22 +440,9 @@ def main():
             if _resized:
                 env.load_observation_space()
             env.reset()
-            # Place external cameras at the SAME robot-frame poses used during
-            # teleop collection + playback re-render (shared single source of
-            # truth in camera_setup), so eval image_left / image_right match the
-            # training views exactly. Replaces the old diagnostics-pose reader
-            # (_setup_eval_cameras) — those stored poses were a different, stale
-            # set and would put the policy out of distribution.
-            from maniguard.utils.camera_setup import setup_external_cameras_robot_frame
-            setup_external_cameras_robot_frame(env)
-
-            # Apply any perturbation declared in the instance's diagnostics (the
-            # uniform task-instance load hook). For a `target/` variant this
-            # re-applies the recolor (diffuse_tint isn't serialized into the
-            # snapshot, so it must be set on load); a no-op for base and the
-            # other levels. Loading any instance is the same: build -> reset ->
-            # apply_perturbation, no base-vs-perturbation branching.
-            from maniguard.data.bench_builder.perturbation import apply_perturbation
+            # Load the instance's diagnostics row: it carries both the recorded
+            # camera poses and any perturbation to re-apply.
+            _diag = None
             _diag_path = Path(scene_info["scene_file"]).parent / "diagnostics.jsonl"
             if _diag_path.is_file():
                 _txt = _diag_path.read_text(encoding="utf-8")
@@ -460,6 +451,27 @@ def main():
                     _diag = _diag if isinstance(_diag, dict) else _diag[0]
                 except json.JSONDecodeError:
                     _diag = json.loads([ln for ln in _txt.splitlines() if ln.strip()][0])
+
+            # External-camera placement: LOAD the poses recorded in the task's
+            # diagnostics["cameras"] via the shared load-side rule
+            # (camera_setup.place_recorded_task_cameras) — the same mechanism
+            # datagen uses, so the eval overview equals the training view by
+            # construction. Poses are never recomputed here: the old
+            # setup_external_cameras_robot_frame call took a support_surface-
+            # relative branch on scenes containing an object named
+            # "support_surface" (cabinet) and produced a viewpoint that exists
+            # nowhere in the training data.
+            from maniguard.utils.camera_setup import place_recorded_task_cameras
+            place_recorded_task_cameras(env, _diag, set_viewer=False)
+
+            # Apply any perturbation declared in the instance's diagnostics (the
+            # uniform task-instance load hook). For a `target/` variant this
+            # re-applies the recolor (diffuse_tint isn't serialized into the
+            # snapshot, so it must be set on load); a no-op for base and the
+            # other levels. Loading any instance is the same: build -> reset ->
+            # apply_perturbation, no base-vs-perturbation branching.
+            from maniguard.data.bench_builder.perturbation import apply_perturbation
+            if _diag is not None:
                 _pert = apply_perturbation(env, _diag)
                 if _pert.get("applied"):
                     print(f"[perturbation] {_pert}")
