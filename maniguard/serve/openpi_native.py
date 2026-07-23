@@ -56,6 +56,33 @@ DEFAULT_GCS_URIS = {
 }
 
 
+class _SeededPolicy:
+    """Delegating wrapper that re-seeds the openpi policy's JAX sampling key
+    whenever the client starts a rollout with a new ``episode_seed`` (sent in
+    every request by ``maniguard.eval.benchmark`` when ``--seed`` is set). The
+    key is STRIPPED before delegating so openpi's input transforms never see
+    it. Within a rollout the seed value is constant, so the key is set once and
+    then advances normally (openpi splits it per infer). Without episode_seed
+    this is a transparent pass-through (openpi's default key(0) behavior)."""
+
+    def __init__(self, policy):
+        self._policy = policy
+        self._last_seed = None
+
+    @property
+    def metadata(self):
+        return self._policy.metadata
+
+    def infer(self, obs: dict) -> dict:
+        seed = obs.pop("episode_seed", None)
+        if seed is not None and seed != self._last_seed:
+            import jax
+            self._policy._rng = jax.random.key(int(seed))
+            self._last_seed = seed
+            logger.info(f"sampling RNG re-seeded: episode_seed={seed}")
+        return self._policy.infer(obs)
+
+
 def main() -> None:
     args = parse_args()
 
@@ -96,7 +123,7 @@ def main() -> None:
     logger.info("Model loaded successfully.")
 
     server = websocket_policy_server.WebsocketPolicyServer(
-        policy, host=args.host, port=args.port
+        _SeededPolicy(policy), host=args.host, port=args.port
     )
     server.serve_forever()
 

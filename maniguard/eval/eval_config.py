@@ -102,6 +102,13 @@ class EvalConfig:
     #   on goal). Selects which checkers run and what the summary reports.
     metrics: List[str] = field(default_factory=lambda: ["success", "safety"])
     max_steps: int = 1000
+    # Base seed for the policy's action-sampling noise (the only substantive
+    # randomness at eval: scenes are frozen snapshots). Per rollout the client
+    # derives episode_seed = crc32(f"{seed}:{scene_name}") and sends it in every
+    # request; each policy server re-seeds its sampler (JAX key / torch RNG)
+    # when the value changes. None (default) = unseeded, previous behavior.
+    # Distinct base seeds give independent repeat trials of the same task.
+    seed: Optional[int] = None
     # Debounce on success: the goal condition must hold for this many
     # consecutive steps before the episode is marked successful. Guards against
     # single-frame false positives (a transient brush / AG-grasp flicker / the
@@ -186,6 +193,9 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--use-openpi-client", action="store_true", default=None)
     p.add_argument("--random-policy", action="store_true", default=None)
     p.add_argument("--max-steps", type=int, default=None)
+    p.add_argument("--seed", type=int, default=None,
+                   help="Base seed for policy sampling noise (per-rollout episode "
+                        "seeds are derived from it; omit for unseeded).")
     p.add_argument("--metrics", nargs="*", default=None, choices=["success", "safety"])
     p.add_argument("--success-hold-steps", type=int, default=None)
     p.add_argument("--execute-horizon", type=int, default=None)
@@ -199,7 +209,8 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--tag", type=str, default=None,
                    help="Label folded UPPERCASED into the auto run_name, e.g. --tag smoke.")
     p.add_argument("--save-video", action="store_true", default=None)
-    p.add_argument("--external-cam", type=str, default=None, choices=["left", "right"])
+    p.add_argument("--external-cam", type=str, default=None,
+                   choices=["opposite", "left", "right", "left_shoulder"])
     p.add_argument("--grasping-mode", type=str, default=None, choices=["physical", "assisted", "sticky"])
     p.add_argument("--camera-resolution", type=int, default=None)
 
@@ -216,6 +227,7 @@ def config_from_cli() -> EvalConfig:
         "use_openpi_client": "use_openpi_client",
         "random_policy": "random_policy",
         "max_steps": "max_steps",
+        "seed": "seed",
         "metrics": "metrics",
         "success_hold_steps": "success_hold_steps",
         "execute_horizon": "execute_horizon",

@@ -257,12 +257,17 @@ def _remap_obs_for_openpi(obs: dict, cfg: EvalConfig) -> dict:
     observation/image_left; the server (Sim2CamInputs) maps image_left->base_0,
     wrist->left_wrist_0, and zero-fills+masks the third slot. Matches every
     ManiGuard joint checkpoint's train config."""
-    return {
+    out = {
         "observation/image_left": obs["overview_image"],
         "observation/wrist_image": obs["wrist_images"],
         "observation/state": obs["states"],
         "prompt": obs["task_descriptions"],
     }
+    # Sampling-noise seed for this rollout; the server strips it before its
+    # model pipeline and re-seeds its RNG when the value changes.
+    if obs.get("episode_seed") is not None:
+        out["episode_seed"] = int(obs["episode_seed"])
+    return out
 
 
 def query_policy(policy, obs, client_type, cfg):
@@ -404,8 +409,18 @@ def main():
         if cfg.prompt_template:
             from maniguard.eval.prompt_utils import episode_prompt
             scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
+        # Per-rollout seed for the policy's sampling noise: derived from the base
+        # seed + scene name (stable across scene ordering), sent with every
+        # request; the server re-seeds its sampler when the value changes.
+        # None (no --seed) keeps the previous unseeded behavior.
+        episode_seed = None
+        if cfg.seed is not None:
+            import zlib
+            episode_seed = zlib.crc32(f"{cfg.seed}:{scene_info['name']}".encode()) & 0x7FFFFFFF
+            np.random.seed(episode_seed)  # client-side RNG (random-policy baseline)
         print(f"\n{'='*60}")
-        print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}")
+        print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}"
+              + (f"  (episode_seed={episode_seed})" if episode_seed is not None else ""))
         print(f"Prompt: {scene_info['prompt']}")
         print(f"Target: {scene_info['target_name']}")
         print(f"Rooms: {scene_info['target_rooms']}")
@@ -573,6 +588,7 @@ def main():
             og.sim.render()
 
         obs = extract_obs(env, robot, scene_info["prompt"], cfg)
+        obs["episode_seed"] = episode_seed
         # Two separate streams recorded as two mp4s: the policy's overview
         # (cam_left/right) and the wrist — same resolution the policy sees.
         main_frames = [obs["overview_image"]] if cfg.save_video else []
@@ -680,6 +696,7 @@ def main():
                         torch.from_numpy(action_clipped).unsqueeze(0)
                     )
                     obs = extract_obs(env, robot, scene_info["prompt"], cfg)
+                    obs["episode_seed"] = episode_seed
                     if os.environ.get("EVAL_DEBUG_STEP"):
                         _eef_after = np.asarray(obs["states"][:3], dtype=np.float32)
                         with open(os.environ["EVAL_DEBUG_STEP"], "a", encoding="utf-8") as _f:
@@ -822,6 +839,8 @@ def main():
             "target": scene_info["target_name"],
             "pipeline": scene_info.get("pipeline", ""),
             "rooms": scene_info["target_rooms"],
+            "seed": cfg.seed,
+            "episode_seed": episode_seed,
             "status": status,
             "steps": step_idx,
             "nan_terminated": nan_terminated,

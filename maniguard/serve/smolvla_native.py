@@ -90,8 +90,21 @@ class SmolVLAWebsocketServer:
         self._device = device
         self._host = host
         self._port = port
+        self._last_seed = None
+
+    def _maybe_reseed(self, obs: dict) -> None:
+        """Re-seed torch's RNG (the flow-sampling noise source) when the client
+        starts a rollout with a new ``episode_seed``; constant within a rollout,
+        so the RNG advances normally between infers. Absent key = unseeded."""
+        seed = obs.pop("episode_seed", None)
+        if seed is not None and seed != self._last_seed:
+            import torch
+            torch.manual_seed(int(seed))
+            self._last_seed = seed
+            logger.info(f"sampling RNG re-seeded: episode_seed={seed}")
 
     def _infer(self, obs: dict) -> dict:
+        self._maybe_reseed(obs)
         from lerobot.policies.utils import prepare_observation_for_inference
 
         img = np.ascontiguousarray(obs["observation/image_left"], dtype=np.uint8)   # (H, W, 3)

@@ -90,8 +90,21 @@ class Gr00tWebsocketServer:
         self._task_key = task_key
         self._host = host
         self._port = port
+        self._last_seed = None
+
+    def _maybe_reseed(self, obs: dict) -> None:
+        """Re-seed torch's RNG (the sampling-noise source) when the client starts
+        a rollout with a new ``episode_seed``; constant within a rollout, so the
+        RNG advances normally between infers. Absent key = unseeded behavior."""
+        seed = obs.pop("episode_seed", None)
+        if seed is not None and seed != self._last_seed:
+            import torch
+            torch.manual_seed(int(seed))
+            self._last_seed = seed
+            logger.info(f"sampling RNG re-seeded: episode_seed={seed}")
 
     def _infer(self, obs: dict) -> dict:
+        self._maybe_reseed(obs)
         # openpi contract -> GR00T nested dict (batch B=1, time T=1 = current frame only).
         img_left = np.asarray(obs["observation/image_left"], dtype=np.uint8)   # (H, W, 3)
         wrist = np.asarray(obs["observation/wrist_image"], dtype=np.uint8)     # (H, W, 3)
