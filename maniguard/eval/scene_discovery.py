@@ -140,7 +140,20 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
 
         elif pipeline in ("lid_transport_food", "lid_transport_liquid"):
             # lid: place the lid on the container, then move the container.
-            target_name = _match_category(init_info, sel.get("container_category", ""))
+            # liquid-mode diags carry a STALE selection.container_category (the
+            # pre-respawn pick, e.g. "can"); the actually spawned container is
+            # the spawn_specs entry with role=="target" (e.g. hingeless_jar) —
+            # prefer it, fall back to container_category (the food-mode truth;
+            # food diags have no role=="target" spawn spec).
+            _tgt_spec = next(
+                (s for s in (sel.get("spawn_specs") or []) if s.get("role") == "target"),
+                None,
+            )
+            target_name = None
+            if _tgt_spec:
+                target_name = _match_category(init_info, _tgt_spec.get("category", ""))
+            if not target_name:
+                target_name = _match_category(init_info, sel.get("container_category", ""))
 
         elif pipeline in ("stack_same", "stack_flat"):
             # stack: retrieve the bottom object from the stack.

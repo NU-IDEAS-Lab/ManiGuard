@@ -29,7 +29,7 @@ from maniguard.eval.scene_discovery import discover_scenes
 # Isaac Sim / OmniGibson bootstrap
 # ---------------------------------------------------------------------------
 
-def _init_omnigibson(cfg: EvalConfig):
+def _init_omnigibson(cfg: EvalConfig, needs_gpu_dynamics: bool = False):
     if not cfg.longfinger:
         os.environ["MANIGUARD_SKIP_LONGFINGER"] = "1"
     try:
@@ -40,10 +40,16 @@ def _init_omnigibson(cfg: EvalConfig):
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     # Liquid/particle scenes (clutter liquid_transport) need PhysX GPU dynamics
-    # to initialize their water system. MUST be set before physx init (here),
-    # gated by env so the default (CPU dynamics) is unchanged.
-    if os.environ.get("EVAL_USE_GPU_DYNAMICS"):
+    # to initialize their water system or they NaN-segfault at init. Detected
+    # per task BEFORE og import via datagen's canonical gate
+    # (task_needs_gpu_dynamics; lid's legacy system_name is excluded there).
+    # Flatcache must be OFF under GPU dynamics (mirrors datagen
+    # primitives.scene.init_omnigibson). EVAL_USE_GPU_DYNAMICS stays as a
+    # manual force-on override.
+    if needs_gpu_dynamics or os.environ.get("EVAL_USE_GPU_DYNAMICS"):
         gm.USE_GPU_DYNAMICS = True
+        gm.ENABLE_FLATCACHE = False
+        print("[Eval] liquid/particle task -> gm.USE_GPU_DYNAMICS=True, ENABLE_FLATCACHE=False")
     if cfg.headless:
         gm.HEADLESS = True
 
@@ -357,9 +363,6 @@ def main():
     cfg.save_json(output_dir / "eval_config.json")
     print(f"[Eval] Config saved to {output_dir / 'eval_config.json'}")
 
-    _init_omnigibson(cfg)
-    import omnigibson as og
-
     from maniguard.data.scene.hf_benchmark import resolve_benchmark_root
     resolved_root = resolve_benchmark_root(
         cfg.benchmark_root, revision=cfg.benchmark_revision,
@@ -367,6 +370,22 @@ def main():
     if str(resolved_root) != cfg.benchmark_root:
         print(f"Resolved benchmark '{cfg.benchmark_root}' @ {cfg.benchmark_revision} "
               f"-> {resolved_root}")
+
+    # Per-task GPU-dynamics gate, decided BEFORE omnigibson is imported (gm
+    # macros only take effect pre-import). Pure file read of the requested
+    # scenes' diagnostics; any liquid/particle scene in the batch enables it.
+    from maniguard.data.datagen.primitives.scene import task_needs_gpu_dynamics
+    _needs_gpu = False
+    for _s in (cfg.scenes or []):
+        _sdir = Path(str(resolved_root)) / _s
+        if (_sdir / "diagnostics.jsonl").is_file():
+            try:
+                _needs_gpu = _needs_gpu or task_needs_gpu_dynamics(_sdir)
+            except Exception as _exc:  # noqa: BLE001 - fall back to CPU pipeline
+                print(f"[Eval] WARNING: gpu-dynamics probe failed for {_s}: {_exc}")
+
+    _init_omnigibson(cfg, needs_gpu_dynamics=_needs_gpu)
+    import omnigibson as og
 
     scenes = discover_scenes(
         str(resolved_root),
@@ -915,6 +934,12 @@ def main():
     # per-task batch processes -> a batch run gets a real aggregate instead of
     # the last process's single-task stats. results.jsonl stays the per-task
     # source of truth; summary.json no longer duplicates it.
+    if not results_path.exists():
+        # 0 scenes evaluated (e.g. every requested scene was skipped by
+        # discovery) — nothing to summarize; exit non-zero so callers retry/flag.
+        print("[Eval] no results were written (0 scenes evaluated); skipping summary")
+        sys.stdout.flush()
+        os._exit(1)
     _rows = [json.loads(_l) for _l in results_path.read_text(encoding="utf-8").splitlines() if _l.strip()]
     _done = [r for r in _rows if r.get("status") == "completed"]
     _succ = sum(1 for r in _done if r.get("success"))
