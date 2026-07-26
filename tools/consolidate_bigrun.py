@@ -37,7 +37,7 @@ import shutil
 from collections import Counter
 from pathlib import Path
 
-MODELS = ("pi05", "gr00t", "smolvla")
+DEFAULT_MODELS = ("pi05", "gr00t", "smolvla")  # +pi0 for the extension wave
 SEEDS = ("seed0", "seed1", "seed2")
 LEVELS = ("base", "target", "language", "location", "env")
 FAM2BENCH = {
@@ -46,11 +46,11 @@ FAM2BENCH = {
 }
 
 
-def expected_grid(bench_root: Path) -> set[tuple[str, str, str, str]]:
+def expected_grid(bench_root: Path, models) -> set[tuple[str, str, str, str]]:
     cells = set()
     for fam, bfam in FAM2BENCH.items():
         tasks = sorted(p.name for p in (bench_root / bfam).glob("task_*") if p.is_dir())
-        for model in MODELS:
+        for model in models:
             for seed in SEEDS:
                 for t in tasks:
                     for lv in LEVELS:
@@ -84,10 +84,12 @@ def main():
                     help="NAME:PATH entries; priority = order given")
     ap.add_argument("--bench", required=True, help="local maniguard-bench root")
     ap.add_argument("--emit", default=None, help="write the clean final tree here")
+    ap.add_argument("--models", nargs="+", default=list(DEFAULT_MODELS),
+                    help="model wave for the expected grid (add pi0 for the extension wave)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    grid = expected_grid(Path(args.bench))
+    grid = expected_grid(Path(args.bench), args.models)
     print(f"expected grid cells: {len(grid)}")
 
     chosen: dict[tuple, tuple[str, Path, dict]] = {}
