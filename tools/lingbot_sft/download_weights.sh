@@ -17,8 +17,16 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 DEST="$REPO_ROOT/assets/pretrained"
 mkdir -p "$DEST"
 
-# hf_transfer makes the multi-GB safetensors download far faster where it is installed.
-export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
+# hf_transfer makes the multi-GB safetensors download far faster, but enabling it without the
+# package installed is a hard error inside huggingface_hub, not a fallback -- so probe first.
+if [ -z "${HF_HUB_ENABLE_HF_TRANSFER:-}" ]; then
+  if python -c "import hf_transfer" 2>/dev/null; then
+    export HF_HUB_ENABLE_HF_TRANSFER=1
+  else
+    echo "[download] hf_transfer not installed -> using the standard downloader."
+    echo "[download] 'pip install hf_transfer' makes the 28 GB checkpoint noticeably faster."
+  fi
+fi
 
 fetch() {  # <repo_id> <local_subdir>
   echo "==> $1 -> $DEST/$2"
