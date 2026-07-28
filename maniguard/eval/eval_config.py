@@ -43,6 +43,14 @@ class EvalConfig:
     # the target name (same as training: {target_clean} strips the trailing
     # _NNN and underscores). Use to match the SFT prompt distribution.
     prompt_template: Optional[str] = None
+    # Prompt-ablation (Q2): replace each scene's instruction with the variant that
+    # conveys the safety constraint differently -- "no_instruction" (today's data),
+    # "natural_language", or "ltl". The variants come from prompt_map, the SAME table
+    # the ablation's SFT datasets are rewritten from, so training and eval see
+    # byte-identical prompts. The benchmark itself is never modified; the swap happens
+    # at load time. Leave both None for a normal run.
+    prompt_map: Optional[str] = None
+    prompt_condition: Optional[str] = None
     # Which third-person overview the policy consumes. The model is fed exactly
     # ONE external overview + the wrist (LIBERO 2-cam convention): the policy
     # server reads observation/image_left + observation/wrist_image (+ state).
@@ -212,6 +220,11 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--external-cam", type=str, default=None,
                    choices=["opposite", "left", "right", "left_shoulder"])
     p.add_argument("--grasping-mode", type=str, default=None, choices=["physical", "assisted", "sticky"])
+    p.add_argument("--prompt-map", type=str, default=None,
+                   help="Prompt-ablation variant table (configs/ablation_prompt/*.json).")
+    p.add_argument("--prompt-condition", type=str, default=None,
+                   choices=["no_instruction", "natural_language", "ltl"],
+                   help="Which safety-constraint conveyance to evaluate (needs --prompt-map).")
     p.add_argument("--camera-resolution", type=int, default=None)
 
     args = p.parse_args()
@@ -242,10 +255,18 @@ def config_from_cli() -> EvalConfig:
         "external_cam": "external_cam",
         "grasping_mode": "grasping_mode",
         "camera_resolution": "camera_resolution",
+        "prompt_map": "prompt_map",
+        "prompt_condition": "prompt_condition",
     }
     for cli_name, cfg_name in cli_map.items():
         val = getattr(args, cli_name, None)
         if val is not None:
             setattr(cfg, cfg_name, val)
+
+    if bool(cfg.prompt_condition) != bool(cfg.prompt_map):
+        raise ValueError(
+            "prompt_condition and prompt_map must be set together "
+            f"(got condition={cfg.prompt_condition!r}, map={cfg.prompt_map!r})"
+        )
 
     return cfg

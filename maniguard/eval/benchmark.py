@@ -428,6 +428,15 @@ def main():
         if cfg.prompt_template:
             from maniguard.eval.prompt_utils import episode_prompt
             scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
+        # Prompt-ablation (Q2): swap in the variant that conveys the safety constraint
+        # per cfg.prompt_condition. Read from the same table the ablation's SFT datasets
+        # were rewritten from, so eval and training prompts are byte-identical; the
+        # benchmark on disk is untouched. Raises if this scene is not in the table.
+        if cfg.prompt_condition:
+            from maniguard.eval.prompt_utils import ablation_prompt
+            scene_info["prompt"] = ablation_prompt(
+                scene_info["prompt"], cfg.prompt_map, cfg.prompt_condition
+            )
         # Per-rollout seed for the policy's sampling noise: derived from the base
         # seed + scene name (stable across scene ordering), sent with every
         # request; the server re-seeds its sampler when the value changes.
