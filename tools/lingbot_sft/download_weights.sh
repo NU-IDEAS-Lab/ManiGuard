@@ -58,4 +58,5 @@ for P in "lingbot-vla-v2-6b/model.safetensors.index.json" \
          "moge-2-vitb-normal/model.pt"; do
   if [ -e "$DEST/$P" ]; then echo "  OK   $P"; else echo "  MISS $P"; ok=0; fi
 done
-[ "$ok" = "1" ] && echo "all weights present ($(du -sh "$DEST" | cut -f1))" || { echo "INCOMPLETE" >&2; exit 1; }
+# -L: $DEST is typically a symlink to a big volume, and plain du would report the link itself.
+[ "$ok" = "1" ] && echo "all weights present ($(du -shL "$DEST" 2>/dev/null | cut -f1))" || { echo "INCOMPLETE" >&2; exit 1; }
