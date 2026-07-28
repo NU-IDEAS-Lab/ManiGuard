@@ -587,6 +587,127 @@ def _build_configs() -> list[TrainConfig]:
             ).get_freeze_filter(),
             ema_decay=None,
         ),
+        # ------------------------------------------------------------------
+        # pi0.5 ZERO-SHOT (off-the-shelf) eval shims — inference only, never
+        # trained. Each mirrors its SFT sibling above EXACTLY (pi05=True,
+        # action_dim 32, action_horizon 16, discrete_state_input, delta arm
+        # joints, external_cam "left", prompt_from_task) except the model uses
+        # the FULL paligemma/action-expert variants rather than the LoRA ones,
+        # because the served weights are pi05_base itself (LoRA adapters at
+        # zero are the identity, so the full variant IS the base model).
+        # The served checkpoint dir supplies pi05_base ``params/`` next to the
+        # SFT run's ``assets/`` (our datagen norm stats), so the ONLY thing
+        # that differs from the SFT row is the weights. No optimizer /
+        # schedule fields: nothing here is ever optimized.
+        # ------------------------------------------------------------------
+        TrainConfig(
+            name="pi05-zeroshot_datagen_v1_clutter_joint_2cam",
+            project_name="maniguard-eval",
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+        ),
+        TrainConfig(
+            name="pi05-zeroshot_datagen_v1_cabinet_joint_2cam",
+            project_name="maniguard-eval",
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-cabinet-v1-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+        ),
+        TrainConfig(
+            name="pi05-zeroshot_datagen_v1_stack_joint_2cam",
+            project_name="maniguard-eval",
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-stack-v1-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+        ),
+        TrainConfig(
+            name="pi05-zeroshot_datagen_v1_jar_joint_2cam",
+            project_name="maniguard-eval",
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-jar-v1-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+        ),
+        TrainConfig(
+            name="pi05-zeroshot_datagen_v1_lid_joint_2cam",
+            project_name="maniguard-eval",
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-lid-v1-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+        ),
+        TrainConfig(
+            name="pi05-zeroshot_datagen_v1_dusty_joint_2cam",
+            project_name="maniguard-eval",
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-dusty-v1-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+        ),
     ]
 
 
