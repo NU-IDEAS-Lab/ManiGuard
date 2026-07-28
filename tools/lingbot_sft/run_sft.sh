@@ -29,6 +29,11 @@ cd "$REPO_ROOT"
 ORG="IDEAS-Lab-Northwestern"
 CONFIG="configs/vla/maniguard/maniguard.yaml"
 
+# upstream's entrypoints are `torchrun scripts/<x>.py`, which puts scripts/ (not the repo
+# root) on sys.path, so `import lingbotvla` fails unless the package is installed. The env
+# builder does not `pip install -e .`, so put the repo root on PYTHONPATH for the children.
+export PYTHONPATH="$(cd "$HERE/../.." && pwd)${PYTHONPATH:+:$PYTHONPATH}"
+
 # LeRobot decodes the dataset's mp4s through torchcodec, which dlopen()s FFmpeg's shared
 # libraries at runtime. A bare container has none, and the failure surfaces inside the
 # dataloader workers (not at import), so it looks like a data bug. Point FFMPEG_LIB_DIR at a

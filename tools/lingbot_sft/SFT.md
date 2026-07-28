@@ -56,6 +56,11 @@ Two things that bite on a bare container:
   the box, skip the compile entirely with a prebuilt wheel matching your torch/ABI:
   `bash tools/create_train_env.sh --resume --flash-attn-wheel /path/to/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl`
   (check the ABI with `python -c "import torch; print(torch._C._GLIBCXX_USE_CXX11_ABI)"`).
+- **`import lingbotvla` fails**: upstream launches `torchrun scripts/<x>.py`, which puts
+  `scripts/` on `sys.path` instead of the repo root, and the env builder never runs
+  `pip install -e .`. `run_sft.sh` exports `PYTHONPATH=<repo root>` to cover its own children;
+  for other entrypoints (upstream's `train.sh`, the deploy scripts) install the package once:
+  `python -m pip install -e . --no-deps`.
 - **Video decode**: torchcodec dlopen()s FFmpeg at runtime; a bare container has none and the
   error only appears inside the dataloader workers. Export `FFMPEG_LIB_DIR=<dir with libav*>`
   (any conda env that ships FFmpeg works) and `run_sft.sh` puts it on `LD_LIBRARY_PATH`.
