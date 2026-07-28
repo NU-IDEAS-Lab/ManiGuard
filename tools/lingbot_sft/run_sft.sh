@@ -28,6 +28,9 @@ cd "$REPO_ROOT"
 
 ORG="IDEAS-Lab-Northwestern"
 CONFIG="configs/vla/maniguard/maniguard.yaml"
+# compute_norm_stats.py accepts only the data/train sections -- passing the training config
+# (which has a model section) is rejected by its parser, so it gets its own config.
+NORM_CONFIG="configs/vla/norm_compute/maniguard.yaml"
 
 # upstream's entrypoints are `torchrun scripts/<x>.py`, which puts scripts/ (not the repo
 # root) on sys.path, so `import lingbotvla` fails unless the package is installed. The env
@@ -105,7 +108,7 @@ echo "[run_sft] out=$OUT  norm_stats=$NORM_JSON"
 # --- norm stats: computed once per family, then reused (recompute with --norm-stats) ---
 if [ "$FORCE_NORM" = "1" ] || [ ! -f "$NORM_JSON" ]; then
   echo "[run_sft] computing norm stats -> $NORM_JSON"
-  CUDA_VISIBLE_DEVICES=0 bash train.sh scripts/compute_norm_stats.py "$CONFIG" \
+  CUDA_VISIBLE_DEVICES=0 bash train.sh scripts/compute_norm_stats.py "$NORM_CONFIG" \
     --data.data_name maniguard \
     --data.train_path "$SRC" \
     --data.robot_config_root "$ROBOT_CONFIG_ROOT" \
