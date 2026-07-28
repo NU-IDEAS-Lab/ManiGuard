@@ -28,6 +28,15 @@ cd "$REPO_ROOT"
 
 ORG="IDEAS-Lab-Northwestern"
 CONFIG="configs/vla/maniguard/maniguard.yaml"
+
+# LeRobot decodes the dataset's mp4s through torchcodec, which dlopen()s FFmpeg's shared
+# libraries at runtime. A bare container has none, and the failure surfaces inside the
+# dataloader workers (not at import), so it looks like a data bug. Point FFMPEG_LIB_DIR at a
+# dir holding libav*/libsw* (e.g. a conda env's lib) and it is prepended here, before any
+# worker forks. pyav is the fallback if this is ever unavailable -- it bundles its own FFmpeg.
+if [ -n "${FFMPEG_LIB_DIR:-}" ]; then
+  export LD_LIBRARY_PATH="$FFMPEG_LIB_DIR:${LD_LIBRARY_PATH:-}"
+fi
 ROBOT_CONFIG_ROOT="./configs/robot_configs"
 RUN_ROOT="${RUN_ROOT:-$REPO_ROOT/outputs/lingbot_sft}"
 PRETRAIN_DIR="assets/pretrained"

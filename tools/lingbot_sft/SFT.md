@@ -50,6 +50,18 @@ export HF_TOKEN=...  WANDB_API_KEY=...
 bash tools/lingbot_sft/download_weights.sh  # ~38 GB into assets/pretrained/
 ```
 
+Two things that bite on a bare container:
+
+- **flash-attn** is built from source by the env script and needs `nvcc`. If CUDA is not on
+  the box, skip the compile entirely with a prebuilt wheel matching your torch/ABI:
+  `bash tools/create_train_env.sh --resume --flash-attn-wheel /path/to/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl`
+  (check the ABI with `python -c "import torch; print(torch._C._GLIBCXX_USE_CXX11_ABI)"`).
+- **Video decode**: torchcodec dlopen()s FFmpeg at runtime; a bare container has none and the
+  error only appears inside the dataloader workers. Export `FFMPEG_LIB_DIR=<dir with libav*>`
+  (any conda env that ships FFmpeg works) and `run_sft.sh` puts it on `LD_LIBRARY_PATH`.
+  Verify once with
+  `python -c "from torchcodec.decoders import VideoDecoder; print('ok')"`.
+
 Weights fetched: `lingbot-vla-v2-6b` (28 GB, pretrain + both distillation teachers),
 `Qwen3-VL-4B-Instruct` (tokenizer / base VLM), `moge-2-vitb-normal` (419 MB, depth teacher).
 
