@@ -1,0 +1,47 @@
+# Eval config — LingBot-VLA 2.0, ManiGuard dusty_transfer (JointController)
+# (pi05-base-datagen-v1-dusty-joint-2cam-lora). Mirrors its train config so the
+# policy stays in distribution: joint state/action, single left overview + wrist,
+# JointController fed the server-reconstructed absolute joint targets (no IK).
+#
+# Run (two processes; see docs/evaluation):
+#   1. policy server: serve the checkpoint with config
+#      pi05-base_datagen_v1_dusty_joint_2cam_lora on port 8000
+#   2. python -m maniguard.eval.benchmark --config configs/eval/dusty_transfer_joint.yaml
+name: eval_dusty_transfer_joint_lingbot
+
+# -- Benchmark source: the whole family (base + 4 OOD levels); eval_family.sh picks the instance + level via --scenes --
+benchmark_root: outputs/lerobot_datasets/maniguard-bench/dusty_transfer
+scene_filter: ""           # empty: eval_family.sh selects instance + level via --scenes (ID=base, OOD=target/language/location/env)
+
+# -- Policy server --
+host: 127.0.0.1
+port: 8000
+use_openpi_client: true
+
+# -- Observation / action (match the train config) --
+state_mode: joint          # 8-D [arm_q(7), gripper_pos(1)]
+external_cam: left         # single overview = cam_left (train external_cam=left)
+action_dim: 8              # absolute joint target (server reconstructs from delta)
+execute_horizon: 50         # LingBot chunk_size=50, executed in full — upstream's
+                           # closed-loop default (experiment/robotwin: --use_length 50)
+gripper_binarize: true
+
+# -- Controller: exact teleop/playback JointController (raw radians, no impedance) --
+controller_preset: joint_position_raw
+ik_eef_to_joint: false     # server already outputs absolute joint targets; feed straight
+grasping_mode: sticky      # MUST match datagen grasp mode (dusty skeleton -> sticky)
+
+# -- Sim / eval --
+max_steps: 5100            # 1.5x the family's LONGEST datagen-v1 demo (949/1598/3373 min/med/max
+                           # steps, episodes.jsonl); ends early on success / safety termination
+success_hold_steps: 10     # goal must hold N consecutive steps (anti false-positive)
+camera_resolution: 256
+save_video: true
+longfinger: true
+
+output_dir: outputs/eval_logs/lingbot/dusty_transfer_joint   # base; each run -> a timestamped subfolder here (smoke/test: pass --tag)
+
+# Informational (not read by benchmark.py; the server is launched separately).
+# Point the server at the local checkpoint dir for this config:
+serve_adapter: maniguard.serve.lingbot_native   # per-model server adapter (client protocol is shared)
+checkpoint: ""             # local checkpoint dir/step, set when launching the server
