@@ -14,8 +14,19 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
-DEST="$REPO_ROOT/assets/pretrained"
+
+# ~38 GB lands here. On clusters the repo usually sits on a small home volume, so either
+# point PRETRAIN_DIR at the big filesystem, or make assets/pretrained a symlink to it (the
+# same thing we do for outputs/). Left alone it writes inside the repo.
+DEST="${PRETRAIN_DIR:-$REPO_ROOT/assets/pretrained}"
 mkdir -p "$DEST"
+echo "[download] destination: $DEST"
+case "$(df -P "$DEST" | awk 'NR==2{print $4}')" in
+  ''|*[!0-9]*) ;;
+  *) avail_gb=$(( $(df -P "$DEST" | awk 'NR==2{print $4}') / 1024 / 1024 ))
+     echo "[download] free space there: ${avail_gb} GB (need ~38 GB)"
+     [ "$avail_gb" -lt 45 ] && echo "[download] ⚠️  that is tight -- consider PRETRAIN_DIR on a bigger volume" ;;
+esac
 
 # hf_transfer makes the multi-GB safetensors download far faster, but enabling it without the
 # package installed is a hard error inside huggingface_hub, not a fallback -- so probe first.

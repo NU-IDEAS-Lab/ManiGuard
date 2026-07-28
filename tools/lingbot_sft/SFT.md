@@ -62,6 +62,12 @@ Two things that bite on a bare container:
   Verify once with
   `python -c "from torchcodec.decoders import VideoDecoder; print('ok')"`.
 
+⚠️ **The ~38 GB of weights land in `assets/pretrained/` inside the repo by default.** On a
+cluster the repo usually sits on a small home volume, so first point them at the big
+filesystem — either `export PRETRAIN_DIR=/big/vol/pretrained`, or symlink
+`assets/pretrained -> /big/vol/pretrained` (the same treatment `outputs/` gets). The script
+prints its destination and the free space there before downloading.
+
 Weights fetched: `lingbot-vla-v2-6b` (28 GB, pretrain + both distillation teachers),
 `Qwen3-VL-4B-Instruct` (tokenizer / base VLM), `moge-2-vitb-normal` (419 MB, depth teacher).
 
