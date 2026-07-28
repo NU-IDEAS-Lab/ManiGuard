@@ -121,7 +121,9 @@ fi
 
 # --- train: upstream train.sh derives nproc from CUDA_VISIBLE_DEVICES / nvidia-smi ---
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-$(seq -s, 0 $((GPUS-1)))}"
-export WANDB_PROJECT="${WANDB_PROJECT:-maniguard-lingbot-sft}"
+# upstream calls wandb.init() WITHOUT project=, so the project comes from this env var.
+# -yanZ marks runs from this operator, matching the other ManiGuard SFT rounds.
+export WANDB_PROJECT="${WANDB_PROJECT:-maniguard-lingbot-sft-yanZ}"
 bash train.sh tasks/vla/train_lingbotvla.py "$CONFIG" \
   --data.data_name maniguard \
   --data.train_path "$SRC" \
@@ -130,6 +132,7 @@ bash train.sh tasks/vla/train_lingbotvla.py "$CONFIG" \
   --train.output_dir "$OUT" \
   --train.max_steps "$NSTEPS" \
   --train.save_steps "$SAVE_STEPS" \
+  --train.wandb_name "lingbot-vla2_datagen_v1_${FAMILY}_joint_2cam" \
   ${EXTRA[@]+"${EXTRA[@]}"}
 
 echo "[run_sft] $FAMILY done -> $OUT"
