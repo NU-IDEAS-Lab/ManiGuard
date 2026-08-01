@@ -251,6 +251,16 @@ class FamilySkeleton(ABC):
         (clutter). e.g. lid overrides this with a lid_attached check."""
         return True
 
+    def demo_attrs(self, ctx: TaskContext) -> dict:
+        """Extra family-specific fields to record in the demo's ``meta.json``, read from the
+        LIVE end-of-demo state. Default: none, so a family that does not override this records
+        exactly the fields it always has.
+
+        Used where a downstream consumer needs a physical quantity the generic recorder does
+        not capture: cabinet_firsthalf records the achieved drawer-joint position, which
+        calibrates the ``joint_open_at_least`` eval threshold from the demonstrations."""
+        return {}
+
     def resolve_compute(self, tag: str, seg: "MotionSegment", ctx: TaskContext):
         """Resolve a FAMILY-SPECIFIC ``compute`` tag to a world ``(eef_pos, eef_quat)`` from the
         LIVE state (the engine handles the generic tags itself and delegates the rest here).

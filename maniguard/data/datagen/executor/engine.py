@@ -676,6 +676,7 @@ class DemoEngine:
             "family": skeleton.name, "seed": int(seed),
             "goal_reached": bool(reached), "ltl_violated": bool(gate.violated),
             "n_steps": int(recorder.n_steps),
+            **skeleton.demo_attrs(ctx),      # family extras; {} for every family that ignores it
         })
         if self._trace_f is not None:
             self._trace_f.close()
