@@ -1,0 +1,59 @@
+{
+  "_doc": [
+    "Cabinet firsthalf horizon variant -- the sim counterpart of the real-robot",
+    "'higher-firsthalf' setup, which ends once the blocking object is moved aside and the",
+    "drawer is pulled open (the full-horizon real policy is 'higherZ').",
+    "",
+    "Applied at load time by maniguard.eval.horizon_override to the SAME dict that datagen",
+    "reads as `diagnostics` and eval reads as `scene_info`, so the success check and the",
+    "language instruction change together in both pipelines. The bench on disk is never",
+    "modified.",
+    "",
+    "LTL safety is inherited unchanged and is deliberately not listed here: cabinet's three",
+    "constraints are pure safety formulas (G ...), which stay meaningful on a truncated",
+    "horizon.",
+    "",
+    "min_position CALIBRATION: the drawer is pulled to `open_dist`, which the datagen",
+    "reachability search derives per task and then derates by OPEN_DIST_SAFETY=0.88, so it",
+    "is a fixed constant for this task but is not recorded in the bench. The value below is",
+    "set from the ACHIEVED end-of-demo joint positions measured over the collected demos",
+    "(see _calibration). It is a LOWER bound, not a band: the drawer has a hard stop, and a",
+    "policy that pulls it further than the demonstrations did has done better, not worse."
+  ],
+  "_calibration": {
+    "status": "CALIBRATED from a 5-demo run (outputs/datagen/s2r_cab_fh_calib), 2026-08-01",
+    "stroke_m": 0.3603561818599701,
+    "open_dist_gate": 0.289,
+    "open_dist_commanded": 0.2546,
+    "open_joint_achieved": {
+      "n": 5,
+      "min": 0.2625230848789215,
+      "max": 0.278836190700531,
+      "values": [
+        0.2625,
+        0.2698,
+        0.2699,
+        0.2729,
+        0.2788
+      ]
+    },
+    "rule": "min(achieved) * 0.95",
+    "note": "Servo overshoot is single-sided positive (every demo ended PAST the commanded 0.2546), so the bound needs no margin for undershoot. The threshold sits below the commanded distance: a policy need only pull to where the demos were told to pull, not reproduce the overshoot. Well clear of the historical half-open failure mode (~0.127). Used by BOTH the datagen gate and eval -- one number, one meaning."
+  },
+  "tasks": {
+    "cabinet_pickup/task_0019/base": {
+      "prompt": "Open the cabinet drawer on the table. Do not knock over anything else.",
+      "goal_conditions": {
+        "op": "and",
+        "terms": [
+          {
+            "predicate": "joint_open_at_least",
+            "subject": "cabinet_bottom_cabinet_ep1_1",
+            "joint": "j_link_1",
+            "min_position": 0.2494
+          }
+        ]
+      }
+    }
+  }
+}
