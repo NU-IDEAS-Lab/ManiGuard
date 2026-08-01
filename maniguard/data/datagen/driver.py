@@ -21,7 +21,8 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
              n_per_grasp: int = 1, target: int | None = None, max_attempts: int | None = None,
              score: bool = False, out_root: str = "outputs/datagen",
              headless: bool = True, timeout: float = 5.0, steps_per_waypoint: int = 2,
-             limit_demos=None, grasping_mode: str | None = None, start_draw: int | None = None):
+             limit_demos=None, grasping_mode: str | None = None, start_draw: int | None = None,
+             horizon_override: str | None = None):
     """Build one base task, then run the family skeleton x variants through the generic engine,
     recording each success+safe demo. Returns the list of DemoResults.
 
@@ -63,6 +64,22 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         pre_build_hooks=[_patch_franka_longfinger])
     env, robot = bundle.env, bundle.robot
     cameras.place_and_resize_cameras(env, robot, og, bundle.diagnostics)
+
+    # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal + prompt before
+    # anything reads them. `bundle.diagnostics` is the single source for BOTH -- build_gate
+    # takes the goal from it and the engine takes the recorded prompt from it -- so one
+    # substitution here keeps success checking and language consistent, and consistent with
+    # eval, which applies the same table to its scene_info. Omitted (the default) = the
+    # shipped full-horizon task, byte-identical to before this hook existed.
+    if horizon_override:
+        from maniguard.eval.horizon_override import apply_horizon_override
+        # Key includes the perturbation level (…/task_0019/base): a variant hard-codes concrete
+        # object instance names, and whether those survive a perturbation is a per-task property
+        # we must not assume. eval keys on the same string (its scene_info["name"]).
+        _hkey = f"{task_dir.parent.parent.name}/{task_dir.parent.name}/{task_dir.name}"
+        bundle.diagnostics = apply_horizon_override(bundle.diagnostics, horizon_override, _hkey)
+        print(f"[driver] horizon variant {_hkey} <- {horizon_override}\n"
+              f"[driver]   prompt: {bundle.diagnostics.get('prompt', '')}", flush=True)
 
     # goal_region families (clutter) carry a sphere spec; goal_conditions families (cabinet)
     # don't — resolve the target + support from the spec or diagnostics accordingly.
@@ -242,11 +259,17 @@ if __name__ == "__main__":
     ap.add_argument("--start-draw", type=int, default=None,
                     help="force the resume draw cursor (overrides the summary's next_draw); use to "
                          "recollect a deduped task with guaranteed-fresh seeds")
+    ap.add_argument("--horizon-override", default=None,
+                    help="JSON table of task-horizon variants (e.g. configs/firsthalf/"
+                         "cabinet_task0019.json): substitutes this task's goal_conditions + prompt "
+                         "so a truncated-horizon demo is gated and captioned as its own task. "
+                         "Omit for the shipped full-horizon task.")
     a = ap.parse_args()
     run_task(a.task_dir, family=a.family, dataset=a.dataset, grasp_ids=a.grasp_ids,
              n_per_grasp=a.n_per_grasp, target=a.target, max_attempts=a.max_attempts,
              score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos,
-             grasping_mode=a.grasping_mode, start_draw=a.start_draw)
+             grasping_mode=a.grasping_mode, start_draw=a.start_draw,
+             horizon_override=a.horizon_override)
     # The Python interpreter teardown SEGFAULTS during torch/Isaac extension unload (faulthandler dump
     # right after the "[driver] DONE" line). That abnormal exit leaves the GPU's CUDA context in a "bad
     # state" that accumulates across per-task process restarts into the per-GPU wedge. All data is already

@@ -51,6 +51,12 @@ class EvalConfig:
     # at load time. Leave both None for a normal run.
     prompt_map: Optional[str] = None
     prompt_condition: Optional[str] = None
+    # Task-horizon variant (e.g. cabinet firsthalf): a JSON table substituting a task's
+    # goal_conditions + prompt at load time, so a truncated-horizon policy is scored on the
+    # goal it was actually trained for instead of the shipped full-horizon one. The SAME
+    # table datagen collected the variant's demos with, so "success" means the same thing in
+    # both. The benchmark on disk is never modified. None (default) = the shipped task.
+    horizon_override: Optional[str] = None
     # Which third-person overview the policy consumes. The model is fed exactly
     # ONE external overview + the wrist (LIBERO 2-cam convention): the policy
     # server reads observation/image_left + observation/wrist_image (+ state).
@@ -225,6 +231,10 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--prompt-condition", type=str, default=None,
                    choices=["no_instruction", "natural_language", "ltl"],
                    help="Which safety-constraint conveyance to evaluate (needs --prompt-map).")
+    p.add_argument("--horizon-override", type=str, default=None,
+                   help="Task-horizon variant table (configs/firsthalf/*.json): substitutes a "
+                        "task's goal_conditions + prompt so a truncated-horizon policy is scored "
+                        "on the goal it was trained for. Omit for the shipped full-horizon task.")
     p.add_argument("--camera-resolution", type=int, default=None)
 
     args = p.parse_args()
@@ -257,6 +267,7 @@ def config_from_cli() -> EvalConfig:
         "camera_resolution": "camera_resolution",
         "prompt_map": "prompt_map",
         "prompt_condition": "prompt_condition",
+        "horizon_override": "horizon_override",
     }
     for cli_name, cfg_name in cli_map.items():
         val = getattr(args, cli_name, None)

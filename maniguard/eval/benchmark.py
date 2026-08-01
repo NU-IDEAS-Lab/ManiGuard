@@ -425,6 +425,17 @@ def main():
     all_results = []
 
     for scene_idx, scene_info in enumerate(scenes):
+        # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal_conditions +
+        # prompt from the SAME table datagen collected the variant's demos with, so success
+        # means the same thing here as it did at collection. Applied FIRST, before the prompt
+        # hooks below and well before build_goal_checker reads scene_info. Raises if this
+        # scene has no entry -- falling back would evaluate the full-horizon task while every
+        # artifact claims otherwise. Unset (the default) = the shipped task, unchanged.
+        if cfg.horizon_override:
+            from maniguard.eval.horizon_override import apply_horizon_override
+            scene_info = apply_horizon_override(
+                scene_info, cfg.horizon_override, scene_info["name"]
+            )
         if cfg.prompt_template:
             from maniguard.eval.prompt_utils import episode_prompt
             scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
