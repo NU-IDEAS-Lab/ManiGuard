@@ -9,9 +9,10 @@ v1 diversity levers (all consumed by the skeleton's ``derive_segments`` — no e
   * **above_xy** — lateral offset of the pre-grasp approach point
 
 Draw ``k=0`` per grasp is canonical (no jitter); ``k>0`` are RNG-jittered (deterministic per
-``(grasp_id, k)`` — no wall-clock/global RNG). cuRobo-seed diversity and in-goal-sphere
-placement variety are future levers (need ``solve_segment`` seed plumbing / an engine goal
-offset); for now grasp x jitter gives the spread.
+``(grasp_id, k)`` — no wall-clock/global RNG). The same master seed also seeds the engine's
+cuRobo trajopt (``torch.manual_seed`` in ``engine.py``), so planner-solution diversity comes
+with every draw; in-goal-sphere placement variety remains a future lever (needs an engine
+goal offset).
 """
 from __future__ import annotations
 

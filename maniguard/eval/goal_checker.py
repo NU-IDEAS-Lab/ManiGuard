@@ -189,6 +189,32 @@ def _eval_node(node, objects, env) -> tuple[bool, dict]:
     else:
         ref = None
 
+    # ``joint_open_at_least`` is a LOWER BOUND on one articulated joint's position, used where
+    # "open" is a matter of degree rather than a boolean: OmniGibson's ``Open`` state flips at its
+    # own internal threshold, which can be far short of the opening a demonstration actually
+    # achieves. The threshold here is calibrated from the demonstrations themselves (see
+    # configs/firsthalf/), so the policy is asked to reproduce what it was shown.
+    #
+    # A lower bound, deliberately, NOT a band: the drawer has a hard stop, and a policy that pulls
+    # it FURTHER than the demonstrations did has done better, not worse.
+    if predicate == "joint_open_at_least":
+        joint_name = node.get("joint", "")
+        threshold = node.get("min_position")
+        if not joint_name or threshold is None:
+            return False, {f"{label}[malformed]": False}
+        # The measured position goes in the KEY, never the value: ``_eval_node``'s and/or reduce
+        # over ``detail.values()``, so a non-bool there would silently corrupt the conjunction.
+        jlabel = f"{predicate}({subject_name}, {joint_name}>={float(threshold):.4f})"
+        try:
+            # Same index resolution the cabinet datagen uses: joints is an ordered mapping and
+            # get_joint_positions() returns values in that order.
+            jidx = list(subj.joints.keys()).index(joint_name)
+            position = float(subj.get_joint_positions()[jidx])
+        except Exception:
+            return False, {f"{jlabel}[unreadable]": False}
+        result = position >= float(threshold)
+        return result, {f"{jlabel}[measured={position:.4f}]": result}
+
     # ``covered`` takes a particle-system name rather than an object
     # reference; resolve it via env.scene and pass through.
     if predicate == "covered":
