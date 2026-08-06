@@ -122,8 +122,15 @@ def main() -> None:
     policy = policy_config.create_trained_policy(cfg, checkpoint)
     logger.info("Model loaded successfully.")
 
+    # Advertise what is actually being served in the connect handshake, so a client can ASSERT
+    # it is talking to the policy it thinks it is instead of trusting an operator to keep two
+    # machines in step. A config/checkpoint mismatch is otherwise completely silent: the wrong
+    # policy answers every request without erring, and only the results look wrong.
     server = websocket_policy_server.WebsocketPolicyServer(
-        _SeededPolicy(policy), host=args.host, port=args.port
+        _SeededPolicy(policy),
+        host=args.host,
+        port=args.port,
+        metadata={"serve_config": args.config, "checkpoint": str(checkpoint)},
     )
     server.serve_forever()
 
