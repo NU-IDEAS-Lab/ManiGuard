@@ -35,12 +35,14 @@ from __future__ import annotations
 import openpi.models.pi0_config as pi0_config
 import openpi.training.optimizer as _optimizer
 import openpi.training.weight_loaders as weight_loaders
-from openpi.training.config import DataConfig, TrainConfig
+from openpi.training.config import AssetsConfig, DataConfig, LeRobotDROIDDataConfig, TrainConfig
 
 from maniguard.openpi_sft.data_configs import Sim2CamLiberoDataConfig
 
 _PI05_BASE = "gs://openpi-assets/checkpoints/pi05_base/params"
 _PI0_BASE = "gs://openpi-assets/checkpoints/pi0_base/params"
+_PI0_DROID = "gs://openpi-assets/checkpoints/pi0_droid/params"
+_PI0_DROID_ASSETS = "gs://openpi-assets/checkpoints/pi0_droid/assets"
 
 
 def _build_configs() -> list[TrainConfig]:
@@ -1206,6 +1208,184 @@ def _build_configs() -> list[TrainConfig]:
                 pi05=True,
                 action_dim=32,
                 action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        # ============ pi0 REAL-TELEOP sim2real line (DROID schema) ============
+        # The pi0 counterpart of the three shipped pi0.5 real-robot checkpoints, so the
+        # paper's real-robot row is a MODEL comparison: same 60-trajectory datasets, same
+        # DROID warm-start family, same LoRA ranks, same batch, same step count -- only
+        # pi0.5 -> pi0 changes.
+        #
+        # Data (IDEAS-Lab-Northwestern/real-<task>-60-droid-refined, PRIVATE): real Franka
+        #   teleop in openpi's DROID schema, written by
+        #   maniguard/data/real_teleop/real_teleop_to_droid.py. fps 15, 60 episodes each.
+        #   TWO real cameras: exterior_image_1_left (raw cam0) + wrist_image_left (raw
+        #   cam1); exterior_image_2_left is a ZERO-FILLED placeholder (there is no second
+        #   exterior camera on the rig) and the model masks it, exactly as in the pi0.5 runs.
+        #   State = joint_position(7) + gripper_position(1).
+        #   Actions(8) = joint_VELOCITY(7) + next-frame gripper target(1).
+        # ⚠️ LeRobotDROIDDataConfig deliberately applies NO delta transform -- openpi's own
+        #   comment: "We assume joint *velocity* actions, so we should *not* apply an
+        #   additional delta transform." This is the opposite of the sim datagen line above,
+        #   which stores ABSOLUTE joint targets and sets use_delta_joint_actions=True.
+        #   Do not add a delta transform here; it would differentiate a velocity twice.
+        #
+        # warm start = pi0_droid (NOT pi0_base): pi0 already post-trained on DROID, so it
+        #   brings the joint-velocity action prior. The measured cost of not having it is
+        #   large -- on identical cab data the pi0.5 ablation converged to train loss ~0.004
+        #   from pi05_droid versus ~0.0095 from pi05_base.
+        # norm stats = pi0_droid's bundled DROID assets, reused verbatim (asset_id="droid"),
+        #   which is what openpi requires for DROID fine-tunes. Nothing is computed, so the
+        #   --norm-stats step of run_sft.sh must NOT be used for these three configs.
+        # discrete_state_input: left at its default (False for pi0) -- the 8-D state is a
+        #   continuous input, not prompt tokens. That leaves the whole 48-token pi0 prompt
+        #   budget for text; the longest of the three prompts (jar) tokenizes to 19.
+        #
+        # Scale: batch 4 x 50,000 steps, ONE GPU PER RUN, the three families trained in
+        #   parallel on separate cards. This reproduces the pi0.5 runs exactly rather than
+        #   enlarging the batch to fill 8 cards: at a fixed epoch budget, batch 32 would cut
+        #   the gradient-update count 8x on datasets of only 13-22k frames, and a difference
+        #   in pi0's real-robot score could then be optimization rather than the model.
+        #   Parallelism belongs on the family axis here, not the batch axis.
+        # ⚠️ jar: pi0 trains 50,000 steps, but the shipped pi0.5 jar checkpoint stopped at
+        #   20,000. The 20000/ rung of pi0's ladder is therefore the step-matched comparison
+        #   point for that family; 50000/ is the fully-trained one. Report accordingly.
+        # Ladder: save_interval = keep_period = 10,000 -> 10k/20k/30k/40k/50k on HF, the same
+        #   five rungs the pi0.5 repos carry. The pi0.5 cards report train loss bottoming at
+        #   30k and rising by 50k, so the best real-robot checkpoint is NOT assumed to be the
+        #   last one -- keep the ladder and sweep it on the robot.
+        # LR: openpi's default cosine (peak 2.5e-5) UNSCALED, since the batch is unchanged
+        #   from the pi0.5 runs; decay_steps == num_train_steps so the anneal spans the run.
+        TrainConfig(
+            name="pi0-droid_real_cab_higher_firsthalf_60_refined_lora",
+            project_name="maniguard-sft-real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi0-real-cab-higher-firsthalf-60-droid-refined-lora",
+                "hf_private": False,
+                "default_exp": "real_cab_higher_firsthalf_60_refined",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=False,
+                action_dim=32,
+                action_horizon=10,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+            ),
+            data=LeRobotDROIDDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/real-cab-higher-firsthalf-60-droid-refined",
+                base_config=DataConfig(prompt_from_task=True),
+                assets=AssetsConfig(assets_dir=_PI0_DROID_ASSETS, asset_id="droid"),
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI0_DROID),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=2.5e-5,
+                decay_steps=50_000,
+                decay_lr=2.5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=4,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=False,
+                action_dim=32,
+                action_horizon=10,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            name="pi0-droid_real_jar_60_refined_lora",
+            project_name="maniguard-sft-real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi0-real-jar-60-droid-refined-lora",
+                "hf_private": False,
+                "default_exp": "real_jar_60_refined",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=False,
+                action_dim=32,
+                action_horizon=10,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+            ),
+            data=LeRobotDROIDDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/real-jar-60-droid-refined",
+                base_config=DataConfig(prompt_from_task=True),
+                assets=AssetsConfig(assets_dir=_PI0_DROID_ASSETS, asset_id="droid"),
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI0_DROID),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=2.5e-5,
+                decay_steps=50_000,
+                decay_lr=2.5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=4,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=False,
+                action_dim=32,
+                action_horizon=10,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            name="pi0-droid_real_clutter_60_refined_lora",
+            project_name="maniguard-sft-real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi0-real-clutter-60-droid-refined-lora",
+                "hf_private": False,
+                "default_exp": "real_clutter_60_refined",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=False,
+                action_dim=32,
+                action_horizon=10,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+            ),
+            data=LeRobotDROIDDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/real-clutter-60-droid-refined",
+                base_config=DataConfig(prompt_from_task=True),
+                assets=AssetsConfig(assets_dir=_PI0_DROID_ASSETS, asset_id="droid"),
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI0_DROID),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=2.5e-5,
+                decay_steps=50_000,
+                decay_lr=2.5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=4,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=False,
+                action_dim=32,
+                action_horizon=10,
                 paligemma_variant="gemma_2b_lora",
                 action_expert_variant="gemma_300m_lora",
             ).get_freeze_filter(),
