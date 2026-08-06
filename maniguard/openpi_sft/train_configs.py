@@ -1213,6 +1213,622 @@ def _build_configs() -> list[TrainConfig]:
             ).get_freeze_filter(),
             ema_decay=None,
         ),
+        TrainConfig(
+            # jar / natural_language -- identical to the mainline jar block in every field except
+            # the rewritten dataset and the run identity, so the only variable is the prompt.
+            name="pi05-base_datagen_v1_jar_joint_2cam_lora_promptnl",
+            project_name="maniguard-sft-promptablation-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-datagen-v1-jar-joint-2cam-lora-promptnl-yanZ",
+                "hf_private": False,
+                "default_exp": "datagen_v1_jar_joint_2cam_promptnl",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-jar-v1-joint-5cam-promptnl",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=250,
+                peak_lr=7e-5,
+                decay_steps=7_400,
+                decay_lr=7e-6,
+            ),
+            num_train_steps=7_400,
+            batch_size=256,
+            num_workers=48,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=1_850,
+            keep_period=1_850,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # jar / ltl -- identical to the mainline jar block in every field except
+            # the rewritten dataset and the run identity, so the only variable is the prompt.
+            name="pi05-base_datagen_v1_jar_joint_2cam_lora_promptltl",
+            project_name="maniguard-sft-promptablation-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-datagen-v1-jar-joint-2cam-lora-promptltl-yanZ",
+                "hf_private": False,
+                "default_exp": "datagen_v1_jar_joint_2cam_promptltl",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-jar-v1-joint-5cam-promptltl",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=250,
+                peak_lr=7e-5,
+                decay_steps=7_400,
+                decay_lr=7e-6,
+            ),
+            num_train_steps=7_400,
+            batch_size=256,
+            num_workers=48,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=1_850,
+            keep_period=1_850,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # stack / natural_language -- identical to the mainline stack block in every field except
+            # the rewritten dataset and the run identity, so the only variable is the prompt.
+            name="pi05-base_datagen_v1_stack_joint_2cam_lora_promptnl",
+            project_name="maniguard-sft-promptablation-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-datagen-v1-stack-joint-2cam-lora-promptnl-yanZ",
+                "hf_private": False,
+                "default_exp": "datagen_v1_stack_joint_2cam_promptnl",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-stack-v1-joint-5cam-promptnl",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=650,
+                peak_lr=7e-5,
+                decay_steps=20_750,
+                decay_lr=7e-6,
+            ),
+            num_train_steps=20_750,
+            batch_size=256,
+            num_workers=48,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=5_188,
+            keep_period=5_188,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # stack / ltl -- identical to the mainline stack block in every field except
+            # the rewritten dataset and the run identity, so the only variable is the prompt.
+            name="pi05-base_datagen_v1_stack_joint_2cam_lora_promptltl",
+            project_name="maniguard-sft-promptablation-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-base-datagen-v1-stack-joint-2cam-lora-promptltl-yanZ",
+                "hf_private": False,
+                "default_exp": "datagen_v1_stack_joint_2cam_promptltl",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/datagen-stack-v1-joint-5cam-promptltl",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=650,
+                peak_lr=7e-5,
+                decay_steps=20_750,
+                decay_lr=7e-6,
+            ),
+            num_train_steps=20_750,
+            batch_size=256,
+            num_workers=48,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=5_188,
+            keep_period=5_188,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        # ============ pi0.5 SIM2REAL single-task line (sim side of the real comparison) ============
+        # Each config trains on ONE base task's 60 demonstrations, matching how the real-robot
+        # checkpoints were made: real teleop collected 60 demos of a single task, so a family-level
+        # sim checkpoint (trained across all of a family's tasks) is the wrong scope to compare it
+        # with. Datasets: IDEAS-Lab-Northwestern/sim2real-<fam>-task<NNNN>-sim-joint-5cam, private,
+        # 60 episodes each, single prompt.
+        #
+        # MODEL / DATA / WARM START come from the datagen-v1 pi0.5 family blocks above, unchanged --
+        #   this is a SIM checkpoint and must read the sim camera schema and start from pi05_base
+        #   (the real line starts from pi0_droid; never cross the two).
+        # SCALE comes from the pi0 REAL-TELEOP blocks below: batch 4-32 with 50,000 steps and ONE
+        #   GPU PER RUN, not the family blocks' global batch 256. On datasets of 24-191k frames a
+        #   large batch would cut the gradient-update count by the same factor, and a sim-vs-real
+        #   difference could then be optimization rather than the transfer gap. 50,000 updates is
+        #   exactly what the real checkpoints got.
+        # BATCH is scaled with the dataset so the four runs see a COMPARABLE number of epochs
+        #   (6.3-8.4) rather than a comparable number of samples: the four tasks hold 60 demos each
+        #   but their episodes differ 8x in length, so a fixed batch would give cabinet ~1 epoch
+        #   while clutter got 8.
+        # LR interpolates between two shipped configs on peak = 2.5e-5 * sqrt(batch/4): batch 4 ->
+        #   2.5e-5 is the real line's value, batch 32 -> 7e-5 is the family blocks'. Only jar's
+        #   3.5e-5 is a new number. decay_lr = peak/10, as in both.
+        # LADDER save = keep = 10,000 -> the same five rungs (10k..50k) the real repos carry, so a
+        #   step-matched comparison point exists for whichever rung the real side reports.
+        #
+        # cabinet has TWO configs. The real setup has a full-horizon policy (`higherZ`) and a
+        # `firsthalf` one that ends once the blocker is aside and the drawer is open; the sim side
+        # mirrors both. The firsthalf dataset was collected with --family cabinet_firsthalf under
+        # configs/firsthalf/cabinet_task0019.json, which also supplies its own prompt -- so its
+        # episodes caption the truncated task, and prompt_from_task picks that up here.
+        TrainConfig(
+            # clutter task_0048 -- the sim scene aligned with the real clutter setup.
+            # 23,904 frames / batch 4 -> 8.4 epochs over 50,000 steps.
+            name="pi05-base_sim2real_clutter_task0048_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-sim2real-clutter-task0048-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_clutter_task0048_sim",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-clutter-task0048-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=2.5e-5,
+                decay_steps=50_000,
+                decay_lr=2.5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=4,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # jar task_0016 -- the sim scene aligned with the real jar setup.
+            # 55,404 frames / batch 8 -> 7.2 epochs over 50,000 steps.
+            name="pi05-base_sim2real_jar_task0016_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-sim2real-jar-task0016-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_jar_task0016_sim",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-jar-task0016-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=3.5e-5,
+                decay_steps=50_000,
+                decay_lr=3.5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=8,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # cabinet task_0019, FULL horizon (open -> place -> close) <-> real `higherZ`.
+            # 190,701 frames / batch 32 -> 8.4 epochs over 50,000 steps.
+            name="pi05-base_sim2real_cabinet_task0019_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-sim2real-cabinet-task0019-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_cabinet_task0019_sim",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-cabinet-task0019-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=7e-5,
+                decay_steps=50_000,
+                decay_lr=7e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=32,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # cabinet task_0019, FIRSTHALF (blocker aside + drawer open) <-> real `higher-firsthalf`.
+            # 126,982 frames / batch 16 -> 6.3 epochs over 50,000 steps.
+            name="pi05-base_sim2real_cabinet_task0019_firsthalf_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi05-sim2real-cabinet-task0019-firsthalf-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_cabinet_task0019_firsthalf_sim",
+            },
+            model=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+                discrete_state_input=True,
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-cabinet-task0019-firsthalf-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI05_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=5e-5,
+                decay_steps=50_000,
+                decay_lr=5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=16,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                pi05=True,
+                action_dim=32,
+                action_horizon=16,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        # ============ pi0 SIM2REAL single-task line (the pi0 twin of the pi0.5 block above) ============
+        # Same four datasets, same 60-demo single-task scope, same 50,000-step budget -- only the
+        # base model changes, so a pi0 sim-vs-real comparison sits alongside the pi0.5 one.
+        #
+        # vs the pi0.5 sim2real blocks: pi05 and discrete_state_input are left at their Pi0Config
+        #   defaults (False / resolved False), so the 8-D state is a CONTINUOUS input to the action
+        #   expert rather than discretized into the prompt; warm start is _PI0_BASE; and
+        #   action_horizon is 50, the value the pi0 datagen-v1 family blocks use.
+        # ⚠️ action_horizon 50 (sim) vs 10 (the real pi0 line): the two sides differ for pi0.5 too
+        #   (16 vs 10). Each side keeps the horizon its own eval stack serves -- real standardised on
+        #   10 to reproduce the pi0.5 real runs, sim keeps openpi's per-model default. Matching them
+        #   would make these four checkpoints incomparable with the six pi0 family checkpoints
+        #   already evaluated in the sim benchmark, which is the worse trade.
+        # PROMPT BUDGET: pi0 caps the prompt at 48 tokens (pi0.5 allows 200), and the tokenizer
+        #   TRUNCATES with only a warning. The four task instructions measure 17-30 tokens, so they
+        #   fit -- verified, not assumed. (This is also why the prompt-ablation study has no pi0
+        #   column: its constraint-bearing prompts run 60-75 tokens.)
+        # SCALE / LR / LADDER: identical to the pi0.5 sim2real blocks, and peak = 2.5e-5 *
+        #   sqrt(batch/4) happens to pass through pi0's own two anchors as well -- batch 4 -> 2.5e-5
+        #   is the pi0 real line, batch 32 -> 7e-5 is the pi0 family blocks.
+        # default_exp carries a _pi0 suffix so these runs get their own outputs/sft_runs/<exp>/ and
+        #   do not interleave their logs with the pi0.5 runs on the same dataset.
+        TrainConfig(
+            # clutter task_0048 -- the sim scene aligned with the real clutter setup.
+            # 23,904 frames / batch 4 -> 8.4 epochs over 50,000 steps.
+            name="pi0-base_sim2real_clutter_task0048_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi0-sim2real-clutter-task0048-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_clutter_task0048_sim_pi0",
+            },
+            model=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-clutter-task0048-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI0_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=2.5e-5,
+                decay_steps=50_000,
+                decay_lr=2.5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=4,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # jar task_0016 -- the sim scene aligned with the real jar setup.
+            # 55,404 frames / batch 8 -> 7.2 epochs over 50,000 steps.
+            name="pi0-base_sim2real_jar_task0016_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi0-sim2real-jar-task0016-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_jar_task0016_sim_pi0",
+            },
+            model=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-jar-task0016-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI0_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=3.5e-5,
+                decay_steps=50_000,
+                decay_lr=3.5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=8,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # cabinet task_0019, FULL horizon (open -> place -> close) <-> real `higherZ`.
+            # 190,701 frames / batch 32 -> 8.4 epochs over 50,000 steps.
+            name="pi0-base_sim2real_cabinet_task0019_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi0-sim2real-cabinet-task0019-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_cabinet_task0019_sim_pi0",
+            },
+            model=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-cabinet-task0019-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI0_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=7e-5,
+                decay_steps=50_000,
+                decay_lr=7e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=32,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
+        TrainConfig(
+            # cabinet task_0019, FIRSTHALF (blocker aside + drawer open) <-> real `higher-firsthalf`.
+            # 126,982 frames / batch 16 -> 6.3 epochs over 50,000 steps.
+            name="pi0-base_sim2real_cabinet_task0019_firsthalf_sim_lora",
+            project_name="maniguard-sft-sim2real-yanZ",
+            policy_metadata={
+                "hf_repo": "IDEAS-Lab-Northwestern/pi0-sim2real-cabinet-task0019-firsthalf-sim-lora",
+                "hf_private": False,
+                "default_exp": "sim2real_cabinet_task0019_firsthalf_sim_pi0",
+            },
+            model=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+                dtype="bfloat16",
+            ),
+            data=Sim2CamLiberoDataConfig(
+                repo_id="IDEAS-Lab-Northwestern/sim2real-cabinet-task0019-firsthalf-sim-joint-5cam",
+                base_config=DataConfig(prompt_from_task=True),
+                use_delta_joint_actions=True,
+                external_cam="left",
+            ),
+            weight_loader=weight_loaders.CheckpointWeightLoader(_PI0_BASE),
+            lr_schedule=_optimizer.CosineDecaySchedule(
+                warmup_steps=1_000,
+                peak_lr=5e-5,
+                decay_steps=50_000,
+                decay_lr=5e-6,
+            ),
+            num_train_steps=50_000,
+            batch_size=16,
+            num_workers=8,
+            log_interval=100,
+            fsdp_devices=1,
+            save_interval=10_000,
+            keep_period=10_000,
+            freeze_filter=pi0_config.Pi0Config(
+                action_dim=32,
+                action_horizon=50,
+                paligemma_variant="gemma_2b_lora",
+                action_expert_variant="gemma_300m_lora",
+            ).get_freeze_filter(),
+            ema_decay=None,
+        ),
         # ============ pi0 REAL-TELEOP sim2real line (DROID schema) ============
         # The pi0 counterpart of the three shipped pi0.5 real-robot checkpoints, so the
         # paper's real-robot row is a MODEL comparison: same 60-trajectory datasets, same
