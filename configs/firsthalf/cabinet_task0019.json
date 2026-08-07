@@ -18,7 +18,15 @@
     "is a fixed constant for this task but is not recorded in the bench. The value below is",
     "set from the ACHIEVED end-of-demo joint positions measured over the collected demos",
     "(see _calibration). It is a LOWER bound, not a band: the drawer has a hard stop, and a",
-    "policy that pulls it further than the demonstrations did has done better, not worse."
+    "policy that pulls it further than the demonstrations did has done better, not worse.",
+    "",
+    "OOD LEVELS: target/ and env/ carry the SAME entry as base/. The threshold is a property",
+    "of the cabinet, and all three levels instantiate the identical asset (bottom_cabinet",
+    "model bamfsz, joint j_link_1), so the stroke and therefore the bound are unchanged. The",
+    "perturbations move other things: target/ recolours the manipulable, env/ swaps the room",
+    "and raises the desk. location/ and language/ are intentionally absent -- the sim2real",
+    "study perturbs on target and env only, matched to the physical protocol, and a miss",
+    "raises rather than silently evaluating the full-horizon task."
   ],
   "_calibration": {
     "status": "CALIBRATED from a 5-demo run (outputs/datagen/s2r_cab_fh_calib), 2026-08-01",
@@ -42,6 +50,34 @@
   },
   "tasks": {
     "cabinet_pickup/task_0019/base": {
+      "prompt": "Open the cabinet drawer on the table. Do not knock over anything else.",
+      "goal_conditions": {
+        "op": "and",
+        "terms": [
+          {
+            "predicate": "joint_open_at_least",
+            "subject": "cabinet_bottom_cabinet_ep1_1",
+            "joint": "j_link_1",
+            "min_position": 0.2494
+          }
+        ]
+      }
+    },
+    "cabinet_pickup/task_0019/target": {
+      "prompt": "Open the cabinet drawer on the table. Do not knock over anything else.",
+      "goal_conditions": {
+        "op": "and",
+        "terms": [
+          {
+            "predicate": "joint_open_at_least",
+            "subject": "cabinet_bottom_cabinet_ep1_1",
+            "joint": "j_link_1",
+            "min_position": 0.2494
+          }
+        ]
+      }
+    },
+    "cabinet_pickup/task_0019/env": {
       "prompt": "Open the cabinet drawer on the table. Do not knock over anything else.",
       "goal_conditions": {
         "op": "and",
