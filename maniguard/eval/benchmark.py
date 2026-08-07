@@ -433,8 +433,13 @@ def main():
         # artifact claims otherwise. Unset (the default) = the shipped task, unchanged.
         if cfg.horizon_override:
             from maniguard.eval.horizon_override import apply_horizon_override
+            # The table is keyed the way datagen names a task, family included
+            # ("cabinet_pickup/task_0019/base"), but a scene's `name` here is relative to the
+            # family root ("task_0019/base") because benchmark_root already points at the
+            # family. Re-attach the family, or every lookup misses and the run aborts.
             scene_info = apply_horizon_override(
-                scene_info, cfg.horizon_override, scene_info["name"]
+                scene_info, cfg.horizon_override,
+                f"{Path(resolved_root).name}/{scene_info['name']}",
             )
         if cfg.prompt_template:
             from maniguard.eval.prompt_utils import episode_prompt
