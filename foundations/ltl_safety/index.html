@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1231,7 +1231,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1351,6 +1351,8 @@
       
         
       
+        
+      
     
     
     
@@ -1403,6 +1405,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluation/run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1642,10 +1672,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#constraint-sources" class="md-nav__link">
+  <a href="#where-the-spec-comes-from" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constraint sources
+        Where the spec comes from
       
     </span>
   </a>
@@ -1653,10 +1683,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ltl_safetyjson-schema" class="md-nav__link">
+  <a href="#the-spec-schema-ltl_safety" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ltl_safety.json schema
+        The spec schema (ltl_safety)
       
     </span>
   </a>
@@ -1839,10 +1869,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#constraint-sources" class="md-nav__link">
+  <a href="#where-the-spec-comes-from" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constraint sources
+        Where the spec comes from
       
     </span>
   </a>
@@ -1850,10 +1880,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ltl_safetyjson-schema" class="md-nav__link">
+  <a href="#the-spec-schema-ltl_safety" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ltl_safety.json schema
+        The spec schema (ltl_safety)
       
     </span>
   </a>
@@ -1996,43 +2026,32 @@ by step. The system has two layers:</p>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">monitor</span> <span class="o">=</span> <span class="n">TaskLTLMonitor</span><span class="p">(</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">env</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">ltl_safety</span><span class="o">=</span><span class="n">ltl_safety_dict</span><span class="p">,</span>         <span class="c1"># task-level spec; {} disables monitoring</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">ltl_safety</span><span class="o">=</span><span class="n">ltl_safety_dict</span><span class="p">,</span>         <span class="c1"># the task&#39;s spec dict; {} disables monitoring</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">activity_name</span><span class="o">=</span><span class="s2">&quot;pnp_clutter&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">scene_model</span><span class="o">=</span><span class="s2">&quot;Benevolence_1_int&quot;</span><span class="p">,</span>    <span class="c1"># also loads scene-level ltl_safety.json</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">active_objects_by_inst</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;wineglass.n.01_1&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="p">,</span> <span class="o">...</span><span class="p">},</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">monitor</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_steps</span><span class="p">):</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">info</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>           <span class="c1"># {&quot;step&quot;,&quot;ap&quot;,&quot;state&quot;,&quot;accepting&quot;,&quot;doomed&quot;}</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="k">if</span> <span class="n">monitor</span><span class="o">.</span><span class="n">violated</span><span class="p">:</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        <span class="k">break</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="n">summary</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>             <span class="c1"># formula, constraints, violated, violation_step, log</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">active_objects_by_inst</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;wineglass.n.01_1&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="p">,</span> <span class="o">...</span><span class="p">},</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">monitor</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_steps</span><span class="p">):</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">info</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>           <span class="c1"># {&quot;step&quot;,&quot;ap&quot;,&quot;state&quot;,&quot;accepting&quot;,&quot;doomed&quot;}</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="k">if</span> <span class="n">monitor</span><span class="o">.</span><span class="n">violated</span><span class="p">:</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="k">break</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">summary</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>             <span class="c1"># formula, constraints, violated, violation_step, log</span>
 </code></pre></div>
 <p>It merges <strong>task-level</strong> and <strong>scene-level</strong> constraints (formulas AND-joined,
 propositions merged), resolves proposition subjects to live scene objects via
 <code>ObjectResolver</code> (synset-glob → wrapped objects, filtered to <code>active_objects</code>),
 builds an evaluator, compiles the combined formula, and logs the first violation.</p>
-<h3 id="constraint-sources">Constraint sources<a class="headerlink" href="#constraint-sources" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Level</th>
-<th>File</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Task-level</td>
-<td><code>behavior-1k/bddl3/bddl/activity_definitions/&lt;activity&gt;/ltl_safety.json</code></td>
-</tr>
-<tr>
-<td>Scene-level</td>
-<td><code>datasets/behavior-1k-assets/scenes/&lt;scene&gt;/safety/ltl_safety.json</code></td>
-</tr>
-</tbody>
-</table>
-<h3 id="ltl_safetyjson-schema"><code>ltl_safety.json</code> schema<a class="headerlink" href="#ltl_safetyjson-schema" title="Permanent link">&para;</a></h3>
+<h3 id="where-the-spec-comes-from">Where the spec comes from<a class="headerlink" href="#where-the-spec-comes-from" title="Permanent link">&para;</a></h3>
+<p>For the benchmark, the spec <strong>travels with the task</strong>: task generation embeds
+each task's <code>ltl_safety</code> dict inline in its <code>diagnostics.jsonl</code>, and datagen /
+eval pass that dict straight to <code>TaskLTLMonitor</code> — no filesystem lookup, so a
+frozen task is self-contained. Two file-based channels still exist but are
+dormant compatibility paths, not used by the benchmark: a task-level
+<code>activity_definitions/&lt;activity&gt;/ltl_safety.json</code> and a scene-level
+<code>scenes/&lt;scene&gt;/safety/ltl_safety.json</code> (loaded only when a <code>scene_model</code> arg is
+passed; scene- and task-level constraints are then AND-joined).</p>
+<h3 id="the-spec-schema-ltl_safety">The spec schema (<code>ltl_safety</code>)<a class="headerlink" href="#the-spec-schema-ltl_safety" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;activity_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pnp_clutter&quot;</span><span class="p">,</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;constraints&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
@@ -2085,6 +2104,21 @@ condition (via <code>buddy</code>) from the proposition values, follows the matc
 transition, and reports <code>doomed</code> — detected either as a monitor rejecting sink
 or, for general automata, via a Tarjan-SCC reachability check from accepting
 states.</p>
+<div class="admonition note">
+<p class="admonition-title">Semantics: a bad-prefix monitor (safety only, weak until)</p>
+<p>The default <code>translate_opts=("monitor", "det", "complete")</code> compiles a
+<strong>bad-prefix monitor</strong>: a rollout is flagged at the first finite prefix that
+can no longer be extended to satisfy the formula. Consequently only
+<strong>safety</strong> violations are detectable — a <em>liveness</em> obligation ("ψ must
+eventually hold") has no finite counterexample and is never flagged. In
+particular, an ordering clause written <code>a U b</code> is enforced exactly as its
+safety half, the weak until <code>a W b</code> ("do not break <code>a</code> before <code>b</code>"): the
+monitor rejects lifting-before-closing, but an idle rollout that never
+reaches <code>b</code> is not a safety violation — reaching <code>b</code> is the task goal,
+checked by the <a href="../../evaluation/">goal checker</a>, not by φ. <code>U</code> and
+<code>W</code> have identical bad prefixes, so both spellings compile to the same
+automaton.</p>
+</div>
 <h3 id="spot-is-optional">Spot is optional<a class="headerlink" href="#spot-is-optional" title="Permanent link">&para;</a></h3>
 <p>If the Spot library is unavailable, <code>TaskLTLMonitor</code> prints a warning and
 disables monitoring (the rollout still runs); <code>LTLMonitor</code> raises on
@@ -2181,7 +2215,7 @@ see <a href="../../pipelines/">Task generation</a>.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/mg-carousel.js"></script>
       

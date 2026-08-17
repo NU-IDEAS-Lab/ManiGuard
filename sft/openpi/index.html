@@ -23,15 +23,15 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>openpi / pi0.5 - ManiGuard</title>
+        <title>openpi (pi0.5 / pi0) - ManiGuard</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#openpi-pi05-sft" class="md-skip">
+        <a href="#openpi-pi05-pi0-sft" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              openpi / pi0.5
+              openpi (pi0.5 / pi0)
             
           </span>
         </div>
@@ -1245,7 +1245,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1263,7 +1263,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1536,6 +1536,8 @@
       
         
       
+        
+      
     
     
     
@@ -1588,6 +1590,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluation/run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -2017,11 +2047,21 @@
   
 
 
-<h1 id="openpi-pi05-sft">openpi / pi0.5 SFT<a class="headerlink" href="#openpi-pi05-sft" title="Permanent link">&para;</a></h1>
-<p>LoRA SFT of a pi0.5 VLA on a ManiGuard <strong>JointController</strong> dataset, using openpi's
-native JAX trainer through ManiGuard's own <code>maniguard/openpi_sft</code> task-config
-module against an <strong>unmodified, parallel openpi clone</strong>. Collection → dataset →
-SFT → eval are all joint-space (no end-effector / IK anywhere).</p>
+<h1 id="openpi-pi05-pi0-sft">openpi (pi0.5 / pi0) SFT<a class="headerlink" href="#openpi-pi05-pi0-sft" title="Permanent link">&para;</a></h1>
+<p>LoRA SFT of a pi0.5 or pi0 VLA on a ManiGuard <strong>JointController</strong> dataset, using
+openpi's native JAX trainer through ManiGuard's own <code>maniguard/openpi_sft</code>
+task-config module against an <strong>unmodified, parallel openpi clone</strong>. Collection →
+dataset → SFT → eval are all joint-space (no end-effector / IK anywhere).</p>
+<div class="admonition note">
+<p class="admonition-title">The pi0 track</p>
+<p>Everything below is written for pi0.5; the module also registers a <strong>pi0</strong>
+config per family (<code>pi0-base_datagen_v1_&lt;fam&gt;_joint_2cam_lora</code>) with the same
+data pipeline and launcher. The diffs are exactly the model generation:
+warm-start <code>pi0_base</code> instead of <code>pi05_base</code>, continuous state input, and
+<code>action_horizon=50</code> (pi0's native chunk; the pi0.5 configs use 16). Norm
+stats are computed <strong>fresh</strong> under each pi0 config name — the stats pass
+chunks actions by horizon, so the pi0.5 stats are not reusable.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Why a separate module instead of editing openpi</p>
 <p>openpi is consumed as a pinned, <strong>pristine</strong> clone next to ManiGuard. All
@@ -2282,7 +2322,7 @@ repo's <code>&lt;remote_label&gt;/params/</code>, checked against HF itself. Bot
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/mg-carousel.js"></script>
       

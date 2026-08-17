@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/evaluation/engagement_metric/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../run_benchmark/">
       
       
         <link rel="next" href="../../architecture/overview/">
@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1231,7 +1231,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1353,6 +1353,8 @@
       
         
       
+        
+      
     
     
     
@@ -1408,6 +1410,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1527,10 +1557,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reporting-three-lenses" class="md-nav__link">
+  <a href="#reporting-the-papers-metric-set" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reporting — three lenses
+        Reporting — the paper's metric set
       
     </span>
   </a>
@@ -1860,10 +1890,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reporting-three-lenses" class="md-nav__link">
+  <a href="#reporting-the-papers-metric-set" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reporting — three lenses
+        Reporting — the paper's metric set
       
     </span>
   </a>
@@ -2035,30 +2065,38 @@ Read each in its own frame.</p>
 </ul>
 <p>Gating on first contact also drops pre-contact spawn-instability tips, which are not
 the policy's doing.</p>
-<h2 id="reporting-three-lenses">Reporting — three lenses<a class="headerlink" href="#reporting-three-lenses" title="Permanent link">&para;</a></h2>
+<h2 id="reporting-the-papers-metric-set">Reporting — the paper's metric set<a class="headerlink" href="#reporting-the-papers-metric-set" title="Permanent link">&para;</a></h2>
 <p>The plain <code>success_rate</code> and <code>violation_rate</code> stay in <code>summary.json</code> unchanged; the
 engagement fields are added beside them (<code>n_idle</code>, <code>n_reached</code>, <code>n_manipulated</code>,
 <code>n_contacted</code>, <code>n_vacuous_safe</code>, <code>n_counted_violation</code>, <code>contact_gated_violation_rate</code>).
 Each per-rollout row also carries every raw signal plus <code>outcome</code>, <code>safety_evaluated</code>,
 and <code>counted_violation</code>.</p>
-<p>Results are read through three lenses:</p>
-<ol>
-<li><strong>2×2 — success × contact-gated safety.</strong> Every rollout falls in exactly one cell:
-   <code>safe-success</code> · <code>unsafe-success</code> · <code>failed+violated</code> · <code>failed+safe</code> · <code>idle</code>
-   (<code>not ever_contacted</code>). <strong><code>safe-success</code> is the headline</strong> — succeeded <em>and</em> clean.</li>
-<li><strong>Three independent axes:</strong> ① engaged % (<code>ever_contacted</code>) → ② success given
-   engaged → ③ violation given engaged.</li>
-<li><strong>Plain rates:</strong> raw success over all tasks and the contact-gated violation rate,
-   for reference.</li>
-</ol>
-<p>The engaged axis is what makes two very different zero-success failure modes legible,
-which plain success/violation cannot tell apart:</p>
+<p>These signals roll up into the metrics the paper reports —
+<code>tools/eval_summary.py</code> computes them from any eval-log tree
+(<a href="../run_benchmark/#4-read-the-results">usage</a>). With <em>safe</em> = no counted
+violation and <em>engaged</em> = <code>ever_contacted</code>:</p>
 <ul>
-<li><strong>inert</strong> — low engaged %: the policy freezes and does nothing. Its rollouts are
-  vacuously safe, not safe <em>behaviour</em>.</li>
-<li><strong>clumsy</strong> — high engaged % <em>and</em> high violation-given-engaged: the policy acts but
-  topples or drops things.</li>
+<li><strong>Outcome classes</strong> (partition every rollout): <strong>SSR</strong> = safe success ·
+  Succ.&amp;Unsafe · Unsucc.&amp;Safe · Unsucc.&amp;Unsafe.</li>
+<li><strong>Engagement block</strong>: <strong>Eng.</strong> = Pr[engaged]; <strong>Eng.&amp;Safe</strong> = Pr[safe ∧ engaged]
+  (denominator: <em>all</em> rollouts); <strong>Safe | Eng.</strong> = Pr[safe | engaged]
+  (denominator: <em>engaged</em> rollouts only); <strong>Vacuous-safe</strong> = Pr[¬engaged].</li>
+<li>Two exact identities tie them together:
+  <code>Safe = Vacuous-safe + Eng.&amp;Safe</code> and <code>SVR = Eng. × EVR</code>
+  (SVR/EVR being the violation-rate complements of Safe and Safe | Eng.).</li>
 </ul>
+<p>The engagement block is what makes two very different zero-success failure modes
+legible, which plain success/violation cannot tell apart:</p>
+<ul>
+<li><strong>inert</strong> — low <code>Eng.</code>: the policy freezes. Its rollouts land in Vacuous-safe
+  and inflate <code>Safe</code> without any safe <em>behaviour</em>; <code>Safe | Eng.</code> gives it no credit.</li>
+<li><strong>clumsy</strong> — high <code>Eng.</code> with low <code>Safe | Eng.</code>: the policy acts but topples
+  or drops things.</li>
+</ul>
+<p>The two denominators also rank policies differently by design: a policy that
+engages more often can lead on <code>Eng.&amp;Safe</code> (more absolute safe activity) while a
+more careful one leads on <code>Safe | Eng.</code> (lower per-act risk) — the gap between
+the columns is exactly the exposure effect.</p>
 <h2 id="companion-diagnostic-open-loop-action-replay">Companion diagnostic: open-loop action replay<a class="headerlink" href="#companion-diagnostic-open-loop-action-replay" title="Permanent link">&para;</a></h2>
 <p>A separate probe (<code>tools/openloop_replay_probe.py</code>), referenced in the diagnosis of
 every eval report, answers a question the engagement metric cannot: <em>did the policy
@@ -2086,6 +2124,10 @@ not undertraining. Run it against the family's own policy server while idle, wit
 <tr>
 <td><code>tau_move</code> / <code>tau_reach</code> thresholds</td>
 <td><code>maniguard/eval/eval_config.py</code></td>
+</tr>
+<tr>
+<td>Metric roll-up (the paper's tables)</td>
+<td><code>tools/eval_summary.py</code></td>
 </tr>
 <tr>
 <td>Open-loop replay probe</td>
@@ -2151,7 +2193,7 @@ not undertraining. Run it against the family's own policy server while idle, wit
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/mg-carousel.js"></script>
       

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1353,6 +1353,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#collect-over-bench-tasks-either-arm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collect over bench tasks (either arm)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#so-101-franka" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1595,7 +1606,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1715,6 +1726,8 @@
       
         
       
+        
+      
     
     
     
@@ -1767,6 +1780,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -2240,6 +2281,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#collect-over-bench-tasks-either-arm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collect over bench tasks (either arm)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#so-101-franka" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2400,6 +2452,11 @@ this page:</p>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        └─►  human teleop  ─►  raw HDF5  ─►  playback render  ─►  SFT HDF5  ─────┘
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>              (data/teleop)                  (data/playback)
 </code></pre></div>
+<figure>
+<p><img alt="ManiGuard demonstration engine: automated and teleop collection under a shared per-step LTL monitor" loading="lazy" src="img/datagen_overall_pipeline.webp" />
+  </p>
+<figcaption>Both collection routes share one substrate (scenes, cameras, control, recorder) and one per-step LTL<sub>f</sub> monitor — the same monitor evaluation uses. A trajectory enters the dataset only if it succeeds <em>and</em> satisfies the task's safety spec φ, yielding 8,000 safe-success episodes across the 6 families.</figcaption>
+</figure>
 <hr />
 <h2 id="scripted-datagen">Scripted datagen<a class="headerlink" href="#scripted-datagen" title="Permanent link">&para;</a></h2>
 <p>The <strong><code>maniguard/data/datagen/</code></strong> pipeline turns the read-only <strong>ManiGuard-Bench</strong>
@@ -3006,6 +3063,7 @@ but the datasets that feed SFT at scale come from the scripted pipeline above.</
 <th>Leader</th>
 <th>Mapping</th>
 <th>Follower controller</th>
+<th>Raw action</th>
 </tr>
 </thead>
 <tbody>
@@ -3013,14 +3071,43 @@ but the datasets that feed SFT at scale come from the scripted pipeline above.</
 <td><strong>SO-101</strong> (LeRobot, 5-DoF)</td>
 <td>EE delta → IK</td>
 <td><code>InverseKinematicsController</code></td>
+<td>7-D EEF delta</td>
 </tr>
 <tr>
 <td><strong>GELLO</strong> (7-DoF Dynamixel)</td>
 <td>1:1 joint mirroring</td>
 <td><code>JointController</code> (position, absolute)</td>
+<td>8-D absolute joint</td>
 </tr>
 </tbody>
 </table>
+<p>The raw action conventions differ, but the render stage normalizes both to the
+same 8-D joint SFT format — see <a href="#playback-render">Playback / render</a>.</p>
+<h3 id="collect-over-bench-tasks-either-arm">Collect over bench tasks (either arm)<a class="headerlink" href="#collect-over-bench-tasks-either-arm" title="Permanent link">&para;</a></h3>
+<p><code>scripts/teleop_family_collect.sh</code> is the front door for teleoping ManiGuard-Bench
+tasks: pick a leader arm and a family, and it walks the tasks interactively — one
+teleop episode per trajectory, success-gated writes, a keep/discard prompt after
+each, resume across sessions, per-task trajectory numbering.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="c1"># GELLO (default) — every task of the family:</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--family<span class="w"> </span>jar_transport
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="c1"># SO-101 — start the ZMQ bridge first (next section), then a task subset:</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--arm<span class="w"> </span>so101<span class="w"> </span>--family<span class="w"> </span>stack_retrieve<span class="w"> </span>--tasks<span class="w"> </span><span class="m">0001</span><span class="w"> </span><span class="m">0004</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="c1"># resolve the config and print the launch command without booting Isaac:</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--family<span class="w"> </span>lid_transport<span class="w"> </span>--dry-run
+</code></pre></div>
+<p>Trajectories land in <code>outputs/teleop_collected/&lt;family&gt;_&lt;arm&gt;/task_NNNN_traj_NNN.hdf5</code>
+— the arm tag keeps GELLO and SO-101 collections apart, and the conversion below
+handles both identically. <code>--help</code> lists every knob (<code>--bench-root</code>,
+<code>--grasping-mode</code>, <code>--gello-port</code>, <code>--zmq-host/--zmq-port/--pos-scale/--rot-scale</code>,
+<code>-- &lt;extra args&gt;</code> forwarded to the teleop module). SO-101 runs are pre-flighted:
+if the bridge is not reachable, the script prints its launch command and exits
+instead of booting Isaac for nothing.</p>
+<p>The two sections below document each arm's teleop module — what the collection
+script launches per episode; both also run standalone on any single snapshot.</p>
 <h3 id="so-101-franka">SO-101 → Franka<a class="headerlink" href="#so-101-franka" title="Permanent link">&para;</a></h3>
 <p>Two processes: a <strong>ZMQ server</strong> reads the physical SO-101 leader and publishes EE poses;
 the <strong>teleop client</strong> subscribes and drives the OmniGibson Franka.</p>
@@ -3030,15 +3117,15 @@ serial, computes forward kinematics to get the end-effector pose, and publishes 
 as a pickled dict on a ZMQ PUB socket at a fixed rate (default 60 Hz). Runs in the
 <code>lerobot</code> Python 3.12 venv. A <code>--mock</code> mode emits a sinusoidal trajectory with no hardware.
 Source: <code>teleop_bridge/so101_server.py</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># mock (no hardware)</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>lerobot
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>python<span class="w"> </span>teleop_bridge/so101_server.py<span class="w"> </span>--mock
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c1"># real hardware with FK</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="nb">cd</span><span class="w"> </span>teleop_bridge/SO-ARM100/Simulation/SO101
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>python<span class="w"> </span>&lt;repo&gt;/teleop_bridge/so101_server.py<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">    </span>--port<span class="w"> </span>/dev/ttyACM0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span>--urdf<span class="w"> </span>&lt;repo&gt;/teleop_bridge/SO-ARM100/Simulation/SO101/so101_new_calib.urdf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># mock (no hardware)</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>lerobot
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>python<span class="w"> </span>teleop_bridge/so101_server.py<span class="w"> </span>--mock
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="c1"># real hardware with FK</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="nb">cd</span><span class="w"> </span>teleop_bridge/SO-ARM100/Simulation/SO101
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>python<span class="w"> </span>&lt;repo&gt;/teleop_bridge/so101_server.py<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">    </span>--port<span class="w"> </span>/dev/ttyACM0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">    </span>--urdf<span class="w"> </span>&lt;repo&gt;/teleop_bridge/SO-ARM100/Simulation/SO101/so101_new_calib.urdf
 </code></pre></div>
 <details class="note">
 <summary>▸ Server prerequisites</summary>
@@ -3130,12 +3217,12 @@ pipeline-generated scene snapshot (<code>scene_ep*.json</code>) and optionally r
 <code>DataCollectionWrapper</code>. Runs in the <code>behavior</code> conda env (with <code>pip install pyzmq</code>).
 Source: <code>maniguard/data/teleop/so101_franka_teleop.py</code> (+ <code>so101_teleop.py</code> for
 <code>SO101TeleopAgent</code>).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Terminal 1: server (above).  Terminal 2:</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_teleop<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/pipeline_runs/&lt;run&gt;/scene_ep1.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop/&lt;name&gt;.hdf5<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">    </span>--only-successes
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Terminal 1: server (above).  Terminal 2:</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_teleop<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop_collected/jar_transport_so101/task_0001_traj_001.hdf5<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span>--only-successes
 </code></pre></div>
 <p>If <code>diagnostics.jsonl</code> sits next to the snapshot, an auto goal checker
 (<code>maniguard.eval.goal_checker.build_goal_checker</code>) ends the episode the moment the goal
@@ -3200,10 +3287,10 @@ gripper has no physical leader counterpart and is toggled with SPACE. On startup
 seeds at a deterministic <code>GELLO_CALIBRATION_FRANKA_POSE</code> and ramps to the leader's live
 reading over <code>GELLO_RAMP_STEPS</code> (60 ≈ 2 s at 30 Hz) to avoid jolts.
 Source: <code>maniguard/data/teleop/gello_franka_teleop.py</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.gello_franka_teleop<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/teleop_scenes/table/scene_ep0000.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop/table/scene_ep0000.hdf5
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.gello_franka_teleop<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop_collected/jar_transport_gello/task_0001_traj_001.hdf5
 </code></pre></div>
 <p>You <strong>must press B to start recording</strong> — until then the leader drives the arm live but
 nothing is written.</p>
@@ -3312,12 +3399,12 @@ the two. The matching Franka pose is <code>GELLO_CALIBRATION_FRANKA_POSE</code>;
 reference pose means updating <strong>both</strong> constants (they are paired). Brace the arm with
 a fixture or a second person — a few degrees of drift bakes into the offsets.</p>
 <p><strong>2 · Run the calibration script</strong> (bundled <code>joylo</code> submodule):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>python<span class="w"> </span>behavior-1k/joylo/scripts/gello_get_offset.py<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span>--port<span class="w"> </span>/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_&lt;SERIAL&gt;-if00-port0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span>--start-joints<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">  </span>--joint-signs<span class="w"> </span><span class="m">1</span><span class="w"> </span>-1<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">  </span>--gripper<span class="w"> </span>False
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>python<span class="w"> </span>behavior-1k/joylo/scripts/gello_get_offset.py<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--port<span class="w"> </span>/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_&lt;SERIAL&gt;-if00-port0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span>--start-joints<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span>--joint-signs<span class="w"> </span><span class="m">1</span><span class="w"> </span>-1<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">  </span>--gripper<span class="w"> </span>False
 </code></pre></div>
 <table>
 <thead>
@@ -3374,15 +3461,20 @@ produces them.</p>
   (<code>ManiGuardPlaybackWriter</code>) turns any teleop HDF5 into SFT-ready observations. It
   selects the state convention (<code>--controller joint|eef</code>, joint is the ManiGuard
   default) and camera count (<code>--cams 2|3</code>), and writes the 8-D <code>obs/state</code> used by the
-  SFT datasets.</li>
+  SFT datasets. <strong>Actions are normalized to the 8-D joint convention regardless of
+  which arm recorded them</strong>: GELLO's absolute joint targets pass through unchanged,
+  while SO-101's 7-D IK deltas (meaningless as SFT actions) are rewritten as
+  <code>[replayed arm_q(t+1), gripper cmd]</code> — the replay restores the recorded sim state
+  every step, so that is the joint trajectory the arm actually executed. The choice
+  is stamped as <code>data.attrs['action_source']</code> in the output.</li>
 <li><strong>SO-101 replay (viewer / RGB re-render):</strong> <code>so101_franka_playback.py</code>:</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="c1"># watch in the viewer</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># re-render RGB into a new HDF5</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5<span class="w"> </span>--output<span class="w"> </span>outputs/teleop/demo_obs.hdf5<span class="w"> </span>--record
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="c1"># watch in the viewer</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># re-render RGB into a new HDF5</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">    </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5<span class="w"> </span>--output<span class="w"> </span>outputs/teleop/demo_obs.hdf5<span class="w"> </span>--record
 </code></pre></div>
 <details class="note">
 <summary>▸ Playback internals</summary>
@@ -3395,19 +3487,23 @@ materialised into the output HDF5.</p>
 </details>
 <h3 id="sim-teleop-lerobot">Sim teleop → LeRobot<a class="headerlink" href="#sim-teleop-lerobot" title="Permanent link">&para;</a></h3>
 <p>Turns raw sim-teleop captures into a LeRobot v2.1 dataset for SFT. Two stages, both
-driven by the template <code>scripts/render_teleop_to_lerobot.sh</code> (edit only its CONFIG block
-per family):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w">            </span><span class="c1"># both stages</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage1<span class="w">   </span><span class="c1"># re-render raw teleop → joint+3cam HDF5</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage2<span class="w">   </span><span class="c1"># rendered HDF5 → LeRobot v2.1 (local build)</span>
+driven by the template <code>scripts/render_teleop_to_lerobot.sh</code> (edit only its CONFIG
+block: <code>FAMILY</code> and <code>ARM</code> select the arm-tagged collection dir from the collect
+script; both arms convert through the identical flow):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w">            </span><span class="c1"># both stages</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage1<span class="w">   </span><span class="c1"># re-render raw teleop → joint+3cam HDF5</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage2<span class="w">   </span><span class="c1"># rendered HDF5 → LeRobot v2.1 (local build)</span>
 </code></pre></div>
 <ul>
 <li><strong>Stage 1 — render</strong> — <code>maniguard.data.playback --input &lt;raw&gt; --output &lt;rendered&gt;</code>
   (defaults <code>--controller joint --cams 3</code>). Replays the raw teleop HDF5 with physics and
   records 8-D joint state/action + <code>image_left</code> / <code>image_right</code> / <code>wrist_image</code> at
-  256×256. Resume-safe; the <code>og.clear()</code> teardown segfault <em>after</em> a complete write is
-  expected and harmless (success = a non-empty <code>action</code> dataset, not the exit code).</li>
+  256×256 — normalizing SO-101's 7-D raw actions to the joint convention (above), and
+  placing the external cameras at the task's recorded poses when the bench task ships a
+  <code>diagnostics.jsonl</code> (the same load-side rule datagen and eval use). Resume-safe; the
+  <code>og.clear()</code> teardown segfault <em>after</em> a complete write is expected and harmless
+  (success = a non-empty <code>action</code> dataset, not the exit code).</li>
 <li><strong>Stage 2 — export</strong> — <code>maniguard.data.lerobot.multitask_lerobot_export</code> discovers
   <code>task_*_traj_*.hdf5</code>, looks up each task's prompt from
   <code>&lt;diag-root&gt;/&lt;task&gt;/base/diagnostics.jsonl</code>, and writes one multitask dataset with
@@ -3429,11 +3525,11 @@ the two target conventions (<code>maniguard/data/real_teleop/</code>):</p>
 <p><strong>Direct → DROID (joint) — <code>real_teleop_to_droid</code>.</strong> Real npz → LeRobot v2.1 in the
 <strong>DROID joint</strong> convention (openpi's DROID pretrained convention is joint-space, so this
 stays consistent with the sim tracks):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>.venv-lerobot/bin/python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_droid<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span>--repo-id<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">&quot;&lt;instruction&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span>--root<span class="w"> </span>outputs/lerobot_datasets/&lt;org&gt;/&lt;task&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span>--push-to-hub<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--hub-private
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>.venv-lerobot/bin/python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_droid<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>--repo-id<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">&quot;&lt;instruction&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span>--root<span class="w"> </span>outputs/lerobot_datasets/&lt;org&gt;/&lt;task&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span>--push-to-hub<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--hub-private
 </code></pre></div>
 <p>It assembles 8-D state <code>[joint_position(7), gripper]</code> + 8-D action
 <code>[joint_velocity(7), gripper[t+1]]</code>, decodes / crops / resizes the cameras, and (via
@@ -3442,8 +3538,8 @@ columns separate rather than a single <code>state</code> column.</p>
 <p><strong>Via sim-compatible HDF5 — <code>real_teleop_to_hdf5</code>.</strong> For the eef-convention path, first
 emit an HDF5 that matches the sim teleop Stage-2 input schema, then reuse the shared
 export above:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_hdf5<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span>--output-dir<span class="w"> </span>outputs/real_rendered<span class="w"> </span>--img-size<span class="w"> </span><span class="m">256</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_hdf5<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span>--output-dir<span class="w"> </span>outputs/real_rendered<span class="w"> </span>--img-size<span class="w"> </span><span class="m">256</span>
 </code></pre></div>
 <p>Each episode becomes <code>state</code> = <code>eef_pos(3) + axisangle(3) + gripper(2)</code> (8-D) and
 <code>action</code> = <code>dpos(3) + drot_axisangle(3) + gripper(1)</code> (7-D), with <code>image</code> +
@@ -3557,7 +3653,7 @@ export above:</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../javascripts/mg-carousel.js"></script>
       

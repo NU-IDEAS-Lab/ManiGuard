@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1236,7 +1236,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1447,6 +1447,8 @@
       
         
       
+        
+      
     
     
     
@@ -1499,6 +1501,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluation/run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1851,7 +1881,10 @@ one convention.</p>
 anywhere:</p>
 <ul>
 <li><strong>Collected</strong> via joint tracking — scripted datagen (cuRobo drives a
-  <code>JointController</code>) or GELLO teleop (1:1 joint mirroring).</li>
+  <code>JointController</code>) or GELLO teleop (1:1 joint mirroring). SO-101 teleop drives
+  the arm through IK, but its recordings are normalized to the same absolute-joint
+  convention at the render stage
+  (<a href="../../data_collection/#playback-render">playback</a>).</li>
 <li><strong>Stored</strong> as absolute joint (see <a href="../dataset_and_config/">Dataset &amp; config</a>):
   <code>state = [joint_0..6, gripper]</code>, <code>actions = [joint_0..6_target, gripper]</code>.</li>
 <li><strong>Trained</strong>: model-agnostic. A model may re-encode internally — e.g. openpi
@@ -1878,6 +1911,11 @@ anywhere:</p>
 </tr>
 <tr>
 <td>GELLO teleop (joint mirroring)</td>
+<td>absolute joint</td>
+<td><code>joint_position</code> / <code>joint_position_impedance</code></td>
+</tr>
+<tr>
+<td>SO-101 teleop (IK deltas → joint at render)</td>
 <td>absolute joint</td>
 <td><code>joint_position</code> / <code>joint_position_impedance</code></td>
 </tr>
@@ -2001,7 +2039,7 @@ joint targets with the Jacobian-IK <code>ik_eef_to_joint</code> shim.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/mg-carousel.js"></script>
       

@@ -16,14 +16,14 @@
         <link rel="prev" href="../sft/end_to_end/">
       
       
-        <link rel="next" href="engagement_metric/">
+        <link rel="next" href="run_benchmark/">
       
       
         
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1231,7 +1231,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1353,6 +1353,8 @@
       
         
       
+        
+      
     
     
     
@@ -1408,6 +1410,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1815,6 +1845,12 @@
 
 
 <h1 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h1>
+<div class="admonition tip">
+<p class="admonition-title">Evaluate a checkpoint now → <a href="run_benchmark/">Run the benchmark</a></p>
+<p>The end-to-end recipe: download the benchmark, serve your checkpoint, run a
+family across ID + OOD, and read the results in the paper's metrics. This
+page covers the architecture and the checkers behind it.</p>
+</div>
 <p>ManiGuard evaluates a VLA policy on <strong>frozen benchmark scenes</strong> and scores it on
 <strong>two independent axes — success <em>and</em> safety</strong>. A capable-but-reckless policy that
 finishes the task while knocking a glass off the table is <strong>not</strong> a pass; the
@@ -1885,27 +1921,37 @@ is a new adapter, not a change to the contract or the checkers.</p>
 <thead>
 <tr>
 <th>Policy family</th>
-<th>How it connects</th>
-<th>Status</th>
+<th>Adapter</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>openpi / pi0.5</td>
-<td>native websocket; reference adapter <code>maniguard.serve.openpi_native</code> wraps openpi's own loader</td>
-<td>supported</td>
+<td>π0 / π0.5 (openpi)</td>
+<td><code>maniguard.serve.openpi_native</code></td>
+<td>wraps openpi's own loader; serves any registered train config</td>
 </tr>
 <tr>
-<td>GR00T, SmolVLA, others</td>
-<td>a thin adapter bridging the family's own serving (its inference server, or in-process) to the contract</td>
-<td>per-family adapter</td>
+<td>GR00T N1.6</td>
+<td><code>maniguard.serve.gr00t_native</code></td>
+<td>wraps GR00T's inference policy; also serves the real-robot observation schema (<code>--real</code>)</td>
+</tr>
+<tr>
+<td>SmolVLA</td>
+<td><code>maniguard.serve.smolvla_native</code></td>
+<td>wraps the LeRobot policy in-process</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>your own thin adapter</td>
+<td>bridge its serving to the websocket contract — no change to the checkers</td>
 </tr>
 </tbody>
 </table>
 <blockquote>
-<p><strong>Serving the checkpoint itself is upstream.</strong> To actually launch a pi0.5 / GR00T /
-SmolVLA policy, follow that family's serving docs; ManiGuard only defines the
-contract and ships <code>serve/openpi_native.py</code> as a reference.</p>
+<p>Each adapter runs <strong>inside its model family's own env</strong> (openpi venv, GR00T uv
+env, LeRobot env, ...) — the eval client never imports the model. Launch
+commands: <a href="run_benchmark/#2-serve-the-checkpoint">Run the benchmark §2</a>.</p>
 </blockquote>
 <h2 id="configuring-a-run-evalconfig">Configuring a run (<code>EvalConfig</code>)<a class="headerlink" href="#configuring-a-run-evalconfig" title="Permanent link">&para;</a></h2>
 <p>One YAML per experiment, with CLI overrides (<code>eval/eval_config.py:config_from_cli</code>).
@@ -2010,18 +2056,13 @@ tasks — <code>object</code> / <code>position</code> / <code>semantic</code> / 
 robustness. Perturbations are materialized at load by
 <a href="../foundations/env_layer/#runtime-perturbations-perturbation_runtimepy"><code>maniguard.envs.perturbation_runtime</code></a>.</p>
 <h2 id="running-it">Running it<a class="headerlink" href="#running-it" title="Permanent link">&para;</a></h2>
-<p>Start any policy exposed to the contract (for openpi, the reference adapter), then
-point the eval client at a benchmark — a local dir or an HF repo id:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># 1. serve a policy (openpi reference adapter; other families: their own serving)</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>openpi/.venv/bin/python<span class="w"> </span>-m<span class="w"> </span>maniguard.serve.openpi_native<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--config<span class="w"> </span>&lt;train-config-name&gt;<span class="w"> </span>--checkpoint<span class="w"> </span>&lt;local_path&gt;/&lt;step&gt;
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># 2. run the eval client against the benchmark (HF repo id or local dir)</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.eval.benchmark<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>--benchmark-root<span class="w"> </span>&lt;org&gt;/ManiGuard-Bench<span class="w"> </span>--config<span class="w"> </span>&lt;eval_yaml&gt;<span class="w"> </span>--tag<span class="w"> </span>smoke
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># all scenes, one process per scene:</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>bash<span class="w"> </span>scripts/run_benchmark_all_scenes.sh<span class="w"> </span>...
+<p>The end-to-end recipe — benchmark download, per-family serving, the family
+runner (<code>scripts/eval_family.sh</code>, ID + 4 OOD levels), and reading the results in
+the paper's metrics — is <strong><a href="run_benchmark/">Run the benchmark</a></strong>. For a
+one-off smoke test the client also runs directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># serve a policy (see the adapter table above), then:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.eval.benchmark<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--benchmark-root<span class="w"> </span>IDEAS-Lab-Northwestern/ManiGuard-Bench<span class="w"> </span>--config<span class="w"> </span>&lt;eval_yaml&gt;<span class="w"> </span>--tag<span class="w"> </span>smoke
 </code></pre></div>
 <h2 id="code-map">Code map<a class="headerlink" href="#code-map" title="Permanent link">&para;</a></h2>
 <table>
@@ -2057,8 +2098,16 @@ point the eval client at a benchmark — a local dir or an HF repo id:</p>
 <td><code>maniguard/eval/snapshot_validator.py</code></td>
 </tr>
 <tr>
-<td>openpi reference adapter</td>
-<td><code>maniguard/serve/openpi_native.py</code></td>
+<td>Policy servers (one per family)</td>
+<td><code>maniguard/serve/{openpi,gr00t,smolvla}_native.py</code></td>
+</tr>
+<tr>
+<td>Family runner (ID / OOD buckets)</td>
+<td><code>scripts/eval_family.sh</code></td>
+</tr>
+<tr>
+<td>Metric summary (paper metrics)</td>
+<td><code>tools/eval_summary.py</code></td>
 </tr>
 <tr>
 <td>Benchmark prep / perturbation</td>
@@ -2124,7 +2173,7 @@ point the eval client at a benchmark — a local dir or an HF repo id:</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../javascripts/mg-carousel.js"></script>
       

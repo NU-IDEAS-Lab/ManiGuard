@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1360,7 +1360,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1480,6 +1480,8 @@
       
         
       
+        
+      
     
     
     
@@ -1532,6 +1534,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluation/run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1947,6 +1977,12 @@ where <code>&lt;data_root&gt;</code> is <code>behavior-1k/datasets/</code> (or <
 <p>On <code>import maniguard</code>, <code>FrankaPanda.usd_path</code> is auto-redirected to this bundle when
 present (it ships the OmniGibson runtime USD + cuRobo description; no URDF needed at
 runtime). Set <code>MANIGUARD_SKIP_LONGFINGER=1</code> to keep the stock Franka instead.</p>
+<div class="admonition warning">
+<p class="admonition-title">A missing bundle fails silently</p>
+<p>If the directory is absent, the <strong>stock</strong> Franka hand loads with no error —
+and policies trained on ManiGuard data will approach objects but never quite
+grasp them. Verify the path above exists before your first eval or datagen run.</p>
+</div>
 <p><strong>4b. Benchmark scenes.</strong> The frozen benchmark (per-task <code>scene_ep1.json</code> +
 <code>diagnostics.jsonl</code> + review videos) lives at
 <a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench"><code>IDEAS-Lab-Northwestern/ManiGuard-Bench</code></a>.
@@ -1954,9 +1990,13 @@ runtime). Set <code>MANIGUARD_SKIP_LONGFINGER=1</code> to keep the stock Franka 
 the HF cache) or a local directory:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># A) let eval pull it (run `hf auth login` first)</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.eval.benchmark<span class="w"> </span>--benchmark-root<span class="w"> </span>IDEAS-Lab-Northwestern/ManiGuard-Bench<span class="w"> </span>...
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># B) or download once and pass the local dir</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>hf<span class="w"> </span>download<span class="w"> </span>IDEAS-Lab-Northwestern/ManiGuard-Bench<span class="w"> </span>--repo-type<span class="w"> </span>dataset<span class="w"> </span>--local-dir<span class="w"> </span>datasets/maniguard-bench
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># B) or download once to the family runner&#39;s default location</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>hf<span class="w"> </span>download<span class="w"> </span>IDEAS-Lab-Northwestern/ManiGuard-Bench<span class="w"> </span>--repo-type<span class="w"> </span>dataset<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>--local-dir<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench
 </code></pre></div>
+<p>Option B's target is where <code>scripts/eval_family.sh</code> looks by default (any other
+path works via <code>BENCH_ROOT=...</code>). Next step:
+<strong><a href="../../evaluation/run_benchmark/">Run the benchmark</a></strong>.</p>
 <h2 id="optional-override-the-dataset-path">Optional: override the dataset path<a class="headerlink" href="#optional-override-the-dataset-path" title="Permanent link">&para;</a></h2>
 <p>Only needed if you keep BEHAVIOR assets outside the repo (e.g. HPC shared storage).
 Default resolves to <code>behavior-1k/datasets/</code>.</p>
@@ -2013,7 +2053,8 @@ Default resolves to <code>behavior-1k/datasets/</code>.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">CUDA OOM</p>
-<p>Reduce <code>total_num_envs</code> in the YAML config; ensure <code>component_placement</code> GPUs don't overlap.</p>
+<p>The simulator wants most of a GPU. Put the policy server on a second GPU
+(<code>CUDA_VISIBLE_DEVICES</code>), or lower <code>camera_resolution</code> in the eval config.</p>
 </div>
 
 
@@ -2073,7 +2114,7 @@ Default resolves to <code>behavior-1k/datasets/</code>.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/mg-carousel.js"></script>
       

@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1229,7 +1229,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1349,6 +1349,8 @@
       
         
       
+        
+      
     
     
     
@@ -1401,6 +1403,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1891,14 +1921,14 @@ the section that documents it.</p>
 <tr>
 <td><code>eval/</code></td>
 <td>policy benchmark loop</td>
-<td><a href="../evaluation/">Evaluation</a></td>
-<td><code>python -m maniguard.eval.benchmark --config &lt;yaml&gt;</code></td>
+<td><a href="../evaluation/run_benchmark/">Run the benchmark</a></td>
+<td><code>bash scripts/eval_family.sh &lt;family&gt;</code> · <code>python -m maniguard.eval.benchmark --config &lt;yaml&gt;</code></td>
 </tr>
 <tr>
 <td><code>serve/</code></td>
-<td>websocket policy server</td>
-<td><a href="../evaluation/">Evaluation</a></td>
-<td><code>python -m maniguard.serve.openpi_native</code></td>
+<td>websocket policy servers (one per model family)</td>
+<td><a href="../evaluation/run_benchmark/#2-serve-the-checkpoint">Run the benchmark</a></td>
+<td><code>python -m maniguard.serve.{openpi,gr00t,smolvla}_native</code></td>
 </tr>
 <tr>
 <td><code>utils/</code></td>
@@ -1971,6 +2001,7 @@ the section that documents it.</p>
 </code></pre></div>
 <h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../evaluation/run_benchmark/">Run the benchmark</a> — evaluate a checkpoint end to end.</li>
 <li><a href="../architecture/overview/">Architecture overview</a> — the lifecycle and repo layout.</li>
 <li><a href="../pipelines/custom_pipeline/">Add a custom pipeline</a> — extending task generation.</li>
 <li><a href="../sft/end_to_end/">Controller, data, action &amp; eval</a> — keeping training and eval consistent.</li>
@@ -2033,7 +2064,7 @@ the section that documents it.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../javascripts/mg-carousel.js"></script>
       

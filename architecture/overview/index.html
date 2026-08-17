@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1231,7 +1231,7 @@
   <span class="md-ellipsis">
     
   
-    openpi / pi0.5
+    openpi (pi0.5 / pi0)
   
 
     
@@ -1351,6 +1351,8 @@
       
         
       
+        
+      
     
     
     
@@ -1403,6 +1405,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../evaluation/run_benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run the benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -1865,9 +1895,9 @@
 <p>ManiGuard is a thin, <strong>maniguard-owned</strong> layer on top of an unmodified
 <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson install. It
 adds LTL safety monitoring, task-generation pipelines, teleop + scripted data
-collection, SFT data export, and policy evaluation. RL training is under development.</p>
+collection, SFT data export, and policy evaluation.</p>
 <h2 id="the-pipeline-lifecycle">The pipeline lifecycle<a class="headerlink" href="#the-pipeline-lifecycle" title="Permanent link">&para;</a></h2>
-<p>Everything in the package falls into one of five lifecycle stages plus a shared
+<p>Everything in the package falls into one of four lifecycle stages plus a shared
 foundation layer. The docs are organized the same way.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>                 ┌─────────────────────────── Foundations ───────────────────────────┐
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                 │  env layer · LTL safety · object states · OmniGibson patches        │
@@ -1875,8 +1905,6 @@ foundation layer. The docs are organized the same way.</p>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                                              ▲ (used by every stage)
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  Task generation ──► Data collection ──► SFT ──► Evaluation
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   (task_generation)   (teleop · datagen)  (data/ → SFT)      (eval/, serve/)
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  RL training (grasp policies) is under development.
 </code></pre></div>
 <table>
 <thead>
@@ -1905,12 +1933,7 @@ foundation layer. The docs are organized the same way.</p>
 <tr>
 <td><strong>Evaluation</strong></td>
 <td><code>maniguard/eval/</code>, <code>maniguard/serve/</code></td>
-<td>Benchmark results, success metrics</td>
-</tr>
-<tr>
-<td><strong>RL</strong> <em>(under development)</em></td>
-<td>—</td>
-<td>Grasp policies (planned)</td>
+<td>Benchmark results — success × safety metrics</td>
 </tr>
 </tbody>
 </table>
@@ -1925,7 +1948,7 @@ foundation layer. The docs are organized the same way.</p>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│   ├── data/            #   datagen (scripted SFT demos), bench_builder, teleop, lerobot, real_teleop, scene + playback
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│   ├── eval/            #   benchmark runner, goal checker, scene discovery
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│   ├── {openpi,gr00t,smolvla}_sft/  # per-model SFT configs / embodiment
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>│   └── serve/           #   websocket VLA policy server (openpi_native)
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>│   └── serve/           #   websocket VLA policy servers (one per model family)
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K (upstream)
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>├── docs/                # this documentation site (mkdocs sources)
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>├── configs/             # eval / SFT training configs
@@ -1962,7 +1985,8 @@ ManiGuard stays decoupled by:</p>
 </code></pre></div>
 <p>LTL safety monitoring runs <em>alongside</em> the rollout at every stage: a
 <a href="../../foundations/ltl_safety/"><code>TaskLTLMonitor</code></a> is attached to the env and
-steps an automaton derived from the task/scene <code>ltl_safety.json</code>.</p>
+steps an automaton derived from the task's embedded <code>ltl_safety</code> spec
+(carried inline in its <code>diagnostics.jsonl</code>).</p>
 <h2 id="foundation-layer">Foundation layer<a class="headerlink" href="#foundation-layer" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2044,7 +2068,7 @@ steps an automaton derived from the task/scene <code>ltl_safety.json</code>.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.tracking", "navigation.top", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/mg-carousel.js"></script>
       
