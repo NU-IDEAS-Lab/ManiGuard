@@ -311,3 +311,105 @@ class TestGoalRegionChecker:
         assert ok is True
         assert detail["held"] is True
         assert detail["intersects"] is True
+
+
+# ---------------------------------------------------------------------------
+# Tests: joint_open_at_least (articulated-joint lower bound)
+#
+# Used by the cabinet "firsthalf" variant, where success is "the drawer was pulled
+# at least as far as the demonstrations pulled it" rather than OmniGibson's boolean
+# Open state (whose internal threshold can trip far short of the demonstrated open).
+# ---------------------------------------------------------------------------
+
+def _make_articulated(name, joint_positions):
+    """Mock OG articulated object. ``joint_positions``: ordered {joint_name: position}."""
+    obj = MagicMock()
+    obj.name = name
+    obj.joints = dict(joint_positions)          # dicts preserve insertion order
+    obj.get_joint_positions = lambda: list(joint_positions.values())
+    return obj
+
+
+class TestJointOpenAtLeast:
+    NAME = "cabinet_bottom_cabinet_ep1_1"
+
+    def _node(self, threshold, joint="j_link_1", **over):
+        node = {"predicate": "joint_open_at_least", "subject": self.NAME,
+                "joint": joint, "min_position": threshold}
+        node.update(over)
+        return node
+
+    def _objects(self, drawer_pos):
+        # A second joint before the drawer's, so a wrong index resolution shows up.
+        return {self.NAME: _make_articulated(
+            self.NAME, {"j_link_0": 0.0, "j_link_1": drawer_pos, "j_link_2": 0.9})}
+
+    def test_above_threshold(self):
+        ok, detail = _eval_node(self._node(0.28), self._objects(0.31), None)
+        assert ok is True
+        assert list(detail.values()) == [True]
+
+    def test_below_threshold(self):
+        ok, _ = _eval_node(self._node(0.28), self._objects(0.12), None)
+        assert ok is False
+
+    def test_exactly_at_threshold_passes(self):
+        """>= not >: a demo-calibrated threshold must not reject the demonstrated value itself."""
+        ok, _ = _eval_node(self._node(0.28), self._objects(0.28), None)
+        assert ok is True
+
+    def test_overshoot_passes(self):
+        """Lower bound, NOT a band: pulling the drawer further than demonstrated is better, not worse."""
+        ok, _ = _eval_node(self._node(0.28), self._objects(0.36), None)
+        assert ok is True
+
+    def test_reads_the_named_joint_not_the_first(self):
+        objs = self._objects(0.31)                      # j_link_0 = 0.0 would fail the threshold
+        ok, _ = _eval_node(self._node(0.28, joint="j_link_1"), objs, None)
+        assert ok is True
+        ok0, _ = _eval_node(self._node(0.28, joint="j_link_0"), objs, None)
+        assert ok0 is False
+
+    def test_unknown_joint_is_false_not_raise(self):
+        ok, detail = _eval_node(self._node(0.28, joint="nope"), self._objects(0.31), None)
+        assert ok is False
+        assert "unreadable" in list(detail.keys())[0]
+
+    def test_missing_joint_field(self):
+        node = {"predicate": "joint_open_at_least", "subject": self.NAME, "min_position": 0.28}
+        ok, detail = _eval_node(node, self._objects(0.31), None)
+        assert ok is False
+        assert "malformed" in list(detail.keys())[0]
+
+    def test_missing_threshold_field(self):
+        node = {"predicate": "joint_open_at_least", "subject": self.NAME, "joint": "j_link_1"}
+        ok, detail = _eval_node(node, self._objects(0.31), None)
+        assert ok is False
+        assert "malformed" in list(detail.keys())[0]
+
+    def test_unresolved_subject(self):
+        ok, _ = _eval_node(self._node(0.28), {}, None)
+        assert ok is False
+
+    def test_detail_values_are_bools(self):
+        """_eval_node's and/or reduce over detail.values(); a float there would corrupt the conjunction."""
+        for pos in (0.31, 0.12):
+            _, detail = _eval_node(self._node(0.28), self._objects(pos), None)
+            assert all(isinstance(v, bool) for v in detail.values()), detail
+
+    def test_measured_value_reported_in_key(self):
+        _, detail = _eval_node(self._node(0.28), self._objects(0.3142), None)
+        assert "measured=0.3142" in list(detail.keys())[0]
+
+    def test_inside_an_and_tree(self):
+        objs = self._objects(0.31)
+        objs["obstacle_1"] = _make_mock_obj("obstacle_1")
+        tree = {"op": "and", "terms": [self._node(0.28)]}
+        ok, _ = _eval_node(tree, objs, None)
+        assert ok is True
+        tree_fail = {"op": "and", "terms": [self._node(0.28), self._node(0.99)]}
+        ok2, _ = _eval_node(tree_fail, objs, None)
+        assert ok2 is False
+
+    def test_collect_names_finds_the_subject(self):
+        assert _collect_names(self._node(0.28)) == {self.NAME}
