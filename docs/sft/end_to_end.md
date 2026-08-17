@@ -13,7 +13,10 @@ Collection, dataset, SFT, and eval are all **joint-space** — no end-effector /
 anywhere:
 
 - **Collected** via joint tracking — scripted datagen (cuRobo drives a
-  `JointController`) or GELLO teleop (1:1 joint mirroring).
+  `JointController`) or GELLO teleop (1:1 joint mirroring). SO-101 teleop drives
+  the arm through IK, but its recordings are normalized to the same absolute-joint
+  convention at the render stage
+  ([playback](../data_collection/index.md#playback-render)).
 - **Stored** as absolute joint (see [Dataset & config](dataset_and_config.md)):
   `state = [joint_0..6, gripper]`, `actions = [joint_0..6_target, gripper]`.
 - **Trained**: model-agnostic. A model may re-encode internally — e.g. openpi
@@ -29,6 +32,7 @@ anywhere:
 |---|---|---|
 | scripted datagen (cuRobo joint) | absolute joint | `joint_position` / `joint_position_impedance` |
 | GELLO teleop (joint mirroring) | absolute joint | `joint_position` / `joint_position_impedance` |
+| SO-101 teleop (IK deltas → joint at render) | absolute joint | `joint_position` / `joint_position_impedance` |
 
 Set the controller on the [`EvalConfig`](../evaluation/index.md)
 (`maniguard/eval/eval_config.py`); the eval loader overrides the scene-baked
