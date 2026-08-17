@@ -30,6 +30,11 @@ overviews are dropped and any unused image slot is zeroed/masked. Which overview
 is used is a per-run choice that **eval must read back from the checkpoint's train
 config** to stay in distribution.
 
+<figure markdown>
+  ![The five camera streams: left shoulder, left, opposite, right, and wrist](img/camera_views.webp){ loading=lazy }
+  <figcaption>The five streams of a scripted-datagen episode — <code>image_left_shoulder</code> · <code>image_left</code> · <code>image_opposite</code> · <code>image_right</code> · <code>wrist_image</code>. A 2-cam policy trains on one overview (chosen via <code>external_cam</code>) plus the wrist.</figcaption>
+</figure>
+
 | source | overviews shipped | wrist |
 |---|---|---|
 | scripted datagen | 4 (`image_opposite/left/right/left_shoulder`) | `wrist_image` |
