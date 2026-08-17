@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import json
-import math
 import os
 import subprocess
 import sys
-from functools import lru_cache
+from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Sequence
-
+from typing import Any
 
 DEFAULT_VIEWER_CAMERA_PATH = "/OmniverseKit_Persp"
 TASKGEN_REVIEW_FRAME_HW = (512, 512)

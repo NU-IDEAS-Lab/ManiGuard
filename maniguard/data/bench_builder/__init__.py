@@ -14,4 +14,4 @@ from maniguard.data.bench_builder.finalize_base import finalize_base_task
 from maniguard.data.bench_builder.render import render_task, render_views
 from maniguard.data.bench_builder.validate_base import validate_base_task
 
-__all__ = ["render_task", "render_views", "finalize_base_task", "validate_base_task"]
+__all__ = ["finalize_base_task", "render_task", "render_views", "validate_base_task"]

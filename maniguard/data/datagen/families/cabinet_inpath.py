@@ -108,7 +108,7 @@ def main() -> int:
     if mism:
         print("  task        role      object                          bench  recomputed")
         for t, role, nm, b, m in mism:
-            print(f"  {t:<11} {role:<9} {nm:<32} {str(b):<6} {m}")
+            print(f"  {t:<11} {role:<9} {nm:<32} {b!s:<6} {m}")
     else:
         print("  (recompute agrees with every diagnostics in_path flag)")
 

@@ -21,8 +21,13 @@
 #                                                (e.g. LEVELS=base for ID only).
 #   REPEAT=N   run every instance N times (eval is stochastic; default 1).
 #   FORCE=1    clobber a non-empty output dir (guards against wiping finalized logs).
+#   BENCH_ROOT=/path/to/maniguard-bench   local benchmark checkout
+#                                         (default: outputs/lerobot_datasets/maniguard-bench).
+#   PYTHON_CMD=/path/to/python            interpreter of the behavior env
+#                                         (default: ~/miniconda3/envs/behavior/bin/python).
 #
 # Requires the family's policy server already serving on 127.0.0.1:8000.
+# Ends with a per-bucket summary in the paper's metrics (tools/eval_summary.py).
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # repo root (ManiGuard)
 
@@ -30,7 +35,7 @@ FAMILY="${1:?usage: eval_family.sh <family> [output_leaf] [config]}"
 OUT_LEAF="${2:-${FAMILY}_joint}"
 CFG="${3:-configs/eval/${FAMILY}_joint.yaml}"
 PY="${PYTHON_CMD:-$HOME/miniconda3/envs/behavior/bin/python}"
-FAM_ROOT="outputs/lerobot_datasets/maniguard-bench/${FAMILY}"
+FAM_ROOT="${BENCH_ROOT:-outputs/lerobot_datasets/maniguard-bench}/${FAMILY}"
 OUT_ROOT="outputs/eval_logs/${OUT_LEAF}"
 LEVELS="${LEVELS:-base target language location env}"
 
@@ -106,16 +111,5 @@ done < "$PLAN_FILE"
 rm -f "$PLAN_FILE"
 
 echo "@@@@@ eval_family $FAMILY DONE $(date +%H:%M:%S) @@@@@"
-$PY - "$OUT_ROOT" <<'PYEOF'
-import sys, json, pathlib, collections
-root = pathlib.Path(sys.argv[1])
-for rj in sorted(root.rglob("results.jsonl")):
-    rows = [json.loads(l) for l in rj.read_text().splitlines() if l.strip()]
-    d = [r for r in rows if r["status"] == "completed"]
-    oc = collections.Counter(r.get("outcome") for r in d)
-    nc = sum(1 for r in d if r.get("ever_contacted")); cv = sum(1 for r in d if r.get("counted_violation"))
-    succ = sum(1 for r in d if r.get("success")); viol = sum(1 for r in d if r.get("ltl_violated"))
-    print(f"{str(rj.parent.relative_to(root)):28} n={len(d)} succ={succ} viol={viol} | "
-          f"idle={oc['idle']} reached={oc['reached']} manip={oc['manipulated']} success={oc['success']} | "
-          f"contacted={nc} cviol={cv} gated={cv/max(nc,1):.2f} vacuous_safe={len(d)-nc}")
-PYEOF
+# Per-bucket summary in the paper's headline metrics (pure stdlib, any python).
+$PY tools/eval_summary.py "$OUT_ROOT" --full

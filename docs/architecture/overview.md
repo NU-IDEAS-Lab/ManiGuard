@@ -3,11 +3,11 @@
 ManiGuard is a thin, **maniguard-owned** layer on top of an unmodified
 [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) / OmniGibson install. It
 adds LTL safety monitoring, task-generation pipelines, teleop + scripted data
-collection, SFT data export, and policy evaluation. RL training is under development.
+collection, SFT data export, and policy evaluation.
 
 ## The pipeline lifecycle
 
-Everything in the package falls into one of five lifecycle stages plus a shared
+Everything in the package falls into one of four lifecycle stages plus a shared
 foundation layer. The docs are organized the same way.
 
 ```
@@ -17,8 +17,6 @@ foundation layer. The docs are organized the same way.
                                               ▲ (used by every stage)
   Task generation ──► Data collection ──► SFT ──► Evaluation
    (task_generation)   (teleop · datagen)  (data/ → SFT)      (eval/, serve/)
-
-  RL training (grasp policies) is under development.
 ```
 
 | Stage | Package | What it produces |
@@ -26,8 +24,7 @@ foundation layer. The docs are organized the same way.
 | **Task generation** | `maniguard/task_generation/` | Frozen scene snapshots + BDDL + `ltl_safety.json` |
 | **Data collection** | `maniguard/data/teleop/`, `maniguard/data/datagen/` | Teleop / scripted demo HDF5s + videos |
 | **SFT** | `maniguard/data/` → per-model SFT (openpi / GR00T / SmolVLA) | LeRobot v2.1 datasets + trained checkpoints |
-| **Evaluation** | `maniguard/eval/`, `maniguard/serve/` | Benchmark results, success metrics |
-| **RL** *(under development)* | — | Grasp policies (planned) |
+| **Evaluation** | `maniguard/eval/`, `maniguard/serve/` | Benchmark results — success × safety metrics |
 
 ## Repo layout
 
@@ -42,7 +39,7 @@ foundation layer. The docs are organized the same way.
 │   ├── data/            #   datagen (scripted SFT demos), bench_builder, teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery
 │   ├── {openpi,gr00t,smolvla}_sft/  # per-model SFT configs / embodiment
-│   └── serve/           #   websocket VLA policy server (openpi_native)
+│   └── serve/           #   websocket VLA policy servers (one per model family)
 ├── behavior-1k/         # submodule → StanfordVL/BEHAVIOR-1K (upstream)
 ├── docs/                # this documentation site (mkdocs sources)
 ├── configs/             # eval / SFT training configs
@@ -84,7 +81,8 @@ BDDL activity + scene  ──►  task_generation pipeline
 
 LTL safety monitoring runs *alongside* the rollout at every stage: a
 [`TaskLTLMonitor`](../foundations/ltl_safety.md) is attached to the env and
-steps an automaton derived from the task/scene `ltl_safety.json`.
+steps an automaton derived from the task's embedded `ltl_safety` spec
+(carried inline in its `diagnostics.jsonl`).
 
 ## Foundation layer
 

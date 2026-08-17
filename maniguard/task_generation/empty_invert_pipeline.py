@@ -11,6 +11,8 @@ Usage:
     python -m maniguard.task_generation.empty_invert_pipeline --dry-run
 """
 
+import logging
+
 from maniguard.task_generation.pipeline_common import (
     BasePipeline,
     get_spawned_obj,
@@ -22,7 +24,6 @@ from maniguard.utils.task_spec import (
     estimate_object_set_footprint,
     generate_empty_invert_activity,
 )
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +43,8 @@ class EmptyInvertPipeline(BasePipeline):
 
     def select_objects(self, args, rng):
         from maniguard.utils.task_spec import (
-            _pick_model_for_category, _synset_to_category,
+            _pick_model_for_category,
+            _synset_to_category,
         )
         container_synset = args.container_synset or \
             INVERT_CONTAINER_POOL[rng.integers(len(INVERT_CONTAINER_POOL))][0]

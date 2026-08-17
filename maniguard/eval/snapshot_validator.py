@@ -6,15 +6,15 @@ import argparse
 import json
 import math
 import os
+import re
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-import re
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 from maniguard.data.scene.trim_scene_to_room import trim_scene_info_to_room
-from maniguard.envs.registry import build_prompt as build_effective_prompt
 from maniguard.envs.perturbation_runtime import apply_runtime_perturbations
-
+from maniguard.envs.registry import build_prompt as build_effective_prompt
 
 FAMILY_ALIASES = {
     "clutter": "table",
@@ -1459,7 +1459,7 @@ def _runtime_check_lid_transport_liquid(env, bundle: ValidationBundle) -> list[V
         system_name = str(bundle.diagnostics.get("selection", {}).get("system_name", "water"))
         system = env.scene.get_system(system_name, force_init=True)
         particle_positions = getattr(system, "particle_positions", None)
-        particle_count = 0 if particle_positions is None else int(len(particle_positions))
+        particle_count = 0 if particle_positions is None else len(particle_positions)
         try:
             filled_ok = bool(container_obj.states[Filled].get_value(system))
         except Exception:
@@ -1509,7 +1509,7 @@ def _runtime_check_liquid_transport(env, bundle: ValidationBundle) -> list[Valid
         system_name = str(bundle.diagnostics.get("selection", {}).get("system_name", "water"))
         system = env.scene.get_system(system_name, force_init=True)
         particle_positions = getattr(system, "particle_positions", None)
-        particle_count = 0 if particle_positions is None else int(len(particle_positions))
+        particle_count = 0 if particle_positions is None else len(particle_positions)
         try:
             filled_ok = bool(target_obj.states[Filled].get_value(system))
         except Exception:
@@ -1579,8 +1579,8 @@ def _init_omnigibson(headless: bool = True):
 def _patch_activity_root(activity_root: Path) -> None:
     import bddl.activity
     import bddl.config
-    import omnigibson.tasks.behavior_task as behavior_task
-    import omnigibson.utils.bddl_utils as bddl_utils
+    from omnigibson.tasks import behavior_task
+    from omnigibson.utils import bddl_utils
 
     activity_root = activity_root.resolve()
     domain_src_dir = DEFAULT_ACTIVITY_ROOT

@@ -1,11 +1,12 @@
-from dataclasses import dataclass
-from enum import Enum
 import importlib.util
 import logging
 import os
 import site
 import sys
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
+
 try:
     import spot
     from spot import buddy
@@ -13,7 +14,6 @@ except ImportError:
     spot = None
     buddy = None
 import numpy as np
-
 from bddl.logic_base import BinaryAtomicFormula, UnaryAtomicFormula
 from omnigibson.utils.bddl_utils import SUPPORTED_PREDICATES
 
@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 _SPOT_REQUIRED_ATTRS = ("formula", "translate", "atomic_prop_collect")
 
 
-def get_spot_runtime_status(require_buddy: bool = True) -> Dict[str, object]:
+def get_spot_runtime_status(require_buddy: bool = True) -> dict[str, object]:
     """Return diagnostics about the currently imported Spot runtime."""
     module_path = getattr(spot, "__file__", None) if spot is not None else None
     spec_origin = None
@@ -98,7 +98,7 @@ class PropositionType(Enum):
 class AtomicProposition:
     name: str
     type: PropositionType
-    args: Tuple
+    args: tuple
     eval_fn: Callable
     description: str = ""
     category: str = ""
@@ -122,9 +122,9 @@ class AtomicProposition:
 class PropositionSet:
     def __init__(self, name: str = "default"):
         self.name = name
-        self.propositions: List[AtomicProposition] = []
-        self.prop_dict: Dict[str, AtomicProposition] = {}
-        self.categories: Dict[str, List[str]] = {}
+        self.propositions: list[AtomicProposition] = []
+        self.prop_dict: dict[str, AtomicProposition] = {}
+        self.categories: dict[str, list[str]] = {}
 
     def add_proposition(self, prop: AtomicProposition) -> None:
         if prop.name not in self.prop_dict:
@@ -133,17 +133,17 @@ class PropositionSet:
             if prop.category:
                 self.categories.setdefault(prop.category, []).append(prop.name)
 
-    def get_proposition(self, name: str) -> Optional[AtomicProposition]:
+    def get_proposition(self, name: str) -> AtomicProposition | None:
         return self.prop_dict.get(name)
 
-    def get_propositions_by_category(self, category: str) -> List[AtomicProposition]:
+    def get_propositions_by_category(self, category: str) -> list[AtomicProposition]:
         names = self.categories.get(category, [])
         return [self.prop_dict[name] for name in names]
 
     def get_label(self, env=None) -> np.ndarray:
         return np.array([prop.evaluate(env) for prop in self.propositions], dtype=bool)
 
-    def get_label_dict(self, env=None) -> Dict[str, bool]:
+    def get_label_dict(self, env=None) -> dict[str, bool]:
         return {prop.name: prop.evaluate(env) for prop in self.propositions}
 
     def __len__(self) -> int:
@@ -243,7 +243,7 @@ class AtomicPropositionGenerator:
             category="binary_relation",
         )
 
-    def _condition_to_prop_name(self, cond) -> Tuple[Optional[str], bool]:
+    def _condition_to_prop_name(self, cond) -> tuple[str | None, bool]:
         negated = False
         if isinstance(cond, list) and cond and cond[0] == "not":
             negated = True
@@ -258,12 +258,12 @@ class AtomicPropositionGenerator:
             return f"{args[0]}_{pred}_{args[1]}", negated
         return None, negated
 
-    def _flatten_head_conditions(self, head) -> List[list]:
+    def _flatten_head_conditions(self, head) -> list[list]:
         if not head.flattened_condition_options:
             return []
         return head.flattened_condition_options[0]
 
-    def get_grounded_goal_options(self) -> List[List[Tuple[str, bool]]]:
+    def get_grounded_goal_options(self) -> list[list[tuple[str, bool]]]:
         options = []
         goal_options = self.task.ground_goal_state_options or []
         for option in goal_options:
@@ -308,7 +308,7 @@ class LTLLabelingFunction:
 
 
 class LTLMonitor:
-    def __init__(self, formula: str, translate_opts: Optional[Tuple[str, ...]] = ('monitor', 'det', 'complete')):
+    def __init__(self, formula: str, translate_opts: tuple[str, ...] | None = ('monitor', 'det', 'complete')):
         self.formula_str = formula
         if translate_opts:
             opts = list(translate_opts)
@@ -321,14 +321,14 @@ class LTLMonitor:
         self._formula = None
         self._automaton = None
         self._dict = None
-        self._ap_list: List[str] = []
+        self._ap_list: list[str] = []
         self._state = None
         self._can_reach_accepting = None
 
         self._initialize_spot()
 
     @property
-    def ap_list(self) -> List[str]:
+    def ap_list(self) -> list[str]:
         return list(self._ap_list)
 
     @property
@@ -373,11 +373,11 @@ class LTLMonitor:
         return var
     
     
-    def extract_ap_labels(self, label_dict: Dict[str, bool]) -> Dict[str, bool]:
+    def extract_ap_labels(self, label_dict: dict[str, bool]) -> dict[str, bool]:
         return {ap: bool(label_dict.get(ap, False)) for ap in self._ap_list}
 
 
-    def _build_condition_bdd(self, label_dict: Dict[str, bool]):
+    def _build_condition_bdd(self, label_dict: dict[str, bool]):
         _, buddy_mod = require_valid_spot_runtime(require_buddy=True)
         cond = buddy_mod.bddtrue
         for ap in self._ap_list:
@@ -392,7 +392,7 @@ class LTLMonitor:
         self._dict.register_proposition(spot_mod.formula(ap), self)
         
 
-    def step(self, label_dict: Dict[str, bool]) -> Dict[str, object]:
+    def step(self, label_dict: dict[str, bool]) -> dict[str, object]:
         if self._automaton is None:
             return {"state": None, "accepting": False}
 
@@ -433,7 +433,7 @@ class LTLMonitor:
         return all(t.dst == self._state for t in outgoing)
 
 
-    def _compute_accepting_reachability(self) -> Dict[int, bool]:
+    def _compute_accepting_reachability(self) -> dict[int, bool]:
         num_states = int(self._automaton.num_states())
         graph = {s: [] for s in range(num_states)}
         reverse = {s: [] for s in range(num_states)}

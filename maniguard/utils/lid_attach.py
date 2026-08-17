@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional
 
 log = logging.getLogger(__name__)
 
@@ -104,7 +103,7 @@ class LidSnapper:
 
         self._AttachedTo = AttachedTo
         self._ContactBodies = ContactBodies
-        self.pairs: List[_AttachPair] = self._discover(env)
+        self.pairs: list[_AttachPair] = self._discover(env)
         # Print so it's visible without tweaking log config — same line goes
         # to log.info for callers that have INFO routed elsewhere.
         msg = f"[LidSnapper] {len(self.pairs)} eligible (lid|cap, container) pair(s)"
@@ -115,7 +114,7 @@ class LidSnapper:
             print(line, flush=True)
             log.info(line)
 
-    def _discover(self, env) -> List[_AttachPair]:
+    def _discover(self, env) -> list[_AttachPair]:
         AttachedTo = self._AttachedTo
         # Collect every lid/cap that has an M-link + AttachedTo state.
         lids = []
@@ -134,7 +133,7 @@ class LidSnapper:
         # NOTE: the container does NOT need its own AttachedTo state —
         # AttachedTo lives on the M-side (the lid). We only require that
         # the container exposes the F meta-link.
-        pairs: List[_AttachPair] = []
+        pairs: list[_AttachPair] = []
         for lid, m_id in lids:
             f_target = m_id[:-1] + "F"
             container = None
@@ -177,7 +176,7 @@ class LidSnapper:
         hits = contact_links & container_link_set
         return bool(hits), len(hits)
 
-    def try_snap(self, robot=None, verbose: bool = False) -> Optional[str]:
+    def try_snap(self, robot=None, verbose: bool = False) -> str | None:
         """Run one snap pass over all known pairs. Returns the name of the
         first pair attached this call, or None.
 

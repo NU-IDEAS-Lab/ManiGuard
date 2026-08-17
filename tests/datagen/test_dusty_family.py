@@ -71,8 +71,9 @@ def test_pour_stance_far_edge_over_dest():
 
 
 def test_pour_axis_dips_far_edge():
-    from maniguard.data.datagen.families.dusty import pour_stance_and_axis
     from scipy.spatial.transform import Rotation as R
+
+    from maniguard.data.datagen.families.dusty import pour_stance_and_axis
     _, axis = pour_stance_and_axis(
         grasp_xy=np.array([-0.15, 0.0]), src_center_xy=np.array([0.0, 0.0]),
         dest_center_xy=np.array([0.5, 0.0]), r_src=0.15)

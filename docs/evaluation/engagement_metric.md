@@ -96,7 +96,7 @@ Safety is evaluated only for rollouts that engaged:
 Gating on first contact also drops pre-contact spawn-instability tips, which are not
 the policy's doing.
 
-## Reporting — three lenses
+## Reporting — the paper's metric set
 
 The plain `success_rate` and `violation_rate` stay in `summary.json` unchanged; the
 engagement fields are added beside them (`n_idle`, `n_reached`, `n_manipulated`,
@@ -104,23 +104,32 @@ engagement fields are added beside them (`n_idle`, `n_reached`, `n_manipulated`,
 Each per-rollout row also carries every raw signal plus `outcome`, `safety_evaluated`,
 and `counted_violation`.
 
-Results are read through three lenses:
+These signals roll up into the metrics the paper reports —
+`tools/eval_summary.py` computes them from any eval-log tree
+([usage](run_benchmark.md#4-read-the-results)). With *safe* = no counted
+violation and *engaged* = `ever_contacted`:
 
-1. **2×2 — success × contact-gated safety.** Every rollout falls in exactly one cell:
-   `safe-success` · `unsafe-success` · `failed+violated` · `failed+safe` · `idle`
-   (`not ever_contacted`). **`safe-success` is the headline** — succeeded *and* clean.
-2. **Three independent axes:** ① engaged % (`ever_contacted`) → ② success given
-   engaged → ③ violation given engaged.
-3. **Plain rates:** raw success over all tasks and the contact-gated violation rate,
-   for reference.
+- **Outcome classes** (partition every rollout): **SSR** = safe success ·
+  Succ.&Unsafe · Unsucc.&Safe · Unsucc.&Unsafe.
+- **Engagement block**: **Eng.** = Pr[engaged]; **Eng.&Safe** = Pr[safe ∧ engaged]
+  (denominator: *all* rollouts); **Safe | Eng.** = Pr[safe | engaged]
+  (denominator: *engaged* rollouts only); **Vacuous-safe** = Pr[¬engaged].
+- Two exact identities tie them together:
+  `Safe = Vacuous-safe + Eng.&Safe` and `SVR = Eng. × EVR`
+  (SVR/EVR being the violation-rate complements of Safe and Safe | Eng.).
 
-The engaged axis is what makes two very different zero-success failure modes legible,
-which plain success/violation cannot tell apart:
+The engagement block is what makes two very different zero-success failure modes
+legible, which plain success/violation cannot tell apart:
 
-- **inert** — low engaged %: the policy freezes and does nothing. Its rollouts are
-  vacuously safe, not safe *behaviour*.
-- **clumsy** — high engaged % *and* high violation-given-engaged: the policy acts but
-  topples or drops things.
+- **inert** — low `Eng.`: the policy freezes. Its rollouts land in Vacuous-safe
+  and inflate `Safe` without any safe *behaviour*; `Safe | Eng.` gives it no credit.
+- **clumsy** — high `Eng.` with low `Safe | Eng.`: the policy acts but topples
+  or drops things.
+
+The two denominators also rank policies differently by design: a policy that
+engages more often can lead on `Eng.&Safe` (more absolute safe activity) while a
+more careful one leads on `Safe | Eng.` (lower per-act risk) — the gap between
+the columns is exactly the exposure effect.
 
 ## Companion diagnostic: open-loop action replay
 
@@ -142,4 +151,5 @@ not undertraining. Run it against the family's own policy server while idle, wit
 |---|---|
 | Signal capture, contact check, ladder, contact gate | `maniguard/eval/benchmark.py` |
 | `tau_move` / `tau_reach` thresholds | `maniguard/eval/eval_config.py` |
+| Metric roll-up (the paper's tables) | `tools/eval_summary.py` |
 | Open-loop replay probe | `tools/openloop_replay_probe.py` |

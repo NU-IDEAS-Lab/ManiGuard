@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-import sys
 from pathlib import Path
 
 STRUCTURAL_CATEGORIES = {"walls", "floors", "ceilings", "door", "window"}

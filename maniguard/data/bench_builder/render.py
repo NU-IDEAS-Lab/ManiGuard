@@ -125,12 +125,12 @@ def render_views(
     import numpy as np
     import omnigibson as og
 
-    from maniguard.utils.camera_setup import compute_robot_frame_views
     from maniguard.task_generation.utils.video import (
         close_video_writer,
         init_video_writer,
         setup_cameras,
     )
+    from maniguard.utils.camera_setup import compute_robot_frame_views
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

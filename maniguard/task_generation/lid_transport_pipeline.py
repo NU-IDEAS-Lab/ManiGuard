@@ -27,10 +27,11 @@ Usage:
     python -m maniguard.task_generation.lid_transport_pipeline --dry-run
 """
 
+import logging
+
 from maniguard.task_generation.pipeline_common import (
     BasePipeline,
     get_spawned_obj,
-    iter_spawned_objects,
     make_settle_fn,
 )
 from maniguard.task_generation.transfer_scene_pipeline import (
@@ -45,7 +46,6 @@ from maniguard.utils.task_spec import (
     estimate_object_set_footprint,
     generate_lid_transport_activity,
 )
-import logging
 
 log = logging.getLogger(__name__)
 

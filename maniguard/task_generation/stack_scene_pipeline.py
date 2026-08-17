@@ -18,6 +18,7 @@ Usage:
         --steps 300 --save-video
 """
 
+import logging
 import sys
 
 from maniguard.task_generation.pipeline_common import (
@@ -30,7 +31,6 @@ from maniguard.utils.task_spec import (
     STACK_HEIGHT_PRESETS,
     generate_stack_activity,
 )
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -176,8 +176,10 @@ class _StackBase(BasePipeline):
 
     def place_objects(self, ctx):
         import torch as th
+
         from maniguard.utils.clutter_pack_layout import (
-            build_stack_layout, apply_stack_transform,
+            apply_stack_transform,
+            build_stack_layout,
         )
 
         stack_descriptors = _build_stack_descriptors(

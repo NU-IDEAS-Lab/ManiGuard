@@ -1,7 +1,6 @@
-import torch as th
-
-from omnigibson.object_states.object_state_base import AbsoluteObjectState, BooleanStateMixin
 import omnigibson.utils.transform_utils as T
+import torch as th
+from omnigibson.object_states.object_state_base import AbsoluteObjectState, BooleanStateMixin
 
 DEFAULT_MAX_TILT_DEG = 45.0
 

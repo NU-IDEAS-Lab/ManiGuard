@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 
-import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
 from maniguard.data.datagen.annotation.mesh_review import (
-    ANN, ANN_DIR, FAMILY_STEMS, MESH_DB, classify_approach, obj_in_family,
+    ANN,
+    FAMILY_STEMS,
+    MESH_DB,
+    classify_approach,
+    obj_in_family,
 )
 
 

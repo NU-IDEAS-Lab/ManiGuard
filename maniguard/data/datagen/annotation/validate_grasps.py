@@ -29,8 +29,8 @@ BENCH = Path("outputs/lerobot_datasets/maniguard-bench")
 
 
 def _mat2quat_t(R):
-    import torch as th
     import omnigibson.utils.transform_utils as T
+    import torch as th
     return T.mat2quat(th.as_tensor(np.asarray(R), dtype=th.float32)).float()
 
 
@@ -56,16 +56,17 @@ def main() -> int:
         print("[validate] nothing annotated yet — annotate in the viser tool first.")
         return 0
 
-    from maniguard.data.datagen.primitives import scene as scenemod, cameras
-    from maniguard.data.datagen.primitives.grasp_obb import _to_np, _pose_to_mat
-    from maniguard.data.datagen.primitives.record import _sensor_rgb_uint8
+    import torch as th
+    from omnigibson import lazy
+    from scipy.spatial.transform import Rotation as Rot
+
+    from maniguard._omnigibson_patches import _patch_franka_longfinger
     from maniguard.data.datagen import data_format
     from maniguard.data.datagen.annotation.extract_meshes import _target_name
-    from maniguard._omnigibson_patches import _patch_franka_longfinger
-    from maniguard.task_generation.utils.video import eye_lookat_to_quat
-    from scipy.spatial.transform import Rotation as Rot
-    import torch as th
-    import omnigibson.lazy as lazy
+    from maniguard.data.datagen.primitives import cameras
+    from maniguard.data.datagen.primitives import scene as scenemod
+    from maniguard.data.datagen.primitives.grasp_obb import _pose_to_mat, _to_np
+    from maniguard.data.datagen.primitives.record import _sensor_rgb_uint8
 
     # TEMPORARY review-only close-up (NOT part of utils/camera_setup): rather than ADD a
     # 5th VisionSensor (adding an extra render target crashes the GPU here), we REUSE the
@@ -89,7 +90,6 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-
     import trimesh
 
     def _glb_verts(path):

@@ -21,7 +21,8 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
              n_per_grasp: int = 1, target: int | None = None, max_attempts: int | None = None,
              score: bool = False, out_root: str = "outputs/datagen",
              headless: bool = True, timeout: float = 5.0, steps_per_waypoint: int = 2,
-             limit_demos=None, grasping_mode: str | None = None, start_draw: int | None = None):
+             limit_demos=None, grasping_mode: str | None = None, start_draw: int | None = None,
+             horizon_override: str | None = None):
     """Build one base task, then run the family skeleton x variants through the generic engine,
     recording each success+safe demo. Returns the list of DemoResults.
 
@@ -33,16 +34,17 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     import time
 
     if os.environ.get("DATAGEN_HANG_WATCHDOG"):          # debug: dump the main-thread Python stack every
-        import faulthandler                               # 20 s (a watchdog thread runs even if main is in a
+        import faulthandler  # 20 s (a watchdog thread runs even if main is in a
         faulthandler.dump_traceback_later(20, repeat=True)   # native C call → shows the Python frame that hangs)
 
-    from maniguard.data.datagen.primitives import scene as scenemod, cameras, obstacles, record
+    from maniguard._omnigibson_patches import _patch_franka_longfinger
     from maniguard.data.datagen.executor.contracts import TaskContext
     from maniguard.data.datagen.executor.engine import DemoEngine
     from maniguard.data.datagen.executor.gate import build_gate
     from maniguard.data.datagen.executor.variation import VariationSampler
     from maniguard.data.datagen.families import FAMILY
-    from maniguard._omnigibson_patches import _patch_franka_longfinger
+    from maniguard.data.datagen.primitives import cameras, obstacles, record
+    from maniguard.data.datagen.primitives import scene as scenemod
 
     t0 = time.time()
     task_dir = Path(task_dir)
@@ -63,6 +65,22 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         pre_build_hooks=[_patch_franka_longfinger])
     env, robot = bundle.env, bundle.robot
     cameras.place_and_resize_cameras(env, robot, og, bundle.diagnostics)
+
+    # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal + prompt before
+    # anything reads them. `bundle.diagnostics` is the single source for BOTH -- build_gate
+    # takes the goal from it and the engine takes the recorded prompt from it -- so one
+    # substitution here keeps success checking and language consistent, and consistent with
+    # eval, which applies the same table to its scene_info. Omitted (the default) = the
+    # shipped full-horizon task, byte-identical to before this hook existed.
+    if horizon_override:
+        from maniguard.eval.horizon_override import apply_horizon_override
+        # Key includes the perturbation level (…/task_0019/base): a variant hard-codes concrete
+        # object instance names, and whether those survive a perturbation is a per-task property
+        # we must not assume. eval keys on the same string (its scene_info["name"]).
+        _hkey = f"{task_dir.parent.parent.name}/{task_dir.parent.name}/{task_dir.name}"
+        bundle.diagnostics = apply_horizon_override(bundle.diagnostics, horizon_override, _hkey)
+        print(f"[driver] horizon variant {_hkey} <- {horizon_override}\n"
+              f"[driver]   prompt: {bundle.diagnostics.get('prompt', '')}", flush=True)
 
     # goal_region families (clutter) carry a sphere spec; goal_conditions families (cabinet)
     # don't — resolve the target + support from the spec or diagnostics accordingly.
@@ -137,7 +155,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     # resume cursor: a fresh run starts drawing at k=0; a top-up resumes from the prior run's next_draw
     # so it only ever draws UNSEEN seeds (the seed is deterministic per (grasp_id, k) → restarting at 0
     # would re-collect duplicate trajectories). --start-draw forces the cursor (recollect a deduped task).
-    from maniguard.data.datagen.executor.resume import resolve_start_k, compute_next_draw
+    from maniguard.data.datagen.executor.resume import compute_next_draw, resolve_start_k
     summary_path = out_base / "_summary.json"
     prev_summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
     # on-disk floor: the highest draw index any existing traj already used (new-encoding trajs carry
@@ -242,11 +260,17 @@ if __name__ == "__main__":
     ap.add_argument("--start-draw", type=int, default=None,
                     help="force the resume draw cursor (overrides the summary's next_draw); use to "
                          "recollect a deduped task with guaranteed-fresh seeds")
+    ap.add_argument("--horizon-override", default=None,
+                    help="JSON table of task-horizon variants (e.g. configs/firsthalf/"
+                         "cabinet_task0019.json): substitutes this task's goal_conditions + prompt "
+                         "so a truncated-horizon demo is gated and captioned as its own task. "
+                         "Omit for the shipped full-horizon task.")
     a = ap.parse_args()
     run_task(a.task_dir, family=a.family, dataset=a.dataset, grasp_ids=a.grasp_ids,
              n_per_grasp=a.n_per_grasp, target=a.target, max_attempts=a.max_attempts,
              score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos,
-             grasping_mode=a.grasping_mode, start_draw=a.start_draw)
+             grasping_mode=a.grasping_mode, start_draw=a.start_draw,
+             horizon_override=a.horizon_override)
     # The Python interpreter teardown SEGFAULTS during torch/Isaac extension unload (faulthandler dump
     # right after the "[driver] DONE" line). That abnormal exit leaves the GPU's CUDA context in a "bad
     # state" that accumulates across per-task process restarts into the per-GPU wedge. All data is already

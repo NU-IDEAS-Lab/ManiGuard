@@ -24,8 +24,9 @@ sys.path.insert(0, str(REPO_ROOT))
 OPENPI_ROOT = os.environ.get("OPENPI_ROOT", str(REPO_ROOT.parent / "openpi"))
 sys.path.insert(0, os.path.join(OPENPI_ROOT, "src"))
 
-import maniguard.openpi_sft  # noqa: E402,F401  -- registers configs
-from openpi.training.config import get_config  # noqa: E402
+from openpi.training.config import get_config
+
+import maniguard.openpi_sft  # noqa: F401  -- registers configs
 
 
 def main() -> None:

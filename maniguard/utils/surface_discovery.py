@@ -5,11 +5,10 @@ No simulator dependency — operates only on AABBs and category strings.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from dataclasses import dataclass
 
-
-Bounds2D = Tuple[Tuple[float, float], Tuple[float, float]]
+Bounds2D = tuple[tuple[float, float], tuple[float, float]]
 
 _TABLE_LIKE_CATEGORIES = frozenset({
     "bar", "breakfast_table", "checkout_counter", "coffee_table",
@@ -20,7 +19,7 @@ _TABLE_LIKE_CATEGORIES = frozenset({
     "table", "workbench",
 })
 
-_OBSTACLE_CATEGORIES: Dict[str, str] = {
+_OBSTACLE_CATEGORIES: dict[str, str] = {
     "sink": "sink",
     "drop_in_sink": "sink",
     "kitchen_sink": "sink",
@@ -52,9 +51,9 @@ class SurfaceObstacle:
 @dataclass(frozen=True)
 class SurfaceAnalysis:
     surface: SurfaceCandidate
-    obstacles: Tuple[SurfaceObstacle, ...]
+    obstacles: tuple[SurfaceObstacle, ...]
     free_area: float
-    approach_edges: Tuple[str, ...]
+    approach_edges: tuple[str, ...]
 
 
 def is_table_like(category: str) -> bool:
@@ -120,9 +119,9 @@ def score_surface(
 def detect_obstacles_on_surface(
     surface_aabb_xy: Bounds2D,
     surface_top_z: float,
-    candidates: Sequence[Dict],
+    candidates: Sequence[dict],
     z_tolerance: float = 0.15,
-) -> List[SurfaceObstacle]:
+) -> list[SurfaceObstacle]:
     (sx0, sy0), (sx1, sy1) = _normalize(surface_aabb_xy)
     obstacles = []
     for c in candidates:
@@ -156,7 +155,7 @@ def _overlaps(a: Bounds2D, b: Bounds2D) -> bool:
 def compute_robot_placement_box(
     edge_label: str,
     surface_aabb_xy: Bounds2D,
-    robot_footprint_xy: Tuple[float, float] = (0.35, 0.35),
+    robot_footprint_xy: tuple[float, float] = (0.35, 0.35),
     edge_gap_m: float = 0.03,
     tangent_offset: float = 0.0,
 ) -> Bounds2D:
@@ -202,7 +201,7 @@ def compute_robot_placement_box(
         raise ValueError(f"Unsupported edge_label: {edge_label}")
 
 
-def _build_scan_offsets(edge_length: float, step: float = 0.15) -> Tuple[float, ...]:
+def _build_scan_offsets(edge_length: float, step: float = 0.15) -> tuple[float, ...]:
     """Build scan offsets that cover the full edge length, centered at 0."""
     offsets = [0.0]
     half = edge_length / 2.0
@@ -218,9 +217,9 @@ def check_edge_reachability(
     surface_aabb_xy: Bounds2D,
     scene_object_aabbs: Sequence[Bounds2D],
     surface_name: str = "",
-    robot_footprint_xy: Tuple[float, float] = (0.35, 0.35),
+    robot_footprint_xy: tuple[float, float] = (0.35, 0.35),
     edge_gap_m: float = 0.03,
-) -> List[str]:
+) -> list[str]:
     """Return edges where the robot can be placed without colliding with scene objects.
 
     For each of the four edges, samples several positions along the edge and
@@ -278,8 +277,8 @@ def rank_approach_edges(
     surface_aabb_xy: Bounds2D,
     obstacle_aabbs: Sequence[Bounds2D] = (),
     wall_aabbs: Sequence[Bounds2D] = (),
-    reachable_edges: Optional[Sequence[str]] = None,
-) -> List[str]:
+    reachable_edges: Sequence[str] | None = None,
+) -> list[str]:
     """Rank approach edges by clearance, optionally filtering to reachable ones.
 
     If *reachable_edges* is provided, only those edges are considered.
@@ -301,7 +300,7 @@ def rank_approach_edges(
         "y_max": (cx, sy1),
     }
 
-    def _min_clearance(edge_point: Tuple[float, float], blockers: Sequence[Bounds2D]) -> float:
+    def _min_clearance(edge_point: tuple[float, float], blockers: Sequence[Bounds2D]) -> float:
         ex, ey = edge_point
         min_d = float("inf")
         for b in blockers:
@@ -336,9 +335,9 @@ def analyze_surface(
     category: str,
     aabb_xy: Bounds2D,
     top_z: float,
-    scene_objects: Sequence[Dict],
-    scene_object_aabbs: Optional[Sequence[Bounds2D]] = None,
-    robot_footprint_xy: Tuple[float, float] = (0.35, 0.35),
+    scene_objects: Sequence[dict],
+    scene_object_aabbs: Sequence[Bounds2D] | None = None,
+    robot_footprint_xy: tuple[float, float] = (0.35, 0.35),
     edge_gap_m: float = 0.03,
 ) -> SurfaceAnalysis:
     """Analyze a surface for suitability, including robot reachability.

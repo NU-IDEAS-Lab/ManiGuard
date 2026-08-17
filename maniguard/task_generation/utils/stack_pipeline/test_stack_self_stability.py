@@ -102,6 +102,7 @@ def _run_one_batch(batch_candidates, args, batch_idx):
     """
     import omnigibson as og
     from omnigibson.objects import DatasetObject
+
     from maniguard.task_generation.pipeline_common import hide_walls_and_ceiling
     from maniguard.task_generation.utils.video import eye_lookat_to_quat
 

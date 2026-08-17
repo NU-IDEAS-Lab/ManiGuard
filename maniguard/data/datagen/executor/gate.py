@@ -15,6 +15,7 @@ runner — so "success" and "safe" mean exactly the same thing everywhere they a
 """
 from __future__ import annotations
 
+
 class SafetyGate:
     """Per-demo success + LTL gate. Built once per task (Spot init is not cheap); call
     ``reset()`` before each variant run, ``step()`` after each executed env step, then check

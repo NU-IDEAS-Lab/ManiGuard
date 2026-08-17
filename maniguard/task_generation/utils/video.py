@@ -7,12 +7,12 @@ viewer + wrist camera frames into per-episode MP4 files.
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 
 import numpy as np
 import torch as th
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -69,7 +69,6 @@ def init_video_writer(base_path, episode, fps, robot=None, frame_hw=None):
                 wh, ww = int(wrist_rgb.shape[0]), int(wrist_rgb.shape[1])
         except Exception as exc:
             log.warning("init_video_writer: wrist rgb probe failed: %s", exc)
-            pass
 
     if wh > 0 and ww > 0:
         scale = vh / wh
@@ -78,7 +77,7 @@ def init_video_writer(base_path, episode, fps, robot=None, frame_hw=None):
     else:
         total_w = vw
 
-    stem = base_path[:-4] if base_path.endswith(".mp4") else base_path
+    stem = base_path.removesuffix(".mp4")
     fpath = f"{stem}_ep{episode + 1}.mp4"
     os.makedirs(os.path.dirname(fpath) or ".", exist_ok=True)
 
@@ -103,7 +102,7 @@ def init_video_writer(base_path, episode, fps, robot=None, frame_hw=None):
 
 
 def expected_video_path(base_path, episode):
-    stem = base_path[:-4] if base_path.endswith(".mp4") else base_path
+    stem = base_path.removesuffix(".mp4")
     return f"{stem}_ep{episode + 1}.mp4"
 
 
@@ -275,6 +274,7 @@ def setup_cameras(env, video_views):
     (e.g. the bench render step) can stamp them into diagnostics['cameras'].
     """
     import omnigibson as og
+
     from maniguard.utils.camera_setup import EXTERNAL_CAMERA_NAMES
 
     cam_names = list(EXTERNAL_CAMERA_NAMES)
@@ -305,4 +305,3 @@ def close_video_writer(vw):
         vw["container"].close()
     except Exception as exc:
         log.warning("close_video_writer: final packet flush failed: %s", exc)
-        pass

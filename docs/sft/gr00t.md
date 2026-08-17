@@ -32,7 +32,3 @@ log to the `gr00t-n16-base-joint-2cam` wandb project with the family as the
 experiment name. `run_all.sh` drives one family
 (`--family <fam>`) or all six serially (download → prepare → ~2-epoch train → push),
 sharing the dataset cache (`MANIGUARD_SFT_DATA_ROOT`) with the openpi + SmolVLA tracks.
-
-The GR00T track consumes the same 6-family joint datasets as the other models;
-`tools/gr00t_sft/run_all.sh` runs one family or all six end-to-end (download →
-prepare → train → push).

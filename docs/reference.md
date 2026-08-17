@@ -14,8 +14,8 @@ the section that documents it.
 | `data/lerobot/` | sim teleop HDF5 → LeRobot multitask export | [Sim teleop → LeRobot](data_collection/index.md#sim-teleop-lerobot) | `python -m maniguard.data.lerobot.multitask_lerobot_export` |
 | `data/real_teleop/` | real npz → LeRobot (DROID joint) | [Real teleop](data_collection/index.md#real-robot-teleop-lerobot) | `python -m maniguard.data.real_teleop.real_teleop_to_droid` |
 | `data/scene/` | benchmark-set prep | [Evaluation](evaluation/index.md) | `python -m maniguard.data.scene.{benchmark_repair,trim_scene_to_room,rewrite_scene_robot}` |
-| `eval/` | policy benchmark loop | [Evaluation](evaluation/index.md) | `python -m maniguard.eval.benchmark --config <yaml>` |
-| `serve/` | websocket policy server | [Evaluation](evaluation/index.md) | `python -m maniguard.serve.openpi_native` |
+| `eval/` | policy benchmark loop | [Run the benchmark](evaluation/run_benchmark.md) | `bash scripts/eval_family.sh <family>` · `python -m maniguard.eval.benchmark --config <yaml>` |
+| `serve/` | websocket policy servers (one per model family) | [Run the benchmark](evaluation/run_benchmark.md#2-serve-the-checkpoint) | `python -m maniguard.serve.{openpi,gr00t,smolvla}_native` |
 | `utils/` | LTL safety, `task_spec`, geometry | [LTL safety](foundations/ltl_safety.md) | *(library)* |
 | `envs/` | scene registry + frozen-snapshot runtime | [Environment layer](foundations/env_layer.md) | *(library)* |
 | `object_states/` | `Dropped`, `Upright` | [LTL safety](foundations/ltl_safety.md) | *(library)* |
@@ -42,6 +42,7 @@ pytest tests/ -v        # maniguard-side LTL + task-gen + eval unit tests
 
 ## See also
 
+- [Run the benchmark](evaluation/run_benchmark.md) — evaluate a checkpoint end to end.
 - [Architecture overview](architecture/overview.md) — the lifecycle and repo layout.
 - [Add a custom pipeline](pipelines/custom_pipeline.md) — extending task generation.
 - [Controller, data, action & eval](sft/end_to_end.md) — keeping training and eval consistent.

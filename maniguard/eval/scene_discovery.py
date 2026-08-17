@@ -8,8 +8,8 @@ benchmark.py and scripts/run_benchmark_all_scenes.sh.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from maniguard.utils.goal_region import build_task_prompt
 
@@ -123,7 +123,19 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             if not food_synset:
                 print(f"  Skipping {scene_key}: dusty degraded merge batch (no synset/prompt)")
                 continue
-            target_name = _match_category(init_info, _category_from_synset(food_synset))
+            # spawn_specs role=="food" carries the actually spawned category
+            # (food_synset can be a stale pre-respawn pick — e.g. potato.n.01 on
+            # tasks whose real food is half_blackberry / garlic_clove) — prefer
+            # it, fall back to the synset-derived category.
+            _food_spec = next(
+                (s for s in (sel.get("spawn_specs") or []) if s.get("role") == "food"),
+                None,
+            )
+            target_name = None
+            if _food_spec:
+                target_name = _match_category(init_info, _food_spec.get("category", ""))
+            if not target_name:
+                target_name = _match_category(init_info, _category_from_synset(food_synset))
 
         elif pipeline == "jar_transport":
             # Target = the jar (lid closed, then carried).
@@ -140,7 +152,20 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
 
         elif pipeline in ("lid_transport_food", "lid_transport_liquid"):
             # lid: place the lid on the container, then move the container.
-            target_name = _match_category(init_info, sel.get("container_category", ""))
+            # liquid-mode diags carry a STALE selection.container_category (the
+            # pre-respawn pick, e.g. "can"); the actually spawned container is
+            # the spawn_specs entry with role=="target" (e.g. hingeless_jar) —
+            # prefer it, fall back to container_category (the food-mode truth;
+            # food diags have no role=="target" spawn spec).
+            _tgt_spec = next(
+                (s for s in (sel.get("spawn_specs") or []) if s.get("role") == "target"),
+                None,
+            )
+            target_name = None
+            if _tgt_spec:
+                target_name = _match_category(init_info, _tgt_spec.get("category", ""))
+            if not target_name:
+                target_name = _match_category(init_info, sel.get("container_category", ""))
 
         elif pipeline in ("stack_same", "stack_flat"):
             # stack: retrieve the bottom object from the stack.

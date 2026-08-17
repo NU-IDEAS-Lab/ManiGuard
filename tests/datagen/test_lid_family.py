@@ -45,8 +45,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation as Rot
 
-from maniguard.data.datagen.families.lid import (
-    geometry_class, insertion_dir_from_grasp, release_pose_for_lid)
+from maniguard.data.datagen.families.lid import geometry_class, insertion_dir_from_grasp, release_pose_for_lid
 
 
 def test_geometry_class():

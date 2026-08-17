@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from maniguard.utils.maxrects_pack import PackInputDescriptor, solve_pack  # noqa: E402
+from maniguard.utils.maxrects_pack import PackInputDescriptor, solve_pack
 
 _ROLE_COLORS = {"target": "#d62728", "fragile": "#ff7f0e", "clutter": "#1f77b4"}
 

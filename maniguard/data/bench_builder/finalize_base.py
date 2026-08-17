@@ -258,7 +258,7 @@ def _build_active_objects(env, ltl_safety: dict, surface_name: str | None, objec
     surface_obj = env.scene.object_registry("name", surface_name) if surface_name else None
     active: dict = {}
     for pat in patterns:
-        prefix = pat[:-2] if pat.endswith("_*") else pat
+        prefix = pat.removesuffix("_*")
         if prefix.startswith("agent"):
             if robot is not None:
                 active[f"{prefix}_0"] = robot

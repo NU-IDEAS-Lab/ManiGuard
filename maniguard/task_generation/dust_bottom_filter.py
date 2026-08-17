@@ -140,7 +140,7 @@ def refine_scene_dust_to_bottom(
     return (
         f"{name}: {gname} APPLIED  {n0} -> {nk}  "
         f"(dropped {n0 - nk} wall/rim"
-        + (f"; backup saved" if backup_dir else "")
+        + ("; backup saved" if backup_dir else "")
         + ")"
     )
 

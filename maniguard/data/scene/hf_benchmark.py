@@ -20,7 +20,6 @@ handling here.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 
 def resolve_benchmark_root(source: str, revision: str = "main") -> Path:

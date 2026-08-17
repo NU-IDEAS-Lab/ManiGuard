@@ -47,7 +47,6 @@ import argparse
 import csv
 import json
 from pathlib import Path
-from typing import Dict, List
 
 _HERE = Path(__file__).resolve().parent
 _PROJECT_ROOT = _HERE.parents[3]
@@ -63,7 +62,7 @@ _USABLE_FOOD_SUITABILITY = frozenset({"perfect", "possible"})
 _DEFAULT_WALL_INSET_M = 0.010
 
 
-def _eligible_food_rows() -> List[dict]:
+def _eligible_food_rows() -> list[dict]:
     """Filter graspability_classified.csv to graspable foods that are
     valid transfer targets — same predicate as the food_transfer builder.
     """
@@ -99,13 +98,13 @@ def build(fit_margin_m: float = 0.015,
     print(f"[build] {len(food_rows)} eligible food (cat, model) rows "
           f"({len({r['category'] for r in food_rows})} categories)")
 
-    per_jar: Dict[str, dict] = {}
+    per_jar: dict[str, dict] = {}
     eligible_food_models: set[tuple[str, str]] = set()
     for jar_model in jar_models:
         jar_extent = list(jar_entries[jar_model]["extent_xyz"])
         opening = float(jar_opening_min_dim(jar_model, wall_inset_m=wall_inset_m))
         budget = opening - float(fit_margin_m)
-        foods: Dict[str, List[str]] = {}
+        foods: dict[str, list[str]] = {}
         n_models = 0
         for r in food_rows:
             cat = r["category"]

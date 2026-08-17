@@ -38,8 +38,15 @@ from scipy.spatial.transform import Rotation as Rot
 
 from maniguard.data.datagen.executor import geometry
 from maniguard.data.datagen.executor.contracts import (
-    FamilyAbort, FamilySkeleton, GraspCand, Grip, Mode, MotionSegment, SampleParams,
-    SegmentSkip, TaskContext,
+    FamilyAbort,
+    FamilySkeleton,
+    GraspCand,
+    Grip,
+    Mode,
+    MotionSegment,
+    SampleParams,
+    SegmentSkip,
+    TaskContext,
 )
 from maniguard.data.datagen.grasp_db import load_db, target_grasps_world
 
@@ -199,6 +206,7 @@ class DustySkeleton(FamilySkeleton):
         import copy
         import json
         import os
+
         import torch as th
         sys_ = self._system(ctx)
         if int(sys_.dump_state(serialized=False).get("n_particles") or 0) > 0:
@@ -387,6 +395,7 @@ class DustySkeleton(FamilySkeleton):
         # the required lift -> drop (grasp-set law compliant).
         if getattr(self, "_world", None) is not None and keep:
             import torch as th
+
             from maniguard.data.datagen.primitives.curobo_seg import solve_ik, solve_segment
             dest_obj = self._obj(ctx, self._dest_name)
             self._world.update_obstacles(ignore_objects=[dest_obj] if dest_obj else [])

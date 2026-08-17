@@ -64,8 +64,24 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
     # NOTE: legacy datasets ship only image_left/image_right — use one of those there.
     external_cam: str = "left"
 
+    # Data-scaling ablation knob. None (default) = train on the full dataset —
+    # identical behavior to before this field existed. A fraction in (0, 1) =
+    # per-BASE-TASK subset: the datagen datasets store exactly 40 consecutive
+    # episodes per base task (verified homogeneous blocks), and the subset takes
+    # the FIRST ceil(40 * fraction) episodes of every 40-block (e.g. 0.2 -> 8/40,
+    # 0.5 -> 20/40, 0.8 -> 32/40). Task coverage is unchanged; only demos-per-task
+    # shrink. Applied at load time via _episode_subset_patch (LeRobotDataset's
+    # native `episodes=` filter) — the source dataset stays read-only, and the
+    # norm-stats pass goes through the same path, so each fraction config computes
+    # stats on ITS OWN subset under its own config name.
+    episode_fraction: float | None = None
+
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        if self.episode_fraction is not None and not (0.0 < self.episode_fraction < 1.0):
+            raise ValueError(
+                f"episode_fraction must be in (0, 1) or None (full dataset), got {self.episode_fraction}"
+            )
         if self.external_cam not in ("opposite", "left", "right", "left_shoulder"):
             raise ValueError(
                 "external_cam must be one of opposite/left/right/left_shoulder, "
@@ -107,9 +123,29 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
 
         model_transforms = ModelTransformFactory()(model_config)
 
-        return dataclasses.replace(
+        cfg = dataclasses.replace(
             self.create_base_config(assets_dirs, model_config),
             repack_transforms=repack_transform,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
         )
+        if self.episode_fraction is None:
+            return cfg
+        # Carry the fraction on a DataConfig subclass so the load-time patch
+        # (_episode_subset_patch) can see it via getattr — openpi's DataConfig
+        # itself is never modified.
+        return SubsetDataConfig(
+            **{f.name: getattr(cfg, f.name) for f in dataclasses.fields(cfg)},
+            episode_fraction=self.episode_fraction,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class SubsetDataConfig(DataConfig):
+    """openpi ``DataConfig`` + the per-base-task ``episode_fraction`` marker.
+
+    Read by ``_episode_subset_patch`` (duck-typed ``getattr``); plain
+    ``DataConfig`` instances (fraction-less configs) pass through untouched.
+    """
+
+    episode_fraction: float | None = None

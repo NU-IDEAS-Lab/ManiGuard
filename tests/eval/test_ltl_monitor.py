@@ -10,7 +10,6 @@ if OG_ROOT not in sys.path:
 
 from maniguard.utils.ltl_utils import LTLMonitor
 
-
 spot = pytest.importorskip("spot")
 
 

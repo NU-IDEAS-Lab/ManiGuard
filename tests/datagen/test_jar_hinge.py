@@ -4,12 +4,23 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from maniguard.data.datagen.families.jar_hinge import (
-    WORLD_UP, rotate_vec_about_axis, rotate_pose_about_axis, unit_perp, angle_between,
-    is_closed, lid_extension_dir, face_normal, straddle_pose_from_hull, drive_angle,
-    arc_close_angle, arc_waypoints, CLOSE_MARGIN_DEG, END_CLEAR_DEG, MIN_PAST_VERT_DEG,
-    PAD_HALF_GAP_M, STRADDLE_CLEAR_M,
+    CLOSE_MARGIN_DEG,
+    END_CLEAR_DEG,
+    MIN_PAST_VERT_DEG,
+    PAD_HALF_GAP_M,
+    STRADDLE_CLEAR_M,
+    angle_between,
+    arc_close_angle,
+    arc_waypoints,
+    drive_angle,
+    face_normal,
+    is_closed,
+    lid_extension_dir,
+    rotate_pose_about_axis,
+    rotate_vec_about_axis,
+    straddle_pose_from_hull,
+    unit_perp,
 )
-
 
 # --- Task 1: rotation primitives ---
 

@@ -14,9 +14,9 @@ The parser is intentionally strict to reject malformed or unsupported tasks earl
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from bddl.activity import Conditions
 from bddl.object_taxonomy import ObjectTaxonomy
@@ -67,28 +67,28 @@ class GoalPredicateSpec:
             For example, ("?obj1", "cup.n.01") for "forall ?obj1 in cup.n.01: ...".
     """
     name: str
-    args: Tuple[str, ...]
+    args: tuple[str, ...]
     negated: bool
-    quantified_vars: Tuple[Tuple[str, str], ...]
+    quantified_vars: tuple[tuple[str, str], ...]
 
 
 @dataclass(frozen=True)
 class ManipulationTaskSpec:
     task_name: str
-    objects: Dict[str, Tuple[str, ...]]
-    target_ids: Tuple[str, ...]
-    fragile_ids: Tuple[str, ...]
-    support_ids: Tuple[str, ...]
-    goal_predicates: Tuple[GoalPredicateSpec, ...]
-    safety_status_rules: Tuple[str, ...]
+    objects: dict[str, tuple[str, ...]]
+    target_ids: tuple[str, ...]
+    fragile_ids: tuple[str, ...]
+    support_ids: tuple[str, ...]
+    goal_predicates: tuple[GoalPredicateSpec, ...]
+    safety_status_rules: tuple[str, ...]
 
 
 def build_manipulation_task_spec(
     activity_name: str,
     activity_definition_id: int = 0,
     simulator_name: str = "omnigibson",
-    predefined_problem: Optional[str] = None,
-    allowed_goal_predicates: Optional[Iterable[str]] = None,
+    predefined_problem: str | None = None,
+    allowed_goal_predicates: Iterable[str] | None = None,
     safety_status_rules: Sequence[str] = DEFAULT_SAFETY_STATUS_RULES,
 ) -> ManipulationTaskSpec:
     """
@@ -105,7 +105,7 @@ def build_manipulation_task_spec(
     )
 
     # Build object mappings: synset -> instances, and instance -> synset
-    objects: Dict[str, Tuple[str, ...]] = {
+    objects: dict[str, tuple[str, ...]] = {
         synset: tuple(sorted(instances)) for synset, instances in conditions.parsed_objects.items()
     }
     instance_to_synset = _build_instance_to_synset_map(objects)
@@ -142,15 +142,15 @@ def build_manipulation_task_spec(
     return spec
 
 
-def _build_instance_to_synset_map(objects: Dict[str, Tuple[str, ...]]) -> Dict[str, str]:
+def _build_instance_to_synset_map(objects: dict[str, tuple[str, ...]]) -> dict[str, str]:
     return {instance: synset for synset, instances in objects.items() for instance in instances}
 
 
 def _extract_goal_predicates(
     goal_conditions: Sequence,
-    quantified_scope: Optional[Dict[str, str]] = None,
+    quantified_scope: dict[str, str] | None = None,
     negated: bool = False,
-) -> List[GoalPredicateSpec]:
+) -> list[GoalPredicateSpec]:
     """Recursively extract goal predicates from BDDL goal conditions.
     
     This function handles nested BDDL structures including:
@@ -169,7 +169,7 @@ def _extract_goal_predicates(
         List of GoalPredicateSpec objects extracted from the goal conditions.
     """
     quantified_scope = {} if quantified_scope is None else dict(quantified_scope)
-    out: List[GoalPredicateSpec] = []
+    out: list[GoalPredicateSpec] = []
 
     for cond in goal_conditions:
         if not isinstance(cond, list) or len(cond) == 0:
@@ -211,9 +211,9 @@ def _extract_goal_predicates(
 
 def _infer_target_ids(
     goal_predicates: Sequence[GoalPredicateSpec],
-    objects: Dict[str, Tuple[str, ...]],
-    instance_to_synset: Dict[str, str],
-) -> List[str]:
+    objects: dict[str, tuple[str, ...]],
+    instance_to_synset: dict[str, str],
+) -> list[str]:
     movable_goal_preds = {"inside", "ontop", "nextto", "touching", "filled"}
     targets = set()
 
@@ -247,9 +247,9 @@ def _infer_target_ids(
 def _infer_support_ids(
     init_conditions: Sequence,
     goal_predicates: Sequence[GoalPredicateSpec],
-    objects: Dict[str, Tuple[str, ...]],
-    instance_to_synset: Dict[str, str],
-) -> List[str]:
+    objects: dict[str, tuple[str, ...]],
+    instance_to_synset: dict[str, str],
+) -> list[str]:
     supports = set()
 
     # Destination objects in init conditions for ontop / inside are strong support signals.
@@ -291,10 +291,10 @@ def _infer_support_ids(
 
 def _resolve_argument_instances(
     argument: str,
-    quantified_vars: Dict[str, str],
-    objects: Dict[str, Tuple[str, ...]],
-    instance_to_synset: Dict[str, str],
-) -> List[str]:
+    quantified_vars: dict[str, str],
+    objects: dict[str, tuple[str, ...]],
+    instance_to_synset: dict[str, str],
+) -> list[str]:
     # 1) If this is a concrete instance token (with or without accidental '?'), normalize it.
     normalized_instance = _normalize_instance_token(argument, instance_to_synset)
     if normalized_instance is not None:
@@ -308,7 +308,7 @@ def _resolve_argument_instances(
     return []
 
 
-def _normalize_instance_token(token: str, instance_to_synset: Dict[str, str]) -> Optional[str]:
+def _normalize_instance_token(token: str, instance_to_synset: dict[str, str]) -> str | None:
     if token in instance_to_synset:
         return token
     if token.startswith("?"):
@@ -318,7 +318,7 @@ def _normalize_instance_token(token: str, instance_to_synset: Dict[str, str]) ->
     return None
 
 
-def _infer_fragile_ids(instance_to_synset: Dict[str, str]) -> List[str]:
+def _infer_fragile_ids(instance_to_synset: dict[str, str]) -> list[str]:
     return sorted([instance for instance, synset in instance_to_synset.items() if _is_synset_breakable(synset)])
 
 

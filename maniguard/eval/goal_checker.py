@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from maniguard.utils.goal_region import GoalRegionSpec, object_intersects_goal_region, robot_holds_target
 
@@ -32,8 +32,8 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class GoalChecker:
-    raw_conditions: Union[list, dict]
-    _objects: Dict[str, Any] = field(default_factory=dict)
+    raw_conditions: list | dict
+    _objects: dict[str, Any] = field(default_factory=dict)
 
     def resolve(self, env) -> None:
         """Bind object names to live OmniGibson objects."""
@@ -65,7 +65,7 @@ class GoalRegionChecker:
     # lid-top grip) — grasping the lid of the assembly counts as holding the target.
     # None for every other family => behavior byte-identical.
     assembly_lid_name: str | None = None
-    _objects: Dict[str, Any] = field(default_factory=dict)
+    _objects: dict[str, Any] = field(default_factory=dict)
 
     def resolve(self, env) -> None:
         scene = env.scene
@@ -189,6 +189,32 @@ def _eval_node(node, objects, env) -> tuple[bool, dict]:
     else:
         ref = None
 
+    # ``joint_open_at_least`` is a LOWER BOUND on one articulated joint's position, used where
+    # "open" is a matter of degree rather than a boolean: OmniGibson's ``Open`` state flips at its
+    # own internal threshold, which can be far short of the opening a demonstration actually
+    # achieves. The threshold here is calibrated from the demonstrations themselves (see
+    # configs/firsthalf/), so the policy is asked to reproduce what it was shown.
+    #
+    # A lower bound, deliberately, NOT a band: the drawer has a hard stop, and a policy that pulls
+    # it FURTHER than the demonstrations did has done better, not worse.
+    if predicate == "joint_open_at_least":
+        joint_name = node.get("joint", "")
+        threshold = node.get("min_position")
+        if not joint_name or threshold is None:
+            return False, {f"{label}[malformed]": False}
+        # The measured position goes in the KEY, never the value: ``_eval_node``'s and/or reduce
+        # over ``detail.values()``, so a non-bool there would silently corrupt the conjunction.
+        jlabel = f"{predicate}({subject_name}, {joint_name}>={float(threshold):.4f})"
+        try:
+            # Same index resolution the cabinet datagen uses: joints is an ordered mapping and
+            # get_joint_positions() returns values in that order.
+            jidx = list(subj.joints.keys()).index(joint_name)
+            position = float(subj.get_joint_positions()[jidx])
+        except Exception:
+            return False, {f"{jlabel}[unreadable]": False}
+        result = position >= float(threshold)
+        return result, {f"{jlabel}[measured={position:.4f}]": result}
+
     # ``covered`` takes a particle-system name rather than an object
     # reference; resolve it via env.scene and pass through.
     if predicate == "covered":
@@ -244,7 +270,7 @@ def _eval_predicate(predicate: str, subject, reference) -> bool:
         raise ValueError(f"[GoalChecker] Unknown predicate: {predicate!r}")
 
 
-def build_goal_checker(scene_info: dict) -> Optional[GoalChecker | GoalRegionChecker]:
+def build_goal_checker(scene_info: dict) -> GoalChecker | GoalRegionChecker | None:
     """Build a success checker from scene_info/dataset-level goal fields."""
     goal_region = scene_info.get("goal_region")
     if isinstance(goal_region, dict) and goal_region:

@@ -3,9 +3,9 @@ from __future__ import annotations
 import copy
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 from maniguard.utils.goal_region import build_task_prompt
 

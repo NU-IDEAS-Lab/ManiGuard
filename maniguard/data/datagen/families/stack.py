@@ -25,7 +25,13 @@ import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
 from maniguard.data.datagen.executor.contracts import (
-    FamilySkeleton, GraspCand, Grip, Mode, MotionSegment, SampleParams, TaskContext,
+    FamilySkeleton,
+    GraspCand,
+    Grip,
+    Mode,
+    MotionSegment,
+    SampleParams,
+    TaskContext,
 )
 from maniguard.data.datagen.grasp_db import load_db, target_grasps_world
 
@@ -281,8 +287,8 @@ class StackSkeleton(FamilySkeleton):
     def select_grasps(self, ctx: TaskContext, world, robot) -> None:
         """Score each stack instance's TOP-DOWN grasps once (cuRobo reachability) and cache the best
         reachable world grasp pose on its ``_StackItem`` (the driver only scores the target grasp)."""
-        from maniguard.data.datagen.executor.grasp_select import is_top_down, score_grasps
         from maniguard.data.datagen.executor import geometry as G
+        from maniguard.data.datagen.executor.grasp_select import is_top_down, score_grasps
         from maniguard.data.datagen.families import stack_grasp_depth as SD
 
         self._prepare(ctx)
@@ -506,9 +512,10 @@ class StackSkeleton(FamilySkeleton):
         """Fix 3: is the CARRY (hold this grasp's object over the dest @ H_safe) IK-reachable? A pick that
         can't be transferred to the dest is worthless — reject it before it wastes an attempt. Bounded
         single-pose IK probe (uses the PROVISIONAL dest; the finalised dest is within ~cm)."""
-        from maniguard.data.datagen.primitives.curobo_seg import solve_ik
-        from maniguard.data.datagen.families import stack_grasp_depth as SD
         import torch as th
+
+        from maniguard.data.datagen.families import stack_grasp_depth as SD
+        from maniguard.data.datagen.primitives.curobo_seg import solve_ik
         quat = np.asarray(cand.chosen_quat if cand.chosen_quat is not None else cand.eef_quat, float)
         gz = float(_np(cand.eef_pos)[2])
         zc = self._live_h_safe(ctx, None, gz, SD.gripper_drop_below_eef(quat))

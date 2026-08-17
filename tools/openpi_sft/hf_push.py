@@ -26,7 +26,7 @@ import sys
 from huggingface_hub import HfApi
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _hf_push_common import (  # noqa: E402
+from _hf_push_common import (
     finalized_steps,
     is_pushed_complete,
     push_step,

@@ -1,9 +1,18 @@
-# openpi / pi0.5 SFT
+# openpi (pi0.5 / pi0) SFT
 
-LoRA SFT of a pi0.5 VLA on a ManiGuard **JointController** dataset, using openpi's
-native JAX trainer through ManiGuard's own `maniguard/openpi_sft` task-config
-module against an **unmodified, parallel openpi clone**. Collection → dataset →
-SFT → eval are all joint-space (no end-effector / IK anywhere).
+LoRA SFT of a pi0.5 or pi0 VLA on a ManiGuard **JointController** dataset, using
+openpi's native JAX trainer through ManiGuard's own `maniguard/openpi_sft`
+task-config module against an **unmodified, parallel openpi clone**. Collection →
+dataset → SFT → eval are all joint-space (no end-effector / IK anywhere).
+
+!!! note "The pi0 track"
+    Everything below is written for pi0.5; the module also registers a **pi0**
+    config per family (`pi0-base_datagen_v1_<fam>_joint_2cam_lora`) with the same
+    data pipeline and launcher. The diffs are exactly the model generation:
+    warm-start `pi0_base` instead of `pi05_base`, continuous state input, and
+    `action_horizon=50` (pi0's native chunk; the pi0.5 configs use 16). Norm
+    stats are computed **fresh** under each pi0 config name — the stats pass
+    chunks actions by horizon, so the pi0.5 stats are not reusable.
 
 !!! note "Why a separate module instead of editing openpi"
     openpi is consumed as a pinned, **pristine** clone next to ManiGuard. All

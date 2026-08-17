@@ -154,7 +154,7 @@ def main():
     cavity_like = [(k, v) for k, v in valid
                    if v["z_range_m"] > 0.02 and v["square_at_z_min_side_m"] > 0]
     cavity_like.sort(key=lambda kv: -kv[1]["square_at_z_min_side_m"])
-    print(f"\nTop 10 'cavity-like' (z_range > 2 cm) by largest square at z_min:")
+    print("\nTop 10 'cavity-like' (z_range > 2 cm) by largest square at z_min:")
     for k, v in cavity_like[:10]:
         print(f"  {k:40s} z_min_side={v['square_at_z_min_side_m']*100:5.1f} cm "
               f"z_max_side={v['square_at_z_max_side_m']*100:5.1f} cm "

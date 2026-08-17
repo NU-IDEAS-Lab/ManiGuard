@@ -1,32 +1,32 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
 import random
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class ClutterObjectDescriptor:
     instance_id: str
     role: str
-    half_extent_xy: Tuple[float, float]
+    half_extent_xy: tuple[float, float]
     height: float
-    root_to_bottom_z: Optional[float] = None
+    root_to_bottom_z: float | None = None
 
 
 @dataclass(frozen=True)
 class ClutterPackEntry:
     inst_id: str
     role: str
-    rel_pose: Tuple[float, float, float, float, float, float, float]
+    rel_pose: tuple[float, float, float, float, float, float, float]
 
 
 @dataclass(frozen=True)
 class ClutterPackSpec:
     table_obj_name: str
-    pack_origin_world: Tuple[float, float, float]
-    object_entries: Tuple[ClutterPackEntry, ...]
+    pack_origin_world: tuple[float, float, float]
+    object_entries: tuple[ClutterPackEntry, ...]
     seed: int
     template_id: str
 
@@ -35,14 +35,14 @@ class ClutterPackSpec:
 class PackIntegrityReport:
     ok: bool
     max_position_error: float
-    failure_reasons: Tuple[str, ...]
+    failure_reasons: tuple[str, ...]
 
 
 def check_packing_feasibility(
     descriptors: Sequence[ClutterObjectDescriptor],
-    placement_bounds_local: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None,
+    placement_bounds_local: tuple[tuple[float, float], tuple[float, float]] | None = None,
     min_clearance: float = 0.0,
-) -> Tuple[bool, float]:
+) -> tuple[bool, float]:
     """Area-based feasibility pre-check for circle packing.
 
     Returns ``(feasible, utilization)`` where *utilization* is the ratio of
@@ -80,7 +80,7 @@ def build_clutter_pack(
     template_id: str = "cup_first_v1",
     jitter_xy: float = 0.015,
     min_clearance: float = 0.025,
-    placement_bounds_local: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None,
+    placement_bounds_local: tuple[tuple[float, float], tuple[float, float]] | None = None,
     frontier_noise_margin_m: float = 0.02,
     shuffle_non_target: bool = True,
     # Deprecated: kept for backward compatibility, ignored.
@@ -97,8 +97,8 @@ def build_clutter_pack(
     if placement_bounds_local is None:
         placement_bounds_local = ((-0.45, -0.45), (0.45, 0.45))
 
-    placed: List[Tuple[ClutterObjectDescriptor, float, float]] = []
-    entries: List[ClutterPackEntry] = []
+    placed: list[tuple[ClutterObjectDescriptor, float, float]] = []
+    entries: list[ClutterPackEntry] = []
 
     ordered = _ordered_descriptors(descriptors)
     target_descriptors = [d for d in ordered if d.role == "target"]
@@ -160,12 +160,12 @@ def build_clutter_pack(
 
 def compute_candidate_pool(
     descriptor: ClutterObjectDescriptor,
-    placed: Sequence[Tuple[ClutterObjectDescriptor, float, float]],
-    placement_bounds: Tuple[Tuple[float, float], Tuple[float, float]],
+    placed: Sequence[tuple[ClutterObjectDescriptor, float, float]],
+    placement_bounds: tuple[tuple[float, float], tuple[float, float]],
     min_clearance: float,
     noise_margin: float = 0.02,
     n_angles: int = 36,
-) -> List[Tuple[float, float]]:
+) -> list[tuple[float, float]]:
     """Greedy ring-based candidate generation.
 
     Sweeps concentric rings outward from the origin (target centre).  On each
@@ -198,11 +198,11 @@ def compute_candidate_pool(
     ring_step = max(0.005, 0.5 * r_new)
     max_radius = math.hypot(max(abs(x_lo), abs(x_hi)), max(abs(y_lo), abs(y_hi)))
 
-    best_ring_r: Optional[float] = None
-    pool: List[Tuple[float, float]] = []
+    best_ring_r: float | None = None
+    pool: list[tuple[float, float]] = []
     ring_r = min_ring_r
     while ring_r <= max_radius:
-        ring_valid: List[Tuple[float, float]] = []
+        ring_valid: list[tuple[float, float]] = []
         for i in range(n_angles):
             theta = 2.0 * math.pi * i / n_angles
             cx = ring_r * math.cos(theta)
@@ -229,15 +229,15 @@ def compute_candidate_pool(
 
 def apply_pack_transform(
     pack_spec: ClutterPackSpec,
-    objects_by_inst: Dict[str, object],
-    pack_origin_world: Tuple[float, float, float],
+    objects_by_inst: dict[str, object],
+    pack_origin_world: tuple[float, float, float],
     pack_yaw: float = 0.0,
-    table_top_z: Optional[float] = None,
-) -> Dict[str, Tuple[float, float, float]]:
+    table_top_z: float | None = None,
+) -> dict[str, tuple[float, float, float]]:
     cos_y = math.cos(pack_yaw)
     sin_y = math.sin(pack_yaw)
     ox, oy, oz = pack_origin_world
-    placements: Dict[str, Tuple[float, float, float]] = {}
+    placements: dict[str, tuple[float, float, float]] = {}
 
     for entry in pack_spec.object_entries:
         obj = objects_by_inst.get(entry.inst_id, None)
@@ -258,8 +258,8 @@ def apply_pack_transform(
 
 def validate_pack_integrity(
     pack_spec: ClutterPackSpec,
-    world_positions: Dict[str, Tuple[float, float, float]],
-    pack_origin_world: Tuple[float, float, float],
+    world_positions: dict[str, tuple[float, float, float]],
+    pack_origin_world: tuple[float, float, float],
     pack_yaw: float = 0.0,
     tol_xy: float = 0.03,
 ) -> PackIntegrityReport:
@@ -267,7 +267,7 @@ def validate_pack_integrity(
     sin_y = math.sin(pack_yaw)
     ox, oy, _ = pack_origin_world
     max_err = 0.0
-    failures: List[str] = []
+    failures: list[str] = []
 
     expected_xy = {}
     observed_xy = {}
@@ -325,7 +325,7 @@ def _effective_radius(d: ClutterObjectDescriptor) -> float:
     return math.hypot(d.half_extent_xy[0], d.half_extent_xy[1])
 
 
-def _ordered_descriptors(descriptors: Sequence[ClutterObjectDescriptor]) -> List[ClutterObjectDescriptor]:
+def _ordered_descriptors(descriptors: Sequence[ClutterObjectDescriptor]) -> list[ClutterObjectDescriptor]:
     role_priority = {"target": 0, "fragile": 1, "clutter": 2}
     return sorted(
         descriptors,
@@ -334,9 +334,9 @@ def _ordered_descriptors(descriptors: Sequence[ClutterObjectDescriptor]) -> List
 
 
 def _collides_with_placed(
-    candidate_xy: Tuple[float, float],
+    candidate_xy: tuple[float, float],
     descriptor: ClutterObjectDescriptor,
-    placed: Iterable[Tuple[ClutterObjectDescriptor, float, float]],
+    placed: Iterable[tuple[ClutterObjectDescriptor, float, float]],
     min_clearance: float,
 ) -> bool:
     cx, cy = candidate_xy
@@ -349,7 +349,7 @@ def _collides_with_placed(
     return False
 
 
-def _quat_from_yaw(yaw: float) -> Tuple[float, float, float, float]:
+def _quat_from_yaw(yaw: float) -> tuple[float, float, float, float]:
     half = 0.5 * yaw
     return (0.0, 0.0, math.sin(half), math.cos(half))
 
@@ -368,7 +368,7 @@ class StackObjectDescriptor:
     """Describes one object in a vertical stack."""
     instance_id: str
     role: str                       # "target", "stack", "base" (bottom-most)
-    half_extent_xy: Tuple[float, float]
+    half_extent_xy: tuple[float, float]
     height: float
 
 
@@ -377,16 +377,16 @@ class StackEntry:
     """Computed world-relative pose for one stack element."""
     inst_id: str
     role: str
-    rel_pose: Tuple[float, float, float, float, float, float, float]  # x,y,z, qx,qy,qz,qw
-    supporter_inst_id: Optional[str]  # inst below this one (None for bottom)
+    rel_pose: tuple[float, float, float, float, float, float, float]  # x,y,z, qx,qy,qz,qw
+    supporter_inst_id: str | None  # inst below this one (None for bottom)
 
 
 @dataclass(frozen=True)
 class StackLayoutSpec:
     """Complete stack layout specification."""
     support_obj_name: str           # table / counter the stack sits on
-    stack_origin_world: Tuple[float, float, float]
-    entries: Tuple[StackEntry, ...]
+    stack_origin_world: tuple[float, float, float]
+    entries: tuple[StackEntry, ...]
     seed: int
 
 
@@ -416,7 +416,7 @@ def build_stack_layout(
         raise ValueError("descriptors must be non-empty")
 
     rng = random.Random(seed)
-    entries: List[StackEntry] = []
+    entries: list[StackEntry] = []
     cumulative_z = 0.0
 
     for i, desc in enumerate(descriptors):
@@ -446,9 +446,9 @@ def build_stack_layout(
 
 def apply_stack_transform(
     stack_spec: StackLayoutSpec,
-    objects_by_inst: Dict[str, object],
-    stack_origin_world: Tuple[float, float, float],
-) -> Dict[str, Tuple[float, float, float]]:
+    objects_by_inst: dict[str, object],
+    stack_origin_world: tuple[float, float, float],
+) -> dict[str, tuple[float, float, float]]:
     """Teleport objects to their computed stack positions.
 
     Args:
@@ -460,7 +460,7 @@ def apply_stack_transform(
         Dict mapping instance_id → (wx, wy, wz) world position.
     """
     ox, oy, oz = stack_origin_world
-    placements: Dict[str, Tuple[float, float, float]] = {}
+    placements: dict[str, tuple[float, float, float]] = {}
 
     for entry in stack_spec.entries:
         obj = objects_by_inst.get(entry.inst_id)

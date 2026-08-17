@@ -26,8 +26,16 @@ import torch as th
 from scipy.spatial.transform import Rotation as Rot
 
 from maniguard.data.datagen.executor.contracts import (
-    FamilyAbort, FamilySkeleton, GraspCand, Grip, Mode, MotionSegment, SampleParams,
-    SegmentSkip, TaskContext)
+    FamilyAbort,
+    FamilySkeleton,
+    GraspCand,
+    Grip,
+    Mode,
+    MotionSegment,
+    SampleParams,
+    SegmentSkip,
+    TaskContext,
+)
 from maniguard.data.datagen.grasp_db import load_db, target_grasps_world
 
 HANDLE_CONTAINERS = frozenset({"kettle", "teapot"})
@@ -147,8 +155,9 @@ class LidSkeleton(FamilySkeleton):
     # ---- one-time setup ---------------------------------------------------------------
     def select_grasps(self, ctx: TaskContext, world, robot) -> None:
         from omnigibson.object_states import AttachedTo
-        from maniguard.utils.lid_attach import LidSnapper, find_M_link
+
         from maniguard.data.datagen.executor import grasp_select
+        from maniguard.utils.lid_attach import LidSnapper, find_M_link
 
         self._AttachedTo = AttachedTo
         self._snapper = LidSnapper(ctx.env)
@@ -197,6 +206,7 @@ class LidSkeleton(FamilySkeleton):
             import json as _json
 
             import trimesh
+
             from maniguard.utils.lid_attach import find_F_link
             mesh_db = _json.load(open("outputs/grasp_annotation/mesh_db.json"))["objects"]
             ent = mesh_db.get(ctx.target_key) or {}

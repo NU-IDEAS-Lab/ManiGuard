@@ -11,7 +11,13 @@ from __future__ import annotations
 import numpy as np
 
 from maniguard.data.datagen.executor.contracts import (
-    FamilySkeleton, GraspCand, Grip, Mode, MotionSegment, SampleParams, TaskContext,
+    FamilySkeleton,
+    GraspCand,
+    Grip,
+    Mode,
+    MotionSegment,
+    SampleParams,
+    TaskContext,
 )
 from maniguard.data.datagen.families import jar_hinge as JH
 from maniguard.data.datagen.grasp_db import load_db, target_grasps_world
@@ -109,6 +115,7 @@ class JarSkeleton(FamilySkeleton):
     def select_grasps(self, ctx: TaskContext, world, robot) -> None:
         self._prepare(ctx)                       # geometric default first
         import torch as th
+
         from maniguard.data.datagen.primitives.curobo_seg import solve_ik, solve_segment
         h = self._h[ctx.target_name]
         hf, e = h["hf"], h["e"]

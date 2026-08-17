@@ -50,7 +50,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-
 DROID_H, DROID_W = 180, 320   # target resolution (matches openpi DROID example)
 DROID_FPS = 15                # DROID standard fps
 
@@ -185,7 +184,7 @@ def main():
             push_videos=True,
             tag_version=True,
         )
-        print(f"[DROID-export] Pushed, codebase version tag auto-created.")
+        print("[DROID-export] Pushed, codebase version tag auto-created.")
 
 
 if __name__ == "__main__":

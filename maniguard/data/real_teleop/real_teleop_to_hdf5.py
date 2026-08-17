@@ -42,7 +42,6 @@ import cv2
 import h5py
 import numpy as np
 
-
 GRIPPER_MIDPOINT_NORM = 0.5   # bimodal around 0.05 (open) / 0.99 (closed)
 GRIPPER_FULL_OPEN_M = 0.04    # matches sim grip_L/grip_R max (Franka half-aperture, m)
 

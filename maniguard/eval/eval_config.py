@@ -11,11 +11,10 @@ Usage:
 
 from __future__ import annotations
 
-import copy
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -28,8 +27,8 @@ class EvalConfig:
     benchmark_root: str = ""
     benchmark_revision: str = "main"
     scene_filter: str = ""
-    scenes: Optional[List[str]] = None
-    max_scenes: Optional[int] = None
+    scenes: list[str] | None = None
+    max_scenes: int | None = None
 
     # -- Policy connection --
     host: str = "127.0.0.1"
@@ -42,16 +41,32 @@ class EvalConfig:
     # When set, overrides each scene's prompt with this template formatted by
     # the target name (same as training: {target_clean} strips the trailing
     # _NNN and underscores). Use to match the SFT prompt distribution.
-    prompt_template: Optional[str] = None
+    prompt_template: str | None = None
+    # Prompt-ablation (Q2): replace each scene's instruction with the variant that
+    # conveys the safety constraint differently -- "no_instruction" (today's data),
+    # "natural_language", or "ltl". The variants come from prompt_map, the SAME table
+    # the ablation's SFT datasets are rewritten from, so training and eval see
+    # byte-identical prompts. The benchmark itself is never modified; the swap happens
+    # at load time. Leave both None for a normal run.
+    prompt_map: str | None = None
+    prompt_condition: str | None = None
+    # Task-horizon variant (e.g. cabinet firsthalf): a JSON table substituting a task's
+    # goal_conditions + prompt at load time, so a truncated-horizon policy is scored on the
+    # goal it was actually trained for instead of the shipped full-horizon one. The SAME
+    # table datagen collected the variant's demos with, so "success" means the same thing in
+    # both. The benchmark on disk is never modified. None (default) = the shipped task.
+    horizon_override: str | None = None
     # Which third-person overview the policy consumes. The model is fed exactly
     # ONE external overview + the wrist (LIBERO 2-cam convention): the policy
     # server reads observation/image_left + observation/wrist_image (+ state).
     # This selects which physical camera supplies that single overview, and MUST
     # match the checkpoint's training config (Sim2CamLiberoDataConfig.external_cam)
-    # so the policy stays in distribution:
-    #   "left"  -> render cam_left,  send as observation/image_left
-    #   "right" -> render cam_right, send as observation/image_left
-    # Only that one external camera is rendered (the other is never created).
+    # so the policy stays in distribution. Choices = the datagen contract
+    # (data_format.EXTERNAL_CAM_CHOICES): opposite / left / right / left_shoulder;
+    # cam_<name> is rendered and sent as observation/image_left. Only that one
+    # external camera is rendered (the others are never created); its POSE is
+    # loaded from the task's diagnostics["cameras"] (same as datagen), never
+    # recomputed.
     external_cam: str = "left"
     action_dim: int = 7
     execute_horizon: int = 5
@@ -61,8 +76,8 @@ class EvalConfig:
     # pi0.5 / VLA policies emitting raw 6-D EEF deltas). The scene-baked
     # controller is overridden at load. override_controller_config (a raw
     # dict) takes precedence if both are set.
-    controller_preset: Optional[str] = None
-    override_controller_config: Optional[Dict[str, Any]] = None
+    controller_preset: str | None = None
+    override_controller_config: dict[str, Any] | None = None
     # Robot grasping semantics, forced on the eval robot AFTER scene load (the
     # ManiGuard-Bench scene's baked grasping_mode is overridden). MUST match the grasp
     # mode used to COLLECT the training data, or the policy's learned gripper
@@ -84,7 +99,7 @@ class EvalConfig:
     # step (~10% tracking), which double-softens the already-PD-tracked SFT
     # deltas. A high value makes the controller reach its target each step
     # (achieved eef == commanded delta). Only applied to a JointController arm.
-    joint_pos_kp: Optional[float] = None
+    joint_pos_kp: float | None = None
 
     # -- Simulation --
     action_frequency: int = 20
@@ -98,8 +113,15 @@ class EvalConfig:
     #   ["success", "safety"] (default) both; ["success"] success only (Spot not
     #   required); ["safety"] safety only (runs the full rollout, no early stop
     #   on goal). Selects which checkers run and what the summary reports.
-    metrics: List[str] = field(default_factory=lambda: ["success", "safety"])
+    metrics: list[str] = field(default_factory=lambda: ["success", "safety"])
     max_steps: int = 1000
+    # Base seed for the policy's action-sampling noise (the only substantive
+    # randomness at eval: scenes are frozen snapshots). Per rollout the client
+    # derives episode_seed = crc32(f"{seed}:{scene_name}") and sends it in every
+    # request; each policy server re-seeds its sampler (JAX key / torch RNG)
+    # when the value changes. None (default) = unseeded, previous behavior.
+    # Distinct base seeds give independent repeat trials of the same task.
+    seed: int | None = None
     # Debounce on success: the goal condition must hold for this many
     # consecutive steps before the episode is marked successful. Guards against
     # single-frame false positives (a transient brush / AG-grasp flicker / the
@@ -184,6 +206,9 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--use-openpi-client", action="store_true", default=None)
     p.add_argument("--random-policy", action="store_true", default=None)
     p.add_argument("--max-steps", type=int, default=None)
+    p.add_argument("--seed", type=int, default=None,
+                   help="Base seed for policy sampling noise (per-rollout episode "
+                        "seeds are derived from it; omit for unseeded).")
     p.add_argument("--metrics", nargs="*", default=None, choices=["success", "safety"])
     p.add_argument("--success-hold-steps", type=int, default=None)
     p.add_argument("--execute-horizon", type=int, default=None)
@@ -197,8 +222,18 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--tag", type=str, default=None,
                    help="Label folded UPPERCASED into the auto run_name, e.g. --tag smoke.")
     p.add_argument("--save-video", action="store_true", default=None)
-    p.add_argument("--external-cam", type=str, default=None, choices=["left", "right"])
+    p.add_argument("--external-cam", type=str, default=None,
+                   choices=["opposite", "left", "right", "left_shoulder"])
     p.add_argument("--grasping-mode", type=str, default=None, choices=["physical", "assisted", "sticky"])
+    p.add_argument("--prompt-map", type=str, default=None,
+                   help="Prompt-ablation variant table (configs/ablation_prompt/*.json).")
+    p.add_argument("--prompt-condition", type=str, default=None,
+                   choices=["no_instruction", "natural_language", "ltl"],
+                   help="Which safety-constraint conveyance to evaluate (needs --prompt-map).")
+    p.add_argument("--horizon-override", type=str, default=None,
+                   help="Task-horizon variant table (configs/firsthalf/*.json): substitutes a "
+                        "task's goal_conditions + prompt so a truncated-horizon policy is scored "
+                        "on the goal it was trained for. Omit for the shipped full-horizon task.")
     p.add_argument("--camera-resolution", type=int, default=None)
 
     args = p.parse_args()
@@ -214,6 +249,7 @@ def config_from_cli() -> EvalConfig:
         "use_openpi_client": "use_openpi_client",
         "random_policy": "random_policy",
         "max_steps": "max_steps",
+        "seed": "seed",
         "metrics": "metrics",
         "success_hold_steps": "success_hold_steps",
         "execute_horizon": "execute_horizon",
@@ -228,10 +264,19 @@ def config_from_cli() -> EvalConfig:
         "external_cam": "external_cam",
         "grasping_mode": "grasping_mode",
         "camera_resolution": "camera_resolution",
+        "prompt_map": "prompt_map",
+        "prompt_condition": "prompt_condition",
+        "horizon_override": "horizon_override",
     }
     for cli_name, cfg_name in cli_map.items():
         val = getattr(args, cli_name, None)
         if val is not None:
             setattr(cfg, cfg_name, val)
+
+    if bool(cfg.prompt_condition) != bool(cfg.prompt_map):
+        raise ValueError(
+            "prompt_condition and prompt_map must be set together "
+            f"(got condition={cfg.prompt_condition!r}, map={cfg.prompt_map!r})"
+        )
 
     return cfg

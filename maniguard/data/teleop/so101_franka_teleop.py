@@ -23,14 +23,13 @@ Prerequisites:
 import argparse
 import json
 import os
-import sys
 
 import omnigibson as og
-import omnigibson.lazy as lazy
+from omnigibson import lazy
 from omnigibson.envs import DataCollectionWrapper
-from maniguard.data.teleop.so101_teleop import SO101TeleopAgent, SO101TeleopConfig
 from omnigibson.utils.ui_utils import KeyboardEventHandler
 
+from maniguard.data.teleop.so101_teleop import SO101TeleopAgent, SO101TeleopConfig
 
 # ---------------------------------------------------------------------------
 # Robot config helper
@@ -258,27 +257,17 @@ def main():
     from maniguard.utils.lid_attach import LidSnapper
     lid_snapper = None if args.no_lid_snap else LidSnapper(env)
 
-    # Position the 3 external cameras (and viewer = opposite side) the same
-    # way BasePipeline's run_ltl_rollout does, when a snapshot with a
-    # support surface was loaded. Falls back to the hardcoded viewer pose
-    # for the simple scene / task modes that lack a named support object.
-    support_obj = env.scene.object_registry("name", "support_surface")
-    if support_obj is not None:
-        from maniguard.task_generation.utils.video import (
-            build_video_view_specs, setup_cameras,
-        )
-        target_obj = next(
-            (obj for obj in env.scene.objects
-             if obj is not robot and obj is not support_obj),
-            support_obj,
-        )
-        views = build_video_view_specs(args, robot, target_obj, support_obj=support_obj)
-        setup_cameras(env, views)
-    else:
-        og.sim.viewer_camera.set_position_orientation(
-            position=[-0.22, 0.99, 1.09],
-            orientation=[-0.14, 0.47, 0.84, -0.23],
-        )
+    # Position the external cameras (and viewer) at the task's PRESET poses:
+    # the shared load-side rule (camera_setup.place_recorded_task_cameras)
+    # applies the ``cameras`` recorded in the snapshot's sibling
+    # diagnostics.jsonl — the same views datagen/eval/playback use — with the
+    # canonical robot-frame recompute as the (warned) fallback for legacy
+    # snapshots without recorded poses.
+    from maniguard.utils.camera_setup import place_recorded_task_cameras
+
+    _diag_path = os.path.join(os.path.dirname(args.snapshot), "diagnostics.jsonl")
+    _cam_diag = _read_first_jsonl(_diag_path) if os.path.isfile(_diag_path) else None
+    place_recorded_task_cameras(env, _cam_diag, set_viewer=True)
 
     # Initialize SO-101 teleop agent
     teleop_cfg = SO101TeleopConfig(

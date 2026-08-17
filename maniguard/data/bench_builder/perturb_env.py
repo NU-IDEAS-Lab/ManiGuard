@@ -316,8 +316,9 @@ def clear_on_surface_obstacles(env, surf, support_top: float, keep_names: set) -
     OOD signal. This replaces the base-gen ``clear_support_area`` (a whole-table + 0.6 m ring sweep),
     which strips every nearby furniture and leaves an almost-empty scene for tables that sit amid
     built-in furniture (a cafe bar's cabinets, an office desk's shelving)."""
-    from maniguard.task_generation.pipeline_common import is_structural_object
     import omnigibson as og
+
+    from maniguard.task_generation.pipeline_common import is_structural_object
 
     slo, shi = surf.aabb
     fx0, fy0, fx1, fy1 = float(slo[0]), float(slo[1]), float(shi[0]), float(shi[1])
@@ -366,17 +367,25 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
     import torch as th
 
     from maniguard.data.bench_builder.finalize_base import (
-        _build_active_objects, _compute_gate, _fresh_surface_info, _patch_lid_ltl,
+        _build_active_objects,
+        _compute_gate,
+        _fresh_surface_info,
+        _patch_lid_ltl,
     )
     from maniguard.data.bench_builder.perturbation import derive_seed
     from maniguard.data.bench_builder.render import render_views
     from maniguard.envs.frozen_task_runtime import build_env_config
     from maniguard.task_generation.pipeline_common import (
-        _yaw_from_quat, clear_robot_base_region, robot_half_extent_xy,
+        _yaw_from_quat,
+        clear_robot_base_region,
+        robot_half_extent_xy,
     )
     from maniguard.utils.camera_setup import EXTERNAL_CAMERA_NAMES
     from maniguard.utils.robot_pose import (
-        BENCH_CONTROLLER_PRESET, BENCH_GRASPING_MODE, BENCH_INIT_QPOS, ROBOT_MOUNT_OFFSET,
+        BENCH_CONTROLLER_PRESET,
+        BENCH_GRASPING_MODE,
+        BENCH_INIT_QPOS,
+        ROBOT_MOUNT_OFFSET,
     )
     from maniguard.utils.safety_monitor import TaskLTLMonitor
 
@@ -578,8 +587,8 @@ def _write_compare_snapshot(base_dir: Path, env_dir: Path, out_png: Path, episod
     (front) view AND the left_overview (≈ the eval external_cam, which faces the room
     furniture). A single opposite view can point at a bright window and read as empty even
     when the room is richly loaded, so the left view is shown alongside it."""
-    import numpy as np
     import imageio.v2 as imageio
+    import numpy as np
 
     def row(view):
         bv = base_dir / f"rollout_{view}_ep{episode}.mp4"

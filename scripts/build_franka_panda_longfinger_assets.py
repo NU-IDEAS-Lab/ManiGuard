@@ -9,7 +9,6 @@ from pathlib import Path
 
 import yaml
 
-
 PANDA_BUNDLE = "franka_panda"
 MOUNTED_BUNDLE = "franka_mounted"
 LONGFINGER_BUNDLE = "franka_panda_longfinger"

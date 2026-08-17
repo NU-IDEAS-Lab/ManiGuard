@@ -48,8 +48,7 @@ def _col_stats(a):
 
 def _write_jsonl(path, rows):
     with open(path, "w") as f:
-        for r in rows:
-            f.write(json.dumps(r) + "\n")
+        f.writelines(json.dumps(r) + "\n" for r in rows)
 
 
 def merge_shards(out, shard_dirs, *, chunk: int = CHUNK) -> dict:

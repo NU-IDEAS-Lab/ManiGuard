@@ -90,12 +90,13 @@ nav:
   - SFT:
       - Overview: sft/index.md
       - Dataset & data-source configs: sft/dataset_and_config.md
-      - openpi / pi0.5: sft/openpi.md
+      - openpi (pi0.5 / pi0): sft/openpi.md
       - GR00T (N1.6): sft/gr00t.md
       - SmolVLA: sft/smolvla.md
       - Controller · data · action · eval: sft/end_to_end.md
   - Evaluation:
       - Overview: evaluation/index.md
+      - Run the benchmark: evaluation/run_benchmark.md
       - Engagement & contact-gated safety: evaluation/engagement_metric.md
   - Foundations:
       - Architecture overview: architecture/overview.md

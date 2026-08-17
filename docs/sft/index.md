@@ -39,7 +39,7 @@ demos are generated (and therefore what config declares the source):
 
 | model | page | notes |
 |---|---|---|
-| **openpi / pi0.5** | [openpi SFT](openpi.md) | LoRA via openpi's JAX trainer through `maniguard/openpi_sft`; the reference recipe |
+| **openpi (pi0.5 / pi0)** | [openpi SFT](openpi.md) | LoRA via openpi's JAX trainer through `maniguard/openpi_sft`; the reference recipe (pi0 differs only in warm start, state input, and chunk length) |
 | **GR00T (N1.6)** | [GR00T SFT](gr00t.md) | NEW_EMBODIMENT joint-space, PyTorch/HF Trainer, component-freeze |
 | **SmolVLA** | [SmolVLA SFT](smolvla.md) | LeRobot-native (`lerobot-train`), freeze-VLM + train-expert |
 

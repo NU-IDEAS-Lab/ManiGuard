@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence, Tuple
 
-
-Bounds2D = Tuple[Tuple[float, float], Tuple[float, float]]
+Bounds2D = tuple[tuple[float, float], tuple[float, float]]
 
 
 @dataclass(frozen=True)
@@ -17,8 +16,8 @@ class ZoneCapacityStats:
 @dataclass(frozen=True)
 class TabletopZoneSpec:
     surface_bounds: Bounds2D
-    obstacle_keepout_bounds: Optional[Bounds2D]
-    obstacle_keepout_bounds_seq: Tuple[Bounds2D, ...]
+    obstacle_keepout_bounds: Bounds2D | None
+    obstacle_keepout_bounds_seq: tuple[Bounds2D, ...]
     red_zone_bounds: Bounds2D
     long_axis: str
 
@@ -48,7 +47,7 @@ def bounds_overlap(a: Bounds2D, b: Bounds2D, tol: float = 0.0) -> bool:
     return overlap_x and overlap_y
 
 
-def contains_point(bounds: Bounds2D, point_xy: Tuple[float, float], margin: float = 0.0) -> bool:
+def contains_point(bounds: Bounds2D, point_xy: tuple[float, float], margin: float = 0.0) -> bool:
     if margin < 0.0:
         raise ValueError("margin must be non-negative")
     (x0, y0), (x1, y1) = normalize_bounds(bounds)
@@ -56,7 +55,7 @@ def contains_point(bounds: Bounds2D, point_xy: Tuple[float, float], margin: floa
     return (x0 + margin) <= x <= (x1 - margin) and (y0 + margin) <= y <= (y1 - margin)
 
 
-def clamp_point(bounds: Bounds2D, point_xy: Tuple[float, float]) -> Tuple[float, float]:
+def clamp_point(bounds: Bounds2D, point_xy: tuple[float, float]) -> tuple[float, float]:
     (x0, y0), (x1, y1) = normalize_bounds(bounds)
     x = min(max(point_xy[0], x0), x1)
     y = min(max(point_xy[1], y0), y1)
@@ -65,7 +64,7 @@ def clamp_point(bounds: Bounds2D, point_xy: Tuple[float, float]) -> Tuple[float,
 
 def compute_zone_capacity(
     red_zone_bounds: Bounds2D,
-    half_extents_xy: Sequence[Tuple[float, float]],
+    half_extents_xy: Sequence[tuple[float, float]],
     per_object_padding: float = 0.02,
 ) -> ZoneCapacityStats:
     if per_object_padding < 0.0:
@@ -84,8 +83,8 @@ def compute_zone_capacity(
 
 def compute_tabletop_zone(
     surface_bounds_xy: Bounds2D,
-    obstacle_bounds_xy: Optional[Bounds2D] = None,
-    obstacle_bounds_seq: Optional[Sequence[Bounds2D]] = None,
+    obstacle_bounds_xy: Bounds2D | None = None,
+    obstacle_bounds_seq: Sequence[Bounds2D] | None = None,
     edge_margin_m: float = 0.05,
     obstacle_keepout_margin_m: float = 0.10,
     obstacle_side_clearance_m: float = 0.02,
@@ -202,14 +201,14 @@ def _bounds_inside(inner: Bounds2D, outer: Bounds2D) -> bool:
 
 __all__ = [
     "Bounds2D",
-    "ZoneCapacityStats",
     "TabletopZoneSpec",
-    "normalize_bounds",
-    "expand_bounds",
+    "ZoneCapacityStats",
     "bounds_area",
     "bounds_overlap",
-    "contains_point",
     "clamp_point",
-    "compute_zone_capacity",
     "compute_tabletop_zone",
+    "compute_zone_capacity",
+    "contains_point",
+    "expand_bounds",
+    "normalize_bounds",
 ]

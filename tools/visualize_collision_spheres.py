@@ -33,8 +33,9 @@ try:
 except ImportError:
     pass
 
-import maniguard  # noqa: F401  -- installs longfinger / Dropped / Upright patches
 from omnigibson.macros import gm
+
+import maniguard  # noqa: F401  -- installs longfinger / Dropped / Upright patches
 
 gm.ENABLE_OBJECT_STATES = True
 gm.ENABLE_TRANSITION_RULES = False
@@ -157,8 +158,8 @@ def spawn_obb_markers(
     palm_half_width: float = _OBB_PALM_HALF_WIDTH_DEFAULT,
     palm_half_bread: float = _OBB_PALM_HALF_BREAD_DEFAULT,
 ):
+    import omnigibson.utils.transform_utils as T
     from omnigibson.objects.primitive_object import PrimitiveObject
-    import omnigibson.utils.transform_utils as T  # noqa: N814
 
     hand = robot.links["panda_hand"]
     hand_pos, hand_quat = hand.get_position_orientation()
@@ -250,7 +251,7 @@ def build_env_cfg() -> dict:
 
 def look_at_quat(eye: np.ndarray, target: np.ndarray) -> list[float]:
     """USD-style quat (x,y,z,w) for a camera at ``eye`` looking at ``target``."""
-    import omnigibson.utils.transform_utils as T  # noqa: N814
+    import omnigibson.utils.transform_utils as T
     direction = target - eye
     direction /= max(np.linalg.norm(direction), 1e-6)
     horizontal = math.atan2(-direction[0], direction[1])
@@ -266,8 +267,8 @@ def spawn_sphere_markers(
     buffer_m: float,
     alpha: float,
 ):
+    import omnigibson.utils.transform_utils as T
     from omnigibson.objects.primitive_object import PrimitiveObject
-    import omnigibson.utils.transform_utils as T  # noqa: N814
 
     spawned = []
     for link_name, spheres in spheres_by_link.items():

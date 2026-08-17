@@ -34,7 +34,7 @@ def test_seed_encoding_collision_free_including_high_k():
     s = VariationSampler()
     seen = {}
     for gid in range(4):
-        for k in range(0, 1200):
+        for k in range(1200):
             vseed = s._params(_Cand(gid), k).seed
             assert vseed not in seen, f"collision: (gid={gid},k={k}) vs {seen.get(vseed)}"
             seen[vseed] = (gid, k)

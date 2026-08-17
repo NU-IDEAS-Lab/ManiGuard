@@ -32,7 +32,8 @@ import fnmatch
 import json
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional, Set
+from collections.abc import Callable
+from typing import Any
 
 import omnigibson as og
 from omnigibson.object_states import (
@@ -44,10 +45,11 @@ from omnigibson.object_states import (
     OnFire,
     OnTop,
     Open,
-    Touching,
     ToggledOn,
+    Touching,
     Upright,
 )
+
 from maniguard.utils.ltl_utils import (
     LTLMonitor,
     get_spot_runtime_status,
@@ -62,7 +64,7 @@ log = logging.getLogger(__name__)
 #  Every state used in ltl_safety.json must appear here.
 # ---------------------------------------------------------------------------
 
-_OG_UNARY_STATES: Dict[str, Any] = {
+_OG_UNARY_STATES: dict[str, Any] = {
     "on_fire": OnFire,
     "toggled_on": ToggledOn,
     "open": Open,
@@ -70,7 +72,7 @@ _OG_UNARY_STATES: Dict[str, Any] = {
     "dropped": Dropped,
 }
 
-_OG_BINARY_STATES: Dict[str, Any] = {
+_OG_BINARY_STATES: dict[str, Any] = {
     "touching": Touching,
     "ontop": OnTop,
     "inside": Inside,
@@ -79,11 +81,11 @@ _OG_BINARY_STATES: Dict[str, Any] = {
     "filled": Filled,
 }
 
-_ALL_OG_STATES: Dict[str, Any] = {**_OG_UNARY_STATES, **_OG_BINARY_STATES}
+_ALL_OG_STATES: dict[str, Any] = {**_OG_UNARY_STATES, **_OG_BINARY_STATES}
 
 # Map of state class → list of (param_name_in_json, attribute_name_on_state).
 # Used to apply per-proposition params from the JSON onto the state instance.
-_STATE_CONFIGURABLE_PARAMS: Dict[Any, list] = {
+_STATE_CONFIGURABLE_PARAMS: dict[Any, list] = {
     Upright: [("max_tilt_deg", "max_tilt_deg")],
     Dropped: [("floor_z", "floor_z"), ("z_margin", "z_margin")],
 }
@@ -131,27 +133,27 @@ class ObjectResolver:
         This filters out culled / parked objects whose poses may be invalid.
     """
 
-    def __init__(self, env, active_objects_by_inst: Optional[Dict] = None):
+    def __init__(self, env, active_objects_by_inst: dict | None = None):
         self._env = env
-        self._active_objs: Dict[str, Any] = (
+        self._active_objs: dict[str, Any] = (
             dict(active_objects_by_inst) if active_objects_by_inst else {}
         )
-        self._active_insts: Optional[Set[str]] = (
+        self._active_insts: set[str] | None = (
             set(active_objects_by_inst.keys()) if active_objects_by_inst else None
         )
 
-    def resolve_patterns(self, patterns) -> Dict[str, Any]:
+    def resolve_patterns(self, patterns) -> dict[str, Any]:
         """Return ``{inst_id: wrapped_obj}`` for all patterns."""
         if isinstance(patterns, str):
             patterns = [patterns]
-        merged: Dict[str, Any] = {}
+        merged: dict[str, Any] = {}
         for pat in patterns:
             merged.update(self._resolve_one(pat))
         return merged
 
-    def _resolve_one(self, pattern: str) -> Dict[str, Any]:
+    def _resolve_one(self, pattern: str) -> dict[str, Any]:
         scope = getattr(self._env.task, "object_scope", {}) or {}
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for inst, ent in scope.items():
             if not fnmatch.fnmatch(inst, pattern):
                 continue
@@ -443,7 +445,7 @@ class SafetyPropositionEvaluator:
         return eval_fn
 
     @staticmethod
-    def _apply_state_params(subjects: Dict[str, Any], state_cls, params: dict):
+    def _apply_state_params(subjects: dict[str, Any], state_cls, params: dict):
         """Apply JSON params (e.g. ``max_tilt_deg``) to the state instances."""
         param_map = _STATE_CONFIGURABLE_PARAMS.get(state_cls)
         if not param_map or not params:
@@ -552,7 +554,7 @@ def _auto_generate_scene_propositions(
 def _try_parse_instance_state_ap(
     ap_name: str,
     resolver: ObjectResolver,
-) -> Optional[dict]:
+) -> dict | None:
     """Try to parse ``<instance_id>_<state_name>`` and build a proposition def.
 
     For example, ``"agent.n.01_1_on_fire"`` -> instance ``agent.n.01_1``,
@@ -628,9 +630,9 @@ def build_active_objects_for_ltl(env, ltl_safety: dict, surface_name: str | None
         env.scene.object_registry("name", surface_name) if surface_name else None
     )
 
-    active: Dict[str, Any] = {}
+    active: dict[str, Any] = {}
     for pat in patterns:
-        prefix = pat[:-2] if pat.endswith("_*") else pat
+        prefix = pat.removesuffix("_*")
         if prefix.startswith("agent"):
             if robot is not None:
                 active[f"{prefix}_0"] = robot
@@ -710,15 +712,15 @@ class TaskLTLMonitor:
         *,
         ltl_safety: dict,
         activity_name: str = "",
-        scene_model: Optional[str] = None,
-        active_objects_by_inst: Optional[Dict] = None,
+        scene_model: str | None = None,
+        active_objects_by_inst: dict | None = None,
     ):
         self._env = env
         self._resolver = ObjectResolver(env, active_objects_by_inst)
         self._evaluator = SafetyPropositionEvaluator(self._resolver)
         self._violation_count = 0
-        self._violation_step: Optional[int] = None
-        self._ltl_log: List[dict] = []
+        self._violation_step: int | None = None
+        self._ltl_log: list[dict] = []
 
         task_data = dict(ltl_safety) if ltl_safety else {}
         scene_data = _load_scene_safety(scene_model) if scene_model else {}
@@ -729,7 +731,7 @@ class TaskLTLMonitor:
         self._constraints: list = merged.get("constraints", [])
 
         # Build eval functions for each declared proposition.
-        self._prop_fns: Dict[str, Callable[[], bool]] = {}
+        self._prop_fns: dict[str, Callable[[], bool]] = {}
         for prop_name, prop_def in merged.get("propositions", {}).items():
             try:
                 self._prop_fns[prop_name] = self._evaluator.build(prop_name, prop_def)
@@ -758,7 +760,7 @@ class TaskLTLMonitor:
 
     # -- per-step interface -------------------------------------------------
 
-    def _label_dict(self) -> Dict[str, bool]:
+    def _label_dict(self) -> dict[str, bool]:
         return {name: fn() for name, fn in self._prop_fns.items()}
 
     def step(self, step_idx: int) -> dict:
@@ -801,7 +803,7 @@ class TaskLTLMonitor:
         return self._violation_step is not None
 
     @property
-    def violation_step(self) -> Optional[int]:
+    def violation_step(self) -> int | None:
         return self._violation_step
 
     @property

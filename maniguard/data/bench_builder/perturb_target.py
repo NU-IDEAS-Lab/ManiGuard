@@ -122,8 +122,12 @@ def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: in
     import torch as th
 
     from maniguard.data.bench_builder.perturbation import (
-        albedo_add_for, apply_recolor, average_object_color, pick_tint,
-        resolve_target_category, resolve_target_object,
+        albedo_add_for,
+        apply_recolor,
+        average_object_color,
+        pick_tint,
+        resolve_target_category,
+        resolve_target_object,
     )
     from maniguard.data.bench_builder.render import _build_og_config, render_views
     from maniguard.utils.robot_pose import BENCH_INIT_QPOS

@@ -146,7 +146,9 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
 
     from maniguard.data.bench_builder import location_geom as L
     from maniguard.data.bench_builder.finalize_base import (
-        _build_active_objects, _compute_gate, _patch_lid_ltl,
+        _build_active_objects,
+        _compute_gate,
+        _patch_lid_ltl,
     )
     from maniguard.data.bench_builder.perturbation import derive_seed
     from maniguard.data.bench_builder.render import _build_og_config, render_views

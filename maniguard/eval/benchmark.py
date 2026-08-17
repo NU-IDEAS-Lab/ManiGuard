@@ -23,13 +23,11 @@ if str(REPO_ROOT) not in sys.path:
 from maniguard.eval.eval_config import EvalConfig, config_from_cli
 from maniguard.eval.scene_discovery import discover_scenes
 
-
-
 # ---------------------------------------------------------------------------
 # Isaac Sim / OmniGibson bootstrap
 # ---------------------------------------------------------------------------
 
-def _init_omnigibson(cfg: EvalConfig):
+def _init_omnigibson(cfg: EvalConfig, needs_gpu_dynamics: bool = False):
     if not cfg.longfinger:
         os.environ["MANIGUARD_SKIP_LONGFINGER"] = "1"
     try:
@@ -40,10 +38,16 @@ def _init_omnigibson(cfg: EvalConfig):
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     # Liquid/particle scenes (clutter liquid_transport) need PhysX GPU dynamics
-    # to initialize their water system. MUST be set before physx init (here),
-    # gated by env so the default (CPU dynamics) is unchanged.
-    if os.environ.get("EVAL_USE_GPU_DYNAMICS"):
+    # to initialize their water system or they NaN-segfault at init. Detected
+    # per task BEFORE og import via datagen's canonical gate
+    # (task_needs_gpu_dynamics; lid's legacy system_name is excluded there).
+    # Flatcache must be OFF under GPU dynamics (mirrors datagen
+    # primitives.scene.init_omnigibson). EVAL_USE_GPU_DYNAMICS stays as a
+    # manual force-on override.
+    if needs_gpu_dynamics or os.environ.get("EVAL_USE_GPU_DYNAMICS"):
         gm.USE_GPU_DYNAMICS = True
+        gm.ENABLE_FLATCACHE = False
+        print("[Eval] liquid/particle task -> gm.USE_GPU_DYNAMICS=True, ENABLE_FLATCACHE=False")
     if cfg.headless:
         gm.HEADLESS = True
 
@@ -54,16 +58,20 @@ def _init_omnigibson(cfg: EvalConfig):
 
 def _overview_cam_name(cfg: EvalConfig) -> str:
     """Physical external camera that supplies the policy's single overview,
-    selected by cfg.external_cam (must match the checkpoint's train config)."""
-    if cfg.external_cam not in ("left", "right"):
-        raise ValueError(f"external_cam must be 'left' or 'right', got {cfg.external_cam!r}")
-    return "cam_left" if cfg.external_cam == "left" else "cam_right"
+    selected by cfg.external_cam (must match the checkpoint's train config).
+    Choices mirror the datagen contract (data_format.EXTERNAL_CAM_CHOICES):
+    opposite / left / right / left_shoulder -> the bench cam_<name> sensor."""
+    from maniguard.data.datagen.data_format import EXTERNAL_CAM_CHOICES
+    if cfg.external_cam not in EXTERNAL_CAM_CHOICES:
+        raise ValueError(
+            f"external_cam must be one of {EXTERNAL_CAM_CHOICES}, got {cfg.external_cam!r}")
+    return f"cam_{cfg.external_cam}"
 
 
 def _build_eval_external_sensors(cfg: EvalConfig):
     """Build ONLY the one external overview camera the policy consumes
-    (cam_left or cam_right per cfg.external_cam) — matching the 2-cam training
-    convention. The wrist camera comes from the robot USD; no cam_opposite."""
+    (cam_<external_cam> per cfg.external_cam) — matching the 2-cam training
+    convention. The wrist camera comes from the robot USD."""
     from maniguard.utils.camera_setup import build_external_camera_configs
     return build_external_camera_configs(
         names=[_overview_cam_name(cfg)], resolution=cfg.camera_resolution
@@ -173,8 +181,8 @@ def eef_delta_to_joint_action(robot, eef_delta, action_space):
 def extract_obs(env, robot, prompt, cfg: EvalConfig):
     raw_obs, _ = env.get_obs()
     external = raw_obs.get("external", {})
-    # Single external overview = the one camera selected by cfg.external_cam
-    # (cam_left or cam_right); it is the only external camera built/rendered.
+    # Single external overview = the one camera selected by cfg.external_cam;
+    # it is the only external camera built/rendered.
     overview_name = _overview_cam_name(cfg)
     overview_rgb = external[overview_name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
 
@@ -253,12 +261,17 @@ def _remap_obs_for_openpi(obs: dict, cfg: EvalConfig) -> dict:
     observation/image_left; the server (Sim2CamInputs) maps image_left->base_0,
     wrist->left_wrist_0, and zero-fills+masks the third slot. Matches every
     ManiGuard joint checkpoint's train config."""
-    return {
+    out = {
         "observation/image_left": obs["overview_image"],
         "observation/wrist_image": obs["wrist_images"],
         "observation/state": obs["states"],
         "prompt": obs["task_descriptions"],
     }
+    # Sampling-noise seed for this rollout; the server strips it before its
+    # model pipeline and re-seeds its RNG when the value changes.
+    if obs.get("episode_seed") is not None:
+        out["episode_seed"] = int(obs["episode_seed"])
+    return out
 
 
 def query_policy(policy, obs, client_type, cfg):
@@ -348,9 +361,6 @@ def main():
     cfg.save_json(output_dir / "eval_config.json")
     print(f"[Eval] Config saved to {output_dir / 'eval_config.json'}")
 
-    _init_omnigibson(cfg)
-    import omnigibson as og
-
     from maniguard.data.scene.hf_benchmark import resolve_benchmark_root
     resolved_root = resolve_benchmark_root(
         cfg.benchmark_root, revision=cfg.benchmark_revision,
@@ -358,6 +368,22 @@ def main():
     if str(resolved_root) != cfg.benchmark_root:
         print(f"Resolved benchmark '{cfg.benchmark_root}' @ {cfg.benchmark_revision} "
               f"-> {resolved_root}")
+
+    # Per-task GPU-dynamics gate, decided BEFORE omnigibson is imported (gm
+    # macros only take effect pre-import). Pure file read of the requested
+    # scenes' diagnostics; any liquid/particle scene in the batch enables it.
+    from maniguard.data.datagen.primitives.scene import task_needs_gpu_dynamics
+    _needs_gpu = False
+    for _s in (cfg.scenes or []):
+        _sdir = Path(str(resolved_root)) / _s
+        if (_sdir / "diagnostics.jsonl").is_file():
+            try:
+                _needs_gpu = _needs_gpu or task_needs_gpu_dynamics(_sdir)
+            except Exception as _exc:  # noqa: BLE001 - fall back to CPU pipeline
+                print(f"[Eval] WARNING: gpu-dynamics probe failed for {_s}: {_exc}")
+
+    _init_omnigibson(cfg, needs_gpu_dynamics=_needs_gpu)
+    import omnigibson as og
 
     scenes = discover_scenes(
         str(resolved_root),
@@ -397,11 +423,46 @@ def main():
     all_results = []
 
     for scene_idx, scene_info in enumerate(scenes):
+        # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal_conditions +
+        # prompt from the SAME table datagen collected the variant's demos with, so success
+        # means the same thing here as it did at collection. Applied FIRST, before the prompt
+        # hooks below and well before build_goal_checker reads scene_info. Raises if this
+        # scene has no entry -- falling back would evaluate the full-horizon task while every
+        # artifact claims otherwise. Unset (the default) = the shipped task, unchanged.
+        if cfg.horizon_override:
+            from maniguard.eval.horizon_override import apply_horizon_override
+            # The table is keyed the way datagen names a task, family included
+            # ("cabinet_pickup/task_0019/base"), but a scene's `name` here is relative to the
+            # family root ("task_0019/base") because benchmark_root already points at the
+            # family. Re-attach the family, or every lookup misses and the run aborts.
+            scene_info = apply_horizon_override(
+                scene_info, cfg.horizon_override,
+                f"{Path(resolved_root).name}/{scene_info['name']}",
+            )
         if cfg.prompt_template:
             from maniguard.eval.prompt_utils import episode_prompt
             scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
+        # Prompt-ablation (Q2): swap in the variant that conveys the safety constraint
+        # per cfg.prompt_condition. Read from the same table the ablation's SFT datasets
+        # were rewritten from, so eval and training prompts are byte-identical; the
+        # benchmark on disk is untouched. Raises if this scene is not in the table.
+        if cfg.prompt_condition:
+            from maniguard.eval.prompt_utils import ablation_prompt
+            scene_info["prompt"] = ablation_prompt(
+                scene_info["prompt"], cfg.prompt_map, cfg.prompt_condition
+            )
+        # Per-rollout seed for the policy's sampling noise: derived from the base
+        # seed + scene name (stable across scene ordering), sent with every
+        # request; the server re-seeds its sampler when the value changes.
+        # None (no --seed) keeps the previous unseeded behavior.
+        episode_seed = None
+        if cfg.seed is not None:
+            import zlib
+            episode_seed = zlib.crc32(f"{cfg.seed}:{scene_info['name']}".encode()) & 0x7FFFFFFF
+            np.random.seed(episode_seed)  # client-side RNG (random-policy baseline)
         print(f"\n{'='*60}")
-        print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}")
+        print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}"
+              + (f"  (episode_seed={episode_seed})" if episode_seed is not None else ""))
         print(f"Prompt: {scene_info['prompt']}")
         print(f"Target: {scene_info['target_name']}")
         print(f"Rooms: {scene_info['target_rooms']}")
@@ -436,22 +497,9 @@ def main():
             if _resized:
                 env.load_observation_space()
             env.reset()
-            # Place external cameras at the SAME robot-frame poses used during
-            # teleop collection + playback re-render (shared single source of
-            # truth in camera_setup), so eval image_left / image_right match the
-            # training views exactly. Replaces the old diagnostics-pose reader
-            # (_setup_eval_cameras) — those stored poses were a different, stale
-            # set and would put the policy out of distribution.
-            from maniguard.utils.camera_setup import setup_external_cameras_robot_frame
-            setup_external_cameras_robot_frame(env)
-
-            # Apply any perturbation declared in the instance's diagnostics (the
-            # uniform task-instance load hook). For a `target/` variant this
-            # re-applies the recolor (diffuse_tint isn't serialized into the
-            # snapshot, so it must be set on load); a no-op for base and the
-            # other levels. Loading any instance is the same: build -> reset ->
-            # apply_perturbation, no base-vs-perturbation branching.
-            from maniguard.data.bench_builder.perturbation import apply_perturbation
+            # Load the instance's diagnostics row: it carries both the recorded
+            # camera poses and any perturbation to re-apply.
+            _diag = None
             _diag_path = Path(scene_info["scene_file"]).parent / "diagnostics.jsonl"
             if _diag_path.is_file():
                 _txt = _diag_path.read_text(encoding="utf-8")
@@ -460,6 +508,27 @@ def main():
                     _diag = _diag if isinstance(_diag, dict) else _diag[0]
                 except json.JSONDecodeError:
                     _diag = json.loads([ln for ln in _txt.splitlines() if ln.strip()][0])
+
+            # External-camera placement: LOAD the poses recorded in the task's
+            # diagnostics["cameras"] via the shared load-side rule
+            # (camera_setup.place_recorded_task_cameras) — the same mechanism
+            # datagen uses, so the eval overview equals the training view by
+            # construction. Poses are never recomputed here: the old
+            # setup_external_cameras_robot_frame call took a support_surface-
+            # relative branch on scenes containing an object named
+            # "support_surface" (cabinet) and produced a viewpoint that exists
+            # nowhere in the training data.
+            from maniguard.utils.camera_setup import place_recorded_task_cameras
+            place_recorded_task_cameras(env, _diag, set_viewer=False)
+
+            # Apply any perturbation declared in the instance's diagnostics (the
+            # uniform task-instance load hook). For a `target/` variant this
+            # re-applies the recolor (diffuse_tint isn't serialized into the
+            # snapshot, so it must be set on load); a no-op for base and the
+            # other levels. Loading any instance is the same: build -> reset ->
+            # apply_perturbation, no base-vs-perturbation branching.
+            from maniguard.data.bench_builder.perturbation import apply_perturbation
+            if _diag is not None:
                 _pert = apply_perturbation(env, _diag)
                 if _pert.get("applied"):
                     print(f"[perturbation] {_pert}")
@@ -534,7 +603,7 @@ def main():
             else:
                 print(f"  Goals: {goal_checker.raw_conditions}")
         else:
-            print(f"  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
+            print("  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
 
         # Warm up by stepping a HOLD command, initializing the freshly-reloaded
         # controller's goal from the current pose and settling physics. The hold
@@ -561,6 +630,7 @@ def main():
             og.sim.render()
 
         obs = extract_obs(env, robot, scene_info["prompt"], cfg)
+        obs["episode_seed"] = episode_seed
         # Two separate streams recorded as two mp4s: the policy's overview
         # (cam_left/right) and the wrist — same resolution the policy sees.
         main_frames = [obs["overview_image"]] if cfg.save_video else []
@@ -668,6 +738,7 @@ def main():
                         torch.from_numpy(action_clipped).unsqueeze(0)
                     )
                     obs = extract_obs(env, robot, scene_info["prompt"], cfg)
+                    obs["episode_seed"] = episode_seed
                     if os.environ.get("EVAL_DEBUG_STEP"):
                         _eef_after = np.asarray(obs["states"][:3], dtype=np.float32)
                         with open(os.environ["EVAL_DEBUG_STEP"], "a", encoding="utf-8") as _f:
@@ -722,12 +793,10 @@ def main():
                             _tp = _target_obj.get_position_orientation()[0].cpu().numpy()
                             if _target_spawn is not None:
                                 _md = float(np.linalg.norm(_tp - _target_spawn))
-                                if _md > target2spawn_max_dist:
-                                    target2spawn_max_dist = _md
+                                target2spawn_max_dist = max(target2spawn_max_dist, _md)
                             _ep = robot.get_eef_position().cpu().numpy()
                             _ed = float(np.linalg.norm(_ep - _tp))
-                            if _ed < eef2target_min_dist:
-                                eef2target_min_dist = _ed
+                            eef2target_min_dist = min(eef2target_min_dist, _ed)
                         except Exception:  # noqa: BLE001
                             pass
 
@@ -810,6 +879,8 @@ def main():
             "target": scene_info["target_name"],
             "pipeline": scene_info.get("pipeline", ""),
             "rooms": scene_info["target_rooms"],
+            "seed": cfg.seed,
+            "episode_seed": episode_seed,
             "status": status,
             "steps": step_idx,
             "nan_terminated": nan_terminated,
@@ -884,6 +955,12 @@ def main():
     # per-task batch processes -> a batch run gets a real aggregate instead of
     # the last process's single-task stats. results.jsonl stays the per-task
     # source of truth; summary.json no longer duplicates it.
+    if not results_path.exists():
+        # 0 scenes evaluated (e.g. every requested scene was skipped by
+        # discovery) — nothing to summarize; exit non-zero so callers retry/flag.
+        print("[Eval] no results were written (0 scenes evaluated); skipping summary")
+        sys.stdout.flush()
+        os._exit(1)
     _rows = [json.loads(_l) for _l in results_path.read_text(encoding="utf-8").splitlines() if _l.strip()]
     _done = [r for r in _rows if r.get("status") == "completed"]
     _succ = sum(1 for r in _done if r.get("success"))

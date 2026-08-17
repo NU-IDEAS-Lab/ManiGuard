@@ -81,7 +81,7 @@ def _as_list(v):
 def _resolve_pattern(pat: str, names, cat2lemma) -> tuple[list[str], bool]:
     """Objects matching one LTL pattern (category / taxonomy-lemma / name fnmatch); + whether it
     is a `.n.` synset pattern (eligible for eval's surface fallback)."""
-    prefix = pat[:-2] if pat.endswith("_*") else pat
+    prefix = pat.removesuffix("_*")
     if prefix.startswith("agent"):
         return ["__robot__"], False
     base = prefix.split(".n.")[0]

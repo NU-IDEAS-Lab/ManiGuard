@@ -31,7 +31,8 @@ ik_eef_to_joint: false     # server already outputs absolute joint targets; feed
 grasping_mode: sticky        # MUST match datagen grasp mode (stack skeleton -> sticky)
 
 # -- Sim / eval --
-max_steps: 2000            # hard cap; ends early on success / safety termination
+max_steps: 4200            # 1.5x the family's LONGEST datagen-v1 demo (2045/2367/2800 min/med/max
+                           # steps, episodes.jsonl); ends early on success / safety termination
 success_hold_steps: 10     # goal must hold N consecutive steps (anti false-positive)
 camera_resolution: 256
 save_video: true

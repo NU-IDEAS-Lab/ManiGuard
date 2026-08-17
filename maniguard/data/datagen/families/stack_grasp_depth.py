@@ -136,7 +136,7 @@ def rail_half() -> float:
     return 0.5 * float(span_xy.max())
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _object_mesh_local(key: str):
     """Cached OBJECT-LOCAL trimesh for ``key`` = ``"category/model"``."""
     cat, model = key.split("/")

@@ -65,7 +65,6 @@ import numpy as np
 
 # maniguard patches must be imported before omnigibson.
 import maniguard  # noqa: F401
-
 from maniguard.task_generation.pipeline_common import (
     append_jsonl,
     pipeline_exit,
@@ -960,6 +959,7 @@ def _run_ltl_rollout(og, env, robot, args, activity_name,
     monitor — no BDDL filesystem round-trip.
     """
     import av
+
     from maniguard.utils.safety_monitor import TaskLTLMonitor
 
     monitor = TaskLTLMonitor(

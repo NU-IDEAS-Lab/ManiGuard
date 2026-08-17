@@ -34,7 +34,7 @@ import sys
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-import maniguard.openpi_sft  # noqa: E402,F401  -- registers TrainConfigs on import
+import maniguard.openpi_sft  # noqa: F401  -- registers TrainConfigs on import
 
 # Intercept --assets-base-dir (openpi's norm-stats script doesn't accept it) and
 # apply it to the registered config so its output dir matches what training reads.

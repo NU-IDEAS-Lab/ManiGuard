@@ -13,8 +13,7 @@ concatenated along the width axis -- simplest scheme that keeps a single
 
 from __future__ import annotations
 
-from typing import Iterable, Sequence
-
+from collections.abc import Iterable, Sequence
 
 CAMERA_RESOLUTION = 256
 EXTERNAL_CAMERA_NAMES = ("cam_opposite", "cam_left", "cam_right", "cam_left_shoulder")
@@ -147,58 +146,40 @@ def compute_robot_frame_views(env) -> list:
     ]
 
 
-def setup_external_cameras_robot_frame(env) -> None:
-    """Position the external cameras (cam_opposite / cam_left / cam_right) at the
-    canonical poses used during teleop collection + playback re-render, so every
-    downstream consumer sees the SAME third-person views.
+def place_recorded_task_cameras(env, diagnostics=None, *, set_viewer=False) -> int:
+    """THE load-side external-camera placement: put a LOADED task's third-person
+    cameras at that task's PRESET poses.
 
-    This is the single source of truth for external-camera placement, shared by
-    teleop (so101 / gello), playback re-render, and eval — so an eval rollout's
-    image_left / image_right match the training data's views exactly (no OOD from
-    a different camera pose).
+    Every consumer that loads a recorded task into the sim — datagen, eval,
+    teleop, playback re-render — uses this same rule, so all of them see the
+    SAME per-task views the task was built with:
 
-    Two modes, in priority order (mirrors the original teleop/playback logic):
-      1. support_surface present  -> build_video_view_specs from robot + a target
-         object + the support surface (the canonical "opposite-side overview").
-      2. no support_surface (e.g. 6fam-base HF furnished scenes) -> robot-frame
-         fallback: place opp/left/right relative to the robot's base frame.
+      1. ``diagnostics["cameras"]`` present -> apply the recorded poses
+         (``frozen_task_runtime.position_diagnostics_cameras``, matched by
+         ``sensor_name``; sensors absent from the env are skipped, so this works
+         unchanged for 1-cam eval and 4-cam datagen setups alike).
+      2. no recorded poses (legacy snapshots) -> canonical robot-frame recompute
+         (``compute_robot_frame_views``), with a WARNING.
 
-    setup_cameras positions whichever of cam_opposite / cam_left / cam_right
-    actually exist in the env, so this works unchanged for both 2-cam and 3-cam
-    external-sensor sets. All heavy imports are in-function (lazy) to avoid a
-    circular import with task_generation.utils.video (which imports this module).
+    Camera poses are only ever COMPUTED at task-generation/bench-build time (the
+    code that stamps ``diagnostics["cameras"]``); loading a task must never
+    re-derive them. Returns the number of cameras positioned. Heavy imports are
+    in-function (lazy) to avoid a circular import with
+    task_generation.utils.video (which imports this module).
     """
-    try:
-        from maniguard.task_generation.utils.video import (
-            build_video_view_specs,
-            setup_cameras,
-        )
-    except ImportError as e:
-        print(f"[camera_setup] WARNING: camera setup helpers not importable ({e}); "
-              f"external cameras will stay at their default pose.")
-        return
+    import omnigibson as og
 
-    scene = env.scene
-    robot = env.robots[0]
-    support_obj = scene.object_registry("name", "support_surface")
+    if diagnostics and diagnostics.get("cameras"):
+        from maniguard.envs.frozen_task_runtime import position_diagnostics_cameras
 
-    if support_obj is not None:
-        # Pick any non-robot, non-support object as the "target" for the lookat.
-        target_obj = next(
-            (obj for obj in scene.objects if obj is not robot and obj is not support_obj),
-            support_obj,
-        )
-        views = build_video_view_specs(
-            None, robot, target_obj, support_obj=support_obj,
-        )
-        setup_cameras(env, views)
-        print(f"[camera_setup] mode = support_surface "
-              f"(target={target_obj.name}, support={support_obj.name}).")
-        return
+        placed = position_diagnostics_cameras(env, og, diagnostics, set_viewer=set_viewer)
+        print(f"[camera_setup] placed {placed} camera(s) from diagnostics['cameras']")
+        return placed
 
-    # Robot-frame fallback for scenes with no 'support_surface' (e.g. the 6fam-base
-    # benchmark scenes). The canonical robot-frame placement now lives in
-    # compute_robot_frame_views (shared with the bench render step).
+    from maniguard.task_generation.utils.video import setup_cameras
+
+    print("[camera_setup] WARNING: no recorded camera poses in diagnostics; "
+          "falling back to the robot-frame recompute")
     views = compute_robot_frame_views(env)
-    setup_cameras(env, views)
-    print(f"[camera_setup] mode = robot-frame ({len(views)} views)")
+    setup_cameras(env, views)  # also parks the viewer at the opposite view
+    return len(views)

@@ -16,12 +16,12 @@ Usage:
 import argparse
 import csv
 import json
+import logging
 import os
 import subprocess
 import sys
 import time
 from datetime import datetime
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -270,7 +270,6 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
                         result["ltl_violated"] = entry["ltl_violated"]
         except Exception as exc:
             log.warning("run_benchmark: diagnostics read from %s failed: %s", diagnostics_path, exc)
-            pass
 
     status_icon = {"success": "OK", "failed": "FAIL", "timeout": "TIME", "error": "ERR"}.get(
         result["status"], "?"
@@ -298,7 +297,7 @@ def _write_summary(results, output_dir):
     print(f"  {'-'*40} {'-'*10} {'-'*10} {'-'*8} {'-'*10}")
     for r in results:
         print(f"  {r['scene']:<40} {r['status']:<10} {r['duration_s']:<10} "
-              f"{'pass' if r['gate_pass'] else 'fail':<8} {str(r['ltl_violated']):<10}")
+              f"{'pass' if r['gate_pass'] else 'fail':<8} {r['ltl_violated']!s:<10}")
 
     n_success = sum(1 for r in results if r["status"] == "success")
     n_gate = sum(1 for r in results if r["gate_pass"])
@@ -375,7 +374,6 @@ def _find_completed_scenes(output_dir, episodes):
                                 completed.add(scene_dir)
                 except Exception as exc:
                     log.warning("run_benchmark: diagnostics scan of %s failed: %s", diag, exc)
-                    pass
     return completed
 
 

@@ -29,10 +29,10 @@ Usage:
 
 import argparse
 import copy
+import logging
 import math
 import os
 import sys
-from datetime import datetime
 
 import numpy as np
 
@@ -44,34 +44,39 @@ from maniguard.task_generation.pipeline_common import (
     robot_half_extent_xy,
     run_ltl_rollout,
 )
+from maniguard.task_generation.transfer_scene_pipeline import build_transfer_objects
+from maniguard.task_generation.utils.clutter_pipeline.select import (
+    select_fillable_container,
+    select_fragile,
+)
+from maniguard.task_generation.utils.clutter_pipeline.select import (
+    select_obstacle as select_table_obstacle,
+)
+from maniguard.task_generation.utils.clutter_pipeline.select import (
+    select_target as select_clutter_target,
+)
+from maniguard.task_generation.utils.liquid_transport.select import (
+    select_liquid_fragile,
+)
+from maniguard.task_generation.utils.stack_pipeline.select import select_stack_objects
 from maniguard.utils.goal_region import (
     GoalRegionSpec,
     build_goal_region_spec,
     family_uses_goal_region,
     spawn_goal_region_marker,
 )
-from maniguard.task_generation.transfer_scene_pipeline import build_transfer_objects
-from maniguard.task_generation.utils.stack_pipeline.select import select_stack_objects
-from maniguard.task_generation.utils.clutter_pipeline.select import (
-    select_target as select_clutter_target,
-    select_obstacle as select_table_obstacle,
-    select_fragile,
-    select_fillable_container,
-)
-from maniguard.task_generation.utils.liquid_transport.select import (
-    select_liquid_fragile,
-)
 from maniguard.utils.task_spec import (
     DENSITY_PRESETS,
     LIQUID_PRESETS,
     STACK_HEIGHT_PRESETS,
     _pick_model_for_category,
-    generate_clutter_activity as generate_activity,
     generate_liquid_transport_ltl_safety_json,
     generate_stack_activity,
     generate_transfer_activity,
 )
-import logging
+from maniguard.utils.task_spec import (
+    generate_clutter_activity as generate_activity,
+)
 
 log = logging.getLogger(__name__)
 
@@ -623,7 +628,9 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
     places them, runs the rollout, then parks them back.
     """
     from maniguard.utils.franka_edge_align import (
-        DEFAULT_ROLE_WEIGHTS, EdgeAlignObject, EdgeAlignRequest,
+        DEFAULT_ROLE_WEIGHTS,
+        EdgeAlignObject,
+        EdgeAlignRequest,
         place_franka_edge_aligned,
     )
     from maniguard.utils.tabletop_workspace import compute_tabletop_zone
@@ -726,7 +733,9 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
     elif args.setup == "stack":
         from maniguard.utils.clutter_pack_layout import (
-            StackObjectDescriptor, build_stack_layout, apply_stack_transform,
+            StackObjectDescriptor,
+            apply_stack_transform,
+            build_stack_layout,
         )
 
         stack_descs = []
@@ -1021,8 +1030,8 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
 
 def run_sim(args):
-    import torch as th
     import omnigibson as og
+    import torch as th
     from omnigibson.macros import gm
 
     # Liquid setup needs GPU dynamics (water particles); other setups

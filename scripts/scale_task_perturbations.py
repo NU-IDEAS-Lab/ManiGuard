@@ -7,7 +7,6 @@ import sys
 
 from maniguard.data.perturbation_scaling import main
 
-
 if __name__ == "__main__":
     exit_code = int(main())
     sys.stdout.flush()
