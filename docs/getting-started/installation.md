@@ -59,6 +59,11 @@ On `import maniguard`, `FrankaPanda.usd_path` is auto-redirected to this bundle 
 present (it ships the OmniGibson runtime USD + cuRobo description; no URDF needed at
 runtime). Set `MANIGUARD_SKIP_LONGFINGER=1` to keep the stock Franka instead.
 
+!!! warning "A missing bundle fails silently"
+    If the directory is absent, the **stock** Franka hand loads with no error —
+    and policies trained on ManiGuard data will approach objects but never quite
+    grasp them. Verify the path above exists before your first eval or datagen run.
+
 **4b. Benchmark scenes.** The frozen benchmark (per-task `scene_ep1.json` +
 `diagnostics.jsonl` + review videos) lives at
 [`IDEAS-Lab-Northwestern/ManiGuard-Bench`](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench).
@@ -68,9 +73,14 @@ the HF cache) or a local directory:
 ```bash
 # A) let eval pull it (run `hf auth login` first)
 python -m maniguard.eval.benchmark --benchmark-root IDEAS-Lab-Northwestern/ManiGuard-Bench ...
-# B) or download once and pass the local dir
-hf download IDEAS-Lab-Northwestern/ManiGuard-Bench --repo-type dataset --local-dir datasets/maniguard-bench
+# B) or download once to the family runner's default location
+hf download IDEAS-Lab-Northwestern/ManiGuard-Bench --repo-type dataset \
+  --local-dir outputs/lerobot_datasets/maniguard-bench
 ```
+
+Option B's target is where `scripts/eval_family.sh` looks by default (any other
+path works via `BENCH_ROOT=...`). Next step:
+**[Run the benchmark](../evaluation/run_benchmark.md)**.
 
 ## Optional: override the dataset path
 
@@ -106,4 +116,5 @@ For headless deployment:
     Fix `VK_ICD_FILENAMES` to point to a valid local ICD JSON.
 
 !!! warning "CUDA OOM"
-    Reduce `total_num_envs` in the YAML config; ensure `component_placement` GPUs don't overlap.
+    The simulator wants most of a GPU. Put the policy server on a second GPU
+    (`CUDA_VISIBLE_DEVICES`), or lower `camera_resolution` in the eval config.

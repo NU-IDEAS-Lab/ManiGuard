@@ -4,7 +4,14 @@
 [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) / OmniGibson that adds
 **LTL safety checking**, **task-generation pipelines**, **teleop + scripted data
 collection**, **VLA supervised fine-tuning**, and **policy evaluation** for robotic
-manipulation in simulated households. Reinforcement-learning training is under development.
+manipulation in simulated households.
+
+!!! tip "Evaluate your VLA on ManiGuard-Bench → [Run the benchmark](evaluation/run_benchmark.md)"
+    Download the benchmark, serve your checkpoint, run a family across ID + OOD,
+    and read the results in the paper's success × safety metrics.
+
+<img class="mg-hero" src="index_gallery/overall_pipeline.webp" alt="ManiGuard framework: the six benchmark families, the LTL runtime monitor, and the safety-annotated dataset suite">
+<p class="mg-gallery-cap"><em>The ManiGuard framework: 200 tasks across 6 families (spatial-invariance and temporal/ordering constraints, three skill levels), every rollout runtime-checked by a compiled LTL<sub>f</sub> monitor, and a safety-annotated demonstration suite (200 tasks × 40 trajectories).</em></p>
 
 <img class="mg-hero" src="index_gallery/overview.png" alt="ManiGuard-Bench task overview">
 <p class="mg-gallery-cap"><em>A glimpse of 60 base tasks (opposite-camera view), sampled across the 6 ManiGuard-Bench families.</em></p>
@@ -29,13 +36,13 @@ manipulation in simulated households. Reinforcement-learning training is under d
 
     SO-101 / GELLO teleop, plus the scripted datagen pipeline for SFT demos.
 
--   :material-brain: **[SFT](sft/end_to_end.md)**
+-   :material-brain: **[SFT](sft/index.md)**
 
     The model-agnostic joint dataset + per-model recipes (openpi / GR00T / SmolVLA), and collection↔eval consistency.
 
 -   :material-broadcast: **[Evaluation](evaluation/index.md)**
 
-    Websocket policy eval, goal checking, and benchmark preparation.
+    Run your checkpoint on the benchmark; success + LTL-safety checkers, engagement-gated metrics.
 
 -   :material-database-cog: **[Sim data generation](data_collection/index.md#scripted-datagen)**
 
