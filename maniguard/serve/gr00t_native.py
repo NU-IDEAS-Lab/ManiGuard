@@ -295,7 +295,18 @@ def main() -> None:
                          "(exterior_image_1_left / wrist_image_left / joint_position + "
                          "gripper_position) instead of the sim benchmark's. Must match the "
                          "checkpoint: a real checkpoint returns joint VELOCITY.")
+    ap.add_argument("--task", default=None,
+                    help="family this checkpoint was trained on (clutter / jar / "
+                         "cab_higher_firsthalf). Only used to build the handshake's "
+                         "serve_config so the client can assert per family. Required with "
+                         "--real: one string per MODE would advertise the same value for all "
+                         "three checkpoints and defeat the assertion it exists for.")
     args = ap.parse_args()
+
+    if args.real and not args.task:
+        ap.error("--real requires --task: the client asserts serve_config against a per-family "
+                 "map, so serving the jar checkpoint while the client thinks it is running "
+                 "clutter must be detectable at connect.")
 
     _ensure_processor_at_root(args.checkpoint)  # handle the processor/ subdir layout (see fn doc)
 
@@ -310,10 +321,16 @@ def main() -> None:
     mode = "real" if args.real else "sim"
     logger.info(f"GR00T policy loaded. language_key={task_key!r} obs_schema={mode}")
 
+    # GR00T has no openpi-style train-config name, so the handshake label is synthesised. It
+    # must be TASK-specific: the pi-series client asserts serve_config against a per-family map
+    # precisely to catch "wrong checkpoint for the family the operator selected", and one label
+    # per mode would make that mismatch invisible again. NOTE `task_key` above is the language
+    # MODALITY key (identical across all six checkpoints) -- not the family; the family is only
+    # known from --task.
+    serve_config = f"gr00t_n16_{mode}" + (f"_{args.task}" if args.task else "")
+
     metadata = {
-        # GR00T has no openpi-style train-config name; the pair (mode, embodiment) plus the
-        # checkpoint path is what the client needs to assert it is talking to the right server.
-        "serve_config": f"gr00t_n16_{mode}",
+        "serve_config": serve_config,
         "checkpoint": str(args.checkpoint),
         "embodiment_tag": "NEW_EMBODIMENT",
         "obs_schema": mode,
