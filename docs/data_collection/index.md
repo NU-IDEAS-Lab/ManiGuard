@@ -507,10 +507,44 @@ but the datasets that feed SFT at scale come from the scripted pipeline above.
 leader arm (SO-101 / GELLO)  ─►  sim Franka  ─►  raw HDF5  ─►  playback render  ─►  LeRobot v2.1
 ```
 
-| Leader | Mapping | Follower controller |
-|---|---|---|
-| **SO-101** (LeRobot, 5-DoF) | EE delta → IK | `InverseKinematicsController` |
-| **GELLO** (7-DoF Dynamixel) | 1:1 joint mirroring | `JointController` (position, absolute) |
+| Leader | Mapping | Follower controller | Raw action |
+|---|---|---|---|
+| **SO-101** (LeRobot, 5-DoF) | EE delta → IK | `InverseKinematicsController` | 7-D EEF delta |
+| **GELLO** (7-DoF Dynamixel) | 1:1 joint mirroring | `JointController` (position, absolute) | 8-D absolute joint |
+
+The raw action conventions differ, but the render stage normalizes both to the
+same 8-D joint SFT format — see [Playback / render](#playback-render).
+
+### Collect over bench tasks (either arm)
+
+`scripts/teleop_family_collect.sh` is the front door for teleoping ManiGuard-Bench
+tasks: pick a leader arm and a family, and it walks the tasks interactively — one
+teleop episode per trajectory, success-gated writes, a keep/discard prompt after
+each, resume across sessions, per-task trajectory numbering.
+
+```bash
+conda activate behavior
+
+# GELLO (default) — every task of the family:
+bash scripts/teleop_family_collect.sh --family jar_transport
+
+# SO-101 — start the ZMQ bridge first (next section), then a task subset:
+bash scripts/teleop_family_collect.sh --arm so101 --family stack_retrieve --tasks 0001 0004
+
+# resolve the config and print the launch command without booting Isaac:
+bash scripts/teleop_family_collect.sh --family lid_transport --dry-run
+```
+
+Trajectories land in `outputs/teleop_collected/<family>_<arm>/task_NNNN_traj_NNN.hdf5`
+— the arm tag keeps GELLO and SO-101 collections apart, and the conversion below
+handles both identically. `--help` lists every knob (`--bench-root`,
+`--grasping-mode`, `--gello-port`, `--zmq-host/--zmq-port/--pos-scale/--rot-scale`,
+`-- <extra args>` forwarded to the teleop module). SO-101 runs are pre-flighted:
+if the bridge is not reachable, the script prints its launch command and exits
+instead of booting Isaac for nothing.
+
+The two sections below document each arm's teleop module — what the collection
+script launches per episode; both also run standalone on any single snapshot.
 
 ### SO-101 → Franka
 
@@ -579,8 +613,8 @@ Source: `maniguard/data/teleop/so101_franka_teleop.py` (+ `so101_teleop.py` for
 # Terminal 1: server (above).  Terminal 2:
 conda activate behavior
 python -m maniguard.data.teleop.so101_franka_teleop \
-    --snapshot outputs/pipeline_runs/<run>/scene_ep1.json \
-    --output-hdf5 outputs/teleop/<name>.hdf5 \
+    --snapshot outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json \
+    --output-hdf5 outputs/teleop_collected/jar_transport_so101/task_0001_traj_001.hdf5 \
     --only-successes
 ```
 
@@ -632,8 +666,8 @@ Source: `maniguard/data/teleop/gello_franka_teleop.py`.
 ```bash
 conda activate behavior
 python -m maniguard.data.teleop.gello_franka_teleop \
-    --snapshot outputs/teleop_scenes/table/scene_ep0000.json \
-    --output-hdf5 outputs/teleop/table/scene_ep0000.hdf5
+    --snapshot outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json \
+    --output-hdf5 outputs/teleop_collected/jar_transport_gello/task_0001_traj_001.hdf5
 ```
 
 You **must press B to start recording** — until then the leader drives the arm live but
@@ -743,7 +777,12 @@ Two entry points:
   (`ManiGuardPlaybackWriter`) turns any teleop HDF5 into SFT-ready observations. It
   selects the state convention (`--controller joint|eef`, joint is the ManiGuard
   default) and camera count (`--cams 2|3`), and writes the 8-D `obs/state` used by the
-  SFT datasets.
+  SFT datasets. **Actions are normalized to the 8-D joint convention regardless of
+  which arm recorded them**: GELLO's absolute joint targets pass through unchanged,
+  while SO-101's 7-D IK deltas (meaningless as SFT actions) are rewritten as
+  `[replayed arm_q(t+1), gripper cmd]` — the replay restores the recorded sim state
+  every step, so that is the joint trajectory the arm actually executed. The choice
+  is stamped as `data.attrs['action_source']` in the output.
 - **SO-101 replay (viewer / RGB re-render):** `so101_franka_playback.py`:
 
 ```bash
@@ -766,8 +805,9 @@ python -m maniguard.data.teleop.so101_franka_playback \
 ### Sim teleop → LeRobot
 
 Turns raw sim-teleop captures into a LeRobot v2.1 dataset for SFT. Two stages, both
-driven by the template `scripts/render_teleop_to_lerobot.sh` (edit only its CONFIG block
-per family):
+driven by the template `scripts/render_teleop_to_lerobot.sh` (edit only its CONFIG
+block: `FAMILY` and `ARM` select the arm-tagged collection dir from the collect
+script; both arms convert through the identical flow):
 
 ```bash
 conda activate behavior
@@ -779,8 +819,11 @@ bash scripts/render_teleop_to_lerobot.sh --stage2   # rendered HDF5 → LeRobot 
 - **Stage 1 — render** — `maniguard.data.playback --input <raw> --output <rendered>`
   (defaults `--controller joint --cams 3`). Replays the raw teleop HDF5 with physics and
   records 8-D joint state/action + `image_left` / `image_right` / `wrist_image` at
-  256×256. Resume-safe; the `og.clear()` teardown segfault *after* a complete write is
-  expected and harmless (success = a non-empty `action` dataset, not the exit code).
+  256×256 — normalizing SO-101's 7-D raw actions to the joint convention (above), and
+  placing the external cameras at the task's recorded poses when the bench task ships a
+  `diagnostics.jsonl` (the same load-side rule datagen and eval use). Resume-safe; the
+  `og.clear()` teardown segfault *after* a complete write is expected and harmless
+  (success = a non-empty `action` dataset, not the exit code).
 - **Stage 2 — export** — `maniguard.data.lerobot.multitask_lerobot_export` discovers
   `task_*_traj_*.hdf5`, looks up each task's prompt from
   `<diag-root>/<task>/base/diagnostics.jsonl`, and writes one multitask dataset with
