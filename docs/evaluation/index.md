@@ -1,5 +1,10 @@
 # Evaluation
 
+!!! tip "Evaluate a checkpoint now → [Run the benchmark](run_benchmark.md)"
+    The end-to-end recipe: download the benchmark, serve your checkpoint, run a
+    family across ID + OOD, and read the results in the paper's metrics. This
+    page covers the architecture and the checkers behind it.
+
 ManiGuard evaluates a VLA policy on **frozen benchmark scenes** and scores it on
 **two independent axes — success *and* safety**. A capable-but-reckless policy that
 finishes the task while knocking a glass off the table is **not** a pass; the
@@ -74,14 +79,16 @@ In code the boundary is already explicit — `connect_policy` returns
 `(policy, client_type)` and `query_policy` dispatches per type — so adding a family
 is a new adapter, not a change to the contract or the checkers.
 
-| Policy family | How it connects | Status |
+| Policy family | Adapter | Notes |
 |---|---|---|
-| openpi / pi0.5 | native websocket; reference adapter `maniguard.serve.openpi_native` wraps openpi's own loader | supported |
-| GR00T, SmolVLA, others | a thin adapter bridging the family's own serving (its inference server, or in-process) to the contract | per-family adapter |
+| π0 / π0.5 (openpi) | `maniguard.serve.openpi_native` | wraps openpi's own loader; serves any registered train config |
+| GR00T N1.6 | `maniguard.serve.gr00t_native` | wraps GR00T's inference policy; also serves the real-robot observation schema (`--real`) |
+| SmolVLA | `maniguard.serve.smolvla_native` | wraps the LeRobot policy in-process |
+| anything else | your own thin adapter | bridge its serving to the websocket contract — no change to the checkers |
 
-> **Serving the checkpoint itself is upstream.** To actually launch a pi0.5 / GR00T /
-> SmolVLA policy, follow that family's serving docs; ManiGuard only defines the
-> contract and ships `serve/openpi_native.py` as a reference.
+> Each adapter runs **inside its model family's own env** (openpi venv, GR00T uv
+> env, LeRobot env, ...) — the eval client never imports the model. Launch
+> commands: [Run the benchmark §2](run_benchmark.md#2-serve-the-checkpoint).
 
 ## Configuring a run (`EvalConfig`)
 
@@ -152,20 +159,15 @@ robustness. Perturbations are materialized at load by
 
 ## Running it
 
-Start any policy exposed to the contract (for openpi, the reference adapter), then
-point the eval client at a benchmark — a local dir or an HF repo id:
+The end-to-end recipe — benchmark download, per-family serving, the family
+runner (`scripts/eval_family.sh`, ID + 4 OOD levels), and reading the results in
+the paper's metrics — is **[Run the benchmark](run_benchmark.md)**. For a
+one-off smoke test the client also runs directly:
 
 ```bash
-# 1. serve a policy (openpi reference adapter; other families: their own serving)
-openpi/.venv/bin/python -m maniguard.serve.openpi_native \
-  --config <train-config-name> --checkpoint <local_path>/<step>
-
-# 2. run the eval client against the benchmark (HF repo id or local dir)
+# serve a policy (see the adapter table above), then:
 python -m maniguard.eval.benchmark \
-  --benchmark-root <org>/ManiGuard-Bench --config <eval_yaml> --tag smoke
-
-# all scenes, one process per scene:
-bash scripts/run_benchmark_all_scenes.sh ...
+  --benchmark-root IDEAS-Lab-Northwestern/ManiGuard-Bench --config <eval_yaml> --tag smoke
 ```
 
 ## Code map
@@ -178,5 +180,7 @@ bash scripts/run_benchmark_all_scenes.sh ...
 | Success predicates / regions | `maniguard/eval/goal_checker.py` |
 | LTL safety monitor | `maniguard/utils/safety_monitor.py` |
 | Snapshot QA | `maniguard/eval/snapshot_validator.py` |
-| openpi reference adapter | `maniguard/serve/openpi_native.py` |
+| Policy servers (one per family) | `maniguard/serve/{openpi,gr00t,smolvla}_native.py` |
+| Family runner (ID / OOD buckets) | `scripts/eval_family.sh` |
+| Metric summary (paper metrics) | `tools/eval_summary.py` |
 | Benchmark prep / perturbation | `maniguard/data/scene/`, `maniguard/data/perturbation_scaling.py` |
