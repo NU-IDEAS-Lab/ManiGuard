@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import copy
-import json
+from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Iterable, Sequence
-
+from typing import Any
 
 SPHERE_GOAL_FAMILIES = {
     "table",
@@ -102,7 +100,7 @@ class GoalRegionSpec:
         }
 
     @classmethod
-    def from_json(cls, payload: dict[str, Any]) -> "GoalRegionSpec":
+    def from_json(cls, payload: dict[str, Any]) -> GoalRegionSpec:
         return cls(
             mode=str(payload["mode"]),
             shape=str(payload["shape"]),
@@ -593,8 +591,8 @@ def build_goal_region_spec(
 
 
 def spawn_goal_region_marker(env, spec: GoalRegionSpec):
-    from omnigibson.objects.primitive_object import PrimitiveObject
     import torch as th
+    from omnigibson.objects.primitive_object import PrimitiveObject
 
     existing = env.scene.object_registry("name", spec.marker_name)
     if existing is not None:

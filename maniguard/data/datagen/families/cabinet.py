@@ -36,7 +36,13 @@ import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
 from maniguard.data.datagen.executor.contracts import (
-    FamilySkeleton, GraspCand, Grip, Mode, MotionSegment, SampleParams, TaskContext,
+    FamilySkeleton,
+    GraspCand,
+    Grip,
+    Mode,
+    MotionSegment,
+    SampleParams,
+    TaskContext,
 )
 from maniguard.data.datagen.families import cabinet_geom as CG
 from maniguard.data.datagen.grasp_db import load_db

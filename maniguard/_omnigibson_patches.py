@@ -57,7 +57,7 @@ class _ObjectStatesPostLoadFinder(importlib.abc.MetaPathFinder):
     def __init__(self) -> None:
         self._in_progress = False
 
-    def find_spec(self, fullname, path, target=None):  # noqa: D401
+    def find_spec(self, fullname, path, target=None):
         if fullname != self.TARGET or self._in_progress:
             return None
 
@@ -85,12 +85,12 @@ class _ObjectStatesPostLoadFinder(importlib.abc.MetaPathFinder):
             original_loader = real_spec.loader
 
             class _WrappedLoader(importlib.abc.Loader):
-                def create_module(self, spec):  # noqa: D401
+                def create_module(self, spec):
                     if hasattr(original_loader, "create_module"):
                         return original_loader.create_module(spec)
                     return None
 
-                def exec_module(self, module):  # noqa: D401
+                def exec_module(self, module):
                     original_loader.exec_module(module)
                     _inject_state_aliases(module)
 
@@ -142,7 +142,8 @@ def _install_import_hook() -> None:
 
 
 def _extend_factory_lists() -> None:
-    import omnigibson.object_states.factory as factory
+    from omnigibson.object_states import factory
+
     from maniguard.object_states.dropped import Dropped
     from maniguard.object_states.upright import Upright
 
@@ -213,6 +214,7 @@ def _patch_grasp_reward() -> None:
                 raise
             # Retry with a robot-center that doesn't assume torso_lift_link.
             import math
+
             import omnigibson.utils.transform_utils as T
 
             robot = env.robots[0]
@@ -226,7 +228,7 @@ def _patch_grasp_reward() -> None:
 
 
 def _patch_sampling_utils() -> None:
-    import omnigibson.utils.sampling_utils as sampling_utils
+    from omnigibson.utils import sampling_utils
 
     if getattr(sampling_utils, "_maniguard_patched", False):
         return
@@ -269,7 +271,7 @@ def _patch_franka_longfinger() -> None:
 
     panda_bundle = getattr(franka_mod, "FRANKA_PANDA_BUNDLE", "franka_panda")
     longfinger_bundle = "franka_panda_longfinger"
-    setattr(franka_mod, "FRANKA_PANDA_LONGFINGER_BUNDLE", longfinger_bundle)
+    franka_mod.FRANKA_PANDA_LONGFINGER_BUNDLE = longfinger_bundle
 
     orig_usd_path = franka_cls.usd_path
     orig_urdf_path = franka_cls.urdf_path
@@ -497,7 +499,7 @@ def _patch_create_joint_skip_render() -> None:
     on the offending line about ``multi_gpu``); this patch makes the
     same protection apply on single-GPU as well.
     """
-    import omnigibson.utils.usd_utils as usd_utils
+    from omnigibson.utils import usd_utils
 
     orig_create_joint = usd_utils.create_joint
 
@@ -542,7 +544,7 @@ def _patch_create_joint_skip_render() -> None:
         # a physics callback. Layout mirrors the upstream function so this
         # remains a faithful drop-in.
         import omnigibson as og
-        import omnigibson.lazy as lazy
+        from omnigibson import lazy
         from omnigibson.utils.constants import JointType
         assert JointType.is_valid(joint_type=joint_type), (
             f"Invalid joint specified for creation: {joint_type}"

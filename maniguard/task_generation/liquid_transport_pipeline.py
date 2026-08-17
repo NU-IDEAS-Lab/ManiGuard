@@ -65,15 +65,17 @@ class LiquidTransportPipeline(ClutterPipeline):
         return "liquid_transport"
 
     def select_objects(self, args, rng):
-        from maniguard.utils.task_spec import (
-            DENSITY_PRESETS, estimate_object_set_footprint,
-            _pick_model_for_category,
-        )
         from maniguard.task_generation.utils.clutter_pipeline.select import (
-            select_fillable_container, select_obstacle,
+            select_fillable_container,
+            select_obstacle,
         )
         from maniguard.task_generation.utils.liquid_transport.select import (
             select_liquid_fragile,
+        )
+        from maniguard.utils.task_spec import (
+            DENSITY_PRESETS,
+            _pick_model_for_category,
+            estimate_object_set_footprint,
         )
 
         density = DENSITY_PRESETS[args.clutter_density]

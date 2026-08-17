@@ -24,9 +24,10 @@ tasks (diagnostics ``selection.system_name``) auto-enable it — see
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any
 
 from maniguard.data.datagen.primitives.task_io import (
     build_object_cfg,
@@ -110,8 +111,8 @@ def scene_from_task_dir(
     families with thin objects may pass ``"sticky"``). ``external_sensors`` /
     ``pre_build_hooks`` are the camera seams (see module docstring).
     """
-    import torch as th
     import omnigibson as og
+    import torch as th
 
     from maniguard.envs.frozen_task_runtime import (
         build_env_config,

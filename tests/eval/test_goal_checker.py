@@ -4,18 +4,16 @@ Tests the parsing and evaluation logic without OmniGibson — predicates
 are mocked so the test suite runs in any Python env (no GPU / Isaac Sim).
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from maniguard.eval.goal_checker import (
     GoalChecker,
     GoalRegionChecker,
-    build_goal_checker,
     _collect_names,
     _eval_node,
+    build_goal_checker,
 )
 from maniguard.utils.goal_region import GoalRegionSpec
-
 
 # ---------------------------------------------------------------------------
 # Helpers: mock OmniGibson objects with .states[Predicate].get_value(other)

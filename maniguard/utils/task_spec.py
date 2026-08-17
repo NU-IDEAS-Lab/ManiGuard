@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, Optional, Sequence, Tuple
+from collections.abc import Sequence
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # LTL safety generators
@@ -830,7 +829,7 @@ def _pick_model_for_synset(synset, rng):
 
 def compute_object_budget(
     zone_area: float,
-    object_catalog: Sequence[Tuple[str, float]],
+    object_catalog: Sequence[tuple[str, float]],
     utilization_cap: float = 0.85,
     padding: float = 0.02,
 ) -> int:
@@ -902,7 +901,7 @@ def generate_clutter_activity(
     # single spawn-spec count, while distinct models within the same category
     # remain separate specs.
     def _group(triples):
-        counts: Dict[Tuple[str, str, str], int] = {}
+        counts: dict[tuple[str, str, str], int] = {}
         for t in triples:
             counts[t] = counts.get(t, 0) + 1
         return counts
@@ -1082,11 +1081,11 @@ def generate_transfer_activity(
 def generate_empty_invert_activity(
     activity_name: str,
     support_synset: str,
-    support_room: Optional[str],
-    container_synset: Optional[str] = None,
+    support_room: str | None,
+    container_synset: str | None = None,
     system_name: str = "water",
     rng=None,
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     """Generate LTL safety + spawn specs for empty-before-invert task.
 
     Returns (ltl_safety, selection).
@@ -1129,16 +1128,16 @@ def _resolve_container_synset(container_category):
 def generate_lid_transport_activity(
     activity_name: str,
     support_synset: str,
-    support_room: Optional[str],
+    support_room: str | None,
     *,
     item_category: str,
     item_model: str,
     container_category: str,
     container_model: str,
     food_synset: str,
-    food_category: Optional[str] = None,
-    food_model: Optional[str] = None,
-) -> Tuple[dict, dict]:
+    food_category: str | None = None,
+    food_model: str | None = None,
+) -> tuple[dict, dict]:
     """Generate LTL safety + spawn specs for a lid-before-transport food task.
 
     Caller (the pipeline) pre-resolves all identifiers via
@@ -1197,14 +1196,14 @@ def generate_lid_transport_activity(
 def generate_lid_liquid_transport_activity(
     activity_name: str,
     support_synset: str,
-    support_room: Optional[str],
+    support_room: str | None,
     *,
     item_category: str,
     item_model: str,
     container_category: str,
     container_model: str,
     system_name: str = "water",
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     """Generate LTL safety + spawn specs for lid-before-transport with liquid.
 
     Caller pre-resolves all identifiers via
@@ -1251,11 +1250,11 @@ def generate_lid_liquid_transport_activity(
 def generate_blocked_door_activity(
     activity_name: str,
     support_synset: str,
-    support_room: Optional[str],
-    obstacle_synset: Optional[str] = None,
-    target_synset: Optional[str] = None,
+    support_room: str | None,
+    obstacle_synset: str | None = None,
+    target_synset: str | None = None,
     rng=None,
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     """Generate LTL safety + spawn specs for a blocked-door task.
 
     Returns (ltl_safety, selection).
@@ -1373,7 +1372,7 @@ def generate_cabinet_pickup_activity(
     target_model: str,
     obstacle_category: str,
     obstacle_model: str,
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     """Build (ltl_safety, selection) for a cabinet_pickup episode.
 
     The pipeline pre-picks the cabinet / target / obstacle (with the
@@ -1495,14 +1494,14 @@ def generate_jar_transport_ltl_safety_json(
 def generate_jar_transport_activity(
     activity_name: str,
     support_synset: str,
-    support_room: Optional[str],
+    support_room: str | None,
     *,
     jar_category: str,
     jar_model: str,
     item_category: str,
     item_model: str,
-    item_synset: Optional[str] = None,
-) -> Tuple[dict, dict]:
+    item_synset: str | None = None,
+) -> tuple[dict, dict]:
     """Generate LTL safety + spawn specs for a jar-transport task.
 
     Spawn specs: ``hinged_jar`` (role=target) + a graspable inner item

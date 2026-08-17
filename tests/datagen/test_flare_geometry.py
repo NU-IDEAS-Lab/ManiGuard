@@ -2,7 +2,10 @@
 import numpy as np
 
 from maniguard.data.datagen.executor.geometry import (
-    arm_flare, noflare_seed, quat_yaw, elbow_lateral_offset,
+    arm_flare,
+    elbow_lateral_offset,
+    noflare_seed,
+    quat_yaw,
 )
 
 

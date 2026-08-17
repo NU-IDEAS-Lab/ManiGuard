@@ -13,8 +13,7 @@ concatenated along the width axis -- simplest scheme that keeps a single
 
 from __future__ import annotations
 
-from typing import Iterable, Sequence
-
+from collections.abc import Iterable, Sequence
 
 CAMERA_RESOLUTION = 256
 EXTERNAL_CAMERA_NAMES = ("cam_opposite", "cam_left", "cam_right", "cam_left_shoulder")

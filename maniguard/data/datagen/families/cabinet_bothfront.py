@@ -81,6 +81,7 @@ def _layout_both_front_adaptive(og, drawer_link, target_obj, obstacle_obj,
     robot offset along x); the obstacle is the one set farther forward.
     """
     import torch as th
+
     from maniguard.task_generation.cabinet_pickup_pipeline import (
         _aabb_np,
         _place_obj_upright_on_surface,
@@ -342,7 +343,7 @@ def _verify_all() -> None:
         oi = bool(diag["obstacle_info"]["placement"].get("in_path"))
         ok = (mode == "both" and ti and oi and td < 0.80 and od < 0.85)
         all_ok = all_ok and ok
-        print(f"{tid:12} {str(mode):9} {str(ti):7} {str(oi):7} "
+        print(f"{tid:12} {mode!s:9} {ti!s:7} {oi!s:7} "
               f"{td:9.3f} {od:9.3f} {'OK' if ok else 'FAIL'}")
     print("ALL OK" if all_ok else "SOME FAILED")
 

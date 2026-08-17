@@ -173,10 +173,11 @@ def extract_gripper(og) -> None:
     """Dump the longfinger gripper mesh (panda_hand + 2 fingers) in the EEF_LINK frame so
     the viser tool can render the real gripper at a candidate eef-target pose."""
     import numpy as np
-    import trimesh
     import omnigibson as og_mod
+    import trimesh
+
     from maniguard._omnigibson_patches import _patch_franka_longfinger
-    from maniguard.data.datagen.primitives.grasp_obb import _to_np, _pose_to_mat
+    from maniguard.data.datagen.primitives.grasp_obb import _pose_to_mat, _to_np
 
     _patch_franka_longfinger()
     env_cfg = {"env": {"action_frequency": 30, "rendering_frequency": 30},

@@ -4,7 +4,10 @@ not in front of the robot. Pure numpy — no OG/sim."""
 import numpy as np
 
 from maniguard.data.datagen.families.cabinet_geom import (
-    CabinetLayout, blocker_placement, EDGE_MARGIN, OBSTACLE_BACK_OFFSET,
+    EDGE_MARGIN,
+    OBSTACLE_BACK_OFFSET,
+    CabinetLayout,
+    blocker_placement,
 )
 
 

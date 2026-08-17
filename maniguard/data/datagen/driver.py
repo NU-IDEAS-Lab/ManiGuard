@@ -34,16 +34,17 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     import time
 
     if os.environ.get("DATAGEN_HANG_WATCHDOG"):          # debug: dump the main-thread Python stack every
-        import faulthandler                               # 20 s (a watchdog thread runs even if main is in a
+        import faulthandler  # 20 s (a watchdog thread runs even if main is in a
         faulthandler.dump_traceback_later(20, repeat=True)   # native C call → shows the Python frame that hangs)
 
-    from maniguard.data.datagen.primitives import scene as scenemod, cameras, obstacles, record
+    from maniguard._omnigibson_patches import _patch_franka_longfinger
     from maniguard.data.datagen.executor.contracts import TaskContext
     from maniguard.data.datagen.executor.engine import DemoEngine
     from maniguard.data.datagen.executor.gate import build_gate
     from maniguard.data.datagen.executor.variation import VariationSampler
     from maniguard.data.datagen.families import FAMILY
-    from maniguard._omnigibson_patches import _patch_franka_longfinger
+    from maniguard.data.datagen.primitives import cameras, obstacles, record
+    from maniguard.data.datagen.primitives import scene as scenemod
 
     t0 = time.time()
     task_dir = Path(task_dir)
@@ -154,7 +155,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     # resume cursor: a fresh run starts drawing at k=0; a top-up resumes from the prior run's next_draw
     # so it only ever draws UNSEEN seeds (the seed is deterministic per (grasp_id, k) → restarting at 0
     # would re-collect duplicate trajectories). --start-draw forces the cursor (recollect a deduped task).
-    from maniguard.data.datagen.executor.resume import resolve_start_k, compute_next_draw
+    from maniguard.data.datagen.executor.resume import compute_next_draw, resolve_start_k
     summary_path = out_base / "_summary.json"
     prev_summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
     # on-disk floor: the highest draw index any existing traj already used (new-encoding trajs carry

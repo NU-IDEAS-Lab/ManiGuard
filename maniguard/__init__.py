@@ -14,7 +14,8 @@ for lightweight pure-Python consumers that don't need OmniGibson).
 
 try:
     # Written by setuptools-scm at build/install time from the latest ``v*`` tag.
-    from maniguard._version import __version__, version as _scm_version  # type: ignore[import-not-found]
+    from maniguard._version import __version__  # type: ignore[import-not-found]
+    from maniguard._version import version as _scm_version
 except ImportError:
     # Not installed (e.g. running directly from a fresh clone before
     # ``pip install -e .``). Fall back so ``maniguard.__version__`` is still

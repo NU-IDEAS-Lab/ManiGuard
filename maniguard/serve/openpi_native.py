@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

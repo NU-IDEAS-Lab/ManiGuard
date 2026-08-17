@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Tuple
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ def _load_offsets() -> dict[tuple[str, str], tuple[float, float]]:
     return out
 
 
-def container_drop_xy(container) -> Tuple[float, float]:
+def container_drop_xy(container) -> tuple[float, float]:
     """Return world XY to drop food at, above the container's cavity opening.
 
     Looks up the container's (category, model) in container_openings.json

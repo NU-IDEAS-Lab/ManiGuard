@@ -9,9 +9,8 @@ from pathlib import Path
 import pytest
 
 from maniguard.data.perturbation_scaling import (
-    TaskBundle,
-    apply_object_model_swap,
     apply_env_remap,
+    apply_object_model_swap,
     apply_position_jitter,
     build_prompt_variants,
     list_generation_specs,
@@ -19,7 +18,6 @@ from maniguard.data.perturbation_scaling import (
     scale_base_task_set,
     validate_variant_prompts,
 )
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REP_ROOT = REPO_ROOT / "outputs" / "benchmark_runs-datasets" / "20260417_taskgen7fam_large_v1" / "accepted"

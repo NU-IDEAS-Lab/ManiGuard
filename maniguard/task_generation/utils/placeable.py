@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import os
 
-
 _PLACEABLE_SURFACES_PATH = os.path.join(
     os.path.dirname(__file__), "placeable_surfaces_v1.json",
 )

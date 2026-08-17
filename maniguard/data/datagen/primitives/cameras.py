@@ -71,7 +71,7 @@ def install_wrist_camera() -> None:
     if _WRIST_CAM_PATCHED:
         return
 
-    import omnigibson.lazy as lazy
+    from omnigibson import lazy
     from omnigibson.robots.franka import FrankaPanda
 
     _orig = FrankaPanda._load_sensors

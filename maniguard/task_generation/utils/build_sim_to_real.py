@@ -13,9 +13,9 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import sys
-import logging
 
 log = logging.getLogger(__name__)
 

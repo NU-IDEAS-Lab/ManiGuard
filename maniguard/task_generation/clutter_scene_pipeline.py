@@ -11,6 +11,7 @@ Usage:
         --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
 """
 
+import logging
 import os
 
 from maniguard.task_generation.pipeline_common import (
@@ -21,7 +22,6 @@ from maniguard.task_generation.pipeline_common import (
 )
 from maniguard.utils.maxrects_pack import PackInputDescriptor, solve_pack
 from maniguard.utils.task_spec import _load_footprint_catalog, generate_clutter_activity
-import logging
 
 # Edge buffer (m): shrink the picked region by this much on every side so
 # packed objects keep a generous gap to the actual surface boundary.
@@ -48,11 +48,14 @@ class ClutterPipeline(BasePipeline):
         return "table"
 
     def select_objects(self, args, rng):
-        from maniguard.utils.task_spec import (
-            DENSITY_PRESETS, estimate_object_set_footprint,
-        )
         from maniguard.task_generation.utils.clutter_pipeline.select import (
-            select_target, select_obstacle, select_fragile,
+            select_fragile,
+            select_obstacle,
+            select_target,
+        )
+        from maniguard.utils.task_spec import (
+            DENSITY_PRESETS,
+            estimate_object_set_footprint,
         )
 
         density = DENSITY_PRESETS[args.clutter_density]
@@ -119,7 +122,7 @@ class ClutterPipeline(BasePipeline):
         the ``BasePipeline.offline_pack`` hook signature, which other
         pipelines may need.
         """
-        del support_obj  # noqa: F841 — see docstring
+        del support_obj
         catalog = _load_footprint_catalog()
         # Support scale (applied to the placeable region's local extents).
         # Object extents come from object_footprints.json and are already in
@@ -219,11 +222,14 @@ class ClutterPipeline(BasePipeline):
         + position; the scale was baked into the solver region).
         """
         import math
+
         import torch as th
-        from maniguard.utils.tabletop_workspace import TabletopZoneSpec
+
         from maniguard.task_generation.pipeline_common import (
-            _try_upright_objects, _yaw_from_quat,
+            _try_upright_objects,
+            _yaw_from_quat,
         )
+        from maniguard.utils.tabletop_workspace import TabletopZoneSpec
 
         sol = ctx.selection.get("_pack_solution")
         if sol is None:

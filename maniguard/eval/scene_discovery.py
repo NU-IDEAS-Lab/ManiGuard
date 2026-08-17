@@ -8,8 +8,8 @@ benchmark.py and scripts/run_benchmark_all_scenes.sh.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from maniguard.utils.goal_region import build_task_prompt
 

@@ -23,14 +23,13 @@ Prerequisites:
 import argparse
 import json
 import os
-import sys
 
 import omnigibson as og
-import omnigibson.lazy as lazy
+from omnigibson import lazy
 from omnigibson.envs import DataCollectionWrapper
-from maniguard.data.teleop.so101_teleop import SO101TeleopAgent, SO101TeleopConfig
 from omnigibson.utils.ui_utils import KeyboardEventHandler
 
+from maniguard.data.teleop.so101_teleop import SO101TeleopAgent, SO101TeleopConfig
 
 # ---------------------------------------------------------------------------
 # Robot config helper

@@ -32,9 +32,9 @@ values over ``--batch``.
 
 from __future__ import annotations
 
-import openpi.models.pi0_config as pi0_config
 import openpi.training.optimizer as _optimizer
-import openpi.training.weight_loaders as weight_loaders
+from openpi.models import pi0_config
+from openpi.training import weight_loaders
 from openpi.training.config import AssetsConfig, DataConfig, LeRobotDROIDDataConfig, TrainConfig
 
 from maniguard.openpi_sft.data_configs import Sim2CamLiberoDataConfig

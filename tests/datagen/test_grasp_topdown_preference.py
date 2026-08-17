@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
-from maniguard.data.datagen.executor.contracts import GraspCand
 from maniguard.data.datagen.executor import grasp_select as gs
+from maniguard.data.datagen.executor.contracts import GraspCand
 
 
 def _quat_approach_world_z_down():
@@ -69,6 +69,7 @@ def test_rank_key_unreachable_sorts_last():
 
 def test_score_grasps_prefer_top_down_orders_topdown_first(monkeypatch):
     import torch as th
+
     from maniguard.data.datagen.executor import grasp_select as gsmod
 
     class _Res:

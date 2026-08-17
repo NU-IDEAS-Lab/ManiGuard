@@ -29,7 +29,7 @@ import trimesh
 from scipy.spatial.transform import Rotation as Rot
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 ANN_DIR = Path("outputs/grasp_annotation")
 ANN = ANN_DIR / "grasp_annotations.json"
@@ -39,7 +39,7 @@ OUT = ANN_DIR / "mesh_review"
 
 # FAMILY_STEMS + the multi-family membership test live in family_membership (shared, no heavy deps).
 # Re-exported here so ``from ...mesh_review import FAMILY_STEMS`` (fix_approach_tags) keeps working.
-from maniguard.data.datagen.annotation.family_membership import FAMILY_STEMS, obj_in_family  # noqa: E402
+from maniguard.data.datagen.annotation.family_membership import FAMILY_STEMS, obj_in_family
 
 # (label, elev, azim) viewpoints — oblique 3/4, side, and near-top for grasp coverage.
 VIEWS = [("oblique", 18.0, -60.0), ("side", 10.0, 30.0), ("top", 78.0, -90.0)]

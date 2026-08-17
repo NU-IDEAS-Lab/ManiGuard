@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from maniguard.utils.goal_region import GoalRegionSpec, object_intersects_goal_region, robot_holds_target
 
@@ -32,8 +32,8 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class GoalChecker:
-    raw_conditions: Union[list, dict]
-    _objects: Dict[str, Any] = field(default_factory=dict)
+    raw_conditions: list | dict
+    _objects: dict[str, Any] = field(default_factory=dict)
 
     def resolve(self, env) -> None:
         """Bind object names to live OmniGibson objects."""
@@ -65,7 +65,7 @@ class GoalRegionChecker:
     # lid-top grip) — grasping the lid of the assembly counts as holding the target.
     # None for every other family => behavior byte-identical.
     assembly_lid_name: str | None = None
-    _objects: Dict[str, Any] = field(default_factory=dict)
+    _objects: dict[str, Any] = field(default_factory=dict)
 
     def resolve(self, env) -> None:
         scene = env.scene
@@ -270,7 +270,7 @@ def _eval_predicate(predicate: str, subject, reference) -> bool:
         raise ValueError(f"[GoalChecker] Unknown predicate: {predicate!r}")
 
 
-def build_goal_checker(scene_info: dict) -> Optional[GoalChecker | GoalRegionChecker]:
+def build_goal_checker(scene_info: dict) -> GoalChecker | GoalRegionChecker | None:
     """Build a success checker from scene_info/dataset-level goal fields."""
     goal_region = scene_info.get("goal_region")
     if isinstance(goal_region, dict) and goal_region:

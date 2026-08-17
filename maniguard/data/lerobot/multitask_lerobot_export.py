@@ -312,7 +312,7 @@ def main():
             total_eps += 1
             total_frames += n
 
-    print(f"\n[Multitask] Done.")
+    print("\n[Multitask] Done.")
     print(f"  unique prompts: {len(prompts_seen)}")
     print(f"  episodes      : {total_eps}")
     print(f"  total frames  : {total_frames}")
@@ -328,7 +328,7 @@ def main():
             push_videos=True,
             tag_version=True,
         )
-        print(f"[Multitask] Pushed + v2.1 tag auto-created.")
+        print("[Multitask] Pushed + v2.1 tag auto-created.")
 
 
 if __name__ == "__main__":

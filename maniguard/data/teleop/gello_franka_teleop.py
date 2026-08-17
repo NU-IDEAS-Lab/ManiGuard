@@ -45,14 +45,12 @@ os.environ.setdefault(
 )
 
 import numpy as np
-import torch as th
-
 import omnigibson as og
-import omnigibson.lazy as lazy
+import torch as th
+from omnigibson import lazy
 from omnigibson.envs import DataCollectionWrapper
 from omnigibson.utils.constants import LightingMode
 from omnigibson.utils.ui_utils import KeyboardEventHandler
-
 
 # ---------------------------------------------------------------------------
 # joylo on sys.path (we don't pip install it because its setup.py pulls in
@@ -63,15 +61,13 @@ _JOYLO = _REPO_ROOT / "behavior-1k" / "joylo"
 if str(_JOYLO) not in sys.path:
     sys.path.insert(0, str(_JOYLO))
 
-from gello.robots.dynamixel import DynamixelRobot  # noqa: E402
+from gello.robots.dynamixel import DynamixelRobot
 
 # Long-finger Franka assets are now eagerly patched in via
 # maniguard/_omnigibson_patches.py:_patch_franka_longfinger() at OmniGibson
 # init time, so this entry no longer needs to install anything.
-
 # Reuse so101's diagnostics-jsonl reader for goal_checker auto-success.
-from maniguard.data.teleop.so101_franka_teleop import _read_first_jsonl  # noqa: E402
-
+from maniguard.data.teleop.so101_franka_teleop import _read_first_jsonl
 
 # ---------------------------------------------------------------------------
 # GELLO calibration constants (from `gello_get_offset.py`, 2026-04-27)
@@ -119,7 +115,7 @@ GELLO_RAMP_STEPS = 60                   # ~2 s at 30 Hz to drive Franka from cal
 # ---------------------------------------------------------------------------
 # External cameras (mirrors so101_franka_teleop)
 # ---------------------------------------------------------------------------
-from maniguard.utils.camera_setup import build_external_camera_configs  # noqa: E402
+from maniguard.utils.camera_setup import build_external_camera_configs
 
 _EXTERNAL_CAMERAS = build_external_camera_configs()
 
@@ -206,7 +202,7 @@ def _build_from_snapshot(
                 if jv is not None and len(jv) >= 7:
                     for i in range(7):
                         jv[i] = 0.0
-                print(f"[Gello] Snapshot arm joint_pos overridden with GELLO leader pose:")
+                print("[Gello] Snapshot arm joint_pos overridden with GELLO leader pose:")
                 print(f"        {[round(float(v), 3) for v in initial_joint_pos[:7]]} rad")
 
     # Lift the base only when swapping a floor-mounted FrankaMounted snapshot

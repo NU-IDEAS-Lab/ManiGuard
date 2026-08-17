@@ -12,14 +12,13 @@ import random
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Iterable
+from typing import Any
 
-from maniguard.envs.registry import build_runtime_task_metadata
 from maniguard.envs.frozen_task_runtime import (
     DEFAULT_REVIEW_CAMERA_NAMES,
     FrozenTaskRuntimeSession,
@@ -32,13 +31,20 @@ from maniguard.envs.frozen_task_runtime import (
     save_scene_snapshot,
     step_idle,
 )
+from maniguard.envs.registry import build_runtime_task_metadata
 from maniguard.utils.goal_region import (
-    GoalRegionSpec,
     GOAL_REGION_DISTANCE_SCALE,
     GOAL_REGION_RADIUS_SCALE,
-    build_task_prompt as build_goal_region_task_prompt,
-    family_uses_goal_region as family_uses_goal_region_contract,
+    GoalRegionSpec,
     remove_goal_region_from_scene_info,
+)
+from maniguard.utils.goal_region import (
+    build_task_prompt as build_goal_region_task_prompt,
+)
+from maniguard.utils.goal_region import (
+    family_uses_goal_region as family_uses_goal_region_contract,
+)
+from maniguard.utils.goal_region import (
     resolve_goal_region_entities as resolve_goal_region_entities_contract,
 )
 
@@ -1490,9 +1496,7 @@ def apply_object_model_swap(
 
     current_synset = None
     selection = derived.diagnostics.get("selection", {})
-    if role == "target":
-        current_synset = selection.get("target_synset")
-    elif role == "stack_bundle":
+    if role == "target" or role == "stack_bundle":
         current_synset = selection.get("target_synset")
     elif role == "food":
         current_synset = selection.get("food_synset")
@@ -2636,6 +2640,7 @@ def _live_object_aabb_dims(obj) -> tuple[float, float, float]:
 
 
 def _materialize_table_like(bundle: TaskBundle, env, og, *, fill_liquid: bool, video_recorder: ReviewVideoRecorder | None) -> None:
+    import torch as th
     from omnigibson.task_generation.pipeline_common import (
         attempt_fill_container,
         check_interpenetration,
@@ -2647,7 +2652,6 @@ def _materialize_table_like(bundle: TaskBundle, env, og, *, fill_liquid: bool, v
     from omnigibson.utils.clutter_pack_layout import ClutterObjectDescriptor, validate_pack_integrity
     from omnigibson.utils.pack_retry_loop import PackRetryConfig, run_pack_retry_loop
     from omnigibson.utils.tabletop_workspace import compute_tabletop_zone
-    import torch as th
 
     support_obj = _support_scene_object(bundle, env)
     support_name = str(getattr(support_obj, "name", "support"))
@@ -2747,10 +2751,10 @@ def _materialize_table_like(bundle: TaskBundle, env, og, *, fill_liquid: bool, v
 
 
 def _materialize_stack(bundle: TaskBundle, env, og, *, video_recorder: ReviewVideoRecorder | None) -> None:
+    import torch as th
     from omnigibson.task_generation.pipeline_common import make_settle_fn, stabilize_active_objects
     from omnigibson.task_generation.stack_scene_pipeline import _repair_stack_relations, _validate_ontop_state
     from omnigibson.utils.clutter_pack_layout import StackObjectDescriptor, apply_stack_transform, build_stack_layout
-    import torch as th
 
     support_obj = _support_scene_object(bundle, env)
     surface_bounds_xy = _surface_bounds_xy(bundle)
@@ -2846,9 +2850,15 @@ def _materialize_stack(bundle: TaskBundle, env, og, *, video_recorder: ReviewVid
 
 
 def _materialize_transfer(bundle: TaskBundle, env, og, *, video_recorder: ReviewVideoRecorder | None) -> None:
-    from omnigibson.task_generation.pipeline_common import establish_initial_object_relation, get_relative_relation_status, make_settle_fn, place_upright_on_surface, relation_status_satisfies
-    from omnigibson.task_generation.transfer_scene_pipeline import _surface_slots
     import torch as th
+    from omnigibson.task_generation.pipeline_common import (
+        establish_initial_object_relation,
+        get_relative_relation_status,
+        make_settle_fn,
+        place_upright_on_surface,
+        relation_status_satisfies,
+    )
+    from omnigibson.task_generation.transfer_scene_pipeline import _surface_slots
 
     support_obj = _support_scene_object(bundle, env)
     surface_bounds_xy = _surface_bounds_xy(bundle)
@@ -2888,13 +2898,20 @@ def _materialize_transfer(bundle: TaskBundle, env, og, *, video_recorder: Review
 
 
 def _materialize_lid_food(bundle: TaskBundle, env, og, *, fill_liquid: bool, video_recorder: ReviewVideoRecorder | None) -> None:
+    import torch as th
     from omnigibson.task_generation.lid_transport_pipeline import (
         _BENCHMARK_SAFE_NARROW_MOUTH_CATEGORIES,
         _restore_food_to_container_top,
         _surface_slots,
     )
-    from omnigibson.task_generation.pipeline_common import attempt_fill_container, establish_initial_object_relation, get_relative_relation_status, make_settle_fn, place_upright_on_surface, relation_status_satisfies
-    import torch as th
+    from omnigibson.task_generation.pipeline_common import (
+        attempt_fill_container,
+        establish_initial_object_relation,
+        get_relative_relation_status,
+        make_settle_fn,
+        place_upright_on_surface,
+        relation_status_satisfies,
+    )
 
     support_obj = _support_scene_object(bundle, env)
     surface_bounds_xy = _surface_bounds_xy(bundle)

@@ -53,6 +53,7 @@ if str(REPO_ROOT) not in sys.path:
 import omnigibson as og
 from omnigibson.envs import DataPlaybackWrapper
 from omnigibson.macros import gm
+
 from maniguard.utils.camera_setup import (
     CAMERA_RESOLUTION,
     build_external_camera_configs,

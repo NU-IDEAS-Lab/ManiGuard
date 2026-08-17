@@ -29,8 +29,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
 
 import numpy as np
 

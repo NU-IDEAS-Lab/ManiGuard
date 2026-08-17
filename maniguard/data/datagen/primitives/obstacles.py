@@ -24,8 +24,8 @@ import those reference trees.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from contextlib import contextmanager
-from typing import Sequence
 
 # Franka panda gripper links — disabled from the collision world while the fingers
 # close around a target. Names must match the URDF cuRobo loaded for the Franka.

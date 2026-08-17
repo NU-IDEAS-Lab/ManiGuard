@@ -15,8 +15,8 @@ safety constraints catch those at rollout time.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -47,8 +47,8 @@ _DEFAULT_WALL_INSET_M = 0.010
 # Preference order when locating the "body" link for opening sizing.
 _BODY_LINK_CANDIDATES = ("glass", "body", "container", "base_link")
 
-_footprint_cache: Optional[dict] = None
-_obstacle_pool_cache: Optional[dict] = None
+_footprint_cache: dict | None = None
+_obstacle_pool_cache: dict | None = None
 _jar_meta_cache: dict[str, dict] = {}
 
 
@@ -123,8 +123,8 @@ def jar_opening_min_dim(jar_model: str,
 
 def select_jar(
     rng: np.random.Generator,
-    jar_model: Optional[str] = None,
-) -> Tuple[str, str, str]:
+    jar_model: str | None = None,
+) -> tuple[str, str, str]:
     """Pick a hinged_jar model. Returns (synset, category, model)."""
     if jar_model is not None:
         if jar_model not in JAR_MODELS:
@@ -143,7 +143,7 @@ def candidate_items(
     min_extent_m: float = 0.0,
     wall_inset_m: float = _DEFAULT_WALL_INSET_M,
     exclude_cats: Sequence[str] = (),
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """Return {category: [models]} of graspable items whose:
 
       * longest bbox axis is strictly less than the jar's *opening*
@@ -173,7 +173,7 @@ def candidate_items(
     pool = _load_obstacle_pool()
     exclude = set(exclude_cats) | {JAR_CATEGORY}
 
-    eligible: Dict[str, List[str]] = {}
+    eligible: dict[str, list[str]] = {}
     for cat, entry in pool.items():
         if cat == "metadata" or cat in exclude:
             continue
@@ -198,13 +198,13 @@ def select_item(
     rng: np.random.Generator,
     jar_model: str,
     *,
-    item_category: Optional[str] = None,
-    item_model: Optional[str] = None,
+    item_category: str | None = None,
+    item_model: str | None = None,
     fit_margin_m: float = 0.015,
     min_extent_m: float = 0.0,
     wall_inset_m: float = _DEFAULT_WALL_INSET_M,
     exclude_cats: Sequence[str] = (),
-) -> Tuple[str, str, str]:
+) -> tuple[str, str, str]:
     """Pick a graspable item that fits through the jar's opening AND
     is at least ``min_extent_m`` on every axis (so it's not a sliver
     that vanishes in renders).
@@ -259,9 +259,9 @@ def _resolve_synset(category: str) -> str:
 def select_jar_and_item(
     rng: np.random.Generator,
     *,
-    jar_model: Optional[str] = None,
-    item_category: Optional[str] = None,
-    item_model: Optional[str] = None,
+    jar_model: str | None = None,
+    item_category: str | None = None,
+    item_model: str | None = None,
     fit_margin_m: float = 0.015,
     min_extent_m: float = 0.0,
     wall_inset_m: float = _DEFAULT_WALL_INSET_M,

@@ -15,9 +15,9 @@ import os
 import sys
 import traceback
 from datetime import datetime
-import torch as th
 
 import numpy as np
+import torch as th
 
 from maniguard.utils.goal_region import (
     GoalRegionSpec,
@@ -33,8 +33,8 @@ _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "
 _DEFAULT_RUNS_DIR = os.path.join(_PROJECT_ROOT, "outputs", "pipeline_runs")
 
 
-from maniguard.utils.task_spec import DENSITY_PRESETS  # noqa: F401, E402
-from maniguard.utils.task_spec import generate_clutter_activity as generate_activity  # noqa: F401, F811, E402
+from maniguard.utils.task_spec import DENSITY_PRESETS
+from maniguard.utils.task_spec import generate_clutter_activity as generate_activity  # noqa: F401
 
 STRUCTURAL_CATEGORY_KEYWORDS = (
     "wall", "walls", "floor", "ceiling", "roof", "window", "door",
@@ -142,7 +142,6 @@ def get_scene_json_path(scene_model):
 
 # Placeable-driven scene selection helpers live in utils/placeable.py.
 from maniguard.task_generation.utils.placeable import pick_scene_from_placeable
-
 
 # ---------------------------------------------------------------------------
 # Sim-dependent helpers
@@ -826,14 +825,13 @@ def check_interpenetration(objs, tol):
 
 # Camera + video helpers live in utils/video.py; re-export the ones
 # run_ltl_rollout and external callers import from pipeline_common.
-from maniguard.task_generation.utils.video import (  # noqa: F401
+from maniguard.task_generation.utils.video import (
     build_video_view_specs,
     close_video_writer,
     expected_video_path,
     init_video_writer,
     setup_cameras,
 )
-
 
 # ---------------------------------------------------------------------------
 # Pre-rollout stabilisation and LTL step-0 validation
@@ -948,8 +946,9 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
     Returns the LTL summary dict.
     """
     import omnigibson as og
-    from maniguard.utils.safety_monitor import TaskLTLMonitor
+
     from maniguard.utils.lid_attach import LidSnapper
+    from maniguard.utils.safety_monitor import TaskLTLMonitor
 
     ltl_monitor = TaskLTLMonitor(
         env=env, activity_name=activity_name,
@@ -993,7 +992,7 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
         og.sim.render()
 
         for view in video_views:
-            stem = args.save_video[:-4] if args.save_video.endswith(".mp4") else args.save_video
+            stem = args.save_video.removesuffix(".mp4")
             base_path = f"{stem}_{view['label']}.mp4"
             video_path = expected_video_path(base_path, episode)
             print(f"[Pipeline] Video: {video_path} (sensor={view['sensor_name']})")
@@ -1102,7 +1101,7 @@ def pipeline_exit(code=0):
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 
 @dataclass
@@ -1117,22 +1116,22 @@ class EpisodeContext:
     support_obj: Any = None
     surface_info: Any = None           # SurfaceAnalysis
     surface_name: str = ""
-    surface_bounds_xy: Optional[Tuple] = None
+    surface_bounds_xy: tuple | None = None
     table_top_z: float = 0.0
     floor_z: float = 0.0
     removed_area_objects: list[str] = field(default_factory=list)
     removed_robot_base_objects: list[str] = field(default_factory=list)
-    resolved_video_views: Tuple = field(default_factory=tuple)
+    resolved_video_views: tuple = field(default_factory=tuple)
 
     # Activity
     activity_name: str = ""
-    selection: Dict = field(default_factory=dict)
-    ltl_safety: Dict = field(default_factory=dict)
+    selection: dict = field(default_factory=dict)
+    ltl_safety: dict = field(default_factory=dict)
 
     # Objects (populated by _setup_session's pre-spawn lookup + identify_objects)
-    spawned_objects: Dict[str, Any] = field(default_factory=dict)
+    spawned_objects: dict[str, Any] = field(default_factory=dict)
     target_obj: Any = None
-    active_objects: Dict[str, Any] = field(default_factory=dict)
+    active_objects: dict[str, Any] = field(default_factory=dict)
 
     # Robot
     robot: Any = None
@@ -1140,7 +1139,7 @@ class EpisodeContext:
 
     # Gate
     gate_pass: bool = False
-    goal_region: Optional[Dict] = None
+    goal_region: dict | None = None
     prompt: str = ""
 
     # Episode index
@@ -1235,7 +1234,7 @@ class BasePipeline(ABC):
 
     def scene_family(self, ctx):
         """Return canonical family string for prompt / goal-region logic."""
-        return None
+        return
 
     def goal_region_pack_object_names(self, ctx):
         return tuple(
@@ -1838,7 +1837,11 @@ class BasePipeline(ABC):
 
         # -- Robot placement ------------------------------------------------
         from maniguard.utils.franka_edge_align import (
-            DEFAULT_ROLE_WEIGHTS, EdgeAlignRequest, EdgeAlignResult, _quat_from_yaw, place_franka_edge_aligned,
+            DEFAULT_ROLE_WEIGHTS,
+            EdgeAlignRequest,
+            EdgeAlignResult,
+            _quat_from_yaw,
+            place_franka_edge_aligned,
         )
         from maniguard.utils.tabletop_workspace import compute_tabletop_zone
 

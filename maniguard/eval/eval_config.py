@@ -11,11 +11,10 @@ Usage:
 
 from __future__ import annotations
 
-import copy
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -28,8 +27,8 @@ class EvalConfig:
     benchmark_root: str = ""
     benchmark_revision: str = "main"
     scene_filter: str = ""
-    scenes: Optional[List[str]] = None
-    max_scenes: Optional[int] = None
+    scenes: list[str] | None = None
+    max_scenes: int | None = None
 
     # -- Policy connection --
     host: str = "127.0.0.1"
@@ -42,21 +41,21 @@ class EvalConfig:
     # When set, overrides each scene's prompt with this template formatted by
     # the target name (same as training: {target_clean} strips the trailing
     # _NNN and underscores). Use to match the SFT prompt distribution.
-    prompt_template: Optional[str] = None
+    prompt_template: str | None = None
     # Prompt-ablation (Q2): replace each scene's instruction with the variant that
     # conveys the safety constraint differently -- "no_instruction" (today's data),
     # "natural_language", or "ltl". The variants come from prompt_map, the SAME table
     # the ablation's SFT datasets are rewritten from, so training and eval see
     # byte-identical prompts. The benchmark itself is never modified; the swap happens
     # at load time. Leave both None for a normal run.
-    prompt_map: Optional[str] = None
-    prompt_condition: Optional[str] = None
+    prompt_map: str | None = None
+    prompt_condition: str | None = None
     # Task-horizon variant (e.g. cabinet firsthalf): a JSON table substituting a task's
     # goal_conditions + prompt at load time, so a truncated-horizon policy is scored on the
     # goal it was actually trained for instead of the shipped full-horizon one. The SAME
     # table datagen collected the variant's demos with, so "success" means the same thing in
     # both. The benchmark on disk is never modified. None (default) = the shipped task.
-    horizon_override: Optional[str] = None
+    horizon_override: str | None = None
     # Which third-person overview the policy consumes. The model is fed exactly
     # ONE external overview + the wrist (LIBERO 2-cam convention): the policy
     # server reads observation/image_left + observation/wrist_image (+ state).
@@ -77,8 +76,8 @@ class EvalConfig:
     # pi0.5 / VLA policies emitting raw 6-D EEF deltas). The scene-baked
     # controller is overridden at load. override_controller_config (a raw
     # dict) takes precedence if both are set.
-    controller_preset: Optional[str] = None
-    override_controller_config: Optional[Dict[str, Any]] = None
+    controller_preset: str | None = None
+    override_controller_config: dict[str, Any] | None = None
     # Robot grasping semantics, forced on the eval robot AFTER scene load (the
     # ManiGuard-Bench scene's baked grasping_mode is overridden). MUST match the grasp
     # mode used to COLLECT the training data, or the policy's learned gripper
@@ -100,7 +99,7 @@ class EvalConfig:
     # step (~10% tracking), which double-softens the already-PD-tracked SFT
     # deltas. A high value makes the controller reach its target each step
     # (achieved eef == commanded delta). Only applied to a JointController arm.
-    joint_pos_kp: Optional[float] = None
+    joint_pos_kp: float | None = None
 
     # -- Simulation --
     action_frequency: int = 20
@@ -114,7 +113,7 @@ class EvalConfig:
     #   ["success", "safety"] (default) both; ["success"] success only (Spot not
     #   required); ["safety"] safety only (runs the full rollout, no early stop
     #   on goal). Selects which checkers run and what the summary reports.
-    metrics: List[str] = field(default_factory=lambda: ["success", "safety"])
+    metrics: list[str] = field(default_factory=lambda: ["success", "safety"])
     max_steps: int = 1000
     # Base seed for the policy's action-sampling noise (the only substantive
     # randomness at eval: scenes are frozen snapshots). Per rollout the client
@@ -122,7 +121,7 @@ class EvalConfig:
     # request; each policy server re-seeds its sampler (JAX key / torch RNG)
     # when the value changes. None (default) = unseeded, previous behavior.
     # Distinct base seeds give independent repeat trials of the same task.
-    seed: Optional[int] = None
+    seed: int | None = None
     # Debounce on success: the goal condition must hold for this many
     # consecutive steps before the episode is marked successful. Guards against
     # single-frame false positives (a transient brush / AG-grasp flicker / the

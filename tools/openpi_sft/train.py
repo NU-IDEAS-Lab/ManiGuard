@@ -26,7 +26,7 @@ import sys
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-import maniguard.openpi_sft  # noqa: E402,F401  -- registers TrainConfigs on import
+import maniguard.openpi_sft  # noqa: F401  -- registers TrainConfigs on import
 
 OPENPI_ROOT = os.environ.get("OPENPI_ROOT", str(REPO_ROOT.parent / "openpi"))
 _train = os.path.join(OPENPI_ROOT, "scripts", "train.py")

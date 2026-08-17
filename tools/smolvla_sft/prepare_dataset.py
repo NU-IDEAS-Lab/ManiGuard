@@ -40,12 +40,12 @@ from pathlib import Path
 
 import numpy as np
 
-from maniguard.smolvla_sft import embodiment as emb
+from maniguard.data.datagen import data_format
 
 # Reuse the verified lerobot-0.3.3 passthrough patches (no PNG writes, offline
 # version check, mp4-aware stats sampling) + the frame counter.
 from maniguard.data.datagen.to_lerobot import _frame_count, _passthrough_images
-from maniguard.data.datagen import data_format
+from maniguard.smolvla_sft import embodiment as emb
 
 
 def _video_codec(path: Path) -> str | None:

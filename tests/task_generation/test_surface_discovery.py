@@ -1,11 +1,8 @@
 """Tests for surface_discovery — pure geometry, no simulator needed."""
 
-import pytest
 
 from maniguard.utils.surface_discovery import (
     SurfaceAnalysis,
-    SurfaceCandidate,
-    SurfaceObstacle,
     analyze_surface,
     check_edge_reachability,
     compute_robot_placement_box,

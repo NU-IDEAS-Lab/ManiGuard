@@ -39,7 +39,7 @@ def _cabinet_meta() -> dict:
 
 def main() -> int:
     from maniguard.data.datagen.primitives import scene as scenemod
-    from maniguard.data.datagen.primitives.grasp_obb import _to_np, _pose_to_mat, mesh_from_og_object
+    from maniguard.data.datagen.primitives.grasp_obb import _pose_to_mat, _to_np, mesh_from_og_object
 
     meta = _cabinet_meta()
     cat, model, ci = meta["category"], meta["model"], meta["info"]

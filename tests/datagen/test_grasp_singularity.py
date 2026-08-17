@@ -6,7 +6,7 @@ place-carry checks are validated by sim collection runs (see the plan/spec).
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from maniguard.data.datagen.executor.grasp_select import roll_variants, joint_margin
+from maniguard.data.datagen.executor.grasp_select import joint_margin, roll_variants
 
 
 def test_roll_variants_preserve_approach_flip_close():

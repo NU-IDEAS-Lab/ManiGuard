@@ -33,18 +33,18 @@ of the object's expanded (padded) footprint, matching ``ClutterPackEntry.rel_pos
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
 
-Bounds2D = Tuple[Tuple[float, float], Tuple[float, float]]  # ((x0, y0), (x1, y1))
-Rect = Tuple[float, float, float, float]  # (x0, y0, w, h)
+Bounds2D = tuple[tuple[float, float], tuple[float, float]]  # ((x0, y0), (x1, y1))
+Rect = tuple[float, float, float, float]  # (x0, y0, w, h)
 
 
 @dataclass(frozen=True)
 class PackInputDescriptor:
     inst_id: str
     role: str
-    extent_xy: Tuple[float, float]  # full AABB extents, not half
+    extent_xy: tuple[float, float]  # full AABB extents, not half
     bottom_offset_z: float
 
 
@@ -60,8 +60,8 @@ class PackPlacement:
 
 @dataclass
 class PackSolution:
-    placements: List[PackPlacement]
-    unplaced: List[str]  # inst_ids that couldn't fit
+    placements: list[PackPlacement]
+    unplaced: list[str]  # inst_ids that couldn't fit
     region_bounds: Bounds2D
     min_clearance: float
 
@@ -73,9 +73,9 @@ def _rect_contains(outer: Rect, inner: Rect, tol: float = 1e-9) -> bool:
             and ix + iw <= ox + ow + tol and iy + ih <= oy + oh + tol)
 
 
-def _prune(free_rects: List[Rect]) -> List[Rect]:
+def _prune(free_rects: list[Rect]) -> list[Rect]:
     """Remove free rects fully contained in another (max-rectangles invariant)."""
-    out: List[Rect] = []
+    out: list[Rect] = []
     for i, r in enumerate(free_rects):
         contained = False
         for j, s in enumerate(free_rects):
@@ -92,11 +92,11 @@ def _prune(free_rects: List[Rect]) -> List[Rect]:
     return out
 
 
-def _split_free_rect_around(rect: Rect, used: Rect) -> List[Rect]:
+def _split_free_rect_around(rect: Rect, used: Rect) -> list[Rect]:
     """Standard 4-way split: remove `used` from `rect`, return up to 4 leftovers."""
     rx, ry, rw, rh = rect
     ux, uy, uw, uh = used
-    leftovers: List[Rect] = []
+    leftovers: list[Rect] = []
     # Left strip
     if ux > rx:
         leftovers.append((rx, ry, ux - rx, rh))
@@ -112,8 +112,8 @@ def _split_free_rect_around(rect: Rect, used: Rect) -> List[Rect]:
     return leftovers
 
 
-def _split_overlapping_rects(free_rects: List[Rect], used: Rect) -> List[Rect]:
-    out: List[Rect] = []
+def _split_overlapping_rects(free_rects: list[Rect], used: Rect) -> list[Rect]:
+    out: list[Rect] = []
     ux, uy, uw, uh = used
     for r in free_rects:
         rx, ry, rw, rh = r
@@ -126,7 +126,7 @@ def _split_overlapping_rects(free_rects: List[Rect], used: Rect) -> List[Rect]:
     return _prune(out)
 
 
-def _bssf_score(rect: Rect, w: float, h: float) -> Optional[Tuple[float, float]]:
+def _bssf_score(rect: Rect, w: float, h: float) -> tuple[float, float] | None:
     """Best-Short-Side-Fit score; lower is better. Returns None if w×h doesn't fit."""
     _, _, rw, rh = rect
     if w > rw + 1e-9 or h > rh + 1e-9:
@@ -138,11 +138,11 @@ def _bssf_score(rect: Rect, w: float, h: float) -> Optional[Tuple[float, float]]
     return (short, long_)
 
 
-def _pick_best_rect(free_rects: List[Rect], w: float, h: float,
-                    allow_rotation: bool) -> Optional[Tuple[int, Rect, bool]]:
+def _pick_best_rect(free_rects: list[Rect], w: float, h: float,
+                    allow_rotation: bool) -> tuple[int, Rect, bool] | None:
     best_idx = -1
-    best_rect: Optional[Rect] = None
-    best_score: Optional[Tuple[float, float]] = None
+    best_rect: Rect | None = None
+    best_score: tuple[float, float] | None = None
     best_rotated = False
     for i, r in enumerate(free_rects):
         s = _bssf_score(r, w, h)
@@ -158,7 +158,7 @@ def _pick_best_rect(free_rects: List[Rect], w: float, h: float,
 
 
 def _closest_xy_in_rect(rect: Rect, w: float, h: float,
-                        tx: float, ty: float) -> Optional[Tuple[float, float, float]]:
+                        tx: float, ty: float) -> tuple[float, float, float] | None:
     """Return (bx, by, dist) — the bottom-left position inside ``rect`` for a
     w×h placement whose centre is closest to (tx, ty). ``None`` if w×h
     doesn't fit at all.
@@ -176,15 +176,15 @@ def _closest_xy_in_rect(rect: Rect, w: float, h: float,
     return (cx - 0.5 * w, cy - 0.5 * h, dist)
 
 
-def _pick_closest_rect(free_rects: List[Rect], w: float, h: float,
+def _pick_closest_rect(free_rects: list[Rect], w: float, h: float,
                        allow_rotation: bool, tx: float, ty: float,
-                       ) -> Optional[Tuple[int, Tuple[float, float, float, float], bool]]:
+                       ) -> tuple[int, tuple[float, float, float, float], bool] | None:
     """Like ``_pick_best_rect`` but scores by distance of the placed
     object's centre to the target (tx, ty). Returns
     ``(idx, used_rect, rotated)`` where ``used_rect`` is the bottom-left-
     anchored ``(x0, y0, w_used, h_used)`` rectangle to mark as used.
     """
-    best: Optional[Tuple[float, int, Tuple[float, float, float, float], bool]] = None
+    best: tuple[float, int, tuple[float, float, float, float], bool] | None = None
     for i, r in enumerate(free_rects):
         cand = _closest_xy_in_rect(r, w, h, tx, ty)
         if cand is not None:
@@ -208,7 +208,7 @@ def solve_pack(
     region_bounds: Bounds2D,
     min_clearance: float,
     *,
-    target_inst_id: Optional[str] = None,
+    target_inst_id: str | None = None,
     allow_rotation: bool = True,
     strategy: str = "surround_target",
 ) -> PackSolution:
@@ -255,9 +255,9 @@ def solve_pack(
         target = next((d for d in descriptors if d.inst_id == target_inst_id), None)
     others = [d for d in descriptors if d.inst_id != (target.inst_id if target else None)]
 
-    placements: List[PackPlacement] = []
-    unplaced: List[str] = []
-    free_rects: List[Rect] = [(0.0, 0.0, region_w, region_h)]
+    placements: list[PackPlacement] = []
+    unplaced: list[str] = []
+    free_rects: list[Rect] = [(0.0, 0.0, region_w, region_h)]
     # Target centre in region-local coords — used by the surround strategy
     # to score placements by their distance to the target.
     target_cx_local = cx_region
@@ -286,7 +286,7 @@ def solve_pack(
 
     # Decreasing-sort the others by short side (then long side) so the biggest
     # awkward objects get the most flexibility — classic 2D-pack heuristic.
-    def _sort_key(d: PackInputDescriptor) -> Tuple[float, float, str]:
+    def _sort_key(d: PackInputDescriptor) -> tuple[float, float, str]:
         w, h = padded[d.inst_id]
         return (-min(w, h), -max(w, h), d.inst_id)
     others_sorted = sorted(others, key=_sort_key)
@@ -294,7 +294,7 @@ def solve_pack(
     use_surround = (strategy == "surround_target")
     for d in others_sorted:
         w, h = padded[d.inst_id]
-        used_rect: Optional[Rect] = None
+        used_rect: Rect | None = None
         rotated = False
         if use_surround:
             pick = _pick_closest_rect(

@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Optional
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
@@ -36,7 +35,7 @@ _SCENES_DIR = os.path.join(
 )
 
 
-def _scene_init_info(scene_model: str) -> Optional[dict]:
+def _scene_init_info(scene_model: str) -> dict | None:
     """Load ``<scene_model>_best.json`` and return ``objects_info.init_info``.
 
     Returns None if the scene file is missing (we tolerate dataset
@@ -51,7 +50,7 @@ def _scene_init_info(scene_model: str) -> Optional[dict]:
 
 
 def _find_instance(init_info: dict, category: str, model: str,
-                   room_instance: str) -> Optional[tuple[str, list[float]]]:
+                   room_instance: str) -> tuple[str, list[float]] | None:
     """Return (instance_name, scale_xyz) of the first matching instance.
 
     Match criteria: USD init_info args.category == category AND
@@ -82,7 +81,7 @@ def main():
         doc = json.load(f)
 
     by_model = doc.get("by_model") or {}
-    init_cache: dict[str, Optional[dict]] = {}
+    init_cache: dict[str, dict | None] = {}
 
     n_entries = 0
     n_filled = 0

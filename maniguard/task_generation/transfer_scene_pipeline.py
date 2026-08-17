@@ -238,6 +238,7 @@ def place_food_on_source(env, food_obj, source_obj, settle_steps=60):
     = 1.4mm of fall), where Inside / OnTop predicates can succeed.
     """
     import omnigibson as og
+
     from maniguard.task_generation.utils.food_transfer_pipeline.lookup import (
         container_drop_xy,
     )

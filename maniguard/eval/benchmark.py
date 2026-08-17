@@ -23,8 +23,6 @@ if str(REPO_ROOT) not in sys.path:
 from maniguard.eval.eval_config import EvalConfig, config_from_cli
 from maniguard.eval.scene_discovery import discover_scenes
 
-
-
 # ---------------------------------------------------------------------------
 # Isaac Sim / OmniGibson bootstrap
 # ---------------------------------------------------------------------------
@@ -605,7 +603,7 @@ def main():
             else:
                 print(f"  Goals: {goal_checker.raw_conditions}")
         else:
-            print(f"  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
+            print("  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
 
         # Warm up by stepping a HOLD command, initializing the freshly-reloaded
         # controller's goal from the current pose and settling physics. The hold
@@ -795,12 +793,10 @@ def main():
                             _tp = _target_obj.get_position_orientation()[0].cpu().numpy()
                             if _target_spawn is not None:
                                 _md = float(np.linalg.norm(_tp - _target_spawn))
-                                if _md > target2spawn_max_dist:
-                                    target2spawn_max_dist = _md
+                                target2spawn_max_dist = max(target2spawn_max_dist, _md)
                             _ep = robot.get_eef_position().cpu().numpy()
                             _ed = float(np.linalg.norm(_ep - _tp))
-                            if _ed < eef2target_min_dist:
-                                eef2target_min_dist = _ed
+                            eef2target_min_dist = min(eef2target_min_dist, _ed)
                         except Exception:  # noqa: BLE001
                             pass
 

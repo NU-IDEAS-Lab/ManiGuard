@@ -17,14 +17,23 @@ import numpy as np
 
 from maniguard.data.datagen.executor import geometry
 from maniguard.data.datagen.executor.contracts import (
-    DemoResult, FamilyAbort, FamilySkeleton, Grip, Mode, MotionSegment, SegmentSkip,
+    DemoResult,
+    FamilyAbort,
+    FamilySkeleton,
+    Grip,
+    Mode,
+    MotionSegment,
+    SegmentSkip,
     TaskContext,
 )
 from maniguard.data.datagen.executor.gate import SafetyGate
 from maniguard.data.datagen.primitives import obstacles
 from maniguard.data.datagen.primitives.curobo_seg import solve_ik, solve_segment
 from maniguard.data.datagen.primitives.execute import (
-    CLOSE, OPEN, actuate_gripper, execute_trajectory,
+    CLOSE,
+    OPEN,
+    actuate_gripper,
+    execute_trajectory,
 )
 
 FLARE_TOL = 0.5          # rad: max |panda_joint3| (j2 = arm index 2) before a config is "elbow-flared".
@@ -216,7 +225,7 @@ class DemoEngine:
         n = max(2, int(np.ceil(float(np.linalg.norm(tp - sp)) / step)))
         quat_path = None
         if seg.orient_slerp:                       # ALSO ramp the orientation (dusty pour): widen n for
-            from scipy.spatial.transform import Rotation as _Rot   # the rotation, ~2° of tilt per waypoint
+            from scipy.spatial.transform import Rotation as _Rot  # the rotation, ~2° of tilt per waypoint
             sq = _np(self.robot.eef_links[arm].get_position_orientation()[1])
             ang = float((_Rot.from_quat(sq).inv() * _Rot.from_quat(np.asarray(tquat, float))).magnitude())
             n = max(n, int(np.ceil(ang / 0.035)))
@@ -614,7 +623,6 @@ class DemoEngine:
                     held = self._held(seg, ctx)
                     ag = None
                     try:
-                        from omnigibson.controllers.controller_base import IsGraspingState
                         ag = self.robot.is_grasping(self.robot.default_arm, held)
                         print(f"[datagen.engine] {seg.name} after close: AG={ag} "
                               f"(held={getattr(held, 'name', '?')})", flush=True)

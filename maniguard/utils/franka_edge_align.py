@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
-
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 DEFAULT_ROLE_WEIGHTS = {
     "target": 3.0,
@@ -16,36 +15,36 @@ DEFAULT_ROLE_WEIGHTS = {
 class EdgeAlignObject:
     name: str
     role: str
-    position_xy: Tuple[float, float]
+    position_xy: tuple[float, float]
 
 
 @dataclass(frozen=True)
 class EdgeAlignRequest:
-    table_aabb_xy: Tuple[Tuple[float, float], Tuple[float, float]]
-    pack_objects_world: Tuple[EdgeAlignObject, ...]
-    role_weights: Dict[str, float]
-    robot_half_extent_xy: Tuple[float, float]
+    table_aabb_xy: tuple[tuple[float, float], tuple[float, float]]
+    pack_objects_world: tuple[EdgeAlignObject, ...]
+    role_weights: dict[str, float]
+    robot_half_extent_xy: tuple[float, float]
     edge_gap_m: float
     edge_margin_m: float
-    scan_offsets_m: Tuple[float, ...]
-    collision_checker: Optional[Callable[[Tuple[float, float, float]], Sequence[str]]] = None
-    preferred_edge: Optional[str] = None
+    scan_offsets_m: tuple[float, ...]
+    collision_checker: Callable[[tuple[float, float, float]], Sequence[str]] | None = None
+    preferred_edge: str | None = None
     anchor_offset_m: float = 0.0
 
 
 @dataclass(frozen=True)
 class EdgeAlignResult:
     edge_label: str
-    base_pose: Dict[str, Tuple[float, ...]]
+    base_pose: dict[str, tuple[float, ...]]
     anchor_s: float
     candidate_rank: int
-    collision_hits: Tuple[str, ...]
+    collision_hits: tuple[str, ...]
     gap_actual: float
-    failure_reason: Optional[str]
+    failure_reason: str | None
 
 
 def select_best_table_edge(
-    table_aabb_xy: Tuple[Tuple[float, float], Tuple[float, float]],
+    table_aabb_xy: tuple[tuple[float, float], tuple[float, float]],
     pack_objects_world: Sequence[EdgeAlignObject],
 ) -> str:
     if not pack_objects_world:
@@ -75,10 +74,10 @@ def select_best_table_edge(
 
 def compute_weighted_edge_anchor(
     edge_label: str,
-    table_aabb_xy: Tuple[Tuple[float, float], Tuple[float, float]],
+    table_aabb_xy: tuple[tuple[float, float], tuple[float, float]],
     pack_objects_world: Sequence[EdgeAlignObject],
-    role_weights: Optional[Dict[str, float]],
-    robot_half_extent_xy: Tuple[float, float],
+    role_weights: dict[str, float] | None,
+    robot_half_extent_xy: tuple[float, float],
     edge_margin_m: float,
 ) -> float:
     if not pack_objects_world:
@@ -138,8 +137,8 @@ def place_franka_edge_aligned(request: EdgeAlignRequest) -> EdgeAlignResult:
     anchor_s += request.anchor_offset_m
 
     center_xy = _pack_center_xy(request.pack_objects_world)
-    candidates: List[Tuple[int, Tuple[float, float, float], Tuple[str, ...], float]] = []
-    best_by_hits: Optional[Tuple[int, Tuple[float, float, float], Tuple[str, ...], float]] = None
+    candidates: list[tuple[int, tuple[float, float, float], tuple[str, ...], float]] = []
+    best_by_hits: tuple[int, tuple[float, float, float], tuple[str, ...], float] | None = None
     failure_reason = None
 
     for rank, offset in enumerate(request.scan_offsets_m):
@@ -194,13 +193,13 @@ def place_franka_edge_aligned(request: EdgeAlignRequest) -> EdgeAlignResult:
 
 
 def _normalize_aabb(
-    table_aabb_xy: Tuple[Tuple[float, float], Tuple[float, float]]
-) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    table_aabb_xy: tuple[tuple[float, float], tuple[float, float]]
+) -> tuple[tuple[float, float], tuple[float, float]]:
     (x0, y0), (x1, y1) = table_aabb_xy
     return ((min(x0, x1), min(y0, y1)), (max(x0, x1), max(y0, y1)))
 
 
-def _pack_center_xy(pack_objects_world: Sequence[EdgeAlignObject]) -> Tuple[float, float]:
+def _pack_center_xy(pack_objects_world: Sequence[EdgeAlignObject]) -> tuple[float, float]:
     cx = sum(obj.position_xy[0] for obj in pack_objects_world) / float(len(pack_objects_world))
     cy = sum(obj.position_xy[1] for obj in pack_objects_world) / float(len(pack_objects_world))
     return (cx, cy)
@@ -210,8 +209,8 @@ def _clamp_anchor_with_offset(
     edge_label: str,
     anchor_s: float,
     offset: float,
-    table_aabb_xy: Tuple[Tuple[float, float], Tuple[float, float]],
-    robot_half_extent_xy: Tuple[float, float],
+    table_aabb_xy: tuple[tuple[float, float], tuple[float, float]],
+    robot_half_extent_xy: tuple[float, float],
     edge_margin_m: float,
 ) -> float:
     (x_min, y_min), (x_max, y_max) = table_aabb_xy
@@ -229,10 +228,10 @@ def _clamp_anchor_with_offset(
 def _edge_pose_xy(
     edge_label: str,
     tangent_s: float,
-    table_aabb_xy: Tuple[Tuple[float, float], Tuple[float, float]],
-    robot_half_extent_xy: Tuple[float, float],
+    table_aabb_xy: tuple[tuple[float, float], tuple[float, float]],
+    robot_half_extent_xy: tuple[float, float],
     edge_gap_m: float,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     (x_min, y_min), (x_max, y_max) = table_aabb_xy
     hx, hy = robot_half_extent_xy
 
@@ -258,7 +257,7 @@ def _edge_pose_xy(
     return x, y, float(gap_actual)
 
 
-def _quat_from_yaw(yaw: float) -> Tuple[float, float, float, float]:
+def _quat_from_yaw(yaw: float) -> tuple[float, float, float, float]:
     half = 0.5 * yaw
     return (0.0, 0.0, math.sin(half), math.cos(half))
 

@@ -79,10 +79,11 @@ def _passthrough_images():
     _save_image no-op; get_safe_version local (offline repo_id); compute_stats.sample_images mp4-aware
     (the only PNG readback during commit). Restored on exit."""
     import contextlib
-    from lerobot.datasets.lerobot_dataset import LeRobotDataset
-    import lerobot.datasets.utils as _lu
-    import lerobot.datasets.lerobot_dataset as _lds
+
     import lerobot.datasets.compute_stats as _cs
+    import lerobot.datasets.lerobot_dataset as _lds
+    import lerobot.datasets.utils as _lu
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     @contextlib.contextmanager
     def _cm():
@@ -133,8 +134,10 @@ def convert(dataset: str, family: str, *, out_root: str, repo_id: str, limit=Non
     """Convert every traj of <family> in <dataset> into ONE LeRobot v2.1 dataset at
     <out_root>/<family>/ (all 5 cams passthrough; state + actions(b) + actions_commanded(a))."""
     from pathlib import Path
+
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
-    from maniguard.data.datagen import reader, data_format
+
+    from maniguard.data.datagen import data_format, reader
 
     traj_dirs = list(reader.iter_traj_dirs(dataset, family))
     if limit:

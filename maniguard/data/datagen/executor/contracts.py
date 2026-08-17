@@ -261,7 +261,7 @@ class FamilySkeleton(ABC):
         calibrates the ``joint_open_at_least`` eval threshold from the demonstrations."""
         return {}
 
-    def resolve_compute(self, tag: str, seg: "MotionSegment", ctx: TaskContext):
+    def resolve_compute(self, tag: str, seg: MotionSegment, ctx: TaskContext):
         """Resolve a FAMILY-SPECIFIC ``compute`` tag to a world ``(eef_pos, eef_quat)`` from the
         LIVE state (the engine handles the generic tags itself and delegates the rest here).
         Default: unsupported. Cabinet overrides this for grasp-handle / pull / regrasp."""
@@ -273,7 +273,7 @@ class FamilySkeleton(ABC):
         internally — e.g. cabinet's drawer-handle / obstacle grasps, which are NOT the target
         grasp the sampler iterates and so cannot be filtered by the driver's grasp scoring.
         Default: no-op (clutter has only the target grasp, already scored by the driver)."""
-        return None
+        return
 
     def variation_knobs(self, ctx: TaskContext) -> dict[str, Any]:
         """Which waypoints / ranges may jitter for diversity. Default: engine defaults."""
@@ -316,16 +316,16 @@ class FamilySkeleton(ABC):
         side. Default None (no azimuth preference). Cabinet returns the drawer-OPEN direction: picking
         from the open side keeps the arm off the closed cabinet (else cuRobo can't reach + the SERVO
         descend jams on the cabinet). Returns ``np.ndarray | None``."""
-        return None
+        return
 
     def debug_state(self, ctx: TaskContext) -> str:
         """Optional one-line family state string the engine prints after each segment when
         ``DATAGEN_DEBUG_STATE`` is set (e.g. cabinet's live drawer-joint value). Default: none."""
         return ""
 
-    def on_segment(self, seg: "MotionSegment", ctx: TaskContext) -> None:
+    def on_segment(self, seg: MotionSegment, ctx: TaskContext) -> None:
         """Optional side-effect hook the engine calls just BEFORE planning each segment — for runtime
         state a family must toggle mid-rollout that isn't a pose (e.g. cabinet stiffening the drawer
         joint to hold it open while the arm reaches over it, then softening it for the deliberate
         close). Default: no-op."""
-        return None
+        return

@@ -91,7 +91,7 @@ def _unpack_array(obj):
     return obj
 
 
-def Packer():  # noqa: N802 - mirrors openpi_client's factory name
+def Packer():
     return msgpack.Packer(default=_pack_array, use_bin_type=True)
 
 
@@ -296,13 +296,14 @@ def main() -> None:
 
     import torch
     import yaml
-    from transformers import AutoConfig
-    from lingbotvla.models.vla.lingbot_vla.configuration_lingbot_vla import LingbotVLAV2Config
-    from lingbotvla.data.vla_data.utils import FeatureTransform
-    from lingbotvla.models import build_processor
+
     # Both packages come from the fork, installed editable by tools/create_train_env.sh,
     # so no sys.path surgery is needed in the lingbotvla env.
     from deploy.lingbot_vla_v2_policy import LingBotVlaV2InferencePolicy
+    from lingbotvla.data.vla_data.utils import FeatureTransform
+    from lingbotvla.models import build_processor
+    from lingbotvla.models.vla.lingbot_vla.configuration_lingbot_vla import LingbotVLAV2Config
+    from transformers import AutoConfig
 
     device = torch.device(args.device)
     data_config = _build_data_config(train_config)

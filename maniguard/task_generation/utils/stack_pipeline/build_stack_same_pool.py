@@ -116,7 +116,7 @@ def main():
     graspable = load_graspable_set()
     unresolved = load_unresolved_complaints()
 
-    print(f"Inputs:")
+    print("Inputs:")
     print(f"  stable (3-copy + shake):     {len(stable)}")
     print(f"  graspable (csv):             {len(graspable)}")
     print(f"  unresolved complaints:       {len(unresolved)}")
@@ -137,7 +137,7 @@ def main():
             continue
         qualified[(cat, model)] = bbox
 
-    print(f"\nFilter passes:")
+    print("\nFilter passes:")
     print(f"  stable & graspable & no-complaint & not-excluded: {len(qualified)}")
     print(f"  dropped: not in graspable list:     {n_drop_grasp}")
     print(f"  dropped: has unresolved complaint:  {n_drop_complaint}")
@@ -160,7 +160,7 @@ def main():
 
     print(f"\nWrote {OUT_PATH}: {sum(len(v) for v in out.values())} models "
           f"across {len(out)} categories")
-    print(f"Top 10 categories by model count:")
+    print("Top 10 categories by model count:")
     for cat, ms in sorted(out.items(), key=lambda x: -len(x[1]))[:10]:
         print(f"  {cat}: {len(ms)}")
     return 0

@@ -55,7 +55,6 @@ from pathlib import Path
 import numpy as np
 
 import maniguard  # noqa: F401
-
 from maniguard.task_generation.pipeline_common import (
     append_jsonl,
     pipeline_exit,
@@ -601,6 +600,7 @@ def _run_ltl_rollout(og, env, robot, args, activity_name,
                     ltl_safety=None):
     """N-step jitter rollout + TaskLTLMonitor + 4-camera video mux."""
     import av
+
     from maniguard.utils.safety_monitor import TaskLTLMonitor
 
     monitor = TaskLTLMonitor(
