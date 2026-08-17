@@ -32,12 +32,13 @@ cd "$REPO_ROOT"
 
 # ============ CONFIG (edit per family) ============
 FAMILY=jar_transport
-IN_DIR="outputs/teleop_collected/${FAMILY}"                  # raw teleop HDF5s
-RENDER_DIR="outputs/teleop_rendered_joint_3cam/${FAMILY}"    # Stage 1 output (flat)
-# NOTE: a family's raw dir name may differ from its 6fam-base diag-tree name
-# (e.g. raw 'lid_transport_food' vs diag 'lid_transport'). When they differ,
-# write DIAG_ROOT out explicitly instead of reusing ${FAMILY}.
-DIAG_ROOT="outputs/lerobot_datasets/6fam-base/${FAMILY}"     # <task_id>/base/diagnostics.jsonl (per-task prompt)
+ARM=gello                                                    # gello | so101 — which collection to convert
+# Raw teleop HDF5s. teleop_family_collect.sh writes arm-tagged dirs
+# (<family>_gello / <family>_so101); both convert identically — Stage 1
+# normalizes SO-101's raw 7D IK-delta actions to the same 8D joint format.
+IN_DIR="outputs/teleop_collected/${FAMILY}_${ARM}"
+RENDER_DIR="outputs/teleop_rendered_joint_3cam/${FAMILY}_${ARM}"   # Stage 1 output (flat)
+DIAG_ROOT="${BENCH_ROOT:-outputs/lerobot_datasets/maniguard-bench}/${FAMILY}"   # <task_id>/base/diagnostics.jsonl (per-task prompt + camera poses)
 REPO_ID="IDEAS-Lab-Northwestern/sim-jar-transport-30-joint-3cam"   # LeRobot repo id (metadata)
 LEROBOT_ROOT="outputs/lerobot_datasets/sim-jar-transport-30-joint-3cam"   # local dataset dir
 # lerobot uv venv (build once with:
@@ -72,8 +73,14 @@ if [ "$DO_STAGE1" -eq 1 ]; then
     # default controller=joint, cams=3 (no flags). Teardown segfault rc ignored.
     # OMNIGIBSON_HEADLESS=1: playback renders via offscreen external VisionSensors
     # (not the GUI viewport), so re-render runs fully headless on any box.
+    # --diagnostics places the external cameras at the task's RECORDED poses
+    # (the shared load-side rule datagen/eval use) when the task ships them.
+    tid="${base%%_traj_*}"                         # task_NNNN
+    DIAG_ARGS=()
+    [ -f "$DIAG_ROOT/$tid/base/diagnostics.jsonl" ] && \
+      DIAG_ARGS=(--diagnostics "$DIAG_ROOT/$tid/base/diagnostics.jsonl")
     OMNIGIBSON_HEADLESS=1 CUDA_VISIBLE_DEVICES="$GPU" conda run -n behavior python -m maniguard.data.playback \
-      --input "$f" --output "$out"
+      --input "$f" --output "$out" "${DIAG_ARGS[@]}"
     # Judge success by output existing + non-empty action dataset, not rc.
     n_act=$("$LEROBOT_PY" - "$out" <<'PY' 2>/dev/null
 import sys, h5py

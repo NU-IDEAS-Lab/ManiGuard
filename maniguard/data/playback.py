@@ -16,8 +16,12 @@ step records (defaults: --controller joint, --cams 3):
                    overviews + wrist).
       2:           image + wrist_image  (cam_opposite overview + wrist; LIBERO).
 
-`action` is copied from the input HDF5 unchanged (the raw teleop 8D joint
-target); the Stage 2 LeRobot export decides eef-delta vs joint handling.
+`action` handling depends on what the leader arm recorded:
+  GELLO  (8D absolute joint target, JointController)      -> copied unchanged.
+  SO-101 (7D EEF delta, InverseKinematicsController)      -> rewritten to the
+         same 8D joint convention from the replayed joint states (a delta is
+         meaningless as an SFT action); requires --controller joint.
+Either way Stage 2 receives an 8D joint action and decides eef-delta vs joint.
 
 Output HDF5 is consumed by Stage 2 (maniguard.data.lerobot.*), which writes a
 LeRobot v2.1 dataset.
@@ -124,8 +128,9 @@ class ManiGuardPlaybackWriter(DataPlaybackWrapper):
       _controller_mode: "eef"   -> eef_8d state [eef_pos(3), axisangle(3), grip(2)]
                         "joint" -> joint_8d state [arm_q(7), gripper_pos(1)]
       _n_cams:          2 | 3   -> picks a CAMERA_SETS entry (image keys + cams)
-    Action is the raw teleop 8D joint passthrough either way; the LeRobot export
-    stage decides eef-delta vs joint handling.
+    Action is copied through by the parent and then normalized to the 8D joint
+    convention by ``_normalize_actions_to_joint`` (GELLO passthrough / SO-101
+    synthesis); the LeRobot export stage decides eef-delta vs joint handling.
     """
 
     _controller_mode = "joint"
@@ -216,6 +221,65 @@ def _stamp_metadata(hdf5_path: str, controller_mode: str, n_cams: int) -> None:
     with h5py.File(hdf5_path, "a") as f:
         f["data"].attrs["controller_mode"] = controller_mode
         f["data"].attrs["n_cams"] = int(n_cams)
+
+
+def _normalize_actions_to_joint(output_path: str, input_path: str, controller_mode: str) -> None:
+    """Rewrite SO-101 raw actions (7D IK delta) as 8D joint-native actions.
+
+    GELLO records the SFT convention directly (8D absolute joint target) and is
+    passed through untouched. SO-101's InverseKinematicsController records
+    [dpos(3), drot(3), gripper(1)] — a delta command is meaningless as an SFT
+    action, but under ``--controller joint`` the output's ``obs/state`` holds the
+    N+1 replayed absolute joint configs, so the faithful joint target for step t
+    is the configuration the arm actually reached after applying raw action t:
+
+        action_t = [state_{t+1}[:7], raw_gripper_cmd_t]
+
+    (the same "commanded target ~ next config" relation the GELLO recordings
+    exhibit). The result is stamped as ``data.attrs['action_source']`` so the
+    provenance stays visible downstream.
+    """
+    import h5py
+
+    with h5py.File(input_path, "r") as f:
+        raw = {k: f["data"][k]["action"][:] for k in f["data"]}
+    dims = {a.shape[1] for a in raw.values()}
+
+    if dims == {8}:
+        source = "joint_passthrough"
+    elif dims == {7}:
+        if controller_mode != "joint":
+            raise SystemExit(
+                "[Playback] ERROR: 7D (IK-delta) raw actions need --controller joint "
+                "to synthesize joint actions from the replayed states; the eef state "
+                "layout does not record joint configs."
+            )
+        source = "ik_delta_to_joint_from_states"
+        with h5py.File(output_path, "r+") as f:
+            for key, grp in f["data"].items():
+                raw_a = raw.get(key)
+                if raw_a is None:
+                    raise SystemExit(f"[Playback] ERROR: episode {key!r} not in {input_path}")
+                state = grp["obs"]["state"][:]
+                n = raw_a.shape[0]
+                if state.shape[0] != n + 1:
+                    raise SystemExit(
+                        f"[Playback] ERROR: {key}: expected {n + 1} obs/state frames for "
+                        f"{n} actions, got {state.shape[0]} — cannot align joint targets."
+                    )
+                joint_a = np.concatenate([state[1:, :7], raw_a[:, -1:]], axis=1).astype(np.float32)
+                del grp["action"]
+                grp.create_dataset("action", data=joint_a)
+        print(f"[Playback] SO-101 input: rewrote 7D IK-delta actions as 8D joint "
+              f"targets from the replayed states ({len(raw)} episode(s)).")
+    else:
+        raise SystemExit(
+            f"[Playback] ERROR: unexpected raw action width(s) {sorted(dims)}; "
+            "expected 8 (GELLO joint) or 7 (SO-101 IK delta)."
+        )
+
+    with h5py.File(output_path, "a") as f:
+        f["data"].attrs["action_source"] = source
 
 
 def _setup_cameras_from_scene(env, diagnostics_path: str | None = None) -> None:
@@ -347,6 +411,7 @@ def main():
 
     env.save_data()
     _stamp_metadata(args.output, args.controller, args.cams)
+    _normalize_actions_to_joint(args.output, args.input, args.controller)
     print(f"[Playback] Wrote: {args.output}  "
           f"(controller={args.controller}, n_cams={args.cams})")
 
