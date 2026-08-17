@@ -29,9 +29,8 @@ from maniguard.utils.safety_monitor import TaskLTLMonitor
 
 monitor = TaskLTLMonitor(
     env,
-    ltl_safety=ltl_safety_dict,         # task-level spec; {} disables monitoring
+    ltl_safety=ltl_safety_dict,         # the task's spec dict; {} disables monitoring
     activity_name="pnp_clutter",
-    scene_model="Benevolence_1_int",    # also loads scene-level ltl_safety.json
     active_objects_by_inst={"wineglass.n.01_1": obj, ...},
 )
 monitor.reset()
@@ -48,14 +47,18 @@ propositions merged), resolves proposition subjects to live scene objects via
 `ObjectResolver` (synset-glob → wrapped objects, filtered to `active_objects`),
 builds an evaluator, compiles the combined formula, and logs the first violation.
 
-### Constraint sources
+### Where the spec comes from
 
-| Level | File |
-|---|---|
-| Task-level | `behavior-1k/bddl3/bddl/activity_definitions/<activity>/ltl_safety.json` |
-| Scene-level | `datasets/behavior-1k-assets/scenes/<scene>/safety/ltl_safety.json` |
+For the benchmark, the spec **travels with the task**: task generation embeds
+each task's `ltl_safety` dict inline in its `diagnostics.jsonl`, and datagen /
+eval pass that dict straight to `TaskLTLMonitor` — no filesystem lookup, so a
+frozen task is self-contained. Two file-based channels still exist but are
+dormant compatibility paths, not used by the benchmark: a task-level
+`activity_definitions/<activity>/ltl_safety.json` and a scene-level
+`scenes/<scene>/safety/ltl_safety.json` (loaded only when a `scene_model` arg is
+passed; scene- and task-level constraints are then AND-joined).
 
-### `ltl_safety.json` schema
+### The spec schema (`ltl_safety`)
 
 ```json
 {
@@ -116,6 +119,20 @@ condition (via `buddy`) from the proposition values, follows the matching
 transition, and reports `doomed` — detected either as a monitor rejecting sink
 or, for general automata, via a Tarjan-SCC reachability check from accepting
 states.
+
+!!! note "Semantics: a bad-prefix monitor (safety only, weak until)"
+    The default `translate_opts=("monitor", "det", "complete")` compiles a
+    **bad-prefix monitor**: a rollout is flagged at the first finite prefix that
+    can no longer be extended to satisfy the formula. Consequently only
+    **safety** violations are detectable — a *liveness* obligation ("ψ must
+    eventually hold") has no finite counterexample and is never flagged. In
+    particular, an ordering clause written `a U b` is enforced exactly as its
+    safety half, the weak until `a W b` ("do not break `a` before `b`"): the
+    monitor rejects lifting-before-closing, but an idle rollout that never
+    reaches `b` is not a safety violation — reaching `b` is the task goal,
+    checked by the [goal checker](../evaluation/index.md), not by φ. `U` and
+    `W` have identical bad prefixes, so both spellings compile to the same
+    automaton.
 
 ### Spot is optional
 
