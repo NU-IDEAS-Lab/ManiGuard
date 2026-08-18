@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/sft/smolvla/">
+        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/openpi/">
       
       
-        <link rel="prev" href="../gr00t/">
+        <link rel="prev" href="../dataset_and_config/">
       
       
-        <link rel="next" href="../end_to_end/">
+        <link rel="next" href="../gr00t/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>SmolVLA - ManiGuard</title>
+        <title>openpi (pi0.5 / pi0) - ManiGuard</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#smolvla-sft" class="md-skip">
+        <a href="#openpi-pi05-pi0-sft" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              SmolVLA
+              openpi (pi0.5 / pi0)
             
           </span>
         </div>
@@ -313,7 +313,7 @@
   
     
   
-  SFT
+  Fine-Tuning
 
         </a>
       </li>
@@ -1164,7 +1164,7 @@
   <span class="md-ellipsis">
     
   
-    SFT
+    Fine-Tuning
   
 
     
@@ -1186,7 +1186,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    SFT
+    Fine-Tuning
   
 
           </label>
@@ -1226,10 +1226,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../openpi/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    openpi (pi0.5 / pi0)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1245,6 +1272,159 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-input-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Input &amp; output
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-what-the-data-config-does-absolute-delta-absolute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. What the data config does (absolute → delta → absolute)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. What the data config does (absolute → delta → absolute)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cameras-overviews-shipped-2-cam-policy-libero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cameras: overviews shipped, 2-cam policy (LIBERO)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-one-time-setup-on-a-compute-box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. One-time setup on a compute box
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-register-inspect-the-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Register &amp; inspect the config
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Run
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Run">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-layout-everything-under-outputs-gitignored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run layout (everything under outputs/, gitignored)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual building blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-checkpoints-hf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Checkpoints → HF
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-gotchas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Gotchas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-file-pointers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. File pointers
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1282,37 +1462,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SmolVLA
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../smolvla/" class="md-nav__link">
         
   
   
@@ -1328,81 +1481,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#why-smolvla-needs-a-data-prep-rename-step" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why SmolVLA needs a data-prep (rename) step
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#embodiment-schema" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Embodiment &amp; schema
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tooling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tooling
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#running" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Running
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Notes
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1812,10 +1890,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-smolvla-needs-a-data-prep-rename-step" class="md-nav__link">
+  <a href="#1-input-output" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why SmolVLA needs a data-prep (rename) step
+        1. Input &amp; output
       
     </span>
   </a>
@@ -1823,10 +1901,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#embodiment-schema" class="md-nav__link">
+  <a href="#2-what-the-data-config-does-absolute-delta-absolute" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Embodiment &amp; schema
+        2. What the data config does (absolute → delta → absolute)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. What the data config does (absolute → delta → absolute)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cameras-overviews-shipped-2-cam-policy-libero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cameras: overviews shipped, 2-cam policy (LIBERO)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-one-time-setup-on-a-compute-box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. One-time setup on a compute box
       
     </span>
   </a>
@@ -1834,10 +1940,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tooling" class="md-nav__link">
+  <a href="#4-register-inspect-the-config" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tooling
+        4. Register &amp; inspect the config
       
     </span>
   </a>
@@ -1845,10 +1951,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#running" class="md-nav__link">
+  <a href="#5-run" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Running
+        5. Run
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Run">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-layout-everything-under-outputs-gitignored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run layout (everything under outputs/, gitignored)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual building blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-checkpoints-hf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Checkpoints → HF
       
     </span>
   </a>
@@ -1856,10 +2001,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notes" class="md-nav__link">
+  <a href="#7-gotchas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notes
+        7. Gotchas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-file-pointers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. File pointers
       
     </span>
   </a>
@@ -1883,7 +2039,7 @@
 
 
   
-    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/sft/smolvla.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/fine_tuning/openpi.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1891,79 +2047,181 @@
   
 
 
-<h1 id="smolvla-sft">SmolVLA SFT<a class="headerlink" href="#smolvla-sft" title="Permanent link">&para;</a></h1>
-<p>SFT of HuggingFace LeRobot's <strong>SmolVLA</strong> on the same ManiGuard joint LeRobot v2.1
-datasets used for <a href="../openpi/">openpi</a> and <a href="../gr00t/">GR00T</a> — the dataset is
-model-agnostic; SmolVLA only differs in how the shared cameras/state/action are
-presented to it.</p>
-<p>SmolVLA is <strong>LeRobot-native</strong>: it is fine-tuned with the upstream <code>lerobot-train</code>
-CLI and has <strong>no config registry and no embodiment registration</strong>. <code>lerobot-train</code>
-derives the policy's input/output features straight from the dataset's <em>standard</em>
-key prefixes (<code>observation.images.*</code> → visual, <code>observation.state</code> → state,
-<code>action</code> → action), and the architecture is agnostic to camera count and pads the
-state/action vectors to its internal width. So the ManiGuard side is the thinnest
-of the three tracks: a small embodiment <em>contract</em> plus CLI-wrapping tools.</p>
-<h2 id="why-smolvla-needs-a-data-prep-rename-step">Why SmolVLA needs a data-prep (rename) step<a class="headerlink" href="#why-smolvla-needs-a-data-prep-rename-step" title="Permanent link">&para;</a></h2>
-<p>The ManiGuard datagen export uses <strong>flat, non-standard keys</strong> (<code>image_left</code>,
-<code>wrist_image</code>, <code>state</code>, <code>actions</code>, …) and ships <strong>5 camera streams</strong>. openpi and
-GR00T consume those flat keys through an indirection layer (openpi's
-<code>RepackTransform</code>, GR00T's <code>modality.json</code> <code>original_key</code>). <code>lerobot-train</code> has no
-such indirection — it classifies features purely by standard key prefix. So a
-one-time prep step rebuilds a <strong>2-camera, standard-keyed</strong> copy of the dataset:</p>
-<table>
-<thead>
-<tr>
-<th>datagen (source)</th>
-<th>→ SmolVLA (standard)</th>
-<th>note</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>image_&lt;external_cam&gt;</code></td>
-<td><code>observation.images.top</code></td>
-<td>chosen overview (default <code>left</code>)</td>
-</tr>
-<tr>
-<td><code>wrist_image</code></td>
-<td><code>observation.images.wrist</code></td>
-<td>wrist</td>
-</tr>
-<tr>
-<td><code>state</code> (8-D)</td>
-<td><code>observation.state</code></td>
-<td>absolute joint</td>
-</tr>
-<tr>
-<td><code>actions</code> (8-D)</td>
-<td><code>action</code></td>
-<td>absolute joint target</td>
-</tr>
-<tr>
-<td><code>image_opposite</code> / <code>image_right</code> / <code>image_left_shoulder</code></td>
-<td>—</td>
-<td>dropped</td>
-</tr>
-<tr>
-<td><code>actions_commanded</code></td>
-<td>—</td>
-<td>dropped</td>
-</tr>
-</tbody>
-</table>
-<p>Two cameras (overview + wrist) keep parity with the pi0.5 and GR00T tracks
-(identical visual input → a fair benchmark). Videos are passthrough (H.264 copied
-as-is; AV1 transcoded to H.264 so LeRobot's decoder works everywhere). The mapping
-is defined once in <code>maniguard/smolvla_sft/embodiment.py</code> (the single source of
-truth) and applied by <code>prepare_dataset.py</code>.</p>
-<h2 id="embodiment-schema">Embodiment &amp; schema<a class="headerlink" href="#embodiment-schema" title="Permanent link">&para;</a></h2>
+<h1 id="openpi-pi05-pi0-sft">openpi (pi0.5 / pi0) SFT<a class="headerlink" href="#openpi-pi05-pi0-sft" title="Permanent link">&para;</a></h1>
+<p>LoRA SFT of a pi0.5 or pi0 VLA on a ManiGuard <strong>JointController</strong> dataset, using
+openpi's native JAX trainer through ManiGuard's own <code>maniguard/openpi_sft</code>
+task-config module against an <strong>unmodified, parallel openpi clone</strong>. Collection →
+dataset → SFT → eval are all joint-space (no end-effector / IK anywhere).</p>
+<div class="admonition note">
+<p class="admonition-title">The pi0 track</p>
+<p>Everything below is written for pi0.5; the module also registers a <strong>pi0</strong>
+config per family (<code>pi0-base_datagen_v1_&lt;fam&gt;_joint_2cam_lora</code>) with the same
+data pipeline and launcher. The diffs are exactly the model generation:
+warm-start <code>pi0_base</code> instead of <code>pi05_base</code>, continuous state input, and
+<code>action_horizon=50</code> (pi0's native chunk; the pi0.5 configs use 16). Norm
+stats are computed <strong>fresh</strong> under each pi0 config name — the stats pass
+chunks actions by horizon, so the pi0.5 stats are not reusable.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Why a separate module instead of editing openpi</p>
+<p>openpi is consumed as a pinned, <strong>pristine</strong> clone next to ManiGuard. All
+ManiGuard-specific task configs (data config, policy transforms, train configs)
+live in <code>maniguard/openpi_sft</code>; importing that package registers them into
+openpi's <code>_CONFIGS_DICT</code> at runtime. A compute box clones <code>ManiGuard</code> + <code>openpi</code>
+side by side, and nothing in openpi is patched (mirrors how
+<code>maniguard/_omnigibson_patches.py</code> keeps ManiGuard code out of OmniGibson).</p>
+</div>
+<h2 id="1-input-output">1. Input &amp; output<a class="headerlink" href="#1-input-output" title="Permanent link">&para;</a></h2>
+<p><strong>Input</strong>: any ManiGuard joint LeRobot v2.1 dataset (see
+<a href="../dataset_and_config/">Dataset &amp; data-source configs</a>) — primarily the scripted
+<strong>datagen</strong> datasets (<code>datagen-&lt;fam&gt;-v1-joint-5cam</code>), or a sim-teleop
+(<code>sim-&lt;fam&gt;-30-joint-3cam</code>) dataset. The schema is absolute joint:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>state    (f32, 8)  [joint_0..6, gripper]          absolute joint config
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>actions  (f32, 8)  [joint_0..6_target, gripper]   absolute joint target + binary gripper
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>image_*  (video 256×256×3)                         overviews + wrist
+</code></pre></div>
+<p><strong>Output</strong>: a LoRA-finetuned pi0.5 checkpoint ladder pushed to an HF model repo,
+ready for joint-controller eval.</p>
+<p><strong>Pipeline</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>HF joint dataset + pi05_base (GCS)
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  → [compute_norm_stats]   (openpi script, via our launcher)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  → [smoke 100 steps]
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  → openpi train.py        (via our launcher; configs registered by maniguard.openpi_sft)
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  → checkpoints/&lt;cfg&gt;/&lt;exp&gt;/&lt;step&gt;/   (orbax, async)
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>        ↳ hf_push_watcher.py streams each finalized ckpt to HF during the run
+</code></pre></div></p>
+<h2 id="2-what-the-data-config-does-absolute-delta-absolute">2. What the data config does (absolute → delta → absolute)<a class="headerlink" href="#2-what-the-data-config-does-absolute-delta-absolute" title="Permanent link">&para;</a></h2>
+<p>The dataset is <strong>absolute joint</strong>. <code>Sim2CamLiberoDataConfig</code>
+(<code>maniguard/openpi_sft/data_configs.py</code>) drives the openpi pipeline with
+<code>use_delta_joint_actions=True</code> (its default, and required for this pipeline):</p>
 <ul>
-<li><strong>Base model:</strong> <a href="https://huggingface.co/lerobot/smolvla_base"><code>lerobot/smolvla_base</code></a> (SmolVLM2 backbone + flow-matching action expert)</li>
-<li><strong>State / action:</strong> absolute joint 8-D (7 arm joints + 1 gripper), padded to SmolVLA's internal width; the model outputs absolute joint targets fed straight to a <code>JointController</code> at eval (no delta transform — see <a href="../end_to_end/">end to end</a>)</li>
-<li><strong>Cameras (2):</strong> <code>observation.images.top</code> (overview) + <code>observation.images.wrist</code></li>
-<li><strong>Tuning:</strong> SmolVLA default — vision encoder <strong>frozen</strong>, action expert trained (<strong>no LoRA</strong>, same "freeze VLM" strategy as the GR00T N1.6 path)</li>
+<li><strong>State</strong> <code>[joint_0..6, gripper]</code> (8-D) is fed as-is.</li>
+<li><strong>Action</strong> <code>[joint_0..6_target, gripper]</code> (8-D): the 7 arm joints are converted
+  to <strong>per-step deltas</strong> for the model (gripper kept absolute), via openpi's
+  <code>DeltaActions</code>/<code>AbsoluteActions</code> with <code>make_bool_mask(7, -1)</code>. At inference the
+  model's delta output is reconstructed to an <strong>absolute joint target</strong>, which an
+  eval-time <code>JointController</code> consumes directly — no eef→joint IK. This mirrors
+  openpi's <code>RLDSDroidDataConfig</code> JOINT_POSITION handling.</li>
 </ul>
-<h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
+<p><code>use_delta_joint_actions</code> stays <code>True</code>. The <code>False</code> (EEF) branch exists only to
+keep the class general — do not use it here (it would mis-read the absolute joint
+actions as 7-D EEF deltas).</p>
+<h3 id="cameras-overviews-shipped-2-cam-policy-libero">Cameras: overviews shipped, 2-cam policy (LIBERO)<a class="headerlink" href="#cameras-overviews-shipped-2-cam-policy-libero" title="Permanent link">&para;</a></h3>
+<p>pi0.5 / Franka use one wrist + one third-person view (LIBERO 2-cam), so exactly
+one overview is consumed and the third pi0.5 image slot is zeroed/masked:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>base_0_rgb        ← image_&lt;external_cam&gt;   (chosen third-person overview)
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>left_wrist_0_rgb  ← wrist_image            (wrist)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>right_wrist_0_rgb ← zeros, masked off
+</code></pre></div>
+<p><code>external_cam</code> (config field, default <code>left</code>) picks WHICH dataset overview feeds
+the fixed policy key <code>observation/image_left</code>. Per family one view may be higher
+quality; <strong>eval must read the same <code>external_cam</code> back from the checkpoint's
+train config</strong> to stay in distribution. See
+<code>maniguard/openpi_sft/policies/sim_2cam_policy.py</code>.</p>
+<h2 id="3-one-time-setup-on-a-compute-box">3. One-time setup on a compute box<a class="headerlink" href="#3-one-time-setup-on-a-compute-box" title="Permanent link">&para;</a></h2>
+<p>Clone ManiGuard and openpi <strong>side by side</strong> and export the env once in your rc:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>&lt;root&gt;/
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  ManiGuard/     # this repo
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  openpi/        # pristine upstream clone, openpi's own venv installed
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OPENPI_ROOT</span><span class="o">=</span>/abs/path/to/openpi<span class="w">   </span><span class="c1"># default fallback is ../openpi</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HF_TOKEN</span><span class="o">=</span>hf_...<span class="w">                    </span><span class="c1"># dataset pull + checkpoint push</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">WANDB_API_KEY</span><span class="o">=</span>...<span class="w">                  </span><span class="c1"># training logs (required)</span>
+</code></pre></div>
+<p><code>maniguard.openpi_sft</code> only needs to be importable on <code>PYTHONPATH</code> (the launchers
+add the repo root automatically).</p>
+<h2 id="4-register-inspect-the-config">4. Register &amp; inspect the config<a class="headerlink" href="#4-register-inspect-the-config" title="Permanent link">&para;</a></h2>
+<p>Importing <code>maniguard.openpi_sft</code> registers the TrainConfigs into openpi — no
+registration command. Each SFT run should get its <strong>own uniquely-named config</strong>
+(fully inline in <code>maniguard/openpi_sft/train_configs.py</code>). A config carries the
+run identity so a fresh box / another person / an agent can launch from just
+<code>--config</code>:</p>
+<ul>
+<li><code>project_name="maniguard-sft"</code> — the wandb project for all ManiGuard SFT.</li>
+<li><code>policy_metadata</code> (openpi never interprets it; carries publish metadata):</li>
+<li><code>default_exp</code> — experiment / wandb run name + <code>outputs/sft_runs/&lt;exp&gt;/</code> folder.</li>
+<li><code>hf_repo</code> — the model repo checkpoints push to.</li>
+<li><code>hf_private</code> — push visibility (<code>False</code> = public model repo; datasets stay private).</li>
+</ul>
+<p><code>run_sft.sh</code> reads these via <code>tools/openpi_sft/_config_meta.py</code>, so launching
+needs only <code>--config</code>; any CLI flag still overrides.</p>
+<div class="admonition tip">
+<p class="admonition-title">Training scale is a placeholder</p>
+<p>Configs ship a placeholder scale. Retune <code>num_train_steps</code> per compute box;
+keep <code>decay_steps == num_train_steps</code>, <code>keep_period = steps // 5</code>, and
+sqrt-scale <code>peak_lr</code> when you raise the batch size.</p>
+</div>
+<h2 id="5-run">5. Run<a class="headerlink" href="#5-run" title="Permanent link">&para;</a></h2>
+<p><code>tools/openpi_sft/run_sft.sh</code> orchestrates the whole run: computes norm stats
+(sim configs warm-start from <code>pi05_base</code>, which ships none), runs a 100-step
+smoke and deletes it, launches the HF-push watcher in the background, then runs
+the full training and waits for the final upload. Exp name, HF repo, and
+visibility default from the config, so the minimal launch is just <code>--config</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>ManiGuard
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>tools/openpi_sft/run_sft.sh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--config<span class="w"> </span>pi05-base_datagen_v1_dusty_joint_2cam_lora<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--norm-stats
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># → exp=pi05-base_datagen_v1_dusty_joint_2cam_lora,</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1">#   push → &lt;org&gt;/pi05-base-datagen-v1-dusty-joint-2cam-lora (from the config's policy_metadata),</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1">#   artifacts under outputs/sft_runs/pi05-base_datagen_v1_dusty_joint_2cam_lora/</span>
+</code></pre></div>
+<p>Run it inside tmux (training is long); detach with <code>Ctrl+b d</code>. Override anything:
+<code>--exp</code>, <code>--steps</code>, <code>--batch</code>, <code>--keep-period</code>, <code>--push-repo</code>, <code>--push-private</code>,
+<code>--no-push</code>, <code>--no-smoke</code>, <code>--smoke-only</code>, <code>--resume</code>, <code>--overwrite</code>,
+<code>--poll-interval</code>. A missing <code>WANDB_API_KEY</code> (or <code>HF_TOKEN</code> when pushing) is a
+hard error.</p>
+<h3 id="run-layout-everything-under-outputs-gitignored">Run layout (everything under <code>outputs/</code>, gitignored)<a class="headerlink" href="#run-layout-everything-under-outputs-gitignored" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ManiGuard/outputs/
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  sft_runs/&lt;exp&gt;/
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    checkpoints/&lt;config_name&gt;/&lt;exp&gt;/&lt;step&gt;/   # orbax ckpts (params/ assets/ train_state/)
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    assets/&lt;config_name&gt;/...                  # computed norm stats
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    logs/{normstats,smoke,train,watcher}.log
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>  openpi_cache/                               # pi05_base warm-start (shared)
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>  hf/{lerobot,home,datasets}/                 # HF caches incl. training dataset (shared)
+</code></pre></div>
+<p><code>run_sft.sh</code> force-sets <code>--checkpoint-base-dir</code> / <code>--assets-base-dir</code>,
+<code>OPENPI_DATA_HOME</code>, and the HF caches into <code>outputs/</code> (process-local, so a host rc
+pointing these at an unwritable path can't break the run, and other projects are
+unaffected).</p>
+<h3 id="manual-building-blocks">Manual building blocks<a class="headerlink" href="#manual-building-blocks" title="Permanent link">&para;</a></h3>
+<p>Each launcher imports <code>maniguard.openpi_sft</code> first, then delegates to the pristine
+openpi script (these bypass <code>run_sft.sh</code>, so pass <code>--checkpoint-base-dir</code> /
+<code>--assets-base-dir</code> yourself):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># norm stats (openpi's script is tyro.cli → config name is the --config-name flag)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>python<span class="w"> </span>tools/openpi_sft/compute_norm_stats.py<span class="w"> </span>--config-name<span class="w"> </span>&lt;config&gt;
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># training (all openpi train.py flags pass through)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>python<span class="w"> </span>tools/openpi_sft/train.py<span class="w"> </span>&lt;config&gt;<span class="w"> </span>--exp-name<span class="w"> </span>&lt;exp&gt;<span class="w"> </span><span class="o">[</span>--overwrite<span class="o">]</span>
+</code></pre></div>
+<h2 id="6-checkpoints-hf">6. Checkpoints → HF<a class="headerlink" href="#6-checkpoints-hf" title="Permanent link">&para;</a></h2>
+<p>Two uploaders share one de-dup rule (never double-push, resume-safe). "Already
+pushed" = the local <code>&lt;step&gt;/params/</code> filename set is a subset of the live HF
+repo's <code>&lt;remote_label&gt;/params/</code>, checked against HF itself. Both upload <code>params/</code>
++ <code>assets/</code> (norm stats), skip <code>train_state/</code>. The 0-indexed final step
+(<code>num_train_steps - 1</code>) is relabeled to the round <code>num_train_steps</code> on HF.</p>
+<ul>
+<li><strong><code>hf_push_watcher.py</code></strong> — launched in the background by <code>run_sft.sh</code>; uploads
+  each checkpoint the moment it finalizes, so checkpoints land on HF <em>during</em> the
+  run without blocking the GPU. Exits once the final step is confirmed on HF.</li>
+<li><strong><code>hf_push.py</code></strong> — one-shot backfill; skips whatever is already complete on HF.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w"> </span>tools/openpi_sft/hf_push.py<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--ckpt-dir<span class="w"> </span>outputs/sft_runs/&lt;exp&gt;/checkpoints/&lt;config&gt;/&lt;exp&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--repo<span class="w"> </span>&lt;org&gt;/&lt;model-repo&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--num-train-steps<span class="w"> </span>&lt;steps&gt;<span class="w"> </span><span class="o">[</span>--readme<span class="w"> </span>&lt;path/to/model_card.md&gt;<span class="o">]</span><span class="w"> </span><span class="o">[</span>--private<span class="o">]</span>
+</code></pre></div>
+<h2 id="7-gotchas">7. Gotchas<a class="headerlink" href="#7-gotchas" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>openpi stays pristine.</strong> Never edit the openpi clone; add task configs in
+  <code>maniguard/openpi_sft</code> and let <code>register()</code> inject them.</li>
+<li><strong>Norm stats are per-dataset.</strong> <code>pi05_base</code> ships none, so <code>--norm-stats</code> is
+  required the first time for each new dataset.</li>
+<li><strong>Final checkpoint is 0-indexed</strong> (<code>steps-1</code>); the uploaders relabel it to the
+  round number. Keep <code>--num-train-steps</code> consistent between train and <code>hf_push.py</code>.</li>
+<li><strong><code>external_cam</code> must match at eval</strong> — read it back from the checkpoint's train
+  config, or the policy sees an out-of-distribution viewpoint.</li>
+</ul>
+<h2 id="8-file-pointers">8. File pointers<a class="headerlink" href="#8-file-pointers" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1973,53 +2231,39 @@ truth) and applied by <code>prepare_dataset.py</code>.</p>
 </thead>
 <tbody>
 <tr>
-<td>Embodiment contract (flat → standard key map, dims)</td>
-<td><code>maniguard/smolvla_sft/embodiment.py</code></td>
+<td>Data config (joint, 2-cam LIBERO, <code>external_cam</code>)</td>
+<td><code>maniguard/openpi_sft/data_configs.py</code></td>
 </tr>
 <tr>
-<td>Dataset prep (5-cam flat → 2-cam standard-keyed copy)</td>
-<td><code>tools/smolvla_sft/prepare_dataset.py</code></td>
+<td>Policy transforms (2-cam mapping)</td>
+<td><code>maniguard/openpi_sft/policies/sim_2cam_policy.py</code></td>
 </tr>
 <tr>
-<td>SFT launcher (wraps <code>lerobot-train</code>)</td>
-<td><code>tools/smolvla_sft/run_sft.sh</code></td>
+<td>Train configs + <code>register()</code></td>
+<td><code>maniguard/openpi_sft/train_configs.py</code></td>
 </tr>
 <tr>
-<td>Push checkpoint + card to HF</td>
-<td><code>tools/smolvla_sft/push_to_hf.py</code></td>
+<td>Train / norm-stats launchers</td>
+<td><code>tools/openpi_sft/{train,compute_norm_stats}.py</code></td>
 </tr>
 <tr>
-<td>End-to-end 6-family driver</td>
-<td><code>tools/smolvla_sft/run_all.sh</code></td>
+<td>Run orchestration</td>
+<td><code>tools/openpi_sft/run_sft.sh</code></td>
+</tr>
+<tr>
+<td>Config-metadata reader</td>
+<td><code>tools/openpi_sft/_config_meta.py</code></td>
+</tr>
+<tr>
+<td>HF uploaders + shared de-dup</td>
+<td><code>tools/openpi_sft/{hf_push_watcher,hf_push,_hf_push_common}.py</code></td>
+</tr>
+<tr>
+<td>Dataset production (upstream of SFT)</td>
+<td><a href="../dataset_and_config/">Dataset &amp; data-source configs</a></td>
 </tr>
 </tbody>
 </table>
-<p>Training runs against a <strong><code>huggingface/lerobot</code> clone</strong> (pinned tag, installed with
-the <code>smolvla</code> extra) in the same environment that produces the prepared dataset.
-Model repos follow
-<code>&lt;org&gt;/smolvla-base-datagen-v1-&lt;fam&gt;-joint-2cam</code> (e.g.
-<code>IDEAS-Lab-Northwestern/smolvla-base-datagen-v1-clutter-joint-2cam</code>); run/experiment
-names follow <code>smolvla-base_datagen_v1_&lt;fam&gt;_joint_2cam</code> (no <code>_lora</code> suffix — SmolVLA
-does not use LoRA).</p>
-<h2 id="running">Running<a class="headerlink" href="#running" title="Permanent link">&para;</a></h2>
-<p>One family, or all six serially (download → prepare → train → push):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HF_TOKEN</span><span class="o">=</span>...<span class="w">  </span><span class="nv">WANDB_API_KEY</span><span class="o">=</span>...<span class="w">          </span><span class="c1"># both required (pre-flight checked)</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>bash<span class="w"> </span>tools/smolvla_sft/run_all.sh<span class="w"> </span>--family<span class="w"> </span>clutter
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>bash<span class="w"> </span>tools/smolvla_sft/run_all.sh<span class="w"> </span>--all
-</code></pre></div>
-<p>Each family downloads its <code>datagen-&lt;fam&gt;-v1-joint-5cam</code> dataset once into the shared
-cache (<code>MANIGUARD_SFT_DATA_ROOT</code>, default <code>outputs/sft_datasets/</code>, shared with the
-openpi and GR00T tracks), prepares the 2-cam copy, trains ~2 epochs, and pushes.
-Steps derive from each dataset's frame count as <code>ceil(frames × 2 / batch)</code>.</p>
-<h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>LeRobot version pin.</strong> The <code>lerobot-train</code> flag surface has changed across
-  releases (e.g. <code>--policy.path</code> vs the older <code>--policy.type</code>). Clone
-  <code>huggingface/lerobot</code> at a pinned tag, <code>pip install -e .[smolvla]</code>, and verify the
-  flags in <code>run_sft.sh</code> against <code>lerobot-train --help</code> for that tag.</li>
-<li><strong>Compute knobs</strong> (batch size, num_workers, save frequency, LR schedule): the
-  defaults in <code>run_all.sh</code> / <code>run_sft.sh</code> are starting points; tune for your hardware.</li>
-</ul>
 
 
 

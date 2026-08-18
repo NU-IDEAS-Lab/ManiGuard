@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/sft/dataset_and_config/">
+        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/dataset_and_config/">
       
       
         <link rel="prev" href="../">
@@ -313,7 +313,7 @@
   
     
   
-  SFT
+  Fine-Tuning
 
         </a>
       </li>
@@ -1164,7 +1164,7 @@
   <span class="md-ellipsis">
     
   
-    SFT
+    Fine-Tuning
   
 
     
@@ -1186,7 +1186,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    SFT
+    Fine-Tuning
   
 
           </label>
@@ -1917,7 +1917,7 @@
 
 
   
-    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/sft/dataset_and_config.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/fine_tuning/dataset_and_config.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1988,7 +1988,7 @@ config</strong> to stay in distribution.</p>
 <li>Conversion runs in a dedicated <strong><code>.venv-lerobot</code></strong> uv venv, pinned <code>lerobot&lt;0.4</code>,
   separate from the <code>behavior</code> conda env:
   <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.11<span class="w"> </span>.venv-lerobot
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span>.venv-lerobot/bin/python<span class="w"> </span><span class="s1">&#39;lerobot&lt;0.4&#39;</span><span class="w"> </span>h5py<span class="w"> </span>pyarrow<span class="w"> </span>opencv-python
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--python<span class="w"> </span>.venv-lerobot/bin/python<span class="w"> </span><span class="s1">'lerobot&lt;0.4'</span><span class="w"> </span>h5py<span class="w"> </span>pyarrow<span class="w"> </span>opencv-python
 </code></pre></div></li>
 <li><strong>The <code>v2.1</code> git tag is mandatory</strong> on the HF repo — openpi's data loader pulls
   the dataset at that tag. Always push via LeRobot's <code>push_to_hub(..., tag_version=True)</code>

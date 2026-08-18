@@ -305,13 +305,13 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../sft/" class="md-tabs__link">
+        <a href="../../fine_tuning/" class="md-tabs__link">
           
   
   
     
   
-  SFT
+  Fine-Tuning
 
         </a>
       </li>
@@ -1152,14 +1152,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../sft/" class="md-nav__link ">
+            <a href="../../fine_tuning/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    SFT
+    Fine-Tuning
   
 
     
@@ -1181,7 +1181,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    SFT
+    Fine-Tuning
   
 
           </label>
@@ -1196,7 +1196,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/dataset_and_config/" class="md-nav__link">
+      <a href="../../fine_tuning/dataset_and_config/" class="md-nav__link">
         
   
   
@@ -1224,7 +1224,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/openpi/" class="md-nav__link">
+      <a href="../../fine_tuning/openpi/" class="md-nav__link">
         
   
   
@@ -1252,7 +1252,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/gr00t/" class="md-nav__link">
+      <a href="../../fine_tuning/gr00t/" class="md-nav__link">
         
   
   
@@ -1280,7 +1280,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/smolvla/" class="md-nav__link">
+      <a href="../../fine_tuning/smolvla/" class="md-nav__link">
         
   
   
@@ -1308,7 +1308,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/end_to_end/" class="md-nav__link">
+      <a href="../../fine_tuning/end_to_end/" class="md-nav__link">
         
   
   
@@ -2026,14 +2026,14 @@ by step. The system has two layers:</p>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">monitor</span> <span class="o">=</span> <span class="n">TaskLTLMonitor</span><span class="p">(</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">env</span><span class="p">,</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">ltl_safety</span><span class="o">=</span><span class="n">ltl_safety_dict</span><span class="p">,</span>         <span class="c1"># the task&#39;s spec dict; {} disables monitoring</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">activity_name</span><span class="o">=</span><span class="s2">&quot;pnp_clutter&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">active_objects_by_inst</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;wineglass.n.01_1&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="p">,</span> <span class="o">...</span><span class="p">},</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">ltl_safety</span><span class="o">=</span><span class="n">ltl_safety_dict</span><span class="p">,</span>         <span class="c1"># the task's spec dict; {} disables monitoring</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">activity_name</span><span class="o">=</span><span class="s2">"pnp_clutter"</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">active_objects_by_inst</span><span class="o">=</span><span class="p">{</span><span class="s2">"wineglass.n.01_1"</span><span class="p">:</span> <span class="n">obj</span><span class="p">,</span> <span class="o">...</span><span class="p">},</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">monitor</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_steps</span><span class="p">):</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">info</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>           <span class="c1"># {&quot;step&quot;,&quot;ap&quot;,&quot;state&quot;,&quot;accepting&quot;,&quot;doomed&quot;}</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">info</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>           <span class="c1"># {"step","ap","state","accepting","doomed"}</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="k">if</span> <span class="n">monitor</span><span class="o">.</span><span class="n">violated</span><span class="p">:</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="k">break</span>
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">summary</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>             <span class="c1"># formula, constraints, violated, violation_step, log</span>
@@ -2053,20 +2053,20 @@ dormant compatibility paths, not used by the benchmark: a task-level
 passed; scene- and task-level constraints are then AND-joined).</p>
 <h3 id="the-spec-schema-ltl_safety">The spec schema (<code>ltl_safety</code>)<a class="headerlink" href="#the-spec-schema-ltl_safety" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;activity_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pnp_clutter&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;constraints&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;no_glass_dropped&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;ltl&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;G (! p_glass_dropped)&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">}</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"activity_name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pnp_clutter"</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"constraints"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"no_glass_dropped"</span><span class="p">,</span><span class="w"> </span><span class="nt">"ltl"</span><span class="p">:</span><span class="w"> </span><span class="s2">"G (! p_glass_dropped)"</span><span class="p">,</span><span class="w"> </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"..."</span><span class="p">}</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">&quot;propositions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nt">&quot;p_glass_dropped&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">&quot;check&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;any&quot;</span><span class="p">,</span><span class="w">                 </span><span class="c1">// &quot;any&quot; | &quot;all&quot; over matched objects</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">      </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dropped&quot;</span><span class="p">,</span><span class="w">             </span><span class="c1">// unary or binary state name</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">      </span><span class="nt">&quot;over&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;wineglass.n.01_*&quot;</span><span class="p">],</span><span class="w">   </span><span class="c1">// synset-glob subjects</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="nt">&quot;relative_to&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;table.n.02_*&quot;</span><span class="p">],</span><span class="c1">// for binary states</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;max_tilt_deg&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">45</span><span class="p">}</span><span class="w">  </span><span class="c1">// forwarded to the state instance</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">"propositions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nt">"p_glass_dropped"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">"check"</span><span class="p">:</span><span class="w"> </span><span class="s2">"any"</span><span class="p">,</span><span class="w">                 </span><span class="c1">// "any" | "all" over matched objects</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"dropped"</span><span class="p">,</span><span class="w">             </span><span class="c1">// unary or binary state name</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">      </span><span class="nt">"over"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"wineglass.n.01_*"</span><span class="p">],</span><span class="w">   </span><span class="c1">// synset-glob subjects</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="nt">"relative_to"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"table.n.02_*"</span><span class="p">],</span><span class="c1">// for binary states</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"max_tilt_deg"</span><span class="p">:</span><span class="w"> </span><span class="mi">45</span><span class="p">}</span><span class="w">  </span><span class="c1">// forwarded to the state instance</span>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="p">},</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="nt">&quot;combined_ltl&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;G (! p_glass_dropped)&quot;</span><span class="w">   </span><span class="c1">// auto-generated if omitted</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="nt">"combined_ltl"</span><span class="p">:</span><span class="w"> </span><span class="s2">"G (! p_glass_dropped)"</span><span class="w">   </span><span class="c1">// auto-generated if omitted</span>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="p">}</span>
 </code></pre></div>
 <p><code>SafetyPropositionEvaluator</code> builds an <code>eval_fn</code> per proposition. Supported:</p>
@@ -2094,9 +2094,9 @@ the current step.</p>
 <h3 id="automaton-monitoring-ltlmonitor">Automaton monitoring (<code>LTLMonitor</code>)<a class="headerlink" href="#automaton-monitoring-ltlmonitor" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">maniguard.utils.ltl_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">LTLMonitor</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mon</span> <span class="o">=</span> <span class="n">LTLMonitor</span><span class="p">(</span><span class="s2">&quot;G (! p_bad)&quot;</span><span class="p">,</span> <span class="n">translate_opts</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;monitor&quot;</span><span class="p">,</span> <span class="s2">&quot;det&quot;</span><span class="p">,</span> <span class="s2">&quot;complete&quot;</span><span class="p">))</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mon</span> <span class="o">=</span> <span class="n">LTLMonitor</span><span class="p">(</span><span class="s2">"G (! p_bad)"</span><span class="p">,</span> <span class="n">translate_opts</span><span class="o">=</span><span class="p">(</span><span class="s2">"monitor"</span><span class="p">,</span> <span class="s2">"det"</span><span class="p">,</span> <span class="s2">"complete"</span><span class="p">))</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">mon</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">result</span> <span class="o">=</span> <span class="n">mon</span><span class="o">.</span><span class="n">step</span><span class="p">({</span><span class="s2">&quot;p_bad&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>   <span class="c1"># {&quot;state&quot;,&quot;accepting&quot;,&quot;ap&quot;,&quot;doomed&quot;}</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">result</span> <span class="o">=</span> <span class="n">mon</span><span class="o">.</span><span class="n">step</span><span class="p">({</span><span class="s2">"p_bad"</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>   <span class="c1"># {"state","accepting","ap","doomed"}</span>
 </code></pre></div>
 <p><code>LTLMonitor</code> uses Spot to parse the formula, collect its atomic props, and
 <code>spot.translate()</code> it into an automaton. Each <code>step(label_dict)</code> builds a BDD

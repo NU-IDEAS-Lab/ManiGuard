@@ -307,13 +307,13 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../sft/" class="md-tabs__link">
+        <a href="../../fine_tuning/" class="md-tabs__link">
           
   
   
     
   
-  SFT
+  Fine-Tuning
 
         </a>
       </li>
@@ -1281,14 +1281,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../sft/" class="md-nav__link ">
+            <a href="../../fine_tuning/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    SFT
+    Fine-Tuning
   
 
     
@@ -1310,7 +1310,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    SFT
+    Fine-Tuning
   
 
           </label>
@@ -1325,7 +1325,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/dataset_and_config/" class="md-nav__link">
+      <a href="../../fine_tuning/dataset_and_config/" class="md-nav__link">
         
   
   
@@ -1353,7 +1353,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/openpi/" class="md-nav__link">
+      <a href="../../fine_tuning/openpi/" class="md-nav__link">
         
   
   
@@ -1381,7 +1381,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/gr00t/" class="md-nav__link">
+      <a href="../../fine_tuning/gr00t/" class="md-nav__link">
         
   
   
@@ -1409,7 +1409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/smolvla/" class="md-nav__link">
+      <a href="../../fine_tuning/smolvla/" class="md-nav__link">
         
   
   
@@ -1437,7 +1437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/end_to_end/" class="md-nav__link">
+      <a href="../../fine_tuning/end_to_end/" class="md-nav__link">
         
   
   
@@ -1939,7 +1939,7 @@
 <p>ManiGuard runs in the <strong><code>behavior</code> conda env</strong> — OmniGibson simulation, BDDL,
 teleop, task generation, scripted data generation, and eval. Policy training/serving
 runs in each model's own environment (openpi / GR00T / SmolVLA — see the
-<a href="../../sft/">SFT</a> pages).</p>
+<a href="../../fine_tuning/">Fine-Tuning</a> pages).</p>
 <h2 id="1-clone-with-submodules">1. Clone with submodules<a class="headerlink" href="#1-clone-with-submodules" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>--recursive<span class="w"> </span>https://github.com/NU-IDEAS-Lab/ManiGuard.git
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>ManiGuard
@@ -1961,7 +1961,7 @@ Dependencies: <code>--omnigibson</code> requires <code>--bddl</code>; <code>--pr
 <h2 id="3-install-maniguard-editable">3. Install ManiGuard (editable)<a class="headerlink" href="#3-install-maniguard-editable" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="w">                 </span><span class="c1"># base</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[serve]&quot;</span><span class="w">        </span><span class="c1"># with policy-server extras</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[serve]"</span><span class="w">        </span><span class="c1"># with policy-server extras</span>
 </code></pre></div>
 <h2 id="4-maniguard-bench-robot-asset">4. ManiGuard-Bench + robot asset<a class="headerlink" href="#4-maniguard-bench-robot-asset" title="Permanent link">&para;</a></h2>
 <p>To <strong>run the benchmark</strong> you need two ManiGuard-owned artifacts (both separate from
@@ -1990,7 +1990,7 @@ grasp them. Verify the path above exists before your first eval or datagen run.<
 the HF cache) or a local directory:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># A) let eval pull it (run `hf auth login` first)</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.eval.benchmark<span class="w"> </span>--benchmark-root<span class="w"> </span>IDEAS-Lab-Northwestern/ManiGuard-Bench<span class="w"> </span>...
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># B) or download once to the family runner&#39;s default location</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># B) or download once to the family runner's default location</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>hf<span class="w"> </span>download<span class="w"> </span>IDEAS-Lab-Northwestern/ManiGuard-Bench<span class="w"> </span>--repo-type<span class="w"> </span>dataset<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>--local-dir<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench
 </code></pre></div>

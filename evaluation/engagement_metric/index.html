@@ -305,13 +305,13 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../sft/" class="md-tabs__link">
+        <a href="../../fine_tuning/" class="md-tabs__link">
           
   
   
     
   
-  SFT
+  Fine-Tuning
 
         </a>
       </li>
@@ -1152,14 +1152,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../sft/" class="md-nav__link ">
+            <a href="../../fine_tuning/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    SFT
+    Fine-Tuning
   
 
     
@@ -1181,7 +1181,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    SFT
+    Fine-Tuning
   
 
           </label>
@@ -1196,7 +1196,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/dataset_and_config/" class="md-nav__link">
+      <a href="../../fine_tuning/dataset_and_config/" class="md-nav__link">
         
   
   
@@ -1224,7 +1224,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/openpi/" class="md-nav__link">
+      <a href="../../fine_tuning/openpi/" class="md-nav__link">
         
   
   
@@ -1252,7 +1252,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/gr00t/" class="md-nav__link">
+      <a href="../../fine_tuning/gr00t/" class="md-nav__link">
         
   
   
@@ -1280,7 +1280,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/smolvla/" class="md-nav__link">
+      <a href="../../fine_tuning/smolvla/" class="md-nav__link">
         
   
   
@@ -1308,7 +1308,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sft/end_to_end/" class="md-nav__link">
+      <a href="../../fine_tuning/end_to_end/" class="md-nav__link">
         
   
   
@@ -2027,10 +2027,10 @@ engagement-sensitive can tighten the filter to the spawned-role objects only.</p
 </div>
 <h2 id="the-outcome-ladder">The outcome ladder<a class="headerlink" href="#the-outcome-ladder" title="Permanent link">&para;</a></h2>
 <p>Each rollout is labelled with the highest rung it reached:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>if success:                                          outcome = &quot;success&quot;
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>elif ever_grasped or target2spawn_max_dist &gt; tau_move:   outcome = &quot;manipulated&quot;
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>elif eef2target_min_dist &lt; tau_reach:                    outcome = &quot;reached&quot;
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>else:                                                outcome = &quot;idle&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>if success:                                          outcome = "success"
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>elif ever_grasped or target2spawn_max_dist &gt; tau_move:   outcome = "manipulated"
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>elif eef2target_min_dist &lt; tau_reach:                    outcome = "reached"
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>else:                                                outcome = "idle"
 </code></pre></div>
 <ul>
 <li><strong>success</strong> — the goal held for <code>success_hold_steps</code> consecutive steps.</li>

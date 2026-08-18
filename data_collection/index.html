@@ -16,7 +16,7 @@
         <link rel="prev" href="../pipelines/other_families/">
       
       
-        <link rel="next" href="../sft/">
+        <link rel="next" href="../fine_tuning/">
       
       
         
@@ -307,13 +307,13 @@
     
     
       <li class="md-tabs__item">
-        <a href="../sft/" class="md-tabs__link">
+        <a href="../fine_tuning/" class="md-tabs__link">
           
   
   
     
   
-  SFT
+  Fine-Tuning
 
         </a>
       </li>
@@ -1527,14 +1527,14 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../sft/" class="md-nav__link ">
+            <a href="../fine_tuning/" class="md-nav__link ">
               
   
   
   <span class="md-ellipsis">
     
   
-    SFT
+    Fine-Tuning
   
 
     
@@ -1556,7 +1556,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    SFT
+    Fine-Tuning
   
 
           </label>
@@ -1571,7 +1571,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sft/dataset_and_config/" class="md-nav__link">
+      <a href="../fine_tuning/dataset_and_config/" class="md-nav__link">
         
   
   
@@ -1599,7 +1599,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sft/openpi/" class="md-nav__link">
+      <a href="../fine_tuning/openpi/" class="md-nav__link">
         
   
   
@@ -1627,7 +1627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sft/gr00t/" class="md-nav__link">
+      <a href="../fine_tuning/gr00t/" class="md-nav__link">
         
   
   
@@ -1655,7 +1655,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sft/smolvla/" class="md-nav__link">
+      <a href="../fine_tuning/smolvla/" class="md-nav__link">
         
   
   
@@ -1683,7 +1683,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sft/end_to_end/" class="md-nav__link">
+      <a href="../fine_tuning/end_to_end/" class="md-nav__link">
         
   
   
@@ -2650,10 +2650,10 @@ each grasp incrementally (reopening auto-resumes, never overwrites).</p>
   <strong>closing (between fingers) = eef −Y</strong>. The GUI draws the gripper using this frame.</li>
 <li><strong>Prerequisite</strong>: <code>mesh_db.json</code> (step 1 output; the GUI renders objects from it).</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">&quot;objects&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;&lt;category&gt;/&lt;model&gt;&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="nt">&quot;bbox_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;upright_orientation_xyzw&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;mesh&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;meshes/...glb&quot;</span><span class="p">,</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">&quot;grasps&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;position&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;orientation_xyzw&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">                  </span><span class="nt">&quot;approach_hint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;top_down|side&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"objects"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"&lt;category&gt;/&lt;model&gt;"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="nt">"bbox_size"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"upright_orientation_xyzw"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"mesh"</span><span class="p">:</span><span class="w"> </span><span class="s2">"meshes/...glb"</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">"grasps"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"orientation_xyzw"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">                  </span><span class="nt">"approach_hint"</span><span class="p">:</span><span class="w"> </span><span class="s2">"top_down|side"</span><span class="p">,</span><span class="w"> </span><span class="nt">"label"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 </details>
 <details class="example">
@@ -3516,7 +3516,7 @@ script; both arms convert through the identical flow):</p>
 </ul>
 <p>Naming: <code>&lt;org&gt;/sim-&lt;fam&gt;-30-joint-3cam</code> (e.g. <code>&lt;org&gt;/sim-dusty-transfer-30-joint-3cam</code>).
 The resulting dataset uses the same absolute-joint LeRobot schema as the other sources —
-see <a href="../sft/dataset_and_config/">SFT dataset &amp; data-source configs</a>.</p>
+see <a href="../fine_tuning/dataset_and_config/">SFT dataset &amp; data-source configs</a>.</p>
 <h3 id="real-robot-teleop-lerobot">Real-robot teleop → LeRobot<a class="headerlink" href="#real-robot-teleop-lerobot" title="Permanent link">&para;</a></h3>
 <p>Converts <strong>real Franka teleop captures</strong> (<code>.npz</code>, one per episode under
 <code>outputs/real_teleop/</code>) into a LeRobot v2.1 SFT dataset. This is the only real-robot
@@ -3527,7 +3527,7 @@ the two target conventions (<code>maniguard/data/real_teleop/</code>):</p>
 stays consistent with the sim tracks):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>.venv-lerobot/bin/python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_droid<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>--repo-id<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">&quot;&lt;instruction&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>--repo-id<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"&lt;instruction&gt;"</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span>--root<span class="w"> </span>outputs/lerobot_datasets/&lt;org&gt;/&lt;task&gt;<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span>--push-to-hub<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--hub-private
 </code></pre></div>
@@ -3545,7 +3545,7 @@ export above:</p>
 <code>action</code> = <code>dpos(3) + drot_axisangle(3) + gripper(1)</code> (7-D), with <code>image</code> +
 <code>wrist_image</code>. That HDF5 then goes through the same <strong>Stage 2</strong> export as sim teleop.</p>
 <p>The resulting datasets use the same LeRobot v2.1 conventions as the sim sources — see
-<a href="../sft/dataset_and_config/">SFT dataset &amp; data-source configs</a>.</p>
+<a href="../fine_tuning/dataset_and_config/">SFT dataset &amp; data-source configs</a>.</p>
 <hr />
 <h2 id="the-data-package">The <code>data/</code> package<a class="headerlink" href="#the-data-package" title="Permanent link">&para;</a></h2>
 <p>All dataset-producing code lives under <code>maniguard/data/</code>, grouped by function:</p>

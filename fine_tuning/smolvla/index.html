@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/sft/gr00t/">
+        <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/smolvla/">
       
       
-        <link rel="prev" href="../openpi/">
+        <link rel="prev" href="../gr00t/">
       
       
-        <link rel="next" href="../smolvla/">
+        <link rel="next" href="../end_to_end/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>GR00T (N1.6) - ManiGuard</title>
+        <title>SmolVLA - ManiGuard</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#gr00t-n16-sft" class="md-skip">
+        <a href="#smolvla-sft" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              GR00T (N1.6)
+              SmolVLA
             
           </span>
         </div>
@@ -313,7 +313,7 @@
   
     
   
-  SFT
+  Fine-Tuning
 
         </a>
       </li>
@@ -1164,7 +1164,7 @@
   <span class="md-ellipsis">
     
   
-    SFT
+    Fine-Tuning
   
 
     
@@ -1186,7 +1186,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    SFT
+    Fine-Tuning
   
 
           </label>
@@ -1254,6 +1254,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../gr00t/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GR00T (N1.6)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -1273,7 +1301,7 @@
   <span class="md-ellipsis">
     
   
-    GR00T (N1.6)
+    SmolVLA
   
 
     
@@ -1291,7 +1319,7 @@
   <span class="md-ellipsis">
     
   
-    GR00T (N1.6)
+    SmolVLA
   
 
     
@@ -1317,6 +1345,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#why-smolvla-needs-a-data-prep-rename-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why SmolVLA needs a data-prep (rename) step
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#embodiment-schema" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1338,38 +1377,32 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../smolvla/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SmolVLA
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1779,6 +1812,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#why-smolvla-needs-a-data-prep-rename-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why SmolVLA needs a data-prep (rename) step
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#embodiment-schema" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1794,6 +1838,28 @@
     <span class="md-ellipsis">
       
         Tooling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes
       
     </span>
   </a>
@@ -1817,7 +1883,7 @@
 
 
   
-    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/sft/gr00t.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/NU-IDEAS-Lab/ManiGuard/edit/dev/docs/fine_tuning/smolvla.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1825,19 +1891,77 @@
   
 
 
-<h1 id="gr00t-n16-sft">GR00T (N1.6) SFT<a class="headerlink" href="#gr00t-n16-sft" title="Permanent link">&para;</a></h1>
-<p>SFT of NVIDIA <strong>GR00T N1.6</strong> on the same ManiGuard joint LeRobot v2.1 datasets
-used for <a href="../openpi/">openpi</a> — the dataset is model-agnostic, GR00T only differs
-in how it declares the embodiment and maps the shared cameras/state/action.</p>
+<h1 id="smolvla-sft">SmolVLA SFT<a class="headerlink" href="#smolvla-sft" title="Permanent link">&para;</a></h1>
+<p>SFT of HuggingFace LeRobot's <strong>SmolVLA</strong> on the same ManiGuard joint LeRobot v2.1
+datasets used for <a href="../openpi/">openpi</a> and <a href="../gr00t/">GR00T</a> — the dataset is
+model-agnostic; SmolVLA only differs in how the shared cameras/state/action are
+presented to it.</p>
+<p>SmolVLA is <strong>LeRobot-native</strong>: it is fine-tuned with the upstream <code>lerobot-train</code>
+CLI and has <strong>no config registry and no embodiment registration</strong>. <code>lerobot-train</code>
+derives the policy's input/output features straight from the dataset's <em>standard</em>
+key prefixes (<code>observation.images.*</code> → visual, <code>observation.state</code> → state,
+<code>action</code> → action), and the architecture is agnostic to camera count and pads the
+state/action vectors to its internal width. So the ManiGuard side is the thinnest
+of the three tracks: a small embodiment <em>contract</em> plus CLI-wrapping tools.</p>
+<h2 id="why-smolvla-needs-a-data-prep-rename-step">Why SmolVLA needs a data-prep (rename) step<a class="headerlink" href="#why-smolvla-needs-a-data-prep-rename-step" title="Permanent link">&para;</a></h2>
+<p>The ManiGuard datagen export uses <strong>flat, non-standard keys</strong> (<code>image_left</code>,
+<code>wrist_image</code>, <code>state</code>, <code>actions</code>, …) and ships <strong>5 camera streams</strong>. openpi and
+GR00T consume those flat keys through an indirection layer (openpi's
+<code>RepackTransform</code>, GR00T's <code>modality.json</code> <code>original_key</code>). <code>lerobot-train</code> has no
+such indirection — it classifies features purely by standard key prefix. So a
+one-time prep step rebuilds a <strong>2-camera, standard-keyed</strong> copy of the dataset:</p>
+<table>
+<thead>
+<tr>
+<th>datagen (source)</th>
+<th>→ SmolVLA (standard)</th>
+<th>note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>image_&lt;external_cam&gt;</code></td>
+<td><code>observation.images.top</code></td>
+<td>chosen overview (default <code>left</code>)</td>
+</tr>
+<tr>
+<td><code>wrist_image</code></td>
+<td><code>observation.images.wrist</code></td>
+<td>wrist</td>
+</tr>
+<tr>
+<td><code>state</code> (8-D)</td>
+<td><code>observation.state</code></td>
+<td>absolute joint</td>
+</tr>
+<tr>
+<td><code>actions</code> (8-D)</td>
+<td><code>action</code></td>
+<td>absolute joint target</td>
+</tr>
+<tr>
+<td><code>image_opposite</code> / <code>image_right</code> / <code>image_left_shoulder</code></td>
+<td>—</td>
+<td>dropped</td>
+</tr>
+<tr>
+<td><code>actions_commanded</code></td>
+<td>—</td>
+<td>dropped</td>
+</tr>
+</tbody>
+</table>
+<p>Two cameras (overview + wrist) keep parity with the pi0.5 and GR00T tracks
+(identical visual input → a fair benchmark). Videos are passthrough (H.264 copied
+as-is; AV1 transcoded to H.264 so LeRobot's decoder works everywhere). The mapping
+is defined once in <code>maniguard/smolvla_sft/embodiment.py</code> (the single source of
+truth) and applied by <code>prepare_dataset.py</code>.</p>
 <h2 id="embodiment-schema">Embodiment &amp; schema<a class="headerlink" href="#embodiment-schema" title="Permanent link">&para;</a></h2>
-<p>GR00T consumes the ManiGuard sim Franka as a <strong><code>NEW_EMBODIMENT</code></strong> in <strong>joint
-space</strong> (no EEF/IK), matching the dataset's absolute-joint <code>state</code> / <code>actions</code>
-and its cameras. The modality config lives in
-<code>maniguard/gr00t_sft/maniguard_embodiment.py</code>.</p>
 <ul>
-<li>state / action: absolute joint (8-D), as in <a href="../dataset_and_config/">Dataset &amp; config</a></li>
-<li>cameras: one third-person overview (<code>image_left</code>) + wrist — <strong>2-cam</strong>, matching the pi0.5 and SmolVLA tracks for benchmark parity (GR00T reads the datagen <code>image_*</code> names directly via <code>modality.json</code> <code>original_key</code>; adding a view back is a one-line change to <code>VIDEO_KEYS</code>)</li>
-<li>trainer: PyTorch / HF Trainer (component-freeze rather than LoRA)</li>
+<li><strong>Base model:</strong> <a href="https://huggingface.co/lerobot/smolvla_base"><code>lerobot/smolvla_base</code></a> (SmolVLM2 backbone + flow-matching action expert)</li>
+<li><strong>State / action:</strong> absolute joint 8-D (7 arm joints + 1 gripper), padded to SmolVLA's internal width; the model outputs absolute joint targets fed straight to a <code>JointController</code> at eval (no delta transform — see <a href="../end_to_end/">end to end</a>)</li>
+<li><strong>Cameras (2):</strong> <code>observation.images.top</code> (overview) + <code>observation.images.wrist</code></li>
+<li><strong>Tuning:</strong> SmolVLA default — vision encoder <strong>frozen</strong>, action expert trained (<strong>no LoRA</strong>, same "freeze VLM" strategy as the GR00T N1.6 path)</li>
 </ul>
 <h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
 <table>
@@ -1849,34 +1973,53 @@ and its cameras. The modality config lives in
 </thead>
 <tbody>
 <tr>
-<td><code>NEW_EMBODIMENT</code> modality config</td>
-<td><code>maniguard/gr00t_sft/maniguard_embodiment.py</code></td>
+<td>Embodiment contract (flat → standard key map, dims)</td>
+<td><code>maniguard/smolvla_sft/embodiment.py</code></td>
 </tr>
 <tr>
-<td>Dataset prep (ManiGuard LeRobot → GR00T layout, AV1→H.264)</td>
-<td><code>tools/gr00t_sft/prepare_dataset.py</code></td>
+<td>Dataset prep (5-cam flat → 2-cam standard-keyed copy)</td>
+<td><code>tools/smolvla_sft/prepare_dataset.py</code></td>
 </tr>
 <tr>
-<td>SFT launcher</td>
-<td><code>tools/gr00t_sft/run_sft.sh</code></td>
+<td>SFT launcher (wraps <code>lerobot-train</code>)</td>
+<td><code>tools/smolvla_sft/run_sft.sh</code></td>
+</tr>
+<tr>
+<td>Push checkpoint + card to HF</td>
+<td><code>tools/smolvla_sft/push_to_hf.py</code></td>
 </tr>
 <tr>
 <td>End-to-end 6-family driver</td>
-<td><code>tools/gr00t_sft/run_all.sh</code></td>
-</tr>
-<tr>
-<td>Push checkpoints to HF</td>
-<td><code>tools/gr00t_sft/push_to_hf.py</code></td>
+<td><code>tools/smolvla_sft/run_all.sh</code></td>
 </tr>
 </tbody>
 </table>
-<p>Training runs against an Isaac-GR00T clone (<code>n1.6-release</code>). Model repos follow
-<code>&lt;org&gt;/gr00t-n16-base-datagen-v1-&lt;fam&gt;-joint-2cam</code> (e.g.
-<code>IDEAS-Lab-Northwestern/gr00t-n16-base-datagen-v1-clutter-joint-2cam</code>); training runs
-log to the <code>gr00t-n16-base-joint-2cam</code> wandb project with the family as the
-experiment name. <code>run_all.sh</code> drives one family
-(<code>--family &lt;fam&gt;</code>) or all six serially (download → prepare → ~2-epoch train → push),
-sharing the dataset cache (<code>MANIGUARD_SFT_DATA_ROOT</code>) with the openpi + SmolVLA tracks.</p>
+<p>Training runs against a <strong><code>huggingface/lerobot</code> clone</strong> (pinned tag, installed with
+the <code>smolvla</code> extra) in the same environment that produces the prepared dataset.
+Model repos follow
+<code>&lt;org&gt;/smolvla-base-datagen-v1-&lt;fam&gt;-joint-2cam</code> (e.g.
+<code>IDEAS-Lab-Northwestern/smolvla-base-datagen-v1-clutter-joint-2cam</code>); run/experiment
+names follow <code>smolvla-base_datagen_v1_&lt;fam&gt;_joint_2cam</code> (no <code>_lora</code> suffix — SmolVLA
+does not use LoRA).</p>
+<h2 id="running">Running<a class="headerlink" href="#running" title="Permanent link">&para;</a></h2>
+<p>One family, or all six serially (download → prepare → train → push):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HF_TOKEN</span><span class="o">=</span>...<span class="w">  </span><span class="nv">WANDB_API_KEY</span><span class="o">=</span>...<span class="w">          </span><span class="c1"># both required (pre-flight checked)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>bash<span class="w"> </span>tools/smolvla_sft/run_all.sh<span class="w"> </span>--family<span class="w"> </span>clutter
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>bash<span class="w"> </span>tools/smolvla_sft/run_all.sh<span class="w"> </span>--all
+</code></pre></div>
+<p>Each family downloads its <code>datagen-&lt;fam&gt;-v1-joint-5cam</code> dataset once into the shared
+cache (<code>MANIGUARD_SFT_DATA_ROOT</code>, default <code>outputs/sft_datasets/</code>, shared with the
+openpi and GR00T tracks), prepares the 2-cam copy, trains ~2 epochs, and pushes.
+Steps derive from each dataset's frame count as <code>ceil(frames × 2 / batch)</code>.</p>
+<h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>LeRobot version pin.</strong> The <code>lerobot-train</code> flag surface has changed across
+  releases (e.g. <code>--policy.path</code> vs the older <code>--policy.type</code>). Clone
+  <code>huggingface/lerobot</code> at a pinned tag, <code>pip install -e .[smolvla]</code>, and verify the
+  flags in <code>run_sft.sh</code> against <code>lerobot-train --help</code> for that tag.</li>
+<li><strong>Compute knobs</strong> (batch size, num_workers, save frequency, LR schedule): the
+  defaults in <code>run_all.sh</code> / <code>run_sft.sh</code> are starting points; tune for your hardware.</li>
+</ul>
 
 
 
