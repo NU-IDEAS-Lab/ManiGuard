@@ -45,13 +45,15 @@ Everything below is covered in depth on the **[documentation site](https://nu-id
 | [Concepts & foundations](https://nu-ideas-lab.github.io/ManiGuard/architecture/overview/) | Architecture, the env layer, the [LTL safety system](https://nu-ideas-lab.github.io/ManiGuard/foundations/ltl_safety/), OmniGibson patches |
 | [Task generation](https://nu-ideas-lab.github.io/ManiGuard/pipelines/) | The 6 bench families and how to add your own pipeline |
 | [Data collection](https://nu-ideas-lab.github.io/ManiGuard/data_collection/) | SO-101 / GELLO teleop and the scripted datagen pipeline for SFT demos |
-| [SFT](https://nu-ideas-lab.github.io/ManiGuard/sft/) | The model-agnostic joint dataset + per-model recipes (openpi / GR00T / SmolVLA) |
+| [Fine-Tuning (SFT)](https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/) | The model-agnostic joint dataset + per-model recipes (openpi / GR00T / SmolVLA) |
 | [Evaluation](https://nu-ideas-lab.github.io/ManiGuard/evaluation/) | Websocket policy eval, goal + [contact-gated safety](https://nu-ideas-lab.github.io/ManiGuard/evaluation/engagement_metric/) scoring |
 
-**Datasets & assets** (Hugging Face, [`IDEAS-Lab-Northwestern`](https://huggingface.co/IDEAS-Lab-Northwestern)):
-the [ManiGuard-Bench](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench)
-evaluation scenes, the [`franka-panda-longfinger`](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/franka-panda-longfinger)
-robot asset, and the `datagen-<family>-v1-joint-5cam` SFT datasets.
+**Datasets & checkpoints** (Hugging Face collections):
+[**Benchmark & Datasets**](https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e)
+— the ManiGuard-Bench evaluation scenes, the long-finger Franka robot asset, and the
+six-family SFT demonstration datasets; and
+[**Evaluated VLA Checkpoints**](https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-evaluated-vla-checkpoints-6a83d481b7af91f0daaf8221)
+— every fine-tuned checkpoint behind the paper's rollout evaluations.
 
 ## Quick start
 

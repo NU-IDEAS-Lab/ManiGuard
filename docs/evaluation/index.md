@@ -107,7 +107,7 @@ Key knobs:
 !!! warning "Match training"
     `state_mode`, `external_cam`, `action_dim`, and especially the **controller** must
     match how the SFT data was produced, or the realized motion diverges from
-    training. See [Controller, data, action & eval](../sft/end_to_end.md).
+    training. See [Controller, data, action & eval](../fine_tuning/end_to_end.md).
 
 ## Success checking (`eval/goal_checker.py`)
 

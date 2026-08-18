@@ -45,4 +45,4 @@ pytest tests/ -v        # maniguard-side LTL + task-gen + eval unit tests
 - [Run the benchmark](evaluation/run_benchmark.md) — evaluate a checkpoint end to end.
 - [Architecture overview](architecture/overview.md) — the lifecycle and repo layout.
 - [Add a custom pipeline](pipelines/custom_pipeline.md) — extending task generation.
-- [Controller, data, action & eval](sft/end_to_end.md) — keeping training and eval consistent.
+- [Controller, data, action & eval](fine_tuning/end_to_end.md) — keeping training and eval consistent.

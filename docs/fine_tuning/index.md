@@ -1,4 +1,4 @@
-# Supervised fine-tuning (SFT)
+# Fine-Tuning
 
 ManiGuard fine-tunes vision-language-action (VLA) policies on manipulation
 demonstrations collected in OmniGibson (and on real-robot teleop). The guiding

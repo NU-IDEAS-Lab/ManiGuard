@@ -36,7 +36,7 @@ manipulation in simulated households.
 
     SO-101 / GELLO teleop, plus the scripted datagen pipeline for SFT demos.
 
--   :material-brain: **[SFT](sft/index.md)**
+-   :material-brain: **[Fine-Tuning (SFT)](fine_tuning/index.md)**
 
     The model-agnostic joint dataset + per-model recipes (openpi / GR00T / SmolVLA), and collection↔eval consistency.
 

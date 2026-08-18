@@ -841,7 +841,7 @@ bash scripts/render_teleop_to_lerobot.sh --stage2   # rendered HDF5 → LeRobot 
 
 Naming: `<org>/sim-<fam>-30-joint-3cam` (e.g. `<org>/sim-dusty-transfer-30-joint-3cam`).
 The resulting dataset uses the same absolute-joint LeRobot schema as the other sources —
-see [SFT dataset & data-source configs](../sft/dataset_and_config.md).
+see [SFT dataset & data-source configs](../fine_tuning/dataset_and_config.md).
 
 ### Real-robot teleop → LeRobot
 
@@ -881,7 +881,7 @@ Each episode becomes `state` = `eef_pos(3) + axisangle(3) + gripper(2)` (8-D) an
 `wrist_image`. That HDF5 then goes through the same **Stage 2** export as sim teleop.
 
 The resulting datasets use the same LeRobot v2.1 conventions as the sim sources — see
-[SFT dataset & data-source configs](../sft/dataset_and_config.md).
+[SFT dataset & data-source configs](../fine_tuning/dataset_and_config.md).
 
 ---
 

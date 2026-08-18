@@ -3,7 +3,7 @@
 ManiGuard runs in the **`behavior` conda env** — OmniGibson simulation, BDDL,
 teleop, task generation, scripted data generation, and eval. Policy training/serving
 runs in each model's own environment (openpi / GR00T / SmolVLA — see the
-[SFT](../sft/index.md) pages).
+[Fine-Tuning](../fine_tuning/index.md) pages).
 
 ## 1. Clone with submodules
 

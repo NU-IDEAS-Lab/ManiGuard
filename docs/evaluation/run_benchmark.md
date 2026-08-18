@@ -114,7 +114,7 @@ done
     released ManiGuard SFT datasets. If your checkpoint was trained under a
     different convention (EEF actions, other camera, different chunk length),
     copy the YAML and adjust; a silent mismatch here degrades every number.
-    See [Controller · data · action · eval](../sft/end_to_end.md).
+    See [Controller · data · action · eval](../fine_tuning/end_to_end.md).
 
 ## 4. Read the results
 

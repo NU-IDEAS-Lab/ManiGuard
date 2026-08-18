@@ -87,13 +87,13 @@ nav:
           - Food transfer (base): pipelines/transfer.md
       - Additional families: pipelines/other_families.md
   - Data Collection: data_collection/index.md
-  - SFT:
-      - Overview: sft/index.md
-      - Dataset & data-source configs: sft/dataset_and_config.md
-      - openpi (pi0.5 / pi0): sft/openpi.md
-      - GR00T (N1.6): sft/gr00t.md
-      - SmolVLA: sft/smolvla.md
-      - Controller · data · action · eval: sft/end_to_end.md
+  - Fine-Tuning:
+      - Overview: fine_tuning/index.md
+      - Dataset & data-source configs: fine_tuning/dataset_and_config.md
+      - openpi (pi0.5 / pi0): fine_tuning/openpi.md
+      - GR00T (N1.6): fine_tuning/gr00t.md
+      - SmolVLA: fine_tuning/smolvla.md
+      - Controller · data · action · eval: fine_tuning/end_to_end.md
   - Evaluation:
       - Overview: evaluation/index.md
       - Run the benchmark: evaluation/run_benchmark.md
