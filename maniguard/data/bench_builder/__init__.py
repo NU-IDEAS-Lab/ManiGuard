@@ -6,8 +6,6 @@ location), all FrankaPanda+longfinger, all rendered from the shared camera_setup
 incl. left_shoulder). Reuses only the shared infra (camera_setup, task_generation.utils.video,
 replay_empty); it does NOT import the legacy perturbation generator
 (perturbation_scaling / render_task_variants / perturbation_runtime).
-
-Canonical design spec: the Obsidian doc "ManiGuard 6fam_dataset_rebuild_design".
 """
 
 from maniguard.data.bench_builder.finalize_base import finalize_base_task

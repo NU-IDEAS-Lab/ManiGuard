@@ -247,7 +247,7 @@ class JarSkeleton(FamilySkeleton):
         pre_grasp = np.asarray(grasp.eef_pos, float) - params.standoff_m * appr
         goal = np.asarray(ctx.goal_center, float)
         # close-in goals leave no elbow room for a straight carry at grasp height (the servo IK dies
-        # mid-line near the base pillar and the cuRobo upright-hold fallback is flaky in this fork) —
+        # mid-line near the base pillar and the cuRobo upright-hold fallback is flaky in this cuRobo version) —
         # carry HIGHER when the goal sits close to the robot base
         close_in = False
         if ctx.robot is not None:

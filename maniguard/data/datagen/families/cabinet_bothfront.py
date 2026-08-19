@@ -178,7 +178,7 @@ def _layout_both_front_adaptive(og, drawer_link, target_obj, obstacle_obj,
                                          surf_max[pi] - o_half[pi] - 0.01))
     _place_obj_upright_on_surface(og, obstacle_obj, float(o_xy[0]), float(o_xy[1]), top_z)
 
-    # Settle with a drift guard: this cuRobo/PhysX fork occasionally LAUNCHES an
+    # Settle with a drift guard: this cuRobo/PhysX stack occasionally LAUNCHES an
     # object during settle (observed task_0012: target flung 0.88 m off-table). If
     # any object drifts > 8 cm from its intended xy, re-place it and re-settle.
     intended = [

@@ -1,8 +1,8 @@
 """SmolVLA SFT support for ManiGuard.
 
 Thin layer around LeRobot's native SmolVLA policy (fine-tuned via the upstream
-``lerobot-train`` CLI, from a separate ``lerobot`` clone — like ``openpi`` for the
-pi0.5 path and Isaac-GR00T for the GR00T path). SmolVLA has no config registry or
+``lerobot-train`` CLI, from a pristine, separate ``lerobot`` clone). SmolVLA has
+no config registry or
 embodiment registration to hook into: ``lerobot-train`` derives the policy's
 input/output features straight from the dataset's ``observation.*`` / ``action``
 keys, and the architecture is agnostic to camera count and to the (padded)

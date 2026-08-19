@@ -79,7 +79,7 @@ def score_grasps(world, robot, target, cands, *, standoff_m: float = 0.10,
     and return them sorted (reachable first, then highest joint-margin, then highest score). The
     standoff plan mirrors the engine's pre_grasp, so a grasp that scores reachable will almost
     certainly clear the demo's first segment. Each grasp is retried ``plan_tries`` times before
-    declared unreachable: this old cuRobo fork's solve is stochastic, so a single unlucky solve
+    declared unreachable: the vendored cuRobo's solve is stochastic, so a single unlucky solve
     would wrongly drop a reachable grasp (e.g. every grasp of a task scoring unreachable -> no
     variants -> 0 demos).
 

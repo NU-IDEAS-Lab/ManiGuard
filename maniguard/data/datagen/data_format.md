@@ -1,7 +1,6 @@
 # ManiGuard datagen — dataset format
 
-Schema source of truth: `maniguard/data/datagen/data_format.py`. Design rationale +
-locked decisions: the Obsidian `ManiGuard 6fam_Data_Collection_TODO_Checklist.md` §5.
+Schema source of truth: `maniguard/data/datagen/data_format.py`.
 
 The cuRobo-collected SFT data is **joint-native**: the env's cuRobo emits a joint
 trajectory → JointController execution → record joints directly (no eef↔joint
@@ -23,8 +22,8 @@ conversion, no sim-state reverse-engineering).
 - Dataset = **LeRobot v2.1**, `robot_type=FrankaPanda`, `fps=30`.
 - The four third-person cameras come from the **shared bench `camera_setup`**
   (`maniguard/utils/camera_setup.py`) → record / SFT / eval are camera-consistent.
-- **Why default action = (b) achieved**: the env's cuRobo is an old/rough StanfordVL
-  fork (v0.7.0); achieved joints are robust to its rough commands + self-consistent
+- **Why default action = (b) achieved**: the env's vendored StanfordVL cuRobo (v0.7.0)
+  emits rough commands; achieved joints are robust to them + self-consistent
   with the recorded images + match the legacy `...-clutter-joint` data. (a) commanded
   is kept as an extra column to switch/compare without re-collecting.
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Serve a ManiGuard SmolVLA SFT checkpoint over the openpi-client websocket contract.
 
-Runs in the lerobot-maniguard-sft venv. Wraps lerobot's ``SmolVLAPolicy`` behind the
+Runs in the lerobot venv. Wraps lerobot's ``SmolVLAPolicy`` behind the
 SAME websocket / msgpack-numpy protocol as ``maniguard.serve.openpi_native`` and
 ``maniguard/serve/gr00t_native.py`` -- so ``maniguard.eval.benchmark`` connects with
 NO client change (same image_left/wrist/state/prompt contract, same
 ``{"actions": (H, A)}`` reply).
 
-Inference path (the fork's canonical stack, lerobot v0.5.x):
+Inference path (lerobot's canonical stack, v0.5.x):
     prepare_observation_for_inference -> saved preprocessor pipeline
     (rename top/wrist->camera1/2, tokenize, to-device, normalize with the
     dataset stats baked at SFT time) -> ``policy.predict_action_chunk`` ->
@@ -19,7 +19,7 @@ targets [arm_q(7), gripper(1)] (no delta), so the chunk is passed through AS-IS.
 
 Obs contract (from ``benchmark._remap_obs_for_openpi``): the client sends
     observation/image_left, observation/wrist_image, observation/state (8-D), prompt.
-We repack to the fork's SFT keys (maniguard_sft.embodiment): the overview ->
+We repack to the SFT keys (``maniguard.smolvla_sft.embodiment``): the overview ->
 ``observation.images.top`` and wrist -> ``observation.images.wrist``; the saved
 rename step maps them onto the checkpoint's camera1/camera2 inputs. camera3 (a
 base-model leftover in input_features) stays absent -- SmolVLA masks missing

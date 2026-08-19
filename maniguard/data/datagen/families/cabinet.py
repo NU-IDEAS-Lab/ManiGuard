@@ -11,7 +11,7 @@ Two motion building blocks (the engine owns both — see ``executor.contracts.Mo
   * ``Mode.SERVO`` — pure straight-line Cartesian IK (collision off, nearest-seed so a straight
                      servo does NOT skew the wrist). EVERY deterministic straight contact: the pick /
                      place descents + lifts, and the open/close drawer push-pull.
-Cabinet deliberately avoids ``Mode.LINEAR``: this old cuRobo fork's partial-pose (LINEAR_SERVO)
+Cabinet deliberately avoids ``Mode.LINEAR``: the vendored cuRobo's partial-pose (LINEAR_SERVO)
 constraint query always fails here and silently falls back to an UNCONSTRAINED salvage solve that
 drifts the eef off the straight line (e.g. carrying the relocated object forward off the table edge,
 or missing the grasp). SERVO's pure IK has no such dependency, so all straight moves use it.
@@ -83,7 +83,7 @@ OPEN_DIST_SAFETY = 0.88   # derate the GATE-selected open_dist by this factor (A
 LIFT_CLEAR = 0.18         # relocate: lift the held blocker this HIGH above the table before the FREE transit
 #                           — a low (~5 cm) lift leaves the object hugging the table next to the tall cabinet,
 #                           so the cabinet-avoiding cuRobo transit plans a hard low path (~50% plan_fail on this
-#                           fork); lifting it well clear first gives the transit a roomy high lane = reliable plan
+#                           cuRobo version); lifting it well clear first gives the transit a roomy high lane = reliable plan
 RIM_CLEARANCE = 0.06      # place: lift the target's bottom this far above the drawer rim before going over
 # Per-demo diversity bands (sampled from the variant seed in derive_segments; small so the long-horizon
 # task still reliably completes). Dim 1: how far above the rim the target's bottom is carried (the lift
@@ -561,7 +561,7 @@ class CabinetSkeleton(FamilySkeleton):
         standoff, SERVO straight down + close, SERVO small lift off the table, FREE cuRobo transit to
         above the place spot (collision-aware — avoids the cabinet + the other blocker), SERVO
         straight down, open, lift off. The straight descents/lifts are SERVO (pure IK) — LINEAR's
-        partial-pose query is broken on this fork and drifts the carried object off the place spot.
+        partial-pose query is broken on this cuRobo version and drifts the carried object off the place spot.
         The blockers relocate toward the robot / along the table front, so the FREE transit clears
         the cabinet with a short collision-aware path."""
         obj_name = ctx.target_name if role == "target" else ctx.diagnostics["obstacle_info"]["name"]

@@ -4,8 +4,10 @@ Post-trains **LingBot-VLA 2.0** on the six ManiGuard datagen-v1 families — the
 model of the ManiGuard VLA benchmark (alongside pi0.5, pi0, GR00T N1.6, SmolVLA), trained on
 identical data, cameras, and controller so the comparison isolates the model.
 
-This repo is a **vendored fork** of [`robbyant/lingbot-vla-v2`](https://github.com/robbyant/lingbot-vla-v2)
-(upstream `be27333`). Upstream files are untouched; the ManiGuard layer is exactly:
+Training runs inside a **pristine, separate clone** of
+[`robbyant/lingbot-vla-v2`](https://github.com/robbyant/lingbot-vla-v2) (upstream
+`be27333`). Upstream files are untouched; the ManiGuard layer, placed into that
+clone, is exactly:
 
 ```
 configs/robot_configs/maniguard.yaml    feature mapping (8-D single arm, 2 cameras)

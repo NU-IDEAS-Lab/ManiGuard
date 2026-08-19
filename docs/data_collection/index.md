@@ -447,7 +447,7 @@ conversion are shared. Each family's task semantics:
     kinematically reachable (~1 mm IK error); "lift then translate" structurally clears clutter.
 
     > **SERVO vs LINEAR.** Later families use `linear_servo` segments (straight-line joint IK
-    > per waypoint) instead of `linear`, because this cuRobo fork's partial-pose LINEAR_SERVO
+    > per waypoint) instead of `linear`, because the vendored cuRobo's partial-pose LINEAR_SERVO
     > query is unreliable; SERVO gives the same straight motion without it.
 
 ??? note "▸ cabinet (`cabinet_pickup`) — drawer place"

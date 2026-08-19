@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 
 # --- msgpack-numpy, vendored inline from openpi_client.msgpack_numpy -----------------
 # Inlined (not imported from maniguard.serve) so this server is self-contained in the
-# Isaac-GR00T venv, whose `maniguard` is the FORK's gr00t_sft-only package (no serve/).
+# Isaac-GR00T venv, which does not ship the ``maniguard.serve`` package.
 # Wire-compatible with the client's openpi_client.msgpack_numpy.
 def _pack_array(obj):
     if isinstance(obj, (np.ndarray, np.generic)) and obj.dtype.kind in ("V", "O", "c"):

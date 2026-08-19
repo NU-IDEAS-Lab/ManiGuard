@@ -74,7 +74,7 @@ class DemoEngine:
         #                                          ~2400; this only catches a pathological runaway, never a normal run.
         self.plan_tries = max(1, int(plan_tries))  # cuRobo FREE/LINEAR plan attempts per segment: trajopt samples
         #                                          seed trajectories from the (advancing) torch RNG, so a retry
-        #                                          explores NEW seeds → clears this old fork's intermittent plan_fail
+        #                                          explores NEW seeds → clears the vendored cuRobo's intermittent plan_fail
         self._last_servo = None                  # most recent SERVO joint path (for replay_reverse retreat)
         self._path_buf = None                    # accumulating joint path (for replay_reverse_path return-to-home)
 

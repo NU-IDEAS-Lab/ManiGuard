@@ -2,8 +2,7 @@
 
 The cuRobo-collected SFT data is **joint-native** (the env's cuRobo emits a joint
 trajectory → JointController execution → record joints directly; no eef↔joint
-conversion, no sim-state reverse-engineering). See the Obsidian Data_Collection
-doc §5 for the locked decisions.
+conversion, no sim-state reverse-engineering).
 
 Per timestep we record:
   - ``state``             (8,) = ``[arm_q(7), gripper(1, mean finger)]``

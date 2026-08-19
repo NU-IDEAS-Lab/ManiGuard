@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Serve a ManiGuard LingBot-VLA 2.0 SFT checkpoint over the openpi-client websocket contract.
 
-Runs in the ``lingbotvla`` conda env (the fork's own ``tools/create_train_env.sh`` recipe).
+Runs in the ``lingbotvla`` conda env (upstream's ``tools/create_train_env.sh`` recipe).
 Wraps LingBot's ``LingbotVlaV2Policy`` behind the SAME websocket / msgpack-numpy protocol as
 ``maniguard.serve.openpi_native``, ``gr00t_native.py`` and ``smolvla_native.py`` -- so
 ``maniguard.eval.benchmark`` connects with NO client change.
 
-Why not the fork's own ``deploy/lingbot_vla_v2_policy.py``: its loader assumes the checkpoint
+Why not upstream's ``deploy/lingbot_vla_v2_policy.py``: its loader assumes the checkpoint
 still sits inside a training output tree. It reads the training config from
 ``<ckpt>/../../../lingbotvla_cli.yaml``, reads the robot config as ``configs/robot_configs/
 <name>.yaml`` *relative to CWD*, and resolves the VLM through ``QWEN3VL_PATH``. An HF snapshot
@@ -150,7 +150,7 @@ class LingBotServer:
             item[origin_key] = resize(t)
 
         transformed = self._ft.apply(item, policy_eval=True)
-        # The fork's canonical single-observation path: select_action samples the chunk AND
+        # LingBot's canonical single-observation path: select_action samples the chunk AND
         # runs FeatureTransform.unapply itself, returning the ORIGIN key space. So the result
         # is already unnormalised; because both action features are subtract_state False it is
         # also already absolute (no state added). Do NOT unapply again -- a second pass trips
@@ -297,8 +297,8 @@ def main() -> None:
     import torch
     import yaml
 
-    # Both packages come from the fork, installed editable by tools/create_train_env.sh,
-    # so no sys.path surgery is needed in the lingbotvla env.
+    # Both packages come from the LingBot-VLA clone, installed editable by
+    # tools/create_train_env.sh, so no sys.path surgery is needed in the lingbotvla env.
     from deploy.lingbot_vla_v2_policy import LingBotVlaV2InferencePolicy
     from lingbotvla.data.vla_data.utils import FeatureTransform
     from lingbotvla.models import build_processor
@@ -318,7 +318,7 @@ def main() -> None:
     for k, v in ckpt_cfg.items():
         if not hasattr(config, k):
             setattr(config, k, v)
-    config.attention_implementation = "eager"   # the fork's own eval choice
+    config.attention_implementation = "eager"   # upstream's own eval choice
     config.use_cache = True                     # required at inference
     if args.num_steps is not None and int(args.num_steps) != int(config.num_steps):
         logger.info(f"flow sampler steps overridden: {config.num_steps} -> {args.num_steps}")
