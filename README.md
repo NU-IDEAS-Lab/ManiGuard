@@ -1,6 +1,13 @@
 <h1 align="center">ManiGuard</h1>
 
 <p align="center">
+  <a href="https://arxiv.org/abs/2608.17386"><img src="https://img.shields.io/badge/arXiv-2608.17386-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://nu-ideas-lab.github.io/ManiGuard/"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Documentation"></a>
+  <a href="https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Benchmark%20%26%20Datasets-yellow" alt="Hugging Face"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green.svg" alt="License"></a>
+</p>
+
+<p align="center">
   <img src="docs/index_gallery/overview.png" alt="ManiGuard-Bench task overview" width="760">
 </p>
 
@@ -10,6 +17,8 @@
 </p>
 
 <p align="center">
+  <a href="https://arxiv.org/abs/2608.17386"><b>📄 Paper</b></a>
+  &nbsp;·&nbsp;
   <a href="https://nu-ideas-lab.github.io/ManiGuard/"><b>📖 Documentation</b></a>
   &nbsp;·&nbsp;
   <a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench">🤗 Benchmark</a>
@@ -102,14 +111,22 @@ to serve a checkpoint and score it.
 
 ## Citation
 
-A paper describing ManiGuard is in preparation — **citation coming soon**.
+If you use ManiGuard in your research, please cite the
+[paper](https://arxiv.org/abs/2608.17386):
 
 ```bibtex
-@misc{maniguard2026,
-  title  = {ManiGuard},
-  author = {NU-IDEAS Lab},
-  year   = {2026},
-  note   = {Preprint coming soon}
+@misc{peng2026maniguard,
+  title         = {{MANIGUARD}: A Benchmark and Data Suite for Specification-Grounded
+                   Safety Evaluation and Improvement of Robotic Manipulation},
+  author        = {Peng, Yiyan and Wang, Philip and Zhan, Simon Sinong and Lyu, Yiqi
+                   and Ni, Zhenyang and Yan, Jixin and Wong, Fiorelli and Jiao, Ruochen
+                   and Yin, Hang and Cao, Xinyu and Shao, Huajie and Li, Manling
+                   and Zhang, Ruohan and Zhu, Qi},
+  year          = {2026},
+  eprint        = {2608.17386},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.RO},
+  url           = {https://arxiv.org/abs/2608.17386},
 }
 ```
 

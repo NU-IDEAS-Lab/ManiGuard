@@ -56,6 +56,18 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
+extra:
+  social:
+    - icon: simple/arxiv
+      link: https://arxiv.org/abs/2608.17386
+      name: Paper on arXiv
+    - icon: simple/github
+      link: https://github.com/NU-IDEAS-Lab/ManiGuard
+      name: ManiGuard on GitHub
+    - icon: simple/huggingface
+      link: https://huggingface.co/IDEAS-Lab-Northwestern
+      name: IDEAS Lab on Hugging Face
+
 extra_css:
   - stylesheets/mg-carousel.css
 

@@ -8,7 +8,8 @@ manipulation in simulated households.
 
 !!! tip "Evaluate your VLA on ManiGuard-Bench → [Run the benchmark](evaluation/run_benchmark.md)"
     Download the benchmark, serve your checkpoint, run a family across ID + OOD,
-    and read the results in the paper's success × safety metrics.
+    and read the results in the [paper](https://arxiv.org/abs/2608.17386)'s
+    success × safety metrics.
 
 <img class="mg-hero" src="index_gallery/overall_pipeline.webp" alt="ManiGuard framework: the six benchmark families, the LTL runtime monitor, and the safety-annotated dataset suite">
 <p class="mg-gallery-cap"><em>The ManiGuard framework: 200 tasks across 6 families (spatial-invariance and temporal/ordering constraints, three skill levels), every rollout runtime-checked by a compiled LTL<sub>f</sub> monitor, and a safety-annotated demonstration suite (200 tasks × 40 trajectories).</em></p>
@@ -49,3 +50,24 @@ manipulation in simulated households.
     The scripted 6-family demo-collection pipeline + RAW → LeRobot conversion.
 
 </div>
+
+## Citation
+
+If you use ManiGuard in your research, please cite the
+[paper](https://arxiv.org/abs/2608.17386):
+
+```bibtex
+@misc{peng2026maniguard,
+  title         = {{MANIGUARD}: A Benchmark and Data Suite for Specification-Grounded
+                   Safety Evaluation and Improvement of Robotic Manipulation},
+  author        = {Peng, Yiyan and Wang, Philip and Zhan, Simon Sinong and Lyu, Yiqi
+                   and Ni, Zhenyang and Yan, Jixin and Wong, Fiorelli and Jiao, Ruochen
+                   and Yin, Hang and Cao, Xinyu and Shao, Huajie and Li, Manling
+                   and Zhang, Ruohan and Zhu, Qi},
+  year          = {2026},
+  eprint        = {2608.17386},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.RO},
+  url           = {https://arxiv.org/abs/2608.17386},
+}
+```
