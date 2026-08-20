@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2608.17386"><img src="https://img.shields.io/badge/arXiv-2608.17386-b31b1b.svg" alt="arXiv"></a>
-  <a href="https://nu-ideas-lab.github.io/ManiGuard/"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Documentation"></a>
+  <a href="https://nu-ideas-lab.github.io/ManiGuard/docs/"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Documentation"></a>
   <a href="https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Benchmark%20%26%20Datasets-yellow" alt="Hugging Face"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green.svg" alt="License"></a>
 </p>
@@ -20,7 +20,7 @@
 <p align="center">
   <a href="https://arxiv.org/abs/2608.17386"><b>📄 Paper</b></a>
   &nbsp;·&nbsp;
-  <a href="https://nu-ideas-lab.github.io/ManiGuard/"><b>📖 Documentation</b></a>
+  <a href="https://nu-ideas-lab.github.io/ManiGuard/docs/"><b>📖 Documentation</b></a>
   &nbsp;·&nbsp;
   <a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench">🤗 Benchmark</a>
   &nbsp;·&nbsp;
@@ -48,16 +48,16 @@ OmniGibson (NVIDIA Isaac Sim). Reinforcement-learning training is under developm
 
 ## Documentation & resources
 
-Everything below is covered in depth on the **[documentation site](https://nu-ideas-lab.github.io/ManiGuard/)**:
+Everything below is covered in depth on the **[documentation site](https://nu-ideas-lab.github.io/ManiGuard/docs/)**:
 
 | Topic | What's there |
 |---|---|
-| [Getting started](https://nu-ideas-lab.github.io/ManiGuard/getting-started/installation/) | Install the `behavior` env + BEHAVIOR datasets; download the benchmark + robot asset |
-| [Concepts & foundations](https://nu-ideas-lab.github.io/ManiGuard/architecture/overview/) | Architecture, the env layer, the [LTL safety system](https://nu-ideas-lab.github.io/ManiGuard/foundations/ltl_safety/), OmniGibson patches |
-| [Task generation](https://nu-ideas-lab.github.io/ManiGuard/pipelines/) | The 6 bench families and how to add your own pipeline |
-| [Data collection](https://nu-ideas-lab.github.io/ManiGuard/data_collection/) | SO-101 / GELLO teleop and the scripted datagen pipeline for SFT demos |
-| [Fine-Tuning (SFT)](https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/) | The model-agnostic joint dataset + per-model recipes (openpi / GR00T / SmolVLA) |
-| [Evaluation](https://nu-ideas-lab.github.io/ManiGuard/evaluation/) | Websocket policy eval, goal + [contact-gated safety](https://nu-ideas-lab.github.io/ManiGuard/evaluation/engagement_metric/) scoring |
+| [Getting started](https://nu-ideas-lab.github.io/ManiGuard/docs/getting-started/installation/) | Install the `behavior` env + BEHAVIOR datasets; download the benchmark + robot asset |
+| [Concepts & foundations](https://nu-ideas-lab.github.io/ManiGuard/docs/architecture/overview/) | Architecture, the env layer, the [LTL safety system](https://nu-ideas-lab.github.io/ManiGuard/docs/foundations/ltl_safety/), OmniGibson patches |
+| [Task generation](https://nu-ideas-lab.github.io/ManiGuard/docs/pipelines/) | The 6 bench families and how to add your own pipeline |
+| [Data collection](https://nu-ideas-lab.github.io/ManiGuard/docs/data_collection/) | SO-101 / GELLO teleop and the scripted datagen pipeline for SFT demos |
+| [Fine-Tuning (SFT)](https://nu-ideas-lab.github.io/ManiGuard/docs/fine_tuning/) | The model-agnostic joint dataset + per-model recipes (openpi / GR00T / SmolVLA) |
+| [Evaluation](https://nu-ideas-lab.github.io/ManiGuard/docs/evaluation/) | Websocket policy eval, goal + [contact-gated safety](https://nu-ideas-lab.github.io/ManiGuard/docs/evaluation/engagement_metric/) scoring |
 
 **Datasets & checkpoints** (Hugging Face collections):
 [**Benchmark & Datasets**](https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e)
@@ -83,8 +83,8 @@ pip install -e ".[serve]"
 ```
 
 Then grab the benchmark's **robot asset + scenes** and run a policy — see
-[**Getting started**](https://nu-ideas-lab.github.io/ManiGuard/getting-started/installation/)
-for the downloads and [**Evaluation**](https://nu-ideas-lab.github.io/ManiGuard/evaluation/)
+[**Getting started**](https://nu-ideas-lab.github.io/ManiGuard/docs/getting-started/installation/)
+for the downloads and [**Evaluation**](https://nu-ideas-lab.github.io/ManiGuard/docs/evaluation/)
 to serve a checkpoint and score it.
 
 ## Repository layout

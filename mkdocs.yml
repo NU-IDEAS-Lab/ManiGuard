@@ -2,7 +2,7 @@
 
 site_name: ManiGuard
 site_description: A benchmark and data suite for specification-grounded safety evaluation and improvement of robotic manipulation
-site_url: https://nu-ideas-lab.github.io/ManiGuard/
+site_url: https://nu-ideas-lab.github.io/ManiGuard/docs/
 repo_name: NU-IDEAS-Lab/ManiGuard
 repo_url: https://github.com/NU-IDEAS-Lab/ManiGuard
 edit_uri: edit/dev/docs/
