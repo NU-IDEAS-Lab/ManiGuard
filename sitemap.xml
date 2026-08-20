@@ -2,118 +2,118 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/reference/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/architecture/overview/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/data_collection/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/evaluation/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/evaluation/engagement_metric/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/evaluation/run_benchmark/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/dataset_and_config/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/end_to_end/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/gr00t/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/openpi/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/fine_tuning/smolvla/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/foundations/env_layer/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/foundations/ltl_safety/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/foundations/omnigibson_patches/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/getting-started/installation/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/cabinet_pickup/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/clutter_pickup/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/custom_pipeline/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/data_flow/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/dusty_transfer/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/empty_scene/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/jar_transport/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/lid_transport/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/other_families/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/stack_retrieve/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
     <url>
          <loc>https://nu-ideas-lab.github.io/ManiGuard/pipelines/transfer/</loc>
-         <lastmod>2026-08-19</lastmod>
+         <lastmod>2026-08-20</lastmod>
     </url>
 </urlset>

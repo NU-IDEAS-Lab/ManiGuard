@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K">
+        <meta name="description" content="A benchmark and data suite for specification-grounded safety evaluation and improvement of robotic manipulation">
       
       
       
@@ -1988,10 +1988,12 @@ by step. The system has two layers:</p>
 <ol>
 <li><strong>Propositions</strong> — boolean facts about the scene evaluated each step
    (e.g. "the wineglass is upright", "the agent is touching the food").</li>
-<li><strong>Automaton monitoring</strong> — an LTL formula over those propositions is compiled
-   to an automaton (via <a href="https://spot.lre.epita.fr/">Spot</a>); each step advances
-   the automaton and reports whether the run has entered a <em>doomed</em> state from
-   which the safety property can no longer be satisfied.</li>
+<li><strong>Automaton monitoring</strong> — an LTL<sub>f</sub> formula over those propositions is
+   compiled (via <a href="https://spot.lre.epita.fr/">Spot</a>, options
+   <code>'monitor', 'det', 'complete'</code>) into a <strong>deterministic monitor automaton</strong>
+   that detects <em>bad prefixes</em>: each step advances the automaton, and the run is
+   flagged as <em>doomed</em> as soon as it enters a rejecting sink — a state from
+   which the safety property can no longer be satisfied on any continuation.</li>
 </ol>
 <p>Code lives in <code>maniguard/utils/</code>:</p>
 <table>

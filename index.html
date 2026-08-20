@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K">
+        <meta name="description" content="A benchmark and data suite for specification-grounded safety evaluation and improvement of robotic manipulation">
       
       
       
@@ -1819,11 +1819,13 @@
 
 
 <h1 id="maniguard">ManiGuard<a class="headerlink" href="#maniguard" title="Permanent link">&para;</a></h1>
-<p><strong>ManiGuard</strong> is a Python package on top of
+<p><strong>ManiGuard</strong> is a benchmark and data suite for specification-grounded safety
+evaluation and improvement of foundation model–driven robotic manipulation. It is
+implemented as a Python package on top of
 <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson that adds
 <strong>LTL safety checking</strong>, <strong>task-generation pipelines</strong>, <strong>teleop + scripted data
-collection</strong>, <strong>VLA supervised fine-tuning</strong>, and <strong>policy evaluation</strong> for robotic
-manipulation in simulated households.</p>
+collection</strong>, <strong>VLA supervised fine-tuning</strong>, and <strong>policy evaluation</strong> in simulated
+household environments.</p>
 <div class="admonition tip">
 <p class="admonition-title">Evaluate your VLA on ManiGuard-Bench → <a href="evaluation/run_benchmark/">Run the benchmark</a></p>
 <p>Download the benchmark, serve your checkpoint, run a family across ID + OOD,

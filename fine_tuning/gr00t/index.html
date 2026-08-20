@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K">
+        <meta name="description" content="A benchmark and data suite for specification-grounded safety evaluation and improvement of robotic manipulation">
       
       
       
@@ -1853,8 +1853,12 @@ and its cameras. The modality config lives in
 <td><code>maniguard/gr00t_sft/maniguard_embodiment.py</code></td>
 </tr>
 <tr>
-<td>Dataset prep (ManiGuard LeRobot → GR00T layout, AV1→H.264)</td>
+<td>Dataset prep (symlink view of the ManiGuard LeRobot dataset + GR00T <code>modality.json</code> / stats; no copy, no transcode)</td>
 <td><code>tools/gr00t_sft/prepare_dataset.py</code></td>
+</tr>
+<tr>
+<td>Pre-bake norm stats (optional, reused by <code>prepare_dataset.py --stats-dir</code>)</td>
+<td><code>tools/gr00t_sft/bake_stats.py</code></td>
 </tr>
 <tr>
 <td>SFT launcher</td>
@@ -1871,9 +1875,9 @@ and its cameras. The modality config lives in
 </tbody>
 </table>
 <p>Training runs against an Isaac-GR00T clone (<code>n1.6-release</code>). Model repos follow
-<code>&lt;org&gt;/gr00t-n16-base-datagen-v1-&lt;fam&gt;-joint-2cam</code> (e.g.
-<code>IDEAS-Lab-Northwestern/gr00t-n16-base-datagen-v1-clutter-joint-2cam</code>); training runs
-log to the <code>gr00t-n16-base-joint-2cam</code> wandb project with the family as the
+<code>&lt;org&gt;/gr00t-n16-datagen-v1-&lt;fam&gt;-joint-2cam</code> (e.g.
+<code>IDEAS-Lab-Northwestern/gr00t-n16-datagen-v1-clutter-joint-2cam</code>); training runs
+log to the <code>maniguard-gr00tN1d6</code> wandb project with the family as the
 experiment name. <code>run_all.sh</code> drives one family
 (<code>--family &lt;fam&gt;</code>) or all six serially (download → prepare → ~2-epoch train → push),
 sharing the dataset cache (<code>MANIGUARD_SFT_DATA_ROOT</code>) with the openpi + SmolVLA tracks.</p>

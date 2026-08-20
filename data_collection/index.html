@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LTL safety, task generation, and VLA policy eval on top of BEHAVIOR-1K">
+        <meta name="description" content="A benchmark and data suite for specification-grounded safety evaluation and improvement of robotic manipulation">
       
       
       
@@ -2599,14 +2599,26 @@ loads the longfinger Franka (details in
 <p>The pipeline does not auto-generate grasps — the grasp source is <strong>per-instance human
 annotation</strong>, authored once per object and shared by all six families. Two prep steps:
 extract the meshes, then annotate grasps on them.</p>
+<div class="admonition tip">
+<p class="admonition-title">The finished database is released — skip steps 1–2 to just run datagen</p>
+<p>The full annotation DB (1,547 grasps over 221 object instances, plus
+<code>cabinet_geom.json</code>) ships on Hugging Face as
+<a href="https://huggingface.co/datasets/IDEAS-Lab-Northwestern/maniguard-grasp-annotations"><code>maniguard-grasp-annotations</code></a>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>hf<span class="w"> </span>download<span class="w"> </span>IDEAS-Lab-Northwestern/maniguard-grasp-annotations<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--repo-type<span class="w"> </span>dataset<span class="w"> </span>--local-dir<span class="w"> </span>outputs/grasp_annotation
+</code></pre></div>
+<p>Running datagen needs only these JSONs. Steps 1–2 below are for <strong>adding or editing
+grasps</strong>: the annotation <em>tool</em> needs the object meshes, which are not
+redistributable (BEHAVIOR-1K asset terms) and are regenerated locally by step 1.</p>
+</div>
 <h4 id="1-mesh-extraction">1 · Mesh extraction<a class="headerlink" href="#1-mesh-extraction" title="Permanent link">&para;</a></h4>
 <p>OmniGibson assets are <em>encrypted USD</em> — meshes can only be read through OG. Extract each
 grasp target's mesh <strong>once</strong> so the annotation tool (step 2) loads instantly with no
 sim. Code: <code>annotation/extract_meshes.py</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># meshes + metadata DB for one or all families</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--families<span class="w"> </span>clutter_pickup
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--families<span class="w"> </span>all
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--gripper<span class="w">   </span><span class="c1"># the gripper mesh (once)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># meshes + metadata DB for one or all families</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--families<span class="w"> </span>clutter_pickup
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--families<span class="w"> </span>all
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.extract_meshes<span class="w"> </span>--gripper<span class="w">   </span><span class="c1"># the gripper mesh (once)</span>
 </code></pre></div>
 <p>Output: <code>outputs/grasp_annotation/{meshes/*.glb, gripper_longfinger.glb, mesh_db.json}</code>.</p>
 <details class="note">
@@ -2630,7 +2642,7 @@ objects you filter to annotate (<code>--family</code>).</p>
 <p>The tool is a <a href="https://viser.studio">viser</a> web GUI. It shows the object <strong>upright</strong> with
 the world axes and the real longfinger gripper drawn at the draft pose; <strong>Enter</strong> saves
 each grasp incrementally (reopening auto-resumes, never overwrites).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.annotate_tool<span class="w"> </span>--family<span class="w"> </span>clutter<span class="w">   </span><span class="c1"># → localhost:8080</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.annotate_tool<span class="w"> </span>--family<span class="w"> </span>clutter<span class="w">   </span><span class="c1"># → localhost:8080</span>
 </code></pre></div>
 <p><img src="annotation_gui.png" alt="Grasp annotation GUI" style="max-width:100%; border-radius:6px;"></p>
 <p style="text-align:center;"><em>The annotation GUI: the longfinger gripper drawn at the draft grasp, with the guided panel and the 6-DoF gizmo.</em></p>
@@ -2650,10 +2662,10 @@ each grasp incrementally (reopening auto-resumes, never overwrites).</p>
   <strong>closing (between fingers) = eef −Y</strong>. The GUI draws the gripper using this frame.</li>
 <li><strong>Prerequisite</strong>: <code>mesh_db.json</code> (step 1 output; the GUI renders objects from it).</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"objects"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"&lt;category&gt;/&lt;model&gt;"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="nt">"bbox_size"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"upright_orientation_xyzw"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"mesh"</span><span class="p">:</span><span class="w"> </span><span class="s2">"meshes/...glb"</span><span class="p">,</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">"grasps"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"orientation_xyzw"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">                  </span><span class="nt">"approach_hint"</span><span class="p">:</span><span class="w"> </span><span class="s2">"top_down|side"</span><span class="p">,</span><span class="w"> </span><span class="nt">"label"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">"objects"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"&lt;category&gt;/&lt;model&gt;"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="nt">"bbox_size"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"upright_orientation_xyzw"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"mesh"</span><span class="p">:</span><span class="w"> </span><span class="s2">"meshes/...glb"</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="nt">"grasps"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">"position"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span><span class="w"> </span><span class="nt">"orientation_xyzw"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">..</span><span class="p">],</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">                  </span><span class="nt">"approach_hint"</span><span class="p">:</span><span class="w"> </span><span class="s2">"top_down|side"</span><span class="p">,</span><span class="w"> </span><span class="nt">"label"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 </details>
 <details class="example">
@@ -2671,9 +2683,9 @@ sim to a later consolidated pass.</p>
    <code>eef_link</code> lands <strong>exactly</strong> on the grasp and renders the 4 bench cameras + a 3D
    closeup — confirming the grasp lands on the intended part.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>python<span class="w">    </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.fix_approach_tags<span class="w"> </span>--family<span class="w"> </span>clutter<span class="w"> </span>--apply
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>python<span class="w">    </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.mesh_review<span class="w">       </span>--family<span class="w"> </span>clutter
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.validate_grasps<span class="w">   </span>--object<span class="w"> </span>&lt;cat&gt;/&lt;model&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w">    </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.fix_approach_tags<span class="w"> </span>--family<span class="w"> </span>clutter<span class="w"> </span>--apply
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>python<span class="w">    </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.mesh_review<span class="w">       </span>--family<span class="w"> </span>clutter
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.validate_grasps<span class="w">   </span>--object<span class="w"> </span>&lt;cat&gt;/&lt;model&gt;
 </code></pre></div>
 </details>
 <details class="note">
@@ -2683,7 +2695,7 @@ wider than the gripper), <code>generate_topdown_grasps.py</code> synthesizes str
 (approach = world −Z, a fan of yaws, centred over the top face) — avoiding the failure
 modes of hand-annotated edge grasps on slabs (tip-over, wrist droop, palm-flip). Default
 dry-run; <code>--apply</code> writes into the DB.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.generate_topdown_grasps<span class="w"> </span>--cabinet-all<span class="w"> </span>--n-yaw<span class="w"> </span><span class="m">6</span><span class="w"> </span>--apply
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.annotation.generate_topdown_grasps<span class="w"> </span>--cabinet-all<span class="w"> </span>--n-yaw<span class="w"> </span><span class="m">6</span><span class="w"> </span>--apply
 </code></pre></div>
 </details>
 <h3 id="collection-steps-34">Collection (steps 3–4)<a class="headerlink" href="#collection-steps-34" title="Permanent link">&para;</a></h3>
@@ -2727,10 +2739,10 @@ skeleton</strong> that only declares the motion segments.</p>
 <p>A family's <code>derive_segments</code> returns an ordered list of <strong><code>MotionSegment</code></strong>s (waypoint +
 mode + grip + clearance + a runtime-resolved <code>compute</code> tag); the engine executes them
 identically for every family.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># one task, collect until 50 success+safe demos (preferred for collection)</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.driver<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span>--task-dir<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/clutter_pickup/task_0000/base<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--target<span class="w"> </span><span class="m">50</span><span class="w"> </span>--score
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># one task, collect until 50 success+safe demos (preferred for collection)</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.driver<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>--task-dir<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/clutter_pickup/task_0000/base<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--target<span class="w"> </span><span class="m">50</span><span class="w"> </span>--score
 </code></pre></div>
 <p><code>--target N</code> keeps drawing variants until N successes (or <code>max_attempts</code>, default <code>N*4</code>),
 restoring a pristine scene snapshot between <strong>every</strong> variant (each demo moves the target,
@@ -2815,9 +2827,9 @@ voids</strong> the demo — we never collect "success but not safe."</p>
 <p>The parallelism unit is the <strong>task</strong> — one fresh OG process each, because <code>og.clear()</code>
 can't switch tasks in-process. <code>sweep.py</code> runs its assigned tasks sequentially, one
 subprocess each, on one GPU.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># first 5 clutter tasks, 50 demos each, single GPU single process</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.sweep<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span>--family<span class="w"> </span>clutter<span class="w"> </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--limit-tasks<span class="w"> </span><span class="m">5</span><span class="w"> </span>--target<span class="w"> </span><span class="m">50</span><span class="w"> </span>--gpu<span class="w"> </span><span class="m">0</span><span class="w"> </span>--skip-existing
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># first 5 clutter tasks, 50 demos each, single GPU single process</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>python<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.sweep<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span>--family<span class="w"> </span>clutter<span class="w"> </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--limit-tasks<span class="w"> </span><span class="m">5</span><span class="w"> </span>--target<span class="w"> </span><span class="m">50</span><span class="w"> </span>--gpu<span class="w"> </span><span class="m">0</span><span class="w"> </span>--skip-existing
 </code></pre></div>
 <p><strong>Multi-GPU / parallel:</strong> launch one sweep per shard in separate tmux sessions —
 <code>--shard i --num-shards N --gpu G</code>. Shards own disjoint tasks (round-robin), so output
@@ -2835,9 +2847,9 @@ owned by one shard), per-task <code>_summary.json</code>, per-task log under <co
 LeRobot v2.1 for SFT.</p>
 <h4 id="5-review-montage">5 · Review montage<a class="headerlink" href="#5-review-montage" title="Permanent link">&para;</a></h4>
 <p><code>review.py</code> tiles every demo of a task into one MP4 for efficient visual review.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.review<span class="w"> </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>clutter_pickup<span class="w"> </span>--all<span class="w">   </span><span class="c1"># one MP4 per task</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.review<span class="w"> </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>clutter_pickup<span class="w"> </span>--task<span class="w"> </span>task_0000<span class="w"> </span>--wrist
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># → outputs/datagen/v1/clutter_pickup/&lt;task&gt;/_review_ls.mp4  (or _review_lsw[_pN].mp4)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.review<span class="w"> </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>clutter_pickup<span class="w"> </span>--all<span class="w">   </span><span class="c1"># one MP4 per task</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.review<span class="w"> </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>clutter_pickup<span class="w"> </span>--task<span class="w"> </span>task_0000<span class="w"> </span>--wrist
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># → outputs/datagen/v1/clutter_pickup/&lt;task&gt;/_review_ls.mp4  (or _review_lsw[_pN].mp4)</span>
 </code></pre></div>
 <details class="note">
 <summary>▸ Montage layout</summary>
@@ -2856,13 +2868,13 @@ layout with the <strong>videos passed through (no re-encode)</strong>.</p>
 <p>Step 6 imports <code>lerobot</code> (Python 3.11 / <code>lerobot</code> 0.3.3 <code>uv</code> venv); the two dependency
 stacks conflict, so it does <strong>not</strong> run in the <code>behavior</code> conda env.</p>
 </div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># serial (single task / smoke)</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.to_lerobot<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>clutter_pickup<span class="w"> </span>--repo-id<span class="w"> </span>&lt;org&gt;/datagen-clutter-v1-joint-5cam
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="c1"># parallel — recommended for a full family (~18× faster; shard-by-task → merge → verify)</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.to_lerobot_parallel<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>dusty_transfer<span class="w"> </span>--repo-id<span class="w"> </span>&lt;org&gt;/datagen-dusty-v1-joint-5cam<span class="w"> </span><span class="o">[</span>--procs<span class="w"> </span>N<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># serial (single task / smoke)</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.to_lerobot<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>clutter_pickup<span class="w"> </span>--repo-id<span class="w"> </span>&lt;org&gt;/datagen-clutter-v1-joint-5cam
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># parallel — recommended for a full family (~18× faster; shard-by-task → merge → verify)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.datagen.to_lerobot_parallel<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span>--dataset<span class="w"> </span>v1<span class="w"> </span>--family<span class="w"> </span>dusty_transfer<span class="w"> </span>--repo-id<span class="w"> </span>&lt;org&gt;/datagen-dusty-v1-joint-5cam<span class="w"> </span><span class="o">[</span>--procs<span class="w"> </span>N<span class="o">]</span>
 </code></pre></div>
 <details class="info">
 <summary>▸ Input → output layout &amp; feature schema</summary>
@@ -2965,12 +2977,12 @@ merged-dataset self-check runs by default (disable with <code>--no-verify</code>
 </details>
 <h4 id="data-layout-schema-raw">Data layout &amp; schema (RAW)<a class="headerlink" href="#data-layout-schema-raw" title="Permanent link">&para;</a></h4>
 <p>The on-disk layout every step reads/writes (step 6 repackages it into LeRobot):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>outputs/datagen/&lt;dataset&gt;/&lt;bench_family&gt;/&lt;task&gt;/traj_&lt;NNN&gt;/
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    image_opposite.mp4  image_left.mp4  image_right.mp4  image_left_shoulder.mp4  wrist_image.mp4
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    traj.hdf5      state (N,8)=[arm_q(7),gripper] · actions (N,8)=[arm_q[t+1],gripper_cmd]
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>                   actions_commanded (N,8)=[cuRobo cmd] · states (N,*)=sim-state dump (MimicGen hook)
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    meta.json      family/source_task/target_key/grasp_id/approach/draw/standoff_m/…/success/ltl_violated/prompt
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    _summary.json  (per task) n_success / n_attempts / elapsed_s
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>outputs/datagen/&lt;dataset&gt;/&lt;bench_family&gt;/&lt;task&gt;/traj_&lt;NNN&gt;/
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    image_opposite.mp4  image_left.mp4  image_right.mp4  image_left_shoulder.mp4  wrist_image.mp4
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    traj.hdf5      state (N,8)=[arm_q(7),gripper] · actions (N,8)=[arm_q[t+1],gripper_cmd]
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>                   actions_commanded (N,8)=[cuRobo cmd] · states (N,*)=sim-state dump (MimicGen hook)
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    meta.json      family/source_task/target_key/grasp_id/approach/draw/standoff_m/…/success/ltl_violated/prompt
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    _summary.json  (per task) n_success / n_attempts / elapsed_s
 </code></pre></div>
 <p><code>&lt;bench_family&gt;</code> matches the bench dataset dir name; <code>traj_NNN</code> is sequential over <strong>kept</strong>
 demos only (gap-free). Each demo ≈ 1.1 MB (mostly the 5 videos). Naming and resolution
@@ -3055,7 +3067,7 @@ gate rejects crooked drops.</p>
 the downstream render/export flow is identical. Real Franka captures convert through the
 same export. Teleop is one way to produce demos (and the reference for task feasibility),
 but the datasets that feed SFT at scale come from the scripted pipeline above.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>leader arm (SO-101 / GELLO)  ─►  sim Franka  ─►  raw HDF5  ─►  playback render  ─►  LeRobot v2.1
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>leader arm (SO-101 / GELLO)  ─►  sim Franka  ─►  raw HDF5  ─►  playback render  ─►  LeRobot v2.1
 </code></pre></div>
 <table>
 <thead>
@@ -3088,16 +3100,16 @@ same 8-D joint SFT format — see <a href="#playback-render">Playback / render</
 tasks: pick a leader arm and a family, and it walks the tasks interactively — one
 teleop episode per trajectory, success-gated writes, a keep/discard prompt after
 each, resume across sessions, per-task trajectory numbering.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="c1"># GELLO (default) — every task of the family:</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--family<span class="w"> </span>jar_transport
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="c1"># SO-101 — start the ZMQ bridge first (next section), then a task subset:</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--arm<span class="w"> </span>so101<span class="w"> </span>--family<span class="w"> </span>stack_retrieve<span class="w"> </span>--tasks<span class="w"> </span><span class="m">0001</span><span class="w"> </span><span class="m">0004</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="c1"># resolve the config and print the launch command without booting Isaac:</span>
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--family<span class="w"> </span>lid_transport<span class="w"> </span>--dry-run
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1"># GELLO (default) — every task of the family:</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--family<span class="w"> </span>jar_transport
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># SO-101 — start the ZMQ bridge first (next section), then a task subset:</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--arm<span class="w"> </span>so101<span class="w"> </span>--family<span class="w"> </span>stack_retrieve<span class="w"> </span>--tasks<span class="w"> </span><span class="m">0001</span><span class="w"> </span><span class="m">0004</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="c1"># resolve the config and print the launch command without booting Isaac:</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>bash<span class="w"> </span>scripts/teleop_family_collect.sh<span class="w"> </span>--family<span class="w"> </span>lid_transport<span class="w"> </span>--dry-run
 </code></pre></div>
 <p>Trajectories land in <code>outputs/teleop_collected/&lt;family&gt;_&lt;arm&gt;/task_NNNN_traj_NNN.hdf5</code>
 — the arm tag keeps GELLO and SO-101 collections apart, and the conversion below
@@ -3117,15 +3129,15 @@ serial, computes forward kinematics to get the end-effector pose, and publishes 
 as a pickled dict on a ZMQ PUB socket at a fixed rate (default 60 Hz). Runs in the
 <code>lerobot</code> Python 3.12 venv. A <code>--mock</code> mode emits a sinusoidal trajectory with no hardware.
 Source: <code>teleop_bridge/so101_server.py</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># mock (no hardware)</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>lerobot
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>python<span class="w"> </span>teleop_bridge/so101_server.py<span class="w"> </span>--mock
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="c1"># real hardware with FK</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="nb">cd</span><span class="w"> </span>teleop_bridge/SO-ARM100/Simulation/SO101
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>python<span class="w"> </span>&lt;repo&gt;/teleop_bridge/so101_server.py<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">    </span>--port<span class="w"> </span>/dev/ttyACM0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">    </span>--urdf<span class="w"> </span>&lt;repo&gt;/teleop_bridge/SO-ARM100/Simulation/SO101/so101_new_calib.urdf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># mock (no hardware)</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>lerobot
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>python<span class="w"> </span>teleop_bridge/so101_server.py<span class="w"> </span>--mock
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="c1"># real hardware with FK</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="nb">cd</span><span class="w"> </span>teleop_bridge/SO-ARM100/Simulation/SO101
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>python<span class="w"> </span>&lt;repo&gt;/teleop_bridge/so101_server.py<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span>--port<span class="w"> </span>/dev/ttyACM0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span>--urdf<span class="w"> </span>&lt;repo&gt;/teleop_bridge/SO-ARM100/Simulation/SO101/so101_new_calib.urdf
 </code></pre></div>
 <details class="note">
 <summary>▸ Server prerequisites</summary>
@@ -3217,12 +3229,12 @@ pipeline-generated scene snapshot (<code>scene_ep*.json</code>) and optionally r
 <code>DataCollectionWrapper</code>. Runs in the <code>behavior</code> conda env (with <code>pip install pyzmq</code>).
 Source: <code>maniguard/data/teleop/so101_franka_teleop.py</code> (+ <code>so101_teleop.py</code> for
 <code>SO101TeleopAgent</code>).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Terminal 1: server (above).  Terminal 2:</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_teleop<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop_collected/jar_transport_so101/task_0001_traj_001.hdf5<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span>--only-successes
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Terminal 1: server (above).  Terminal 2:</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_teleop<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop_collected/jar_transport_so101/task_0001_traj_001.hdf5<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span>--only-successes
 </code></pre></div>
 <p>If <code>diagnostics.jsonl</code> sits next to the snapshot, an auto goal checker
 (<code>maniguard.eval.goal_checker.build_goal_checker</code>) ends the episode the moment the goal
@@ -3287,10 +3299,10 @@ gripper has no physical leader counterpart and is toggled with SPACE. On startup
 seeds at a deterministic <code>GELLO_CALIBRATION_FRANKA_POSE</code> and ramps to the leader's live
 reading over <code>GELLO_RAMP_STEPS</code> (60 ≈ 2 s at 30 Hz) to avoid jolts.
 Source: <code>maniguard/data/teleop/gello_franka_teleop.py</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.gello_franka_teleop<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop_collected/jar_transport_gello/task_0001_traj_001.hdf5
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.gello_franka_teleop<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span>--snapshot<span class="w"> </span>outputs/lerobot_datasets/maniguard-bench/jar_transport/task_0001/base/scene_ep1.json<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span>--output-hdf5<span class="w"> </span>outputs/teleop_collected/jar_transport_gello/task_0001_traj_001.hdf5
 </code></pre></div>
 <p>You <strong>must press B to start recording</strong> — until then the leader drives the arm live but
 nothing is written.</p>
@@ -3399,12 +3411,12 @@ the two. The matching Franka pose is <code>GELLO_CALIBRATION_FRANKA_POSE</code>;
 reference pose means updating <strong>both</strong> constants (they are paired). Brace the arm with
 a fixture or a second person — a few degrees of drift bakes into the offsets.</p>
 <p><strong>2 · Run the calibration script</strong> (bundled <code>joylo</code> submodule):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>python<span class="w"> </span>behavior-1k/joylo/scripts/gello_get_offset.py<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--port<span class="w"> </span>/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_&lt;SERIAL&gt;-if00-port0<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span>--start-joints<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span>--joint-signs<span class="w"> </span><span class="m">1</span><span class="w"> </span>-1<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">  </span>--gripper<span class="w"> </span>False
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>python<span class="w"> </span>behavior-1k/joylo/scripts/gello_get_offset.py<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span>--port<span class="w"> </span>/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_&lt;SERIAL&gt;-if00-port0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span>--start-joints<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span>--joint-signs<span class="w"> </span><span class="m">1</span><span class="w"> </span>-1<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span>--gripper<span class="w"> </span>False
 </code></pre></div>
 <table>
 <thead>
@@ -3469,12 +3481,12 @@ produces them.</p>
   is stamped as <code>data.attrs['action_source']</code> in the output.</li>
 <li><strong>SO-101 replay (viewer / RGB re-render):</strong> <code>so101_franka_playback.py</code>:</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="c1"># watch in the viewer</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># re-render RGB into a new HDF5</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">    </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5<span class="w"> </span>--output<span class="w"> </span>outputs/teleop/demo_obs.hdf5<span class="w"> </span>--record
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="c1"># watch in the viewer</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># re-render RGB into a new HDF5</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.teleop.so101_franka_playback<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">    </span>--input<span class="w"> </span>outputs/teleop/demo.hdf5<span class="w"> </span>--output<span class="w"> </span>outputs/teleop/demo_obs.hdf5<span class="w"> </span>--record
 </code></pre></div>
 <details class="note">
 <summary>▸ Playback internals</summary>
@@ -3490,10 +3502,10 @@ materialised into the output HDF5.</p>
 driven by the template <code>scripts/render_teleop_to_lerobot.sh</code> (edit only its CONFIG
 block: <code>FAMILY</code> and <code>ARM</code> select the arm-tagged collection dir from the collect
 script; both arms convert through the identical flow):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w">            </span><span class="c1"># both stages</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage1<span class="w">   </span><span class="c1"># re-render raw teleop → joint+3cam HDF5</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage2<span class="w">   </span><span class="c1"># rendered HDF5 → LeRobot v2.1 (local build)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>behavior
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w">            </span><span class="c1"># both stages</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage1<span class="w">   </span><span class="c1"># re-render raw teleop → joint+3cam HDF5</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>bash<span class="w"> </span>scripts/render_teleop_to_lerobot.sh<span class="w"> </span>--stage2<span class="w">   </span><span class="c1"># rendered HDF5 → LeRobot v2.1 (local build)</span>
 </code></pre></div>
 <ul>
 <li><strong>Stage 1 — render</strong> — <code>maniguard.data.playback --input &lt;raw&gt; --output &lt;rendered&gt;</code>
@@ -3525,11 +3537,11 @@ the two target conventions (<code>maniguard/data/real_teleop/</code>):</p>
 <p><strong>Direct → DROID (joint) — <code>real_teleop_to_droid</code>.</strong> Real npz → LeRobot v2.1 in the
 <strong>DROID joint</strong> convention (openpi's DROID pretrained convention is joint-space, so this
 stays consistent with the sim tracks):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>.venv-lerobot/bin/python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_droid<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>--repo-id<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"&lt;instruction&gt;"</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span>--root<span class="w"> </span>outputs/lerobot_datasets/&lt;org&gt;/&lt;task&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span>--push-to-hub<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--hub-private
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>.venv-lerobot/bin/python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_droid<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>--repo-id<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--prompt<span class="w"> </span><span class="s2">"&lt;instruction&gt;"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>--root<span class="w"> </span>outputs/lerobot_datasets/&lt;org&gt;/&lt;task&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">  </span>--push-to-hub<span class="w"> </span>&lt;org&gt;/&lt;task&gt;<span class="w"> </span>--hub-private
 </code></pre></div>
 <p>It assembles 8-D state <code>[joint_position(7), gripper]</code> + 8-D action
 <code>[joint_velocity(7), gripper[t+1]]</code>, decodes / crops / resizes the cameras, and (via
@@ -3538,8 +3550,8 @@ columns separate rather than a single <code>state</code> column.</p>
 <p><strong>Via sim-compatible HDF5 — <code>real_teleop_to_hdf5</code>.</strong> For the eef-convention path, first
 emit an HDF5 that matches the sim teleop Stage-2 input schema, then reuse the shared
 export above:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_hdf5<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span>--output-dir<span class="w"> </span>outputs/real_rendered<span class="w"> </span>--img-size<span class="w"> </span><span class="m">256</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>python<span class="w"> </span>-m<span class="w"> </span>maniguard.data.real_teleop.real_teleop_to_hdf5<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span>--input-dir<span class="w"> </span>outputs/real_teleop<span class="w"> </span>--output-dir<span class="w"> </span>outputs/real_rendered<span class="w"> </span>--img-size<span class="w"> </span><span class="m">256</span>
 </code></pre></div>
 <p>Each episode becomes <code>state</code> = <code>eef_pos(3) + axisangle(3) + gripper(2)</code> (8-D) and
 <code>action</code> = <code>dpos(3) + drot_axisangle(3) + gripper(1)</code> (7-D), with <code>image</code> +
