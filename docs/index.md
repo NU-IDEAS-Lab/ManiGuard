@@ -1,10 +1,12 @@
 # ManiGuard
 
-**ManiGuard** is a Python package on top of
+**ManiGuard** is a benchmark and data suite for specification-grounded safety
+evaluation and improvement of foundation model–driven robotic manipulation. It is
+implemented as a Python package on top of
 [BEHAVIOR-1K](https://github.com/StanfordVL/BEHAVIOR-1K) / OmniGibson that adds
 **LTL safety checking**, **task-generation pipelines**, **teleop + scripted data
-collection**, **VLA supervised fine-tuning**, and **policy evaluation** for robotic
-manipulation in simulated households.
+collection**, **VLA supervised fine-tuning**, and **policy evaluation** in simulated
+household environments.
 
 !!! tip "Evaluate your VLA on ManiGuard-Bench → [Run the benchmark](evaluation/run_benchmark.md)"
     Download the benchmark, serve your checkpoint, run a family across ID + OOD,

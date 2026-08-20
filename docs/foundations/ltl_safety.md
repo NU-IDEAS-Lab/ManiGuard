@@ -6,10 +6,12 @@ by step. The system has two layers:
 
 1. **Propositions** — boolean facts about the scene evaluated each step
    (e.g. "the wineglass is upright", "the agent is touching the food").
-2. **Automaton monitoring** — an LTL formula over those propositions is compiled
-   to an automaton (via [Spot](https://spot.lre.epita.fr/)); each step advances
-   the automaton and reports whether the run has entered a *doomed* state from
-   which the safety property can no longer be satisfied.
+2. **Automaton monitoring** — an LTL<sub>f</sub> formula over those propositions is
+   compiled (via [Spot](https://spot.lre.epita.fr/), options
+   `'monitor', 'det', 'complete'`) into a **deterministic monitor automaton**
+   that detects *bad prefixes*: each step advances the automaton, and the run is
+   flagged as *doomed* as soon as it enters a rejecting sink — a state from
+   which the safety property can no longer be satisfied on any continuation.
 
 Code lives in `maniguard/utils/`:
 

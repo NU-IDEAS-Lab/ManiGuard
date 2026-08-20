@@ -10,6 +10,10 @@ pose, the world eef target is::
 
 Pure numpy/scipy — no OmniGibson / cuRobo, so it imports cheaply and unit-tests without a
 sim. (Same transform the annotation ``validate_grasps`` loader verified to 0.0 mm.)
+
+The released database (1,547 grasps / 221 object instances) is the HF dataset
+``IDEAS-Lab-Northwestern/maniguard-grasp-annotations`` — download it into
+``outputs/grasp_annotation/`` (the default ``ANN_PATH`` below).
 """
 from __future__ import annotations
 

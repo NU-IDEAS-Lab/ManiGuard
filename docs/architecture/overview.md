@@ -34,7 +34,7 @@ foundation layer. The docs are organized the same way.
 │   ├── _omnigibson_patches.py   # runtime OmniGibson patches (applied on import)
 │   ├── object_states/   #   Dropped, Upright
 │   ├── utils/           #   LTL (ltl_utils, safety_monitor), task_spec, geometry
-│   ├── task_generation/ #   clutter / cabinet / stack / jar / lid / dusty / transfer / liquid pipelines
+│   ├── task_generation/ #   the 6 bench-family pipelines (clutter / cabinet / stack / jar / lid / dusty) + extra transfer & liquid pipelines
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
 │   ├── data/            #   datagen (scripted SFT demos), bench_builder, teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery

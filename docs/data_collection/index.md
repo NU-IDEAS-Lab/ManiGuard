@@ -133,6 +133,20 @@ The pipeline does not auto-generate grasps — the grasp source is **per-instanc
 annotation**, authored once per object and shared by all six families. Two prep steps:
 extract the meshes, then annotate grasps on them.
 
+!!! tip "The finished database is released — skip steps 1–2 to just run datagen"
+    The full annotation DB (1,547 grasps over 221 object instances, plus
+    `cabinet_geom.json`) ships on Hugging Face as
+    [`maniguard-grasp-annotations`](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/maniguard-grasp-annotations):
+
+    ```bash
+    hf download IDEAS-Lab-Northwestern/maniguard-grasp-annotations \
+        --repo-type dataset --local-dir outputs/grasp_annotation
+    ```
+
+    Running datagen needs only these JSONs. Steps 1–2 below are for **adding or editing
+    grasps**: the annotation *tool* needs the object meshes, which are not
+    redistributable (BEHAVIOR-1K asset terms) and are regenerated locally by step 1.
+
 #### 1 · Mesh extraction
 
 OmniGibson assets are *encrypted USD* — meshes can only be read through OG. Extract each

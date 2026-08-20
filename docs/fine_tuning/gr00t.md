@@ -20,15 +20,16 @@ and its cameras. The modality config lives in
 | Purpose | Path |
 |---|---|
 | `NEW_EMBODIMENT` modality config | `maniguard/gr00t_sft/maniguard_embodiment.py` |
-| Dataset prep (ManiGuard LeRobot → GR00T layout, AV1→H.264) | `tools/gr00t_sft/prepare_dataset.py` |
+| Dataset prep (symlink view of the ManiGuard LeRobot dataset + GR00T `modality.json` / stats; no copy, no transcode) | `tools/gr00t_sft/prepare_dataset.py` |
+| Pre-bake norm stats (optional, reused by `prepare_dataset.py --stats-dir`) | `tools/gr00t_sft/bake_stats.py` |
 | SFT launcher | `tools/gr00t_sft/run_sft.sh` |
 | End-to-end 6-family driver | `tools/gr00t_sft/run_all.sh` |
 | Push checkpoints to HF | `tools/gr00t_sft/push_to_hf.py` |
 
 Training runs against an Isaac-GR00T clone (`n1.6-release`). Model repos follow
-`<org>/gr00t-n16-base-datagen-v1-<fam>-joint-2cam` (e.g.
-`IDEAS-Lab-Northwestern/gr00t-n16-base-datagen-v1-clutter-joint-2cam`); training runs
-log to the `gr00t-n16-base-joint-2cam` wandb project with the family as the
+`<org>/gr00t-n16-datagen-v1-<fam>-joint-2cam` (e.g.
+`IDEAS-Lab-Northwestern/gr00t-n16-datagen-v1-clutter-joint-2cam`); training runs
+log to the `maniguard-gr00tN1d6` wandb project with the family as the
 experiment name. `run_all.sh` drives one family
 (`--family <fam>`) or all six serially (download → prepare → ~2-epoch train → push),
 sharing the dataset cache (`MANIGUARD_SFT_DATA_ROOT`) with the openpi + SmolVLA tracks.

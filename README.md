@@ -12,8 +12,9 @@
 </p>
 
 <p align="center">
-  A safety-aware benchmark &amp; toolkit for vision-language-action manipulation,
-  built on <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson.
+  <b>ManiGuard</b>: A specification-grounded benchmark and data suite for safety evaluation
+  and improvement of VLA-driven robotic manipulation, implemented on
+  <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson.
 </p>
 
 <p align="center">
@@ -30,8 +31,9 @@
 
 ## Overview
 
-**ManiGuard** is a safety-aware benchmark and toolkit for vision-language-action
-(VLA) manipulation policies. It pairs a **frozen evaluation benchmark** — six tabletop
+**ManiGuard** is a benchmark and data suite for specification-grounded safety
+evaluation and improvement of foundation model (e.g., VLA)-driven robotic
+manipulation. It pairs a **frozen evaluation benchmark** — six tabletop
 task families, each with an in-distribution base task and **four out-of-distribution
 perturbation levels** (target / language / location / env) — with **LTL-based safety
 monitoring**, so a policy is scored on **two axes: task success *and* safety**, not task
@@ -59,8 +61,8 @@ Everything below is covered in depth on the **[documentation site](https://nu-id
 
 **Datasets & checkpoints** (Hugging Face collections):
 [**Benchmark & Datasets**](https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e)
-— the ManiGuard-Bench evaluation scenes, the long-finger Franka robot asset, and the
-six-family SFT demonstration datasets; and
+— the ManiGuard-Bench evaluation scenes, the long-finger Franka robot asset, the
+grasp-annotation database, and the six-family SFT demonstration datasets; and
 [**Evaluated VLA Checkpoints**](https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-evaluated-vla-checkpoints-6a83d481b7af91f0daaf8221)
 — every fine-tuned checkpoint behind the paper's rollout evaluations.
 
@@ -93,7 +95,7 @@ to serve a checkpoint and score it.
 │   ├── _omnigibson_patches.py   # runtime patches on vanilla OmniGibson
 │   ├── object_states/   #   Dropped, Upright
 │   ├── utils/           #   ltl_utils, safety_monitor, task_spec, geometry
-│   ├── task_generation/ #   clutter / cabinet / stack / jar / lid / dusty / transfer / liquid pipelines
+│   ├── task_generation/ #   the 6 bench-family pipelines (clutter / cabinet / stack / jar / lid / dusty) + extra transfer & liquid pipelines
 │   ├── envs/            #   scene registry + frozen-snapshot runtime (no live env class)
 │   ├── data/            #   datagen (scripted SFT demos), bench_builder, teleop, lerobot, real_teleop, scene + playback
 │   ├── eval/            #   benchmark runner, goal checker, scene discovery

@@ -36,7 +36,7 @@ import sys
 from huggingface_hub import snapshot_download
 
 BASE_REPO = "lerobot/smolvla_base"
-SFT_REPO = "IDEAS-Lab-Northwestern/smolvla-base-datagen-v1-{family}-joint-2cam-yanZ"
+SFT_REPO = "IDEAS-Lab-Northwestern/smolvla-base-datagen-v1-{family}-joint-2cam"
 FAMILIES = ("clutter", "cabinet", "stack", "jar", "lid", "dusty")
 
 # Everything except the weights is taken from the SFT side.
