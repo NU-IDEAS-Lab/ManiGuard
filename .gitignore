@@ -1,0 +1,36 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+.context/
+log_dir/*
+scene_generation/*
+outputs/*
+wandb/
+maniguard/_version.py
+maniguard.egg-info/
+behavior-1k/bddl3/bddl/activity_definitions/*
+vla_models/
+.vscode/
+teleop_bridge/SO-ARM100/
+Omnireset/
+behavior-1k/OmniGibson/appdata/
+behavior-1k/OmniGibson/docs/_build/
+behavior-1k/OmniGibson/omnigibson.egg-info/
+behavior-1k/OmniGibson/.pytest_cache/
+behavior-1k/OmniGibson/**/__pycache__/
+datasets/*
+
+# personal datagen dev logs (not for the public docs site)
+docs/datagen/debug_logs/
+
+# stack_pipeline raw raycast (122 MB; reproducible from scan_top_surface.py)
+maniguard/task_generation/utils/stack_pipeline/scan_top_full.json
+maniguard/task_generation/utils/stack_pipeline/__pycache__/
+
+# mkdocs build output (regenerable via `mkdocs build`)
+site/
+
+# local-only
+CLAUDE.md
+.claude/

@@ -1,0 +1,37 @@
+# ManiGuard norm-stats config (used by scripts/compute_norm_stats.py).
+#
+# Separate from the training config on purpose: compute_norm_stats.py's `Arguments` has only
+# `data` + `train` sections, so passing the training config fails with "Some specified
+# arguments are not used by the ArgumentParser: ['--model.model_path', ...]". Upstream ships
+# configs/vla/norm_compute/post_data.yaml for the same reason; this is its ManiGuard twin.
+#
+# ⚠️ data.joints / cameras / norm_type MUST stay identical to
+# configs/vla/maniguard/maniguard.yaml -- they define how raw slices are assembled into the
+# unified features, so a mismatch here would compute statistics for a different layout than
+# the one trained on, silently mis-normalizing every input.
+#
+# train_path and norm_path are filled per family by tools/lingbot_sft/run_sft.sh.
+
+data:
+  datasets_type: vla
+  data_name: maniguard
+  train_path: ''
+  robot_config_root: ./configs/robot_configs
+  norm_path: ''
+  joints:
+    - arm.position: 14
+    - end.position: 14
+    - effector.position: 2
+  cameras:
+    - camera_top
+    - camera_wrist_left
+  norm_type:
+    - arm.position: bounds_99_woclip
+    - end.position: bounds_99_woclip
+    - effector.position: bounds_99_woclip
+  num_workers: 8
+
+train:
+  micro_batch_size: 48
+  output_dir: ''
+  max_steps: 100000000000000

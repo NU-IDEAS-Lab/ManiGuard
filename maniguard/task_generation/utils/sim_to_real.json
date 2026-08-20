@@ -1,0 +1,3387 @@
+{
+  "source": {
+    "avg_specs": "OmniGibson/omnigibson/configs/avg_category_specs.json",
+    "metadata": "datasets/behavior-1k-assets/objects/<category>/<model>/misc/metadata.json"
+  },
+  "units": {
+    "mass": "kg",
+    "volume": "m^3",
+    "density": "kg/m^3",
+    "bbox": "m"
+  },
+  "categories": {
+    "mug": {
+      "category": "mug",
+      "mass_kg": 0.3,
+      "volume_m3": 0.000177,
+      "density_kg_m3": 1695.28,
+      "n_models": 14,
+      "models": [
+        {
+          "model": "dhnxww",
+          "bbox_size_m": [
+            0.0931,
+            0.1212,
+            0.0527
+          ],
+          "bbox_volume_m3": 0.000594
+        },
+        {
+          "model": "ehnmxj",
+          "bbox_size_m": [
+            0.0867,
+            0.1132,
+            0.0705
+          ],
+          "bbox_volume_m3": 0.000692
+        },
+        {
+          "model": "fapsrj",
+          "bbox_size_m": [
+            0.0867,
+            0.1132,
+            0.0705
+          ],
+          "bbox_volume_m3": 0.000692
+        },
+        {
+          "model": "jgethp",
+          "bbox_size_m": [
+            0.1127,
+            0.1368,
+            0.064
+          ],
+          "bbox_volume_m3": 0.000987
+        },
+        {
+          "model": "kewbyf",
+          "bbox_size_m": [
+            0.0645,
+            0.0877,
+            0.0646
+          ],
+          "bbox_volume_m3": 0.000365
+        },
+        {
+          "model": "kitxam",
+          "bbox_size_m": [
+            0.064,
+            0.0858,
+            0.0647
+          ],
+          "bbox_volume_m3": 0.000355
+        },
+        {
+          "model": "lgxhsc",
+          "bbox_size_m": [
+            0.0772,
+            0.1051,
+            0.0845
+          ],
+          "bbox_volume_m3": 0.000687
+        },
+        {
+          "model": "ntgftr",
+          "bbox_size_m": [
+            0.1057,
+            0.1438,
+            0.0958
+          ],
+          "bbox_volume_m3": 0.001456
+        },
+        {
+          "model": "ppdqbj",
+          "bbox_size_m": [
+            0.0878,
+            0.1293,
+            0.0999
+          ],
+          "bbox_volume_m3": 0.001134
+        },
+        {
+          "model": "ppzttc",
+          "bbox_size_m": [
+            0.081,
+            0.1091,
+            0.0803
+          ],
+          "bbox_volume_m3": 0.000709
+        },
+        {
+          "model": "waqrdy",
+          "bbox_size_m": [
+            0.0816,
+            0.1183,
+            0.135
+          ],
+          "bbox_volume_m3": 0.001304
+        },
+        {
+          "model": "ycbmug",
+          "bbox_size_m": [
+            0.0931,
+            0.117,
+            0.0814
+          ],
+          "bbox_volume_m3": 0.000886
+        },
+        {
+          "model": "yiamah",
+          "bbox_size_m": [
+            0.0772,
+            0.1051,
+            0.0846
+          ],
+          "bbox_volume_m3": 0.000687
+        },
+        {
+          "model": "yxaapv",
+          "bbox_size_m": [
+            0.0914,
+            0.1282,
+            0.1242
+          ],
+          "bbox_volume_m3": 0.001454
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "coffee_cup": {
+      "category": "coffee_cup",
+      "mass_kg": 0.275,
+      "volume_m3": 9e-05,
+      "density_kg_m3": 3040.45,
+      "n_models": 12,
+      "models": [
+        {
+          "model": "ckkwmj",
+          "bbox_size_m": [
+            0.0915,
+            0.0722,
+            0.0687
+          ],
+          "bbox_volume_m3": 0.000454
+        },
+        {
+          "model": "dkxddg",
+          "bbox_size_m": [
+            0.0914,
+            0.0696,
+            0.0505
+          ],
+          "bbox_volume_m3": 0.000322
+        },
+        {
+          "model": "fgizgn",
+          "bbox_size_m": [
+            0.0953,
+            0.0631,
+            0.0707
+          ],
+          "bbox_volume_m3": 0.000425
+        },
+        {
+          "model": "ibhhfj",
+          "bbox_size_m": [
+            0.0986,
+            0.079,
+            0.0639
+          ],
+          "bbox_volume_m3": 0.000498
+        },
+        {
+          "model": "nbhcgu",
+          "bbox_size_m": [
+            0.1036,
+            0.0869,
+            0.0682
+          ],
+          "bbox_volume_m3": 0.000614
+        },
+        {
+          "model": "nhzrei",
+          "bbox_size_m": [
+            0.1023,
+            0.0737,
+            0.0858
+          ],
+          "bbox_volume_m3": 0.000647
+        },
+        {
+          "model": "rixzrk",
+          "bbox_size_m": [
+            0.1878,
+            0.1878,
+            0.0794
+          ],
+          "bbox_volume_m3": 0.0028
+        },
+        {
+          "model": "rypdvd",
+          "bbox_size_m": [
+            0.0914,
+            0.0651,
+            0.0898
+          ],
+          "bbox_volume_m3": 0.000535
+        },
+        {
+          "model": "siksnl",
+          "bbox_size_m": [
+            0.0952,
+            0.0788,
+            0.0798
+          ],
+          "bbox_volume_m3": 0.000598
+        },
+        {
+          "model": "skamgp",
+          "bbox_size_m": [
+            0.1259,
+            0.087,
+            0.0743
+          ],
+          "bbox_volume_m3": 0.000814
+        },
+        {
+          "model": "xjdyon",
+          "bbox_size_m": [
+            0.1036,
+            0.0869,
+            0.0681
+          ],
+          "bbox_volume_m3": 0.000613
+        },
+        {
+          "model": "ykuftq",
+          "bbox_size_m": [
+            0.0914,
+            0.0569,
+            0.0775
+          ],
+          "bbox_volume_m3": 0.000404
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "teacup": {
+      "category": "teacup",
+      "mass_kg": 0.25,
+      "volume_m3": 6e-05,
+      "density_kg_m3": 4153.21,
+      "n_models": 7,
+      "models": [
+        {
+          "model": "cpozxi",
+          "bbox_size_m": [
+            0.0867,
+            0.0869,
+            0.1057
+          ],
+          "bbox_volume_m3": 0.000796
+        },
+        {
+          "model": "kccqwj",
+          "bbox_size_m": [
+            0.0958,
+            0.0787,
+            0.0474
+          ],
+          "bbox_volume_m3": 0.000358
+        },
+        {
+          "model": "oxfzfe",
+          "bbox_size_m": [
+            0.1299,
+            0.0943,
+            0.0707
+          ],
+          "bbox_volume_m3": 0.000866
+        },
+        {
+          "model": "tfzfam",
+          "bbox_size_m": [
+            0.0727,
+            0.0727,
+            0.0521
+          ],
+          "bbox_volume_m3": 0.000275
+        },
+        {
+          "model": "vckahe",
+          "bbox_size_m": [
+            0.0915,
+            0.0734,
+            0.0354
+          ],
+          "bbox_volume_m3": 0.000237
+        },
+        {
+          "model": "wopjex",
+          "bbox_size_m": [
+            0.1146,
+            0.0885,
+            0.0928
+          ],
+          "bbox_volume_m3": 0.000942
+        },
+        {
+          "model": "zdvgol",
+          "bbox_size_m": [
+            0.0748,
+            0.0748,
+            0.0582
+          ],
+          "bbox_volume_m3": 0.000325
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "goblet": {
+      "category": "goblet",
+      "mass_kg": 0.5,
+      "volume_m3": 0.000731,
+      "density_kg_m3": 684.44,
+      "n_models": 1,
+      "models": [
+        {
+          "model": "nawrfs",
+          "bbox_size_m": [
+            0.1473,
+            0.1455,
+            0.2133
+          ],
+          "bbox_volume_m3": 0.00457
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "water_glass": {
+      "category": "water_glass",
+      "mass_kg": 0.25,
+      "volume_m3": 0.000204,
+      "density_kg_m3": 1225.15,
+      "n_models": 24,
+      "models": [
+        {
+          "model": "bbpraa",
+          "bbox_size_m": [
+            0.0677,
+            0.0677,
+            0.135
+          ],
+          "bbox_volume_m3": 0.000618
+        },
+        {
+          "model": "cdteyb",
+          "bbox_size_m": [
+            0.1861,
+            0.1861,
+            0.1258
+          ],
+          "bbox_volume_m3": 0.004356
+        },
+        {
+          "model": "edfzlt",
+          "bbox_size_m": [
+            0.0956,
+            0.0956,
+            0.1194
+          ],
+          "bbox_volume_m3": 0.001092
+        },
+        {
+          "model": "elwfms",
+          "bbox_size_m": [
+            0.0902,
+            0.0902,
+            0.123
+          ],
+          "bbox_volume_m3": 0.001001
+        },
+        {
+          "model": "evaida",
+          "bbox_size_m": [
+            0.0825,
+            0.0825,
+            0.1553
+          ],
+          "bbox_volume_m3": 0.001057
+        },
+        {
+          "model": "ewgotr",
+          "bbox_size_m": [
+            0.0789,
+            0.0789,
+            0.1415
+          ],
+          "bbox_volume_m3": 0.000882
+        },
+        {
+          "model": "ggpnlr",
+          "bbox_size_m": [
+            0.0585,
+            0.0585,
+            0.2
+          ],
+          "bbox_volume_m3": 0.000685
+        },
+        {
+          "model": "gypzlg",
+          "bbox_size_m": [
+            0.0948,
+            0.0948,
+            0.1057
+          ],
+          "bbox_volume_m3": 0.000949
+        },
+        {
+          "model": "igyuko",
+          "bbox_size_m": [
+            0.06,
+            0.0601,
+            0.148
+          ],
+          "bbox_volume_m3": 0.000534
+        },
+        {
+          "model": "imsnkt",
+          "bbox_size_m": [
+            0.0858,
+            0.0858,
+            0.0952
+          ],
+          "bbox_volume_m3": 0.000701
+        },
+        {
+          "model": "kttdbu",
+          "bbox_size_m": [
+            0.1626,
+            0.1626,
+            0.1378
+          ],
+          "bbox_volume_m3": 0.003643
+        },
+        {
+          "model": "ktuvuo",
+          "bbox_size_m": [
+            0.079,
+            0.079,
+            0.0778
+          ],
+          "bbox_volume_m3": 0.000485
+        },
+        {
+          "model": "kuiiai",
+          "bbox_size_m": [
+            0.1024,
+            0.1024,
+            0.1782
+          ],
+          "bbox_volume_m3": 0.001868
+        },
+        {
+          "model": "lvqgvn",
+          "bbox_size_m": [
+            0.0622,
+            0.0619,
+            0.1457
+          ],
+          "bbox_volume_m3": 0.00056
+        },
+        {
+          "model": "nfoydb",
+          "bbox_size_m": [
+            0.09,
+            0.09,
+            0.1305
+          ],
+          "bbox_volume_m3": 0.001057
+        },
+        {
+          "model": "onbiqg",
+          "bbox_size_m": [
+            0.0856,
+            0.0856,
+            0.0877
+          ],
+          "bbox_volume_m3": 0.000643
+        },
+        {
+          "model": "ptciim",
+          "bbox_size_m": [
+            0.0843,
+            0.0843,
+            0.1194
+          ],
+          "bbox_volume_m3": 0.000848
+        },
+        {
+          "model": "slscza",
+          "bbox_size_m": [
+            0.0772,
+            0.0772,
+            0.15
+          ],
+          "bbox_volume_m3": 0.000894
+        },
+        {
+          "model": "szjfpb",
+          "bbox_size_m": [
+            0.0549,
+            0.055,
+            0.1138
+          ],
+          "bbox_volume_m3": 0.000343
+        },
+        {
+          "model": "uwtdng",
+          "bbox_size_m": [
+            0.0556,
+            0.0556,
+            0.0649
+          ],
+          "bbox_volume_m3": 0.000201
+        },
+        {
+          "model": "vcwsbm",
+          "bbox_size_m": [
+            0.1349,
+            0.091,
+            0.1935
+          ],
+          "bbox_volume_m3": 0.002377
+        },
+        {
+          "model": "wvztiw",
+          "bbox_size_m": [
+            0.123,
+            0.1412,
+            0.1424
+          ],
+          "bbox_volume_m3": 0.002473
+        },
+        {
+          "model": "ybhepe",
+          "bbox_size_m": [
+            0.0417,
+            0.0417,
+            0.0591
+          ],
+          "bbox_volume_m3": 0.000103
+        },
+        {
+          "model": "zbridw",
+          "bbox_size_m": [
+            0.0799,
+            0.0795,
+            0.0996
+          ],
+          "bbox_volume_m3": 0.000633
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "beer_glass": {
+      "category": "beer_glass",
+      "mass_kg": 0.375,
+      "volume_m3": 0.00013,
+      "density_kg_m3": 2883.61,
+      "n_models": 3,
+      "models": [
+        {
+          "model": "lymciz",
+          "bbox_size_m": [
+            0.1056,
+            0.1056,
+            0.2087
+          ],
+          "bbox_volume_m3": 0.002328
+        },
+        {
+          "model": "mxsliu",
+          "bbox_size_m": [
+            0.0602,
+            0.0605,
+            0.1169
+          ],
+          "bbox_volume_m3": 0.000426
+        },
+        {
+          "model": "rxscji",
+          "bbox_size_m": [
+            0.0601,
+            0.0601,
+            0.0877
+          ],
+          "bbox_volume_m3": 0.000316
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "beaker": {
+      "category": "beaker",
+      "mass_kg": 0.225,
+      "volume_m3": 7.4e-05,
+      "density_kg_m3": 3042.62,
+      "n_models": 12,
+      "models": [
+        {
+          "model": "dtjmai",
+          "bbox_size_m": [
+            0.0838,
+            0.0732,
+            0.0456
+          ],
+          "bbox_volume_m3": 0.00028
+        },
+        {
+          "model": "effbnc",
+          "bbox_size_m": [
+            0.1229,
+            0.1229,
+            0.1456
+          ],
+          "bbox_volume_m3": 0.002197
+        },
+        {
+          "model": "exzsal",
+          "bbox_size_m": [
+            0.0953,
+            0.0953,
+            0.1017
+          ],
+          "bbox_volume_m3": 0.000924
+        },
+        {
+          "model": "fxrsyi",
+          "bbox_size_m": [
+            0.0458,
+            0.0458,
+            0.0663
+          ],
+          "bbox_volume_m3": 0.000139
+        },
+        {
+          "model": "fyrkzs",
+          "bbox_size_m": [
+            0.0778,
+            0.0778,
+            0.0809
+          ],
+          "bbox_volume_m3": 0.00049
+        },
+        {
+          "model": "jdijek",
+          "bbox_size_m": [
+            0.0778,
+            0.0778,
+            0.0809
+          ],
+          "bbox_volume_m3": 0.00049
+        },
+        {
+          "model": "rhohgs",
+          "bbox_size_m": [
+            0.0778,
+            0.0778,
+            0.0809
+          ],
+          "bbox_volume_m3": 0.00049
+        },
+        {
+          "model": "sfvswx",
+          "bbox_size_m": [
+            0.1256,
+            0.1256,
+            0.1465
+          ],
+          "bbox_volume_m3": 0.002309
+        },
+        {
+          "model": "sstojv",
+          "bbox_size_m": [
+            0.1738,
+            0.1738,
+            0.2079
+          ],
+          "bbox_volume_m3": 0.006279
+        },
+        {
+          "model": "uobdoq",
+          "bbox_size_m": [
+            0.0778,
+            0.0778,
+            0.0809
+          ],
+          "bbox_volume_m3": 0.00049
+        },
+        {
+          "model": "uzgibd",
+          "bbox_size_m": [
+            0.0707,
+            0.0707,
+            0.0735
+          ],
+          "bbox_volume_m3": 0.000368
+        },
+        {
+          "model": "zycgen",
+          "bbox_size_m": [
+            0.0778,
+            0.0778,
+            0.0809
+          ],
+          "bbox_volume_m3": 0.00049
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "measuring_cup": {
+      "category": "measuring_cup",
+      "mass_kg": 0.225,
+      "volume_m3": 0.001093,
+      "density_kg_m3": 205.94,
+      "n_models": 1,
+      "models": [
+        {
+          "model": "ahtzhp",
+          "bbox_size_m": [
+            0.2741,
+            0.1624,
+            0.1195
+          ],
+          "bbox_volume_m3": 0.005318
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "bowl": {
+      "category": "bowl",
+      "mass_kg": 0.5,
+      "volume_m3": 0.000419,
+      "density_kg_m3": 1192.99,
+      "n_models": 47,
+      "models": [
+        {
+          "model": "adciys",
+          "bbox_size_m": [
+            0.15,
+            0.1499,
+            0.0586
+          ],
+          "bbox_volume_m3": 0.001319
+        },
+        {
+          "model": "ajzltc",
+          "bbox_size_m": [
+            0.1177,
+            0.1047,
+            0.06
+          ],
+          "bbox_volume_m3": 0.000739
+        },
+        {
+          "model": "aspeds",
+          "bbox_size_m": [
+            0.1451,
+            0.1451,
+            0.0543
+          ],
+          "bbox_volume_m3": 0.001143
+        },
+        {
+          "model": "belcml",
+          "bbox_size_m": [
+            0.1676,
+            0.1676,
+            0.1025
+          ],
+          "bbox_volume_m3": 0.002879
+        },
+        {
+          "model": "bexgtn",
+          "bbox_size_m": [
+            0.2758,
+            0.2758,
+            0.1517
+          ],
+          "bbox_volume_m3": 0.011542
+        },
+        {
+          "model": "byzaxy",
+          "bbox_size_m": [
+            0.3062,
+            0.3062,
+            0.1361
+          ],
+          "bbox_volume_m3": 0.012757
+        },
+        {
+          "model": "ckxwea",
+          "bbox_size_m": [
+            0.4921,
+            0.4338,
+            0.1394
+          ],
+          "bbox_volume_m3": 0.029764
+        },
+        {
+          "model": "cypjlv",
+          "bbox_size_m": [
+            0.2474,
+            0.2474,
+            0.1594
+          ],
+          "bbox_volume_m3": 0.009762
+        },
+        {
+          "model": "dalyim",
+          "bbox_size_m": [
+            0.15,
+            0.15,
+            0.0312
+          ],
+          "bbox_volume_m3": 0.000701
+        },
+        {
+          "model": "eawgwj",
+          "bbox_size_m": [
+            0.1463,
+            0.1463,
+            0.0895
+          ],
+          "bbox_volume_m3": 0.001917
+        },
+        {
+          "model": "eipwho",
+          "bbox_size_m": [
+            0.1077,
+            0.1077,
+            0.06
+          ],
+          "bbox_volume_m3": 0.000696
+        },
+        {
+          "model": "fedafr",
+          "bbox_size_m": [
+            0.2222,
+            0.2222,
+            0.0596
+          ],
+          "bbox_volume_m3": 0.002945
+        },
+        {
+          "model": "feuaak",
+          "bbox_size_m": [
+            0.1612,
+            0.2614,
+            0.1542
+          ],
+          "bbox_volume_m3": 0.006498
+        },
+        {
+          "model": "fiarri",
+          "bbox_size_m": [
+            0.1174,
+            0.1052,
+            0.0598
+          ],
+          "bbox_volume_m3": 0.000739
+        },
+        {
+          "model": "fwdfeg",
+          "bbox_size_m": [
+            0.15,
+            0.15,
+            0.0597
+          ],
+          "bbox_volume_m3": 0.001342
+        },
+        {
+          "model": "haewxp",
+          "bbox_size_m": [
+            0.3231,
+            0.3718,
+            0.079
+          ],
+          "bbox_volume_m3": 0.009494
+        },
+        {
+          "model": "hitnkv",
+          "bbox_size_m": [
+            0.1249,
+            0.1249,
+            0.0737
+          ],
+          "bbox_volume_m3": 0.001149
+        },
+        {
+          "model": "hpqjug",
+          "bbox_size_m": [
+            0.1619,
+            0.1619,
+            0.0792
+          ],
+          "bbox_volume_m3": 0.002078
+        },
+        {
+          "model": "hynhgz",
+          "bbox_size_m": [
+            0.1922,
+            0.1922,
+            0.1136
+          ],
+          "bbox_volume_m3": 0.004198
+        },
+        {
+          "model": "jblalf",
+          "bbox_size_m": [
+            0.1693,
+            0.1693,
+            0.081
+          ],
+          "bbox_volume_m3": 0.002322
+        },
+        {
+          "model": "jfvjep",
+          "bbox_size_m": [
+            0.1484,
+            0.1484,
+            0.06
+          ],
+          "bbox_volume_m3": 0.001322
+        },
+        {
+          "model": "jhtxxh",
+          "bbox_size_m": [
+            0.2638,
+            0.2638,
+            0.0338
+          ],
+          "bbox_volume_m3": 0.002352
+        },
+        {
+          "model": "jpvcjv",
+          "bbox_size_m": [
+            0.1985,
+            0.1986,
+            0.0651
+          ],
+          "bbox_volume_m3": 0.002567
+        },
+        {
+          "model": "kasebx",
+          "bbox_size_m": [
+            0.1434,
+            0.1434,
+            0.0825
+          ],
+          "bbox_volume_m3": 0.001695
+        },
+        {
+          "model": "kdkrov",
+          "bbox_size_m": [
+            0.1785,
+            0.1785,
+            0.115
+          ],
+          "bbox_volume_m3": 0.003666
+        },
+        {
+          "model": "kthvrl",
+          "bbox_size_m": [
+            0.0934,
+            0.0934,
+            0.06
+          ],
+          "bbox_volume_m3": 0.000524
+        },
+        {
+          "model": "lgaxzt",
+          "bbox_size_m": [
+            0.4388,
+            0.4388,
+            0.0742
+          ],
+          "bbox_volume_m3": 0.014281
+        },
+        {
+          "model": "mspdar",
+          "bbox_size_m": [
+            0.1174,
+            0.1045,
+            0.0598
+          ],
+          "bbox_volume_m3": 0.000734
+        },
+        {
+          "model": "nkkhbn",
+          "bbox_size_m": [
+            0.1986,
+            0.2015,
+            0.069
+          ],
+          "bbox_volume_m3": 0.002762
+        },
+        {
+          "model": "nmhxfz",
+          "bbox_size_m": [
+            0.1981,
+            0.1981,
+            0.0391
+          ],
+          "bbox_volume_m3": 0.001534
+        },
+        {
+          "model": "npuuir",
+          "bbox_size_m": [
+            0.1744,
+            0.1744,
+            0.078
+          ],
+          "bbox_volume_m3": 0.002372
+        },
+        {
+          "model": "oyidja",
+          "bbox_size_m": [
+            0.15,
+            0.15,
+            0.0408
+          ],
+          "bbox_volume_m3": 0.000919
+        },
+        {
+          "model": "pihjqa",
+          "bbox_size_m": [
+            0.254,
+            0.254,
+            0.0799
+          ],
+          "bbox_volume_m3": 0.005155
+        },
+        {
+          "model": "pyilfa",
+          "bbox_size_m": [
+            0.1105,
+            0.1105,
+            0.0252
+          ],
+          "bbox_volume_m3": 0.000308
+        },
+        {
+          "model": "qzodht",
+          "bbox_size_m": [
+            0.1986,
+            0.2015,
+            0.069
+          ],
+          "bbox_volume_m3": 0.002762
+        },
+        {
+          "model": "rbnyxi",
+          "bbox_size_m": [
+            0.1823,
+            0.2758,
+            0.1337
+          ],
+          "bbox_volume_m3": 0.006723
+        },
+        {
+          "model": "rlwpcd",
+          "bbox_size_m": [
+            0.1155,
+            0.105,
+            0.059
+          ],
+          "bbox_volume_m3": 0.000716
+        },
+        {
+          "model": "sqqahm",
+          "bbox_size_m": [
+            0.1303,
+            0.128,
+            0.0575
+          ],
+          "bbox_volume_m3": 0.00096
+        },
+        {
+          "model": "szgdpc",
+          "bbox_size_m": [
+            0.1569,
+            0.1569,
+            0.0565
+          ],
+          "bbox_volume_m3": 0.001389
+        },
+        {
+          "model": "tvtive",
+          "bbox_size_m": [
+            0.1878,
+            0.1878,
+            0.1173
+          ],
+          "bbox_volume_m3": 0.004138
+        },
+        {
+          "model": "tyczoo",
+          "bbox_size_m": [
+            0.2477,
+            0.2477,
+            0.175
+          ],
+          "bbox_volume_m3": 0.010735
+        },
+        {
+          "model": "vccsrl",
+          "bbox_size_m": [
+            0.1546,
+            0.2663,
+            0.0562
+          ],
+          "bbox_volume_m3": 0.002316
+        },
+        {
+          "model": "wryghu",
+          "bbox_size_m": [
+            0.1296,
+            0.1296,
+            0.0683
+          ],
+          "bbox_volume_m3": 0.001148
+        },
+        {
+          "model": "wtepsx",
+          "bbox_size_m": [
+            0.169,
+            0.169,
+            0.0494
+          ],
+          "bbox_volume_m3": 0.001411
+        },
+        {
+          "model": "xplzbo",
+          "bbox_size_m": [
+            0.1739,
+            0.1739,
+            0.1084
+          ],
+          "bbox_volume_m3": 0.003279
+        },
+        {
+          "model": "xpnlup",
+          "bbox_size_m": [
+            0.15,
+            0.15,
+            0.0446
+          ],
+          "bbox_volume_m3": 0.001003
+        },
+        {
+          "model": "ycbbwl",
+          "bbox_size_m": [
+            0.1611,
+            0.1614,
+            0.055
+          ],
+          "bbox_volume_m3": 0.00143
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "mixing_bowl": {
+      "category": "mixing_bowl",
+      "mass_kg": 0.751,
+      "volume_m3": 0.001287,
+      "density_kg_m3": 583.73,
+      "n_models": 3,
+      "models": [
+        {
+          "model": "bsgybx",
+          "bbox_size_m": [
+            0.2394,
+            0.2117,
+            0.1138
+          ],
+          "bbox_volume_m3": 0.005769
+        },
+        {
+          "model": "deudkt",
+          "bbox_size_m": [
+            0.2626,
+            0.2322,
+            0.125
+          ],
+          "bbox_volume_m3": 0.007623
+        },
+        {
+          "model": "xifive",
+          "bbox_size_m": [
+            0.2905,
+            0.2569,
+            0.1392
+          ],
+          "bbox_volume_m3": 0.010389
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "plate": {
+      "category": "plate",
+      "mass_kg": 0.5,
+      "volume_m3": 0.000326,
+      "density_kg_m3": 1531.71,
+      "n_models": 50,
+      "models": [
+        {
+          "model": "aewthq",
+          "bbox_size_m": [
+            0.1704,
+            0.1704,
+            0.0195
+          ],
+          "bbox_volume_m3": 0.000566
+        },
+        {
+          "model": "akfjxx",
+          "bbox_size_m": [
+            0.2087,
+            0.2087,
+            0.0273
+          ],
+          "bbox_volume_m3": 0.00119
+        },
+        {
+          "model": "amhlqh",
+          "bbox_size_m": [
+            0.3519,
+            0.411,
+            0.0357
+          ],
+          "bbox_volume_m3": 0.005167
+        },
+        {
+          "model": "aynjhg",
+          "bbox_size_m": [
+            0.241,
+            0.241,
+            0.0262
+          ],
+          "bbox_volume_m3": 0.001524
+        },
+        {
+          "model": "bgxzec",
+          "bbox_size_m": [
+            0.2313,
+            0.2313,
+            0.0081
+          ],
+          "bbox_volume_m3": 0.000434
+        },
+        {
+          "model": "dbprwc",
+          "bbox_size_m": [
+            0.2178,
+            0.2178,
+            0.0407
+          ],
+          "bbox_volume_m3": 0.001928
+        },
+        {
+          "model": "dnqekb",
+          "bbox_size_m": [
+            0.33,
+            0.33,
+            0.0132
+          ],
+          "bbox_volume_m3": 0.001437
+        },
+        {
+          "model": "eixyyn",
+          "bbox_size_m": [
+            0.1623,
+            0.1621,
+            0.0202
+          ],
+          "bbox_volume_m3": 0.000532
+        },
+        {
+          "model": "eozsdg",
+          "bbox_size_m": [
+            0.33,
+            0.33,
+            0.0132
+          ],
+          "bbox_volume_m3": 0.001437
+        },
+        {
+          "model": "fhdyrj",
+          "bbox_size_m": [
+            0.3318,
+            0.3318,
+            0.0303
+          ],
+          "bbox_volume_m3": 0.003337
+        },
+        {
+          "model": "fkpaie",
+          "bbox_size_m": [
+            0.2971,
+            0.2973,
+            0.0184
+          ],
+          "bbox_volume_m3": 0.001628
+        },
+        {
+          "model": "iawoof",
+          "bbox_size_m": [
+            0.2,
+            0.2,
+            0.0236
+          ],
+          "bbox_volume_m3": 0.000942
+        },
+        {
+          "model": "ihrjrb",
+          "bbox_size_m": [
+            0.103,
+            0.1257,
+            0.014
+          ],
+          "bbox_volume_m3": 0.000181
+        },
+        {
+          "model": "itoeew",
+          "bbox_size_m": [
+            0.5145,
+            0.5145,
+            0.0306
+          ],
+          "bbox_volume_m3": 0.008089
+        },
+        {
+          "model": "ivbrtz",
+          "bbox_size_m": [
+            0.3785,
+            0.3785,
+            0.0271
+          ],
+          "bbox_volume_m3": 0.003882
+        },
+        {
+          "model": "ivuveo",
+          "bbox_size_m": [
+            0.2665,
+            0.2665,
+            0.0213
+          ],
+          "bbox_volume_m3": 0.001512
+        },
+        {
+          "model": "iwfvwf",
+          "bbox_size_m": [
+            0.2985,
+            0.2986,
+            0.0371
+          ],
+          "bbox_volume_m3": 0.003303
+        },
+        {
+          "model": "kkjiko",
+          "bbox_size_m": [
+            0.24,
+            0.24,
+            0.0298
+          ],
+          "bbox_volume_m3": 0.001715
+        },
+        {
+          "model": "kkmkbd",
+          "bbox_size_m": [
+            0.3119,
+            0.3119,
+            0.0158
+          ],
+          "bbox_volume_m3": 0.001539
+        },
+        {
+          "model": "ksgizx",
+          "bbox_size_m": [
+            0.2649,
+            0.2649,
+            0.0577
+          ],
+          "bbox_volume_m3": 0.004049
+        },
+        {
+          "model": "lixwwc",
+          "bbox_size_m": [
+            0.1156,
+            0.1156,
+            0.0284
+          ],
+          "bbox_volume_m3": 0.000379
+        },
+        {
+          "model": "lkomhp",
+          "bbox_size_m": [
+            0.1692,
+            0.1759,
+            0.0277
+          ],
+          "bbox_volume_m3": 0.000824
+        },
+        {
+          "model": "luhkiz",
+          "bbox_size_m": [
+            0.241,
+            0.241,
+            0.0262
+          ],
+          "bbox_volume_m3": 0.001524
+        },
+        {
+          "model": "molqhs",
+          "bbox_size_m": [
+            0.5145,
+            0.5145,
+            0.0306
+          ],
+          "bbox_volume_m3": 0.008089
+        },
+        {
+          "model": "mtetqm",
+          "bbox_size_m": [
+            0.2142,
+            0.2194,
+            0.0144
+          ],
+          "bbox_volume_m3": 0.000677
+        },
+        {
+          "model": "nbuspz",
+          "bbox_size_m": [
+            0.2897,
+            0.2897,
+            0.0213
+          ],
+          "bbox_volume_m3": 0.001785
+        },
+        {
+          "model": "nhodax",
+          "bbox_size_m": [
+            0.2646,
+            0.2646,
+            0.0346
+          ],
+          "bbox_volume_m3": 0.002419
+        },
+        {
+          "model": "nikfgd",
+          "bbox_size_m": [
+            0.2029,
+            0.2029,
+            0.0189
+          ],
+          "bbox_volume_m3": 0.00078
+        },
+        {
+          "model": "nrjump",
+          "bbox_size_m": [
+            0.1693,
+            0.1693,
+            0.01
+          ],
+          "bbox_volume_m3": 0.000288
+        },
+        {
+          "model": "ntedfx",
+          "bbox_size_m": [
+            0.2381,
+            0.2381,
+            0.0331
+          ],
+          "bbox_volume_m3": 0.001878
+        },
+        {
+          "model": "odmjdd",
+          "bbox_size_m": [
+            0.2268,
+            0.2307,
+            0.0276
+          ],
+          "bbox_volume_m3": 0.001446
+        },
+        {
+          "model": "pjinwe",
+          "bbox_size_m": [
+            0.4218,
+            0.422,
+            0.0201
+          ],
+          "bbox_volume_m3": 0.003586
+        },
+        {
+          "model": "pkkgzc",
+          "bbox_size_m": [
+            0.2591,
+            0.2591,
+            0.0227
+          ],
+          "bbox_volume_m3": 0.001524
+        },
+        {
+          "model": "qbxfmv",
+          "bbox_size_m": [
+            0.2624,
+            0.2624,
+            0.0233
+          ],
+          "bbox_volume_m3": 0.001607
+        },
+        {
+          "model": "qtfzeq",
+          "bbox_size_m": [
+            0.2458,
+            0.2459,
+            0.0149
+          ],
+          "bbox_volume_m3": 0.000902
+        },
+        {
+          "model": "qyuyjr",
+          "bbox_size_m": [
+            0.2974,
+            0.2962,
+            0.0171
+          ],
+          "bbox_volume_m3": 0.001508
+        },
+        {
+          "model": "spppps",
+          "bbox_size_m": [
+            0.2618,
+            0.2618,
+            0.0272
+          ],
+          "bbox_volume_m3": 0.001865
+        },
+        {
+          "model": "tgrsui",
+          "bbox_size_m": [
+            0.1803,
+            0.1771,
+            0.0269
+          ],
+          "bbox_volume_m3": 0.000858
+        },
+        {
+          "model": "uakqei",
+          "bbox_size_m": [
+            0.1598,
+            0.1591,
+            0.0092
+          ],
+          "bbox_volume_m3": 0.000234
+        },
+        {
+          "model": "ujodgo",
+          "bbox_size_m": [
+            0.2836,
+            0.2836,
+            0.0144
+          ],
+          "bbox_volume_m3": 0.001156
+        },
+        {
+          "model": "uumkbl",
+          "bbox_size_m": [
+            0.1213,
+            0.1214,
+            0.0241
+          ],
+          "bbox_volume_m3": 0.000355
+        },
+        {
+          "model": "vitdwc",
+          "bbox_size_m": [
+            0.1173,
+            0.1173,
+            0.0176
+          ],
+          "bbox_volume_m3": 0.000241
+        },
+        {
+          "model": "vjqzwa",
+          "bbox_size_m": [
+            0.1991,
+            0.1992,
+            0.0184
+          ],
+          "bbox_volume_m3": 0.000731
+        },
+        {
+          "model": "vtjwof",
+          "bbox_size_m": [
+            0.2298,
+            0.2299,
+            0.0073
+          ],
+          "bbox_volume_m3": 0.000385
+        },
+        {
+          "model": "wgcgia",
+          "bbox_size_m": [
+            0.2654,
+            0.2655,
+            0.0265
+          ],
+          "bbox_volume_m3": 0.001868
+        },
+        {
+          "model": "wqgndf",
+          "bbox_size_m": [
+            0.2176,
+            0.2176,
+            0.0204
+          ],
+          "bbox_volume_m3": 0.000967
+        },
+        {
+          "model": "xfjmld",
+          "bbox_size_m": [
+            0.3105,
+            0.3105,
+            0.0342
+          ],
+          "bbox_volume_m3": 0.003295
+        },
+        {
+          "model": "xtdcau",
+          "bbox_size_m": [
+            0.1521,
+            0.1522,
+            0.0048
+          ],
+          "bbox_volume_m3": 0.000112
+        },
+        {
+          "model": "ypdfrp",
+          "bbox_size_m": [
+            0.1823,
+            0.1823,
+            0.0122
+          ],
+          "bbox_volume_m3": 0.000404
+        },
+        {
+          "model": "zpddxu",
+          "bbox_size_m": [
+            0.226,
+            0.226,
+            0.0276
+          ],
+          "bbox_volume_m3": 0.001408
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "saucer": {
+      "category": "saucer",
+      "mass_kg": 0.175,
+      "volume_m3": 0.000109,
+      "density_kg_m3": 1603.83,
+      "n_models": 4,
+      "models": [
+        {
+          "model": "mgbeah",
+          "bbox_size_m": [
+            0.1568,
+            0.1568,
+            0.0211
+          ],
+          "bbox_volume_m3": 0.000518
+        },
+        {
+          "model": "oxivmf",
+          "bbox_size_m": [
+            0.2674,
+            0.2674,
+            0.018
+          ],
+          "bbox_volume_m3": 0.001284
+        },
+        {
+          "model": "szzjzd",
+          "bbox_size_m": [
+            0.1086,
+            0.1086,
+            0.0086
+          ],
+          "bbox_volume_m3": 0.000101
+        },
+        {
+          "model": "vghfkh",
+          "bbox_size_m": [
+            0.1443,
+            0.1442,
+            0.0113
+          ],
+          "bbox_volume_m3": 0.000235
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "platter": {
+      "category": "platter",
+      "mass_kg": 0.607,
+      "volume_m3": 0.000299,
+      "density_kg_m3": 2030.03,
+      "n_models": 6,
+      "models": [
+        {
+          "model": "csanbr",
+          "bbox_size_m": [
+            0.2173,
+            0.3448,
+            0.0166
+          ],
+          "bbox_volume_m3": 0.001246
+        },
+        {
+          "model": "ekjpdj",
+          "bbox_size_m": [
+            0.0972,
+            0.3403,
+            0.0195
+          ],
+          "bbox_volume_m3": 0.000645
+        },
+        {
+          "model": "hnlivs",
+          "bbox_size_m": [
+            0.1587,
+            0.3403,
+            0.0245
+          ],
+          "bbox_volume_m3": 0.001321
+        },
+        {
+          "model": "iadlti",
+          "bbox_size_m": [
+            0.2595,
+            0.2616,
+            0.0369
+          ],
+          "bbox_volume_m3": 0.002504
+        },
+        {
+          "model": "ieoasd",
+          "bbox_size_m": [
+            0.119,
+            0.2552,
+            0.0183
+          ],
+          "bbox_volume_m3": 0.000557
+        },
+        {
+          "model": "kiiamx",
+          "bbox_size_m": [
+            0.1384,
+            0.3403,
+            0.0278
+          ],
+          "bbox_volume_m3": 0.001309
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "tray": {
+      "category": "tray",
+      "mass_kg": 0.581,
+      "volume_m3": 0.000542,
+      "density_kg_m3": 1071.59,
+      "n_models": 24,
+      "models": [
+        {
+          "model": "avotsj",
+          "bbox_size_m": [
+            0.2898,
+            0.161,
+            0.0337
+          ],
+          "bbox_volume_m3": 0.001571
+        },
+        {
+          "model": "coqeme",
+          "bbox_size_m": [
+            0.1419,
+            0.2224,
+            0.0179
+          ],
+          "bbox_volume_m3": 0.000566
+        },
+        {
+          "model": "glwebh",
+          "bbox_size_m": [
+            0.2065,
+            0.166,
+            0.0251
+          ],
+          "bbox_volume_m3": 0.000862
+        },
+        {
+          "model": "gsxbym",
+          "bbox_size_m": [
+            0.3062,
+            0.4373,
+            0.0305
+          ],
+          "bbox_volume_m3": 0.004086
+        },
+        {
+          "model": "hbjdlb",
+          "bbox_size_m": [
+            0.1767,
+            0.3902,
+            0.0421
+          ],
+          "bbox_volume_m3": 0.002899
+        },
+        {
+          "model": "hjxczh",
+          "bbox_size_m": [
+            0.2,
+            0.35,
+            0.01
+          ],
+          "bbox_volume_m3": 0.0007
+        },
+        {
+          "model": "huwhjg",
+          "bbox_size_m": [
+            0.685,
+            0.685,
+            0.046
+          ],
+          "bbox_volume_m3": 0.021581
+        },
+        {
+          "model": "hvlfig",
+          "bbox_size_m": [
+            0.2725,
+            0.4367,
+            0.0185
+          ],
+          "bbox_volume_m3": 0.002202
+        },
+        {
+          "model": "iaaiyi",
+          "bbox_size_m": [
+            0.3,
+            0.3,
+            0.012
+          ],
+          "bbox_volume_m3": 0.00108
+        },
+        {
+          "model": "incirm",
+          "bbox_size_m": [
+            0.2755,
+            0.4953,
+            0.0744
+          ],
+          "bbox_volume_m3": 0.010147
+        },
+        {
+          "model": "jpcflq",
+          "bbox_size_m": [
+            0.166,
+            0.302,
+            0.017
+          ],
+          "bbox_volume_m3": 0.000852
+        },
+        {
+          "model": "mhhoga",
+          "bbox_size_m": [
+            0.3107,
+            0.4618,
+            0.0228
+          ],
+          "bbox_volume_m3": 0.003271
+        },
+        {
+          "model": "mkdcha",
+          "bbox_size_m": [
+            0.4356,
+            0.1425,
+            0.013
+          ],
+          "bbox_volume_m3": 0.000806
+        },
+        {
+          "model": "spopfj",
+          "bbox_size_m": [
+            0.2443,
+            0.3246,
+            0.017
+          ],
+          "bbox_volume_m3": 0.001344
+        },
+        {
+          "model": "thkphg",
+          "bbox_size_m": [
+            0.4052,
+            0.2703,
+            0.0216
+          ],
+          "bbox_volume_m3": 0.00237
+        },
+        {
+          "model": "tkgsho",
+          "bbox_size_m": [
+            0.1799,
+            0.2719,
+            0.0082
+          ],
+          "bbox_volume_m3": 0.000403
+        },
+        {
+          "model": "txcjux",
+          "bbox_size_m": [
+            0.4164,
+            0.6116,
+            0.0913
+          ],
+          "bbox_volume_m3": 0.023242
+        },
+        {
+          "model": "uekqey",
+          "bbox_size_m": [
+            0.3962,
+            0.565,
+            0.0206
+          ],
+          "bbox_volume_m3": 0.004614
+        },
+        {
+          "model": "vxbtax",
+          "bbox_size_m": [
+            0.3266,
+            0.477,
+            0.0929
+          ],
+          "bbox_volume_m3": 0.014464
+        },
+        {
+          "model": "wbwmcs",
+          "bbox_size_m": [
+            0.1881,
+            0.2703,
+            0.0216
+          ],
+          "bbox_volume_m3": 0.0011
+        },
+        {
+          "model": "xzcnjq",
+          "bbox_size_m": [
+            0.2305,
+            0.3458,
+            0.033
+          ],
+          "bbox_volume_m3": 0.002631
+        },
+        {
+          "model": "yqtlhy",
+          "bbox_size_m": [
+            0.9106,
+            0.552,
+            0.0462
+          ],
+          "bbox_volume_m3": 0.023213
+        },
+        {
+          "model": "zcmnji",
+          "bbox_size_m": [
+            0.33,
+            0.33,
+            0.0132
+          ],
+          "bbox_volume_m3": 0.001437
+        },
+        {
+          "model": "zsddtq",
+          "bbox_size_m": [
+            0.2669,
+            0.2669,
+            0.0256
+          ],
+          "bbox_volume_m3": 0.001827
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "coaster": {
+      "category": "coaster",
+      "mass_kg": 0.033,
+      "volume_m3": 1.2e-05,
+      "density_kg_m3": 2804.26,
+      "n_models": 2,
+      "models": [
+        {
+          "model": "arjpcz",
+          "bbox_size_m": [
+            0.1036,
+            0.1036,
+            0.0009
+          ],
+          "bbox_volume_m3": 1e-05
+        },
+        {
+          "model": "httqaj",
+          "bbox_size_m": [
+            0.0882,
+            0.086,
+            0.0367
+          ],
+          "bbox_volume_m3": 0.000279
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "china": {
+      "category": "china",
+      "mass_kg": 2.25,
+      "volume_m3": 0.0037,
+      "density_kg_m3": 608.11,
+      "n_models": 6,
+      "models": [
+        {
+          "model": "cvdbum",
+          "bbox_size_m": [
+            0.4958,
+            0.4958,
+            0.0365
+          ],
+          "bbox_volume_m3": 0.008973
+        },
+        {
+          "model": "gklybu",
+          "bbox_size_m": [
+            0.3699,
+            0.275,
+            0.2379
+          ],
+          "bbox_volume_m3": 0.024206
+        },
+        {
+          "model": "hacehh",
+          "bbox_size_m": [
+            0.4956,
+            0.4956,
+            0.0365
+          ],
+          "bbox_volume_m3": 0.008964
+        },
+        {
+          "model": "jwxbpa",
+          "bbox_size_m": [
+            0.4958,
+            0.4958,
+            0.0365
+          ],
+          "bbox_volume_m3": 0.008972
+        },
+        {
+          "model": "qhnpmc",
+          "bbox_size_m": [
+            0.3699,
+            0.275,
+            0.2379
+          ],
+          "bbox_volume_m3": 0.0242
+        },
+        {
+          "model": "qlxhhh",
+          "bbox_size_m": [
+            0.37,
+            0.2751,
+            0.2379
+          ],
+          "bbox_volume_m3": 0.02421
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "saucepan": {
+      "category": "saucepan",
+      "mass_kg": 1.25,
+      "volume_m3": 0.000427,
+      "density_kg_m3": 2928.29,
+      "n_models": 1,
+      "models": [
+        {
+          "model": "fsinsu",
+          "bbox_size_m": [
+            0.2998,
+            0.1809,
+            0.0938
+          ],
+          "bbox_volume_m3": 0.005087
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "frying_pan": {
+      "category": "frying_pan",
+      "mass_kg": 1.45,
+      "volume_m3": 0.001738,
+      "density_kg_m3": 834.43,
+      "n_models": 8,
+      "models": [
+        {
+          "model": "aewpzn",
+          "bbox_size_m": [
+            0.5748,
+            0.3403,
+            0.104
+          ],
+          "bbox_volume_m3": 0.020343
+        },
+        {
+          "model": "cprjvq",
+          "bbox_size_m": [
+            0.6378,
+            0.4081,
+            0.0998
+          ],
+          "bbox_volume_m3": 0.025986
+        },
+        {
+          "model": "hzspwg",
+          "bbox_size_m": [
+            0.4926,
+            0.2792,
+            0.073
+          ],
+          "bbox_volume_m3": 0.01004
+        },
+        {
+          "model": "jpzusm",
+          "bbox_size_m": [
+            0.465,
+            0.2861,
+            0.0574
+          ],
+          "bbox_volume_m3": 0.007637
+        },
+        {
+          "model": "mhndon",
+          "bbox_size_m": [
+            0.543,
+            0.3341,
+            0.067
+          ],
+          "bbox_volume_m3": 0.012161
+        },
+        {
+          "model": "sfbdjn",
+          "bbox_size_m": [
+            0.4872,
+            0.2543,
+            0.0772
+          ],
+          "bbox_volume_m3": 0.009562
+        },
+        {
+          "model": "snvhlz",
+          "bbox_size_m": [
+            0.5748,
+            0.3403,
+            0.1039
+          ],
+          "bbox_volume_m3": 0.020322
+        },
+        {
+          "model": "vycozd",
+          "bbox_size_m": [
+            0.5356,
+            0.2801,
+            0.1761
+          ],
+          "bbox_volume_m3": 0.026408
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "wok": {
+      "category": "wok",
+      "mass_kg": 1.5,
+      "volume_m3": 0.000472,
+      "density_kg_m3": 3180.76,
+      "n_models": 1,
+      "models": [
+        {
+          "model": "pobfpe",
+          "bbox_size_m": [
+            0.3655,
+            0.2187,
+            0.1071
+          ],
+          "bbox_volume_m3": 0.008565
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "casserole": {
+      "category": "casserole",
+      "mass_kg": 1.643,
+      "volume_m3": 0.001053,
+      "density_kg_m3": 1559.71,
+      "n_models": 2,
+      "models": [
+        {
+          "model": "mmbavt",
+          "bbox_size_m": [
+            0.2332,
+            0.321,
+            0.0899
+          ],
+          "bbox_volume_m3": 0.006728
+        },
+        {
+          "model": "ncbsee",
+          "bbox_size_m": [
+            0.2451,
+            0.2451,
+            0.1197
+          ],
+          "bbox_volume_m3": 0.007188
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "kettle": {
+      "category": "kettle",
+      "mass_kg": 1.365,
+      "volume_m3": 0.000792,
+      "density_kg_m3": 1724.28,
+      "n_models": 2,
+      "models": [
+        {
+          "model": "bzisss",
+          "bbox_size_m": [
+            0.1846,
+            0.1581,
+            0.17
+          ],
+          "bbox_volume_m3": 0.00496
+        },
+        {
+          "model": "vjbldp",
+          "bbox_size_m": [
+            0.1807,
+            0.1636,
+            0.17
+          ],
+          "bbox_volume_m3": 0.005027
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "pitcher": {
+      "category": "pitcher",
+      "mass_kg": 1.425,
+      "volume_m3": 0.002434,
+      "density_kg_m3": 585.56,
+      "n_models": 5,
+      "models": [
+        {
+          "model": "ankfvi",
+          "bbox_size_m": [
+            0.2729,
+            0.2144,
+            0.2801
+          ],
+          "bbox_volume_m3": 0.016387
+        },
+        {
+          "model": "bbewjo",
+          "bbox_size_m": [
+            0.1741,
+            0.1264,
+            0.2443
+          ],
+          "bbox_volume_m3": 0.005378
+        },
+        {
+          "model": "mbrlge",
+          "bbox_size_m": [
+            0.2729,
+            0.2144,
+            0.2801
+          ],
+          "bbox_volume_m3": 0.016387
+        },
+        {
+          "model": "tsyims",
+          "bbox_size_m": [
+            0.2628,
+            0.2152,
+            0.3547
+          ],
+          "bbox_volume_m3": 0.020064
+        },
+        {
+          "model": "tzbnmh",
+          "bbox_size_m": [
+            0.2628,
+            0.2152,
+            0.3547
+          ],
+          "bbox_volume_m3": 0.020064
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "carafe": {
+      "category": "carafe",
+      "mass_kg": 1.35,
+      "volume_m3": 0.000676,
+      "density_kg_m3": 1997.9,
+      "n_models": 3,
+      "models": [
+        {
+          "model": "hdbsog",
+          "bbox_size_m": [
+            0.1127,
+            0.1127,
+            0.302
+          ],
+          "bbox_volume_m3": 0.003838
+        },
+        {
+          "model": "mdtkkv",
+          "bbox_size_m": [
+            0.2513,
+            0.1928,
+            0.3864
+          ],
+          "bbox_volume_m3": 0.018719
+        },
+        {
+          "model": "ocjcgp",
+          "bbox_size_m": [
+            0.0762,
+            0.0762,
+            0.2319
+          ],
+          "bbox_volume_m3": 0.001346
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "wine_bottle": {
+      "category": "wine_bottle",
+      "mass_kg": 0.45,
+      "volume_m3": 0.000197,
+      "density_kg_m3": 2280.85,
+      "n_models": 4,
+      "models": [
+        {
+          "model": "hlzfxw",
+          "bbox_size_m": [
+            0.0586,
+            0.0586,
+            0.2522
+          ],
+          "bbox_volume_m3": 0.000865
+        },
+        {
+          "model": "inkqch",
+          "bbox_size_m": [
+            0.0671,
+            0.0671,
+            0.2196
+          ],
+          "bbox_volume_m3": 0.000988
+        },
+        {
+          "model": "vjdkci",
+          "bbox_size_m": [
+            0.0749,
+            0.0749,
+            0.248
+          ],
+          "bbox_volume_m3": 0.001392
+        },
+        {
+          "model": "zuctnl",
+          "bbox_size_m": [
+            0.0614,
+            0.0614,
+            0.264
+          ],
+          "bbox_volume_m3": 0.000995
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "gravy_boat": {
+      "category": "gravy_boat",
+      "mass_kg": 0.5,
+      "volume_m3": 0.000491,
+      "density_kg_m3": 1018.33,
+      "n_models": 2,
+      "models": [
+        {
+          "model": "arryyl",
+          "bbox_size_m": [
+            0.2412,
+            0.108,
+            0.1393
+          ],
+          "bbox_volume_m3": 0.00363
+        },
+        {
+          "model": "krgqwl",
+          "bbox_size_m": [
+            0.2098,
+            0.159,
+            0.0792
+          ],
+          "bbox_volume_m3": 0.002642
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "watering_can": {
+      "category": "watering_can",
+      "mass_kg": 1.9,
+      "volume_m3": 0.0138,
+      "density_kg_m3": 137.68,
+      "n_models": 1,
+      "models": [
+        {
+          "model": "pewtns",
+          "bbox_size_m": [
+            0.8974,
+            0.31,
+            0.5012
+          ],
+          "bbox_volume_m3": 0.139436
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "lid": {
+      "category": "lid",
+      "mass_kg": 0.346,
+      "volume_m3": 0.000385,
+      "density_kg_m3": 899.53,
+      "n_models": 65,
+      "models": [
+        {
+          "model": "aybgkm",
+          "bbox_size_m": [
+            0.1118,
+            0.1118,
+            0.0173
+          ],
+          "bbox_volume_m3": 0.000216
+        },
+        {
+          "model": "bemtjd",
+          "bbox_size_m": [
+            0.1787,
+            0.1787,
+            0.0213
+          ],
+          "bbox_volume_m3": 0.000679
+        },
+        {
+          "model": "chwwdg",
+          "bbox_size_m": [
+            0.1254,
+            0.1254,
+            0.07
+          ],
+          "bbox_volume_m3": 0.0011
+        },
+        {
+          "model": "ckgilb",
+          "bbox_size_m": [
+            0.1186,
+            0.1186,
+            0.0184
+          ],
+          "bbox_volume_m3": 0.000259
+        },
+        {
+          "model": "cofhlg",
+          "bbox_size_m": [
+            0.3969,
+            0.3969,
+            0.1195
+          ],
+          "bbox_volume_m3": 0.018833
+        },
+        {
+          "model": "dadswa",
+          "bbox_size_m": [
+            0.1875,
+            0.1875,
+            0.0627
+          ],
+          "bbox_volume_m3": 0.002203
+        },
+        {
+          "model": "dkncbi",
+          "bbox_size_m": [
+            0.2,
+            0.2,
+            0.0322
+          ],
+          "bbox_volume_m3": 0.001288
+        },
+        {
+          "model": "egfobe",
+          "bbox_size_m": [
+            0.2432,
+            0.2432,
+            0.0406
+          ],
+          "bbox_volume_m3": 0.002401
+        },
+        {
+          "model": "ejywmx",
+          "bbox_size_m": [
+            0.2811,
+            0.2825,
+            0.0601
+          ],
+          "bbox_volume_m3": 0.004775
+        },
+        {
+          "model": "exiqxa",
+          "bbox_size_m": [
+            0.2,
+            0.2,
+            0.0478
+          ],
+          "bbox_volume_m3": 0.001913
+        },
+        {
+          "model": "exzfzm",
+          "bbox_size_m": [
+            0.0873,
+            0.0873,
+            0.07
+          ],
+          "bbox_volume_m3": 0.000534
+        },
+        {
+          "model": "fnqhbz",
+          "bbox_size_m": [
+            0.2,
+            0.1826,
+            0.0392
+          ],
+          "bbox_volume_m3": 0.001432
+        },
+        {
+          "model": "fvebnu",
+          "bbox_size_m": [
+            0.0917,
+            0.0917,
+            0.0158
+          ],
+          "bbox_volume_m3": 0.000133
+        },
+        {
+          "model": "geesvf",
+          "bbox_size_m": [
+            0.2261,
+            0.2261,
+            0.0732
+          ],
+          "bbox_volume_m3": 0.003743
+        },
+        {
+          "model": "gerjlh",
+          "bbox_size_m": [
+            0.2957,
+            0.2957,
+            0.0702
+          ],
+          "bbox_volume_m3": 0.006135
+        },
+        {
+          "model": "gploju",
+          "bbox_size_m": [
+            0.2503,
+            0.2503,
+            0.0837
+          ],
+          "bbox_volume_m3": 0.005242
+        },
+        {
+          "model": "haxrqc",
+          "bbox_size_m": [
+            0.1148,
+            0.2,
+            0.0081
+          ],
+          "bbox_volume_m3": 0.000186
+        },
+        {
+          "model": "iojcmf",
+          "bbox_size_m": [
+            0.0923,
+            0.0923,
+            0.0139
+          ],
+          "bbox_volume_m3": 0.000119
+        },
+        {
+          "model": "itwwle",
+          "bbox_size_m": [
+            0.1773,
+            0.1773,
+            0.07
+          ],
+          "bbox_volume_m3": 0.002201
+        },
+        {
+          "model": "iuhvrv",
+          "bbox_size_m": [
+            0.2669,
+            0.1969,
+            0.012
+          ],
+          "bbox_volume_m3": 0.000631
+        },
+        {
+          "model": "jqvurl",
+          "bbox_size_m": [
+            0.1044,
+            0.1573,
+            0.07
+          ],
+          "bbox_volume_m3": 0.001149
+        },
+        {
+          "model": "jvqtqi",
+          "bbox_size_m": [
+            0.1647,
+            0.1647,
+            0.07
+          ],
+          "bbox_volume_m3": 0.0019
+        },
+        {
+          "model": "jvzjzp",
+          "bbox_size_m": [
+            0.1189,
+            0.12,
+            0.07
+          ],
+          "bbox_volume_m3": 0.000999
+        },
+        {
+          "model": "jzwezh",
+          "bbox_size_m": [
+            0.4155,
+            0.4192,
+            0.1093
+          ],
+          "bbox_volume_m3": 0.01904
+        },
+        {
+          "model": "kbuqww",
+          "bbox_size_m": [
+            0.176,
+            0.176,
+            0.0834
+          ],
+          "bbox_volume_m3": 0.002585
+        },
+        {
+          "model": "kdswwr",
+          "bbox_size_m": [
+            0.481,
+            0.8125,
+            0.0201
+          ],
+          "bbox_volume_m3": 0.007848
+        },
+        {
+          "model": "kgjkzr",
+          "bbox_size_m": [
+            0.1912,
+            0.1912,
+            0.0311
+          ],
+          "bbox_volume_m3": 0.001137
+        },
+        {
+          "model": "kuibhu",
+          "bbox_size_m": [
+            0.1365,
+            0.1364,
+            0.07
+          ],
+          "bbox_volume_m3": 0.001303
+        },
+        {
+          "model": "lkaasa",
+          "bbox_size_m": [
+            0.174,
+            0.1739,
+            0.0222
+          ],
+          "bbox_volume_m3": 0.000673
+        },
+        {
+          "model": "lryrtt",
+          "bbox_size_m": [
+            0.296,
+            0.3175,
+            0.0562
+          ],
+          "bbox_volume_m3": 0.00528
+        },
+        {
+          "model": "lwyfab",
+          "bbox_size_m": [
+            0.1481,
+            0.1481,
+            0.07
+          ],
+          "bbox_volume_m3": 0.001536
+        },
+        {
+          "model": "mdowoz",
+          "bbox_size_m": [
+            0.2217,
+            0.2217,
+            0.0142
+          ],
+          "bbox_volume_m3": 0.000696
+        },
+        {
+          "model": "mlkmlk",
+          "bbox_size_m": [
+            0.1962,
+            0.2951,
+            0.0131
+          ],
+          "bbox_volume_m3": 0.000757
+        },
+        {
+          "model": "muczdt",
+          "bbox_size_m": [
+            0.1941,
+            0.2,
+            0.0305
+          ],
+          "bbox_volume_m3": 0.001184
+        },
+        {
+          "model": "myrzac",
+          "bbox_size_m": [
+            0.266,
+            0.2659,
+            0.0878
+          ],
+          "bbox_volume_m3": 0.006212
+        },
+        {
+          "model": "ndafok",
+          "bbox_size_m": [
+            0.3167,
+            0.3183,
+            0.0675
+          ],
+          "bbox_volume_m3": 0.006805
+        },
+        {
+          "model": "niarsj",
+          "bbox_size_m": [
+            0.2,
+            0.2,
+            0.0275
+          ],
+          "bbox_volume_m3": 0.001099
+        },
+        {
+          "model": "oawddr",
+          "bbox_size_m": [
+            0.5178,
+            0.3171,
+            0.3253
+          ],
+          "bbox_volume_m3": 0.053409
+        },
+        {
+          "model": "obuzeh",
+          "bbox_size_m": [
+            0.4533,
+            0.4533,
+            0.0888
+          ],
+          "bbox_volume_m3": 0.018243
+        },
+        {
+          "model": "pbmsji",
+          "bbox_size_m": [
+            0.3388,
+            0.3388,
+            0.1097
+          ],
+          "bbox_volume_m3": 0.012597
+        },
+        {
+          "model": "picclm",
+          "bbox_size_m": [
+            0.1645,
+            0.1645,
+            0.0151
+          ],
+          "bbox_volume_m3": 0.00041
+        },
+        {
+          "model": "ppkjuy",
+          "bbox_size_m": [
+            0.2319,
+            0.2319,
+            0.0624
+          ],
+          "bbox_volume_m3": 0.003357
+        },
+        {
+          "model": "pwgbsb",
+          "bbox_size_m": [
+            0.0897,
+            0.0897,
+            0.0225
+          ],
+          "bbox_volume_m3": 0.000181
+        },
+        {
+          "model": "qferch",
+          "bbox_size_m": [
+            0.2,
+            0.2,
+            0.0448
+          ],
+          "bbox_volume_m3": 0.001791
+        },
+        {
+          "model": "qfqccp",
+          "bbox_size_m": [
+            0.1983,
+            0.1983,
+            0.07
+          ],
+          "bbox_volume_m3": 0.002751
+        },
+        {
+          "model": "qhlsdq",
+          "bbox_size_m": [
+            0.0903,
+            0.0903,
+            0.07
+          ],
+          "bbox_volume_m3": 0.00057
+        },
+        {
+          "model": "qkogll",
+          "bbox_size_m": [
+            0.2,
+            0.2,
+            0.061
+          ],
+          "bbox_volume_m3": 0.002439
+        },
+        {
+          "model": "qkpdih",
+          "bbox_size_m": [
+            0.2396,
+            0.2556,
+            0.0451
+          ],
+          "bbox_volume_m3": 0.002762
+        },
+        {
+          "model": "sihkub",
+          "bbox_size_m": [
+            0.1186,
+            0.1186,
+            0.0184
+          ],
+          "bbox_volume_m3": 0.000259
+        },
+        {
+          "model": "snklci",
+          "bbox_size_m": [
+            0.1787,
+            0.1334,
+            0.0261
+          ],
+          "bbox_volume_m3": 0.000623
+        },
+        {
+          "model": "swszeb",
+          "bbox_size_m": [
+            0.1667,
+            0.1916,
+            0.0576
+          ],
+          "bbox_volume_m3": 0.001841
+        },
+        {
+          "model": "tnwisp",
+          "bbox_size_m": [
+            0.0949,
+            0.0949,
+            0.0274
+          ],
+          "bbox_volume_m3": 0.000247
+        },
+        {
+          "model": "tzbbeo",
+          "bbox_size_m": [
+            0.1178,
+            0.1178,
+            0.051
+          ],
+          "bbox_volume_m3": 0.000708
+        },
+        {
+          "model": "ugfmpq",
+          "bbox_size_m": [
+            0.0886,
+            0.0886,
+            0.0303
+          ],
+          "bbox_volume_m3": 0.000238
+        },
+        {
+          "model": "utfcdx",
+          "bbox_size_m": [
+            0.1994,
+            0.1994,
+            0.07
+          ],
+          "bbox_volume_m3": 0.002783
+        },
+        {
+          "model": "uwzqlf",
+          "bbox_size_m": [
+            0.2,
+            0.2,
+            0.0541
+          ],
+          "bbox_volume_m3": 0.002166
+        },
+        {
+          "model": "vkepll",
+          "bbox_size_m": [
+            0.1344,
+            0.1344,
+            0.0478
+          ],
+          "bbox_volume_m3": 0.000863
+        },
+        {
+          "model": "wjrwer",
+          "bbox_size_m": [
+            0.2006,
+            0.2006,
+            0.0102
+          ],
+          "bbox_volume_m3": 0.000413
+        },
+        {
+          "model": "wtjthb",
+          "bbox_size_m": [
+            0.288,
+            0.288,
+            0.0393
+          ],
+          "bbox_volume_m3": 0.003259
+        },
+        {
+          "model": "wxdxss",
+          "bbox_size_m": [
+            0.1423,
+            0.1423,
+            0.0839
+          ],
+          "bbox_volume_m3": 0.001698
+        },
+        {
+          "model": "xdvzpr",
+          "bbox_size_m": [
+            0.2791,
+            0.2791,
+            0.0482
+          ],
+          "bbox_volume_m3": 0.003754
+        },
+        {
+          "model": "xdyddo",
+          "bbox_size_m": [
+            0.4349,
+            0.3199,
+            0.0225
+          ],
+          "bbox_volume_m3": 0.003135
+        },
+        {
+          "model": "zjtjrn",
+          "bbox_size_m": [
+            0.3436,
+            0.2389,
+            0.0695
+          ],
+          "bbox_volume_m3": 0.005709
+        },
+        {
+          "model": "zkderg",
+          "bbox_size_m": [
+            0.0761,
+            0.0761,
+            0.033
+          ],
+          "bbox_volume_m3": 0.000191
+        },
+        {
+          "model": "zxlntj",
+          "bbox_size_m": [
+            0.3302,
+            0.3302,
+            0.0832
+          ],
+          "bbox_volume_m3": 0.009077
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    },
+    "chopping_board": {
+      "category": "chopping_board",
+      "mass_kg": 1.65,
+      "volume_m3": 0.001739,
+      "density_kg_m3": 948.59,
+      "n_models": 15,
+      "models": [
+        {
+          "model": "afwefw",
+          "bbox_size_m": [
+            0.2494,
+            0.3741,
+            0.0189
+          ],
+          "bbox_volume_m3": 0.001767
+        },
+        {
+          "model": "akgegh",
+          "bbox_size_m": [
+            0.2367,
+            0.3061,
+            0.0189
+          ],
+          "bbox_volume_m3": 0.001369
+        },
+        {
+          "model": "ayegwd",
+          "bbox_size_m": [
+            0.1641,
+            0.3061,
+            0.0149
+          ],
+          "bbox_volume_m3": 0.000748
+        },
+        {
+          "model": "bzauwp",
+          "bbox_size_m": [
+            0.2078,
+            0.4484,
+            0.0769
+          ],
+          "bbox_volume_m3": 0.007162
+        },
+        {
+          "model": "cptayn",
+          "bbox_size_m": [
+            0.2,
+            0.3,
+            0.0185
+          ],
+          "bbox_volume_m3": 0.001108
+        },
+        {
+          "model": "drjnag",
+          "bbox_size_m": [
+            0.2527,
+            0.2816,
+            0.0515
+          ],
+          "bbox_volume_m3": 0.003666
+        },
+        {
+          "model": "gaxhrw",
+          "bbox_size_m": [
+            0.2,
+            0.3,
+            0.0185
+          ],
+          "bbox_volume_m3": 0.001108
+        },
+        {
+          "model": "iocgzv",
+          "bbox_size_m": [
+            0.26,
+            0.36,
+            0.0307
+          ],
+          "bbox_volume_m3": 0.002876
+        },
+        {
+          "model": "ktxcvz",
+          "bbox_size_m": [
+            0.1957,
+            0.3061,
+            0.0183
+          ],
+          "bbox_volume_m3": 0.001094
+        },
+        {
+          "model": "mqsqhl",
+          "bbox_size_m": [
+            0.3456,
+            0.5625,
+            0.0214
+          ],
+          "bbox_volume_m3": 0.004168
+        },
+        {
+          "model": "mwmzzv",
+          "bbox_size_m": [
+            0.1957,
+            0.3061,
+            0.0183
+          ],
+          "bbox_volume_m3": 0.001094
+        },
+        {
+          "model": "ozrzrr",
+          "bbox_size_m": [
+            0.2681,
+            0.3594,
+            0.03
+          ],
+          "bbox_volume_m3": 0.002889
+        },
+        {
+          "model": "psabiv",
+          "bbox_size_m": [
+            0.29,
+            0.4,
+            0.0302
+          ],
+          "bbox_volume_m3": 0.003506
+        },
+        {
+          "model": "sygezm",
+          "bbox_size_m": [
+            0.221,
+            0.3306,
+            0.012
+          ],
+          "bbox_volume_m3": 0.000877
+        },
+        {
+          "model": "uzeftd",
+          "bbox_size_m": [
+            0.3514,
+            0.7767,
+            0.1
+          ],
+          "bbox_volume_m3": 0.027293
+        }
+      ],
+      "sim_to_real_notes": {
+        "typical_retailer": "",
+        "product_url": "",
+        "real_mass_kg": null,
+        "real_dimensions_m": null,
+        "notes": ""
+      }
+    }
+  }
+}

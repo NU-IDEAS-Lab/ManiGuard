@@ -1,0 +1,7867 @@
+{
+  "version": "placeable_surfaces_v1",
+  "source": {
+    "profile_file": "support_surface_profiles_v1.json",
+    "profile_sha256": "1ed747681f05c87c7cc656b21bc2039775a9de2b5b82b189b00b18f9a2220806",
+    "generated_at": "2026-04-14T00:44:31+00:00",
+    "tool": "build_placeable_surfaces.py",
+    "require_ready": true,
+    "complaints_file": "complaints.json",
+    "augmented_with_scale": {
+      "tool": "build_placeable_surface_scales.py",
+      "scenes_dir": "behavior-1k/datasets/behavior-1k-assets/scenes",
+      "entries_total": 224,
+      "entries_filled": 224,
+      "missing_scene_files": [],
+      "missing_instances": []
+    }
+  },
+  "frame_convention": {
+    "type": "object_local_top_plane_xy",
+    "xy_units": "m",
+    "quat_convention": "xyzw",
+    "notes": "All usable_regions are expressed in the support object's local root frame. top_plane_z_local is measured in the same frame."
+  },
+  "robot_assumption": "franka_mounted",
+  "counts": {
+    "categories": 13,
+    "models": 145,
+    "surfaces": 166,
+    "skipped_not_ready": 47
+  },
+  "skipped_not_ready": [
+    "bar/byvbuc",
+    "bar/udatjt",
+    "checkout_counter/odcaop",
+    "coffee_table/aoojzy",
+    "coffee_table/gpkbiw",
+    "coffee_table/hmwkkt",
+    "coffee_table/mjyitq",
+    "coffee_table/rkdwxe",
+    "coffee_table/stocuk",
+    "coffee_table/tzmkgq",
+    "coffee_table/vcgabn",
+    "coffee_table/ytlgdt",
+    "coffee_table/zzqwse",
+    "commercial_kitchen_table/bwlfnu",
+    "commercial_kitchen_table/wodpss",
+    "conference_table/hdomxc",
+    "console_table/emeeke",
+    "console_table/fihyuz",
+    "console_table/iuxsao",
+    "console_table/tzkfqa",
+    "console_table/xqlxni",
+    "countertop/fjkase",
+    "desk/ampuyz",
+    "desk/bhkhxo",
+    "desk/bptvoy",
+    "desk/cnewsu",
+    "desk/ctaxkd",
+    "desk/egzdgz",
+    "desk/iufjhy",
+    "desk/jfhurf",
+    "desk/kmmlna",
+    "desk/nafjjg",
+    "desk/ntezkg",
+    "desk/phavlj",
+    "desk/slgrxc",
+    "desk/tdhgko",
+    "desk/tmukzm",
+    "desk/uxgyui",
+    "desk/vpwmkm",
+    "desk/xhjsub",
+    "desk/yezrwt",
+    "lab_table/ishrsy",
+    "lab_table/jkemfk",
+    "lab_table/vujgjq",
+    "nightstand/gjwjtj",
+    "pedestal_table/gkkxaj",
+    "reception_desk/qztpgl"
+  ],
+  "surfaces": [
+    {
+      "category": "bar",
+      "model": "cowjqr",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.114922,
+        -1.213786
+      ],
+      "xy_max": [
+        0.565544,
+        1.288113
+      ],
+      "top_plane_z_local": 0.60497,
+      "area_m2": 1.702457,
+      "reachable_edge_labels": [
+        "x_max",
+        "y_max"
+      ]
+    },
+    {
+      "category": "bar",
+      "model": "cowjqr",
+      "region_id": "region_01",
+      "xy_min": [
+        -1.29834,
+        0.662638
+      ],
+      "xy_max": [
+        -0.114922,
+        1.288113
+      ],
+      "top_plane_z_local": 0.60497,
+      "area_m2": 0.740199,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "bar",
+      "model": "egwapq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.269733,
+        -1.285676
+      ],
+      "xy_max": [
+        0.355477,
+        -0.41664
+      ],
+      "top_plane_z_local": 0.438249,
+      "area_m2": 0.54333,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "bar",
+      "model": "egwapq",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.269733,
+        0.452396
+      ],
+      "xy_max": [
+        0.355477,
+        1.141631
+      ],
+      "top_plane_z_local": 0.438249,
+      "area_m2": 0.430917,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "bar",
+      "model": "joihle",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.082103,
+        -0.505683
+      ],
+      "xy_max": [
+        0.095691,
+        0.505683
+      ],
+      "top_plane_z_local": 0.54041,
+      "area_m2": 0.179814,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "bar",
+      "model": "jvkwcc",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.275186,
+        -1.01217
+      ],
+      "xy_max": [
+        0.275353,
+        1.016273
+      ],
+      "top_plane_z_local": 0.549001,
+      "area_m2": 1.116738,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "bar",
+      "model": "ukorzz",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.293284,
+        -2.202499
+      ],
+      "xy_max": [
+        0.226715,
+        2.2025
+      ],
+      "top_plane_z_local": 0.373289,
+      "area_m2": 2.290598,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "bhszwe",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.36315,
+        -0.887683
+      ],
+      "xy_max": [
+        0.356786,
+        0.887332
+      ],
+      "top_plane_z_local": 0.051865,
+      "area_m2": 1.277896,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "bmnubh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.253495,
+        -0.601679
+      ],
+      "xy_max": [
+        0.250934,
+        0.600532
+      ],
+      "top_plane_z_local": 0.023229,
+      "area_m2": 0.60643,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "dcdtsr",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.45859,
+        -1.114791
+      ],
+      "xy_max": [
+        0.458526,
+        1.114647
+      ],
+      "top_plane_z_local": 0.072252,
+      "area_m2": 2.044655,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "hggsao",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.312636,
+        -0.596899
+      ],
+      "xy_max": [
+        0.316794,
+        0.596899
+      ],
+      "top_plane_z_local": 0.103463,
+      "area_m2": 0.751411,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "hmzwxn",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.352499,
+        -0.611882
+      ],
+      "xy_max": [
+        0.352366,
+        0.612222
+      ],
+      "top_plane_z_local": 0.129389,
+      "area_m2": 0.862828,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "iaritq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.355123,
+        -0.355556
+      ],
+      "xy_max": [
+        0.355128,
+        0.353806
+      ],
+      "top_plane_z_local": 0.267707,
+      "area_m2": 0.503825,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "idnnmz",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.247627,
+        -0.596898
+      ],
+      "xy_max": [
+        0.248385,
+        0.596898
+      ],
+      "top_plane_z_local": 0.064455,
+      "area_m2": 0.592137,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "jcqdlx",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.506897,
+        -0.905988
+      ],
+      "xy_max": [
+        0.507187,
+        0.900366
+      ],
+      "top_plane_z_local": 0.140633,
+      "area_m2": 1.831795,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "jruvif",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.364218,
+        -0.693259
+      ],
+      "xy_max": [
+        0.36422,
+        0.693131
+      ],
+      "top_plane_z_local": 0.290146,
+      "area_m2": 1.0099,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "kpwegp",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.276606,
+        -0.539463
+      ],
+      "xy_max": [
+        0.159934,
+        0.604119
+      ],
+      "top_plane_z_local": 0.098786,
+      "area_m2": 0.499219,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "kpwegp",
+      "region_id": "region_01",
+      "xy_min": [
+        0.159934,
+        -0.011656
+      ],
+      "xy_max": [
+        0.276344,
+        0.604119
+      ],
+      "top_plane_z_local": 0.098786,
+      "area_m2": 0.071683,
+      "reachable_edge_labels": [
+        "x_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "kwmfdg",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.310926,
+        -0.605812
+      ],
+      "xy_max": [
+        0.314409,
+        0.601013
+      ],
+      "top_plane_z_local": 0.076266,
+      "area_m2": 0.75467,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "lcsizg",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.335948,
+        -0.538032
+      ],
+      "xy_max": [
+        0.349856,
+        0.52269
+      ],
+      "top_plane_z_local": 0.135592,
+      "area_m2": 0.727448,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "lnwggc",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.381874,
+        -0.376898
+      ],
+      "xy_max": [
+        0.373451,
+        0.378985
+      ],
+      "top_plane_z_local": 0.152342,
+      "area_m2": 0.570938,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "lwtcfh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.365905,
+        -0.543991
+      ],
+      "xy_max": [
+        0.39517,
+        0.53821
+      ],
+      "top_plane_z_local": 0.077135,
+      "area_m2": 0.823636,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "mwsyqb",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.339417,
+        -0.596859
+      ],
+      "xy_max": [
+        0.357457,
+        0.596943
+      ],
+      "top_plane_z_local": 0.24681,
+      "area_m2": 0.831929,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "nvoqyl",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.3815,
+        -0.60149
+      ],
+      "xy_max": [
+        0.3815,
+        0.6015
+      ],
+      "top_plane_z_local": 0.08405,
+      "area_m2": 0.917882,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "pdpkuw",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.455501,
+        -0.748212
+      ],
+      "xy_max": [
+        0.455604,
+        0.74826
+      ],
+      "top_plane_z_local": 0.084028,
+      "area_m2": 1.363444,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "pllvrt",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.233695,
+        -0.298449
+      ],
+      "xy_max": [
+        0.233666,
+        0.298454
+      ],
+      "top_plane_z_local": 0.141619,
+      "area_m2": 0.278968,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "qjiray",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.496327,
+        -1.63752
+      ],
+      "xy_max": [
+        0.484339,
+        1.638563
+      ],
+      "top_plane_z_local": 0.128518,
+      "area_m2": 3.212743,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "rhjoby",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.56231,
+        -1.433958
+      ],
+      "xy_max": [
+        0.561641,
+        1.433053
+      ],
+      "top_plane_z_local": 0.04776,
+      "area_m2": 3.222379,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "rjgmmy",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.379586,
+        -0.476855
+      ],
+      "xy_max": [
+        0.380074,
+        0.476169
+      ],
+      "top_plane_z_local": 0.189123,
+      "area_m2": 0.723974,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "sfxqtk",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.349407,
+        -0.349127
+      ],
+      "xy_max": [
+        0.349344,
+        0.349375
+      ],
+      "top_plane_z_local": 0.027125,
+      "area_m2": 0.488079,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "skczfi",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.255285,
+        -0.603333
+      ],
+      "xy_max": [
+        0.255263,
+        0.603328
+      ],
+      "top_plane_z_local": 0.104839,
+      "area_m2": 0.616059,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "uhrsex",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.302579,
+        -0.604389
+      ],
+      "xy_max": [
+        0.30319,
+        0.598271
+      ],
+      "top_plane_z_local": 0.101702,
+      "area_m2": 0.728535,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "wdbwhc",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.439138,
+        -0.452125
+      ],
+      "xy_max": [
+        0.451214,
+        0.45557
+      ],
+      "top_plane_z_local": 0.095992,
+      "area_m2": 0.808169,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "wnrior",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.41531,
+        -0.793463
+      ],
+      "xy_max": [
+        0.395966,
+        0.794196
+      ],
+      "top_plane_z_local": 0.2154,
+      "area_m2": 1.288029,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "xftrki",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.46526,
+        -0.745029
+      ],
+      "xy_max": [
+        0.465295,
+        0.745291
+      ],
+      "top_plane_z_local": 0.053266,
+      "area_m2": 1.386824,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "yaanqr",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.357065,
+        -0.557516
+      ],
+      "xy_max": [
+        0.357063,
+        0.556555
+      ],
+      "top_plane_z_local": 0.226019,
+      "area_m2": 0.795589,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "yclkbw",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.388879,
+        -1.762426
+      ],
+      "xy_max": [
+        0.579909,
+        1.762424
+      ],
+      "top_plane_z_local": 0.218773,
+      "area_m2": 3.414834,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "ylykeh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.734426,
+        -1.007437
+      ],
+      "xy_max": [
+        0.756876,
+        1.00665
+      ],
+      "top_plane_z_local": 0.065534,
+      "area_m2": 3.003612,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "ytelxk",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.533034,
+        -1.13282
+      ],
+      "xy_max": [
+        0.533046,
+        1.132858
+      ],
+      "top_plane_z_local": 0.098707,
+      "area_m2": 2.415394,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "breakfast_table",
+      "model": "zypvuv",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.380818,
+        -0.600039
+      ],
+      "xy_max": [
+        0.381479,
+        0.594062
+      ],
+      "top_plane_z_local": 0.056079,
+      "area_m2": 0.91026,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "checkout_counter",
+      "model": "hhvxxr",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.100103,
+        -1.661719
+      ],
+      "xy_max": [
+        0.31248,
+        -0.224755
+      ],
+      "top_plane_z_local": 0.23855,
+      "area_m2": 0.592866,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "checkout_counter",
+      "model": "hhvxxr",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.394804,
+        0.254233
+      ],
+      "xy_max": [
+        -0.011692,
+        1.152335
+      ],
+      "top_plane_z_local": 0.23855,
+      "area_m2": 0.344074,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "checkout_counter",
+      "model": "sckdal",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.109129,
+        0.249578
+      ],
+      "xy_max": [
+        0.364551,
+        1.706383
+      ],
+      "top_plane_z_local": 0.222567,
+      "area_m2": 0.690058,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "checkout_counter",
+      "model": "sckdal",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.612413,
+        -1.118036
+      ],
+      "xy_max": [
+        -0.020314,
+        -0.374767
+      ],
+      "top_plane_z_local": 0.222567,
+      "area_m2": 0.440088,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "checkout_counter",
+      "model": "umnoqh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.469546,
+        -1.70299
+      ],
+      "xy_max": [
+        0.457448,
+        1.70299
+      ],
+      "top_plane_z_local": 0.286676,
+      "area_m2": 3.157324,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "cjjayg",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.349097,
+        -0.378026
+      ],
+      "xy_max": [
+        0.348895,
+        0.378115
+      ],
+      "top_plane_z_local": 0.076943,
+      "area_m2": 0.52778,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "dnsjnv",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.290217,
+        -0.261213
+      ],
+      "xy_max": [
+        0.261202,
+        0.261185
+      ],
+      "top_plane_z_local": 0.084173,
+      "area_m2": 0.28806,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "ejlbho",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.218134,
+        -0.213876
+      ],
+      "xy_max": [
+        0.218134,
+        0.219341
+      ],
+      "top_plane_z_local": 0.121161,
+      "area_m2": 0.188999,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "elhvfw",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.27567,
+        -0.803298
+      ],
+      "xy_max": [
+        0.272488,
+        0.800851
+      ],
+      "top_plane_z_local": 0.044137,
+      "area_m2": 0.879326,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "fhqimf",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.275421,
+        -0.568049
+      ],
+      "xy_max": [
+        0.274218,
+        0.57124
+      ],
+      "top_plane_z_local": 0.16468,
+      "area_m2": 0.626198,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "fqluyq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.237991,
+        -0.457479
+      ],
+      "xy_max": [
+        0.236197,
+        0.455314
+      ],
+      "top_plane_z_local": 0.147219,
+      "area_m2": 0.432835,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "gcollb",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.229535,
+        -0.495294
+      ],
+      "xy_max": [
+        0.229535,
+        0.495322
+      ],
+      "top_plane_z_local": 0.134656,
+      "area_m2": 0.454763,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "hbgcej",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.265775,
+        -0.237892
+      ],
+      "xy_max": [
+        0.265962,
+        0.234995
+      ],
+      "top_plane_z_local": 0.069208,
+      "area_m2": 0.251451,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "ixvmic",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.37877,
+        -0.378771
+      ],
+      "xy_max": [
+        0.37877,
+        0.378769
+      ],
+      "top_plane_z_local": 0.040955,
+      "area_m2": 0.573866,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "jkhlnp",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.296339,
+        -0.265719
+      ],
+      "xy_max": [
+        0.295775,
+        0.265913
+      ],
+      "top_plane_z_local": 0.080543,
+      "area_m2": 0.314787,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "koagbh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.406272,
+        -0.803351
+      ],
+      "xy_max": [
+        0.407958,
+        0.807977
+      ],
+      "top_plane_z_local": 0.058308,
+      "area_m2": 1.311991,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "lpwbgm",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.328919,
+        -0.329647
+      ],
+      "xy_max": [
+        0.329974,
+        0.329386
+      ],
+      "top_plane_z_local": 0.062979,
+      "area_m2": 0.434232,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "lyhpbr",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.214389,
+        -0.214494
+      ],
+      "xy_max": [
+        0.214617,
+        0.214509
+      ],
+      "top_plane_z_local": 0.279068,
+      "area_m2": 0.184045,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "metubv",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.294359,
+        -0.391753
+      ],
+      "xy_max": [
+        0.291568,
+        0.399082
+      ],
+      "top_plane_z_local": 0.079308,
+      "area_m2": 0.463372,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "metubv",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.177174,
+        -0.538203
+      ],
+      "xy_max": [
+        0.145086,
+        -0.391753
+      ],
+      "top_plane_z_local": 0.079308,
+      "area_m2": 0.047195,
+      "reachable_edge_labels": [
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "mtchfd",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.260895,
+        -0.260855
+      ],
+      "xy_max": [
+        0.261398,
+        0.261462
+      ],
+      "top_plane_z_local": 0.063827,
+      "area_m2": 0.272803,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "osroux",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.400329,
+        -0.728845
+      ],
+      "xy_max": [
+        0.399671,
+        0.728845
+      ],
+      "top_plane_z_local": 0.182798,
+      "area_m2": 1.166152,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "puwazg",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.42917,
+        -0.422073
+      ],
+      "xy_max": [
+        0.429787,
+        0.426597
+      ],
+      "top_plane_z_local": 0.075893,
+      "area_m2": 0.728971,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "qlmqyy",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.257605,
+        -0.322835
+      ],
+      "xy_max": [
+        0.257273,
+        0.323285
+      ],
+      "top_plane_z_local": 0.128161,
+      "area_m2": 0.332673,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "qplrhv",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.217098,
+        -0.215147
+      ],
+      "xy_max": [
+        0.21631,
+        0.217374
+      ],
+      "top_plane_z_local": 0.120872,
+      "area_m2": 0.187458,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "qtwqqb",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.357119,
+        -0.820766
+      ],
+      "xy_max": [
+        0.357437,
+        0.788122
+      ],
+      "top_plane_z_local": 0.178439,
+      "area_m2": 1.149641,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "rlsebe",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.457895,
+        -0.457895
+      ],
+      "xy_max": [
+        0.457896,
+        0.457895
+      ],
+      "top_plane_z_local": 0.118796,
+      "area_m2": 0.838673,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "semdkc",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.461606,
+        -0.522194
+      ],
+      "xy_max": [
+        0.461462,
+        0.51998
+      ],
+      "top_plane_z_local": 0.173885,
+      "area_m2": 0.961996,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "skseyx",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.028078,
+        0.093096
+      ],
+      "xy_max": [
+        0.260425,
+        0.504548
+      ],
+      "top_plane_z_local": 0.055623,
+      "area_m2": 0.118705,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "wgtaip",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.621253,
+        -1.624609
+      ],
+      "xy_max": [
+        0.621247,
+        1.624627
+      ],
+      "top_plane_z_local": 0.089768,
+      "area_m2": 4.037177,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "wwgaym",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.198322,
+        -0.170028
+      ],
+      "xy_max": [
+        0.19841,
+        0.170029
+      ],
+      "top_plane_z_local": 0.075721,
+      "area_m2": 0.134911,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "wwsikw",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.303013,
+        -0.603461
+      ],
+      "xy_max": [
+        0.303278,
+        0.603532
+      ],
+      "top_plane_z_local": 0.131999,
+      "area_m2": 0.731789,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "wzyqgx",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.499056,
+        -0.638033
+      ],
+      "xy_max": [
+        0.499056,
+        0.637916
+      ],
+      "top_plane_z_local": 0.059434,
+      "area_m2": 1.273541,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "xshzms",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.25664,
+        -0.256787
+      ],
+      "xy_max": [
+        0.256656,
+        0.25675
+      ],
+      "top_plane_z_local": 0.062004,
+      "area_m2": 0.263597,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "zehult",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.2237,
+        -0.221262
+      ],
+      "xy_max": [
+        0.281639,
+        0.221277
+      ],
+      "top_plane_z_local": 0.094992,
+      "area_m2": 0.223633,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "coffee_table",
+      "model": "zisekv",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.262878,
+        -0.401766
+      ],
+      "xy_max": [
+        0.26615,
+        0.401765
+      ],
+      "top_plane_z_local": 0.095037,
+      "area_m2": 0.425091,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "commercial_kitchen_table",
+      "model": "hmwzxn",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.492522,
+        -2.273763
+      ],
+      "xy_max": [
+        0.376274,
+        2.248543
+      ],
+      "top_plane_z_local": 0.311477,
+      "area_m2": 3.928964,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "commercial_kitchen_table",
+      "model": "nisnrl",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.262599,
+        -0.56323
+      ],
+      "xy_max": [
+        0.355899,
+        0.563229
+      ],
+      "top_plane_z_local": 0.249439,
+      "area_m2": 0.696712,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "commercial_kitchen_table",
+      "model": "vxvtec",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.371229,
+        -1.401131
+      ],
+      "xy_max": [
+        0.374,
+        1.40443
+      ],
+      "top_plane_z_local": 0.331786,
+      "area_m2": 2.090786,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "conference_table",
+      "model": "fpkmyw",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.73893,
+        -1.713765
+      ],
+      "xy_max": [
+        0.759783,
+        1.701894
+      ],
+      "top_plane_z_local": 0.18484,
+      "area_m2": 5.119092,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "conference_table",
+      "model": "jxixdw",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.419994,
+        -0.890298
+      ],
+      "xy_max": [
+        0.416779,
+        0.861982
+      ],
+      "top_plane_z_local": 0.057767,
+      "area_m2": 1.46626,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "conference_table",
+      "model": "qzmjrj",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.359777,
+        -0.901751
+      ],
+      "xy_max": [
+        0.361019,
+        0.906558
+      ],
+      "top_plane_z_local": 0.05324,
+      "area_m2": 1.303421,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "console_table",
+      "model": "tvhett",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.142813,
+        -0.191063
+      ],
+      "xy_max": [
+        0.166686,
+        0.191822
+      ],
+      "top_plane_z_local": 0.082616,
+      "area_m2": 0.118502,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "epaijd",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.317686,
+        -1.032429
+      ],
+      "xy_max": [
+        0.317216,
+        1.654155
+      ],
+      "top_plane_z_local": 0.043401,
+      "area_m2": 1.705719,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "epaijd",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.317686,
+        -1.868255
+      ],
+      "xy_max": [
+        0.288357,
+        -1.539895
+      ],
+      "top_plane_z_local": 0.043401,
+      "area_m2": 0.199001,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "ikwqer",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.322823,
+        -2.163727
+      ],
+      "xy_max": [
+        0.327644,
+        0.954711
+      ],
+      "top_plane_z_local": 0.018964,
+      "area_m2": 2.028441,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "ikwqer",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.322823,
+        1.524426
+      ],
+      "xy_max": [
+        0.327644,
+        2.304036
+      ],
+      "top_plane_z_local": 0.018964,
+      "area_m2": 0.50711,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "jveutp",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.140402,
+        -0.415145
+      ],
+      "xy_max": [
+        0.275203,
+        0.418005
+      ],
+      "top_plane_z_local": 0.014737,
+      "area_m2": 0.346261,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "jveutp",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.348204,
+        -0.177102
+      ],
+      "xy_max": [
+        -0.140402,
+        0.239473
+      ],
+      "top_plane_z_local": 0.014737,
+      "area_m2": 0.086565,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "kelker",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.19333,
+        -1.692879
+      ],
+      "xy_max": [
+        0.19333,
+        1.692875
+      ],
+      "top_plane_z_local": 0.018035,
+      "area_m2": 1.309133,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "kelzer",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.230478,
+        -1.470367
+      ],
+      "xy_max": [
+        0.426559,
+        -0.215489
+      ],
+      "top_plane_z_local": 0.018033,
+      "area_m2": 0.824501,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "kelzer",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.439535,
+        0.56134
+      ],
+      "xy_max": [
+        0.247367,
+        1.517438
+      ],
+      "top_plane_z_local": 0.018033,
+      "area_m2": 0.656746,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "ncqmrq",
+      "region_id": "region_00",
+      "xy_min": [
+        -1.745336,
+        -0.557981
+      ],
+      "xy_max": [
+        1.051734,
+        -0.019337
+      ],
+      "top_plane_z_local": 0.03472,
+      "area_m2": 1.506626,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "ncqmrq",
+      "region_id": "region_01",
+      "xy_min": [
+        0.456613,
+        -0.019337
+      ],
+      "xy_max": [
+        1.051734,
+        1.237501
+      ],
+      "top_plane_z_local": 0.03472,
+      "area_m2": 0.747971,
+      "reachable_edge_labels": [
+        "x_max",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "qfhqhy",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.410003,
+        -1.050103
+      ],
+      "xy_max": [
+        0.409999,
+        1.050106
+      ],
+      "top_plane_z_local": 0.025,
+      "area_m2": 1.722174,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "sjxber",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.220622,
+        -0.487684
+      ],
+      "xy_max": [
+        0.222366,
+        0.487706
+      ],
+      "top_plane_z_local": 0.01895,
+      "area_m2": 0.432086,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "tpuwys",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.279177,
+        -0.511074
+      ],
+      "xy_max": [
+        0.279169,
+        0.511074
+      ],
+      "top_plane_z_local": 0.015875,
+      "area_m2": 0.570712,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "countertop",
+      "model": "zkhelh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.26426,
+        -2.220919
+      ],
+      "xy_max": [
+        0.264261,
+        2.220919
+      ],
+      "top_plane_z_local": 0.047727,
+      "area_m2": 2.347604,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "aduafr",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.281339,
+        -0.78721
+      ],
+      "xy_max": [
+        0.29177,
+        0.725922
+      ],
+      "top_plane_z_local": 0.332504,
+      "area_m2": 0.86719,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "ccxuey",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.365937,
+        -0.861669
+      ],
+      "xy_max": [
+        0.321087,
+        0.627318
+      ],
+      "top_plane_z_local": 0.317776,
+      "area_m2": 1.02297,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "cjhriz",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.307295,
+        -0.569431
+      ],
+      "xy_max": [
+        0.247159,
+        0.564676
+      ],
+      "top_plane_z_local": 0.071546,
+      "area_m2": 0.62881,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "clenrz",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.180653,
+        -0.782743
+      ],
+      "xy_max": [
+        0.141384,
+        0.723827
+      ],
+      "top_plane_z_local": 0.27183,
+      "area_m2": 0.485172,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "ghtnfq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.490183,
+        -1.278803
+      ],
+      "xy_max": [
+        0.313418,
+        1.086941
+      ],
+      "top_plane_z_local": 0.079313,
+      "area_m2": 1.901112,
+      "reachable_edge_labels": [
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "ghtnfq",
+      "region_id": "region_01",
+      "xy_min": [
+        0.313418,
+        -1.278803
+      ],
+      "xy_max": [
+        0.700336,
+        -0.560096
+      ],
+      "top_plane_z_local": 0.079313,
+      "area_m2": 0.278081,
+      "reachable_edge_labels": [
+        "x_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "iotfzl",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.270703,
+        -0.677913
+      ],
+      "xy_max": [
+        0.270217,
+        0.644473
+      ],
+      "top_plane_z_local": 0.111102,
+      "area_m2": 0.715305,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "juzwaf",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.269048,
+        -0.750871
+      ],
+      "xy_max": [
+        0.344967,
+        0.750873
+      ],
+      "top_plane_z_local": 0.100842,
+      "area_m2": 0.922095,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "mdhelw",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.44266,
+        -1.404285
+      ],
+      "xy_max": [
+        0.487891,
+        1.407032
+      ],
+      "top_plane_z_local": 0.18875,
+      "area_m2": 2.616076,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "nbpuns",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.274055,
+        -0.552146
+      ],
+      "xy_max": [
+        0.283024,
+        0.549933
+      ],
+      "top_plane_z_local": 0.12361,
+      "area_m2": 0.613945,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "obvwds",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.2094,
+        -0.749453
+      ],
+      "xy_max": [
+        0.404651,
+        0.749489
+      ],
+      "top_plane_z_local": 0.141665,
+      "area_m2": 0.920426,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "ohjotf",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.257519,
+        -0.796194
+      ],
+      "xy_max": [
+        0.256345,
+        0.799875
+      ],
+      "top_plane_z_local": 0.089135,
+      "area_m2": 0.820162,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "pfsjbc",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.523754,
+        -0.954282
+      ],
+      "xy_max": [
+        0.574212,
+        1.94644
+      ],
+      "top_plane_z_local": 0.3321,
+      "area_m2": 3.184894,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "pniubv",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.293515,
+        -0.828244
+      ],
+      "xy_max": [
+        0.29527,
+        0.991967
+      ],
+      "top_plane_z_local": 0.150837,
+      "area_m2": 1.071712,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "pniubv",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.322954,
+        0.991967
+      ],
+      "xy_max": [
+        -0.058001,
+        1.648437
+      ],
+      "top_plane_z_local": 0.150837,
+      "area_m2": 0.173934,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "puapey",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.807435,
+        -0.801784
+      ],
+      "xy_max": [
+        -0.009,
+        0.80629
+      ],
+      "top_plane_z_local": 0.014046,
+      "area_m2": 1.284,
+      "reachable_edge_labels": [
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "puapey",
+      "region_id": "region_01",
+      "xy_min": [
+        0.001,
+        -0.801784
+      ],
+      "xy_max": [
+        0.808215,
+        0.80629
+      ],
+      "top_plane_z_local": 0.014046,
+      "area_m2": 1.298,
+      "reachable_edge_labels": [
+        "x_max",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "qpuflh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.459643,
+        -1.087773
+      ],
+      "xy_max": [
+        0.313769,
+        1.278697
+      ],
+      "top_plane_z_local": 0.079321,
+      "area_m2": 1.830256,
+      "reachable_edge_labels": [
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "qpuflh",
+      "region_id": "region_01",
+      "xy_min": [
+        0.313769,
+        0.589725
+      ],
+      "xy_max": [
+        0.700475,
+        1.278697
+      ],
+      "top_plane_z_local": 0.079321,
+      "area_m2": 0.26643,
+      "reachable_edge_labels": [
+        "x_max",
+        "y_max"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "rzyfxk",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.269023,
+        -0.749483
+      ],
+      "xy_max": [
+        0.345053,
+        0.74945
+      ],
+      "top_plane_z_local": 0.10093,
+      "area_m2": 0.920458,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "sfstso",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.308916,
+        -0.57587
+      ],
+      "xy_max": [
+        0.304029,
+        0.576693
+      ],
+      "top_plane_z_local": 0.049609,
+      "area_m2": 0.706457,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "sjugsf",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.282022,
+        -1.094973
+      ],
+      "xy_max": [
+        0.275482,
+        1.971295
+      ],
+      "top_plane_z_local": 0.217278,
+      "area_m2": 1.709455,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "tmluxa",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.223001,
+        -0.32573
+      ],
+      "xy_max": [
+        0.234337,
+        0.355485
+      ],
+      "top_plane_z_local": 0.098294,
+      "area_m2": 0.311545,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "uffjvo",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.315969,
+        -0.60339
+      ],
+      "xy_max": [
+        0.318226,
+        0.603689
+      ],
+      "top_plane_z_local": 0.142982,
+      "area_m2": 0.765524,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "uqcmzf",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.552343,
+        -0.705326
+      ],
+      "xy_max": [
+        0.249987,
+        0.89473
+      ],
+      "top_plane_z_local": 0.102171,
+      "area_m2": 1.283773,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "uqcmzf",
+      "region_id": "region_01",
+      "xy_min": [
+        0.249987,
+        -0.705326
+      ],
+      "xy_max": [
+        1.052317,
+        -0.112713
+      ],
+      "top_plane_z_local": 0.102171,
+      "area_m2": 0.475471,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "wtlxfr",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.413569,
+        -0.67947
+      ],
+      "xy_max": [
+        0.419673,
+        0.672073
+      ],
+      "top_plane_z_local": 0.073992,
+      "area_m2": 1.126163,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "zjbhgq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.394219,
+        -0.85336
+      ],
+      "xy_max": [
+        0.394306,
+        0.853538
+      ],
+      "top_plane_z_local": 0.060153,
+      "area_m2": 1.345931,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "zlyqcq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.242778,
+        -0.396662
+      ],
+      "xy_max": [
+        0.240523,
+        0.605965
+      ],
+      "top_plane_z_local": 0.264725,
+      "area_m2": 0.48457,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "desk",
+      "model": "ztsyqx",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.259848,
+        -0.375718
+      ],
+      "xy_max": [
+        0.348042,
+        0.375877
+      ],
+      "top_plane_z_local": 0.154386,
+      "area_m2": 0.456887,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "garden_coffee_table",
+      "model": "skxdpc",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.636179,
+        -0.362595
+      ],
+      "xy_max": [
+        0.637708,
+        0.361265
+      ],
+      "top_plane_z_local": 0.101008,
+      "area_m2": 0.922117,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "aykehx",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.255294,
+        -0.321498
+      ],
+      "xy_max": [
+        0.251703,
+        0.321495
+      ],
+      "top_plane_z_local": 0.097565,
+      "area_m2": 0.325995,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "geeldi",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.303896,
+        -0.359849
+      ],
+      "xy_max": [
+        0.314018,
+        0.359666
+      ],
+      "top_plane_z_local": 0.112832,
+      "area_m2": 0.444599,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "hessxe",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.265359,
+        -0.258567
+      ],
+      "xy_max": [
+        0.253247,
+        0.260043
+      ],
+      "top_plane_z_local": 0.263525,
+      "area_m2": 0.268954,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "kanola",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.258664,
+        -0.306411
+      ],
+      "xy_max": [
+        0.263499,
+        0.306425
+      ],
+      "top_plane_z_local": 0.24879,
+      "area_m2": 0.320001,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "ljtrka",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.233292,
+        -0.234862
+      ],
+      "xy_max": [
+        0.236592,
+        0.234982
+      ],
+      "top_plane_z_local": 0.161166,
+      "area_m2": 0.220772,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "roxnbe",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.232834,
+        -0.387241
+      ],
+      "xy_max": [
+        0.297668,
+        0.387989
+      ],
+      "top_plane_z_local": 0.288619,
+      "area_m2": 0.41126,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "uudzva",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.174738,
+        -0.229997
+      ],
+      "xy_max": [
+        0.17526,
+        0.230001
+      ],
+      "top_plane_z_local": 0.18236,
+      "area_m2": 0.160998,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "uzxrlg",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.225373,
+        -0.387907
+      ],
+      "xy_max": [
+        0.251627,
+        0.387093
+      ],
+      "top_plane_z_local": 0.163214,
+      "area_m2": 0.369675,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "nightstand",
+      "model": "wbxekb",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.252605,
+        -0.388474
+      ],
+      "xy_max": [
+        0.226359,
+        0.387727
+      ],
+      "top_plane_z_local": 0.183786,
+      "area_m2": 0.371773,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "aympln",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.339367,
+        -0.306689
+      ],
+      "xy_max": [
+        0.33595,
+        0.309776
+      ],
+      "top_plane_z_local": 0.12204,
+      "area_m2": 0.416309,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "aympln",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.192559,
+        0.309776
+      ],
+      "xy_max": [
+        0.189142,
+        0.427197
+      ],
+      "top_plane_z_local": 0.12204,
+      "area_m2": 0.04482,
+      "reachable_edge_labels": [
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "djflkd",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.494274,
+        -0.499775
+      ],
+      "xy_max": [
+        0.489559,
+        0.484057
+      ],
+      "top_plane_z_local": 0.268491,
+      "area_m2": 0.967926,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "dmghrm",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.464808,
+        -0.316099
+      ],
+      "xy_max": [
+        0.465061,
+        0.33278
+      ],
+      "top_plane_z_local": 0.174211,
+      "area_m2": 0.603373,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "dmghrm",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.284833,
+        -0.493066
+      ],
+      "xy_max": [
+        0.285087,
+        -0.316099
+      ],
+      "top_plane_z_local": 0.174211,
+      "area_m2": 0.100857,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "gikdir",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.281528,
+        -0.282915
+      ],
+      "xy_max": [
+        0.279071,
+        0.278797
+      ],
+      "top_plane_z_local": 0.106374,
+      "area_m2": 0.314895,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "ifmhpn",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.419416,
+        -0.371069
+      ],
+      "xy_max": [
+        0.390549,
+        0.391099
+      ],
+      "top_plane_z_local": 0.185894,
+      "area_m2": 0.617329,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "ifmhpn",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.299421,
+        -0.488325
+      ],
+      "xy_max": [
+        0.270554,
+        -0.371069
+      ],
+      "top_plane_z_local": 0.185894,
+      "area_m2": 0.066833,
+      "reachable_edge_labels": [
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "jdilum",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.447917,
+        -0.440143
+      ],
+      "xy_max": [
+        0.46553,
+        0.425298
+      ],
+      "top_plane_z_local": 0.223005,
+      "area_m2": 0.790535,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "ktevfe",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.261787,
+        -0.261864
+      ],
+      "xy_max": [
+        0.290878,
+        0.2614
+      ],
+      "top_plane_z_local": 0.125505,
+      "area_m2": 0.289189,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "mbojpo",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.25279,
+        -0.252912
+      ],
+      "xy_max": [
+        0.251613,
+        0.251846
+      ],
+      "top_plane_z_local": 0.12,
+      "area_m2": 0.254602,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "nlfgwe",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.395866,
+        -0.396018
+      ],
+      "xy_max": [
+        0.395889,
+        0.395884
+      ],
+      "top_plane_z_local": 0.121355,
+      "area_m2": 0.626992,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "nyprvh",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.22256,
+        -0.222121
+      ],
+      "xy_max": [
+        0.22256,
+        0.222121
+      ],
+      "top_plane_z_local": 0.163913,
+      "area_m2": 0.197742,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "oqclwq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.307389,
+        -0.336277
+      ],
+      "xy_max": [
+        0.336663,
+        0.307029
+      ],
+      "top_plane_z_local": 0.100419,
+      "area_m2": 0.414322,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "oqclwq",
+      "region_id": "region_02",
+      "xy_min": [
+        -0.424489,
+        -0.190071
+      ],
+      "xy_max": [
+        -0.307389,
+        0.219305
+      ],
+      "top_plane_z_local": 0.100419,
+      "area_m2": 0.047938,
+      "reachable_edge_labels": [
+        "x_max"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "pljlcn",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.267231,
+        -0.267998
+      ],
+      "xy_max": [
+        0.268546,
+        0.26821
+      ],
+      "top_plane_z_local": 0.063354,
+      "area_m2": 0.287289,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "poukwl",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.334595,
+        -0.307445
+      ],
+      "xy_max": [
+        0.338105,
+        0.306759
+      ],
+      "top_plane_z_local": 0.054672,
+      "area_m2": 0.413175,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "poukwl",
+      "region_id": "region_01",
+      "xy_min": [
+        -0.188356,
+        -0.424437
+      ],
+      "xy_max": [
+        0.191866,
+        -0.307445
+      ],
+      "top_plane_z_local": 0.054672,
+      "area_m2": 0.044483,
+      "reachable_edge_labels": [
+        "y_max"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "pyybeq",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.276463,
+        -0.20394
+      ],
+      "xy_max": [
+        0.28063,
+        0.21525
+      ],
+      "top_plane_z_local": 0.2984,
+      "area_m2": 0.233527,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "ssnzie",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.194234,
+        -0.252474
+      ],
+      "xy_max": [
+        0.191932,
+        0.252968
+      ],
+      "top_plane_z_local": 0.140042,
+      "area_m2": 0.195185,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "swgvxs",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.388821,
+        -0.328378
+      ],
+      "xy_max": [
+        0.38821,
+        0.328834
+      ],
+      "top_plane_z_local": 0.072148,
+      "area_m2": 0.510674,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "tdpuit",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.441262,
+        -0.62436
+      ],
+      "xy_max": [
+        0.441105,
+        0.624992
+      ],
+      "top_plane_z_local": 0.058246,
+      "area_m2": 1.102387,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "wnqrci",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.300491,
+        -0.298316
+      ],
+      "xy_max": [
+        0.269508,
+        0.300013
+      ],
+      "top_plane_z_local": 0.222154,
+      "area_m2": 0.341047,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "xcnvsy",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.198797,
+        -0.740652
+      ],
+      "xy_max": [
+        0.198979,
+        0.740564
+      ],
+      "top_plane_z_local": 0.054364,
+      "area_m2": 0.589194,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "pedestal_table",
+      "model": "xrrhik",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.276393,
+        -0.275442
+      ],
+      "xy_max": [
+        0.272496,
+        0.2738
+      ],
+      "top_plane_z_local": 0.239537,
+      "area_m2": 0.301473,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "reception_desk",
+      "model": "kjmhgc",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.319021,
+        -0.72471
+      ],
+      "xy_max": [
+        0.245577,
+        0.725641
+      ],
+      "top_plane_z_local": 0.311791,
+      "area_m2": 0.818866,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "reception_desk",
+      "model": "ukonss",
+      "region_id": "region_00",
+      "xy_min": [
+        0.014971,
+        -1.295687
+      ],
+      "xy_max": [
+        0.277253,
+        1.295188
+      ],
+      "top_plane_z_local": 0.546656,
+      "area_m2": 0.67954,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    },
+    {
+      "category": "reception_desk",
+      "model": "vxombm",
+      "region_id": "region_00",
+      "xy_min": [
+        -0.343641,
+        -0.959998
+      ],
+      "xy_max": [
+        0.256358,
+        0.929999
+      ],
+      "top_plane_z_local": 0.395711,
+      "area_m2": 1.133997,
+      "reachable_edge_labels": [
+        "x_max",
+        "x_min",
+        "y_max",
+        "y_min"
+      ]
+    }
+  ],
+  "by_model": {
+    "bar": {
+      "cowjqr": {
+        "aabb_xy_min": [
+          -1.416682,
+          -2.524305
+        ],
+        "aabb_xy_max": [
+          0.565544,
+          1.317898
+        ],
+        "height_m": 1.098763,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_cafe",
+            "room_instance": "bar_0",
+            "instance_count": 1,
+            "instance_name": "bar_cowjqr_0",
+            "scale_xyz": [
+              1.0000252723693848,
+              0.9999966621398926,
+              1.0000340938568115
+            ]
+          }
+        ]
+      },
+      "egwapq": {
+        "aabb_xy_min": [
+          -0.269733,
+          -1.285676
+        ],
+        "aabb_xy_max": [
+          0.355477,
+          1.141631
+        ],
+        "height_m": 0.895664,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_lower",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "bar_egwapq_0",
+            "scale_xyz": [
+              0.9999869465827942,
+              0.9999972581863403,
+              1.0000406503677368
+            ]
+          }
+        ]
+      },
+      "joihle": {
+        "aabb_xy_min": [
+          -0.259896,
+          -0.505683
+        ],
+        "aabb_xy_max": [
+          0.421645,
+          0.505683
+        ],
+        "height_m": 1.03322,
+        "scenes": [
+          {
+            "scene_model": "restaurant_asian",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "bar_joihle_0",
+            "scale_xyz": [
+              1.0000653266906738,
+              0.9999995231628418,
+              0.999980628490448
+            ]
+          }
+        ]
+      },
+      "jvkwcc": {
+        "aabb_xy_min": [
+          -0.275186,
+          -1.01217
+        ],
+        "aabb_xy_max": [
+          0.275353,
+          1.016273
+        ],
+        "height_m": 1.234549,
+        "scenes": [
+          {
+            "scene_model": "restaurant_brunch",
+            "room_instance": "bar_0",
+            "instance_count": 3,
+            "instance_name": "bar_jvkwcc_0",
+            "scale_xyz": [
+              0.9999293088912964,
+              0.9999783635139465,
+              0.9999604821205139
+            ]
+          }
+        ]
+      },
+      "ukorzz": {
+        "aabb_xy_min": [
+          -0.293284,
+          -2.202499
+        ],
+        "aabb_xy_max": [
+          0.226715,
+          2.2025
+        ],
+        "height_m": 0.85,
+        "scenes": [
+          {
+            "scene_model": "restaurant_asian",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "bar_ukorzz_0",
+            "scale_xyz": [
+              1.000000238418579,
+              1.0000005960464478,
+              0.9999996423721313
+            ]
+          }
+        ]
+      }
+    },
+    "breakfast_table": {
+      "bhszwe": {
+        "aabb_xy_min": [
+          -0.36315,
+          -0.887683
+        ],
+        "aabb_xy_max": [
+          0.356786,
+          0.887332
+        ],
+        "height_m": 0.7412,
+        "scenes": [
+          {
+            "scene_model": "restaurant_cafeteria",
+            "room_instance": "dining_room_0",
+            "instance_count": 14,
+            "instance_name": "breakfast_table_bhszwe_0",
+            "scale_xyz": [
+              1.000049114227295,
+              0.9999991655349731,
+              1.000051736831665
+            ]
+          }
+        ]
+      },
+      "bmnubh": {
+        "aabb_xy_min": [
+          -0.253495,
+          -0.601679
+        ],
+        "aabb_xy_max": [
+          0.250934,
+          0.600532
+        ],
+        "height_m": 0.3449,
+        "scenes": [
+          {
+            "scene_model": "Benevolence_2_int",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_bmnubh_0",
+            "scale_xyz": [
+              1.0773658752441406,
+              0.7550678849220276,
+              2.0056653022766113
+            ]
+          }
+        ]
+      },
+      "dcdtsr": {
+        "aabb_xy_min": [
+          -0.488175,
+          -1.144517
+        ],
+        "aabb_xy_max": [
+          0.488111,
+          1.144373
+        ],
+        "height_m": 0.8327,
+        "scenes": [
+          {
+            "scene_model": "hall_conference_large",
+            "room_instance": "conference_hall_0",
+            "instance_count": 170,
+            "instance_name": "breakfast_table_dcdtsr_0",
+            "scale_xyz": [
+              1.000042200088501,
+              0.9999819993972778,
+              0.9999441504478455
+            ]
+          }
+        ]
+      },
+      "hggsao": {
+        "aabb_xy_min": [
+          -0.342608,
+          -0.596899
+        ],
+        "aabb_xy_max": [
+          0.346767,
+          0.596899
+        ],
+        "height_m": 0.4974,
+        "scenes": []
+      },
+      "hmzwxn": {
+        "aabb_xy_min": [
+          -0.352499,
+          -0.611882
+        ],
+        "aabb_xy_max": [
+          0.352366,
+          0.612222
+        ],
+        "height_m": 0.8298,
+        "scenes": [
+          {
+            "scene_model": "restaurant_brunch",
+            "room_instance": "dining_room_0",
+            "instance_count": 8,
+            "instance_name": "breakfast_table_hmzwxn_0",
+            "scale_xyz": [
+              0.9999727010726929,
+              0.9999986290931702,
+              1.0000572204589844
+            ]
+          }
+        ]
+      },
+      "iaritq": {
+        "aabb_xy_min": [
+          -0.355123,
+          -0.355556
+        ],
+        "aabb_xy_max": [
+          0.355128,
+          0.353806
+        ],
+        "height_m": 0.749,
+        "scenes": [
+          {
+            "scene_model": "restaurant_asian",
+            "room_instance": "dining_room_0",
+            "instance_count": 4,
+            "instance_name": "breakfast_table_iaritq_0",
+            "scale_xyz": [
+              0.9999992251396179,
+              1.0000107288360596,
+              0.9999988079071045
+            ]
+          }
+        ]
+      },
+      "idnnmz": {
+        "aabb_xy_min": [
+          -0.247627,
+          -0.596898
+        ],
+        "aabb_xy_max": [
+          0.248385,
+          0.596898
+        ],
+        "height_m": 0.4233,
+        "scenes": [
+          {
+            "scene_model": "Benevolence_1_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_idnnmz_0",
+            "scale_xyz": [
+              1.439886212348938,
+              0.9523371458053589,
+              1.770556926727295
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_garden",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_idnnmz_0",
+            "scale_xyz": [
+              1.4413195848464966,
+              1.4031665325164795,
+              1.6306889057159424
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_int",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_idnnmz_0",
+            "scale_xyz": [
+              1.4413195848464966,
+              1.4031665325164795,
+              1.6306889057159424
+            ]
+          }
+        ]
+      },
+      "jcqdlx": {
+        "aabb_xy_min": [
+          -0.506897,
+          -0.905988
+        ],
+        "aabb_xy_max": [
+          0.507187,
+          0.900366
+        ],
+        "height_m": 0.749,
+        "scenes": [
+          {
+            "scene_model": "restaurant_asian",
+            "room_instance": "dining_room_0",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_jcqdlx_0",
+            "scale_xyz": [
+              1.0000025033950806,
+              0.9999951720237732,
+              0.9999990463256836
+            ]
+          }
+        ]
+      },
+      "jruvif": {
+        "aabb_xy_min": [
+          -0.364218,
+          -0.693259
+        ],
+        "aabb_xy_max": [
+          0.36422,
+          0.693131
+        ],
+        "height_m": 1.0505,
+        "scenes": [
+          {
+            "scene_model": "restaurant_cafeteria",
+            "room_instance": "dining_room_0",
+            "instance_count": 4,
+            "instance_name": "breakfast_table_jruvif_0",
+            "scale_xyz": [
+              1.0000492334365845,
+              1.0,
+              1.0000234842300415
+            ]
+          }
+        ]
+      },
+      "kpwegp": {
+        "aabb_xy_min": [
+          -0.305708,
+          -0.598108
+        ],
+        "aabb_xy_max": [
+          0.305447,
+          0.604119
+        ],
+        "height_m": 0.5645,
+        "scenes": []
+      },
+      "kwmfdg": {
+        "aabb_xy_min": [
+          -0.310926,
+          -0.605812
+        ],
+        "aabb_xy_max": [
+          0.314409,
+          0.601013
+        ],
+        "height_m": 0.4138,
+        "scenes": []
+      },
+      "lcsizg": {
+        "aabb_xy_min": [
+          -0.395583,
+          -0.596961
+        ],
+        "aabb_xy_max": [
+          0.379673,
+          0.552155
+        ],
+        "height_m": 0.639,
+        "scenes": []
+      },
+      "lnwggc": {
+        "aabb_xy_min": [
+          -0.381874,
+          -0.376898
+        ],
+        "aabb_xy_max": [
+          0.373451,
+          0.378985
+        ],
+        "height_m": 0.4411,
+        "scenes": []
+      },
+      "lwtcfh": {
+        "aabb_xy_min": [
+          -0.365905,
+          -0.543991
+        ],
+        "aabb_xy_max": [
+          0.39517,
+          0.53821
+        ],
+        "height_m": 0.5148,
+        "scenes": []
+      },
+      "mwsyqb": {
+        "aabb_xy_min": [
+          -0.339417,
+          -0.596859
+        ],
+        "aabb_xy_max": [
+          0.357457,
+          0.596943
+        ],
+        "height_m": 0.6461,
+        "scenes": []
+      },
+      "nvoqyl": {
+        "aabb_xy_min": [
+          -0.3815,
+          -0.60149
+        ],
+        "aabb_xy_max": [
+          0.3815,
+          0.6015
+        ],
+        "height_m": 0.7412,
+        "scenes": [
+          {
+            "scene_model": "gates_bedroom",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_nvoqyl_0",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999998807907104,
+              0.9999656677246094
+            ]
+          }
+        ]
+      },
+      "pdpkuw": {
+        "aabb_xy_min": [
+          -0.484892,
+          -0.778142
+        ],
+        "aabb_xy_max": [
+          0.484995,
+          0.778189
+        ],
+        "height_m": 0.8322,
+        "scenes": [
+          {
+            "scene_model": "hall_conference_large",
+            "room_instance": "conference_hall_0",
+            "instance_count": 4,
+            "instance_name": "breakfast_table_pdpkuw_0",
+            "scale_xyz": [
+              1.000042200088501,
+              0.999998152256012,
+              0.9999839067459106
+            ]
+          }
+        ]
+      },
+      "pllvrt": {
+        "aabb_xy_min": [
+          -0.292115,
+          -0.5969
+        ],
+        "aabb_xy_max": [
+          0.292086,
+          0.596905
+        ],
+        "height_m": 0.4813,
+        "scenes": []
+      },
+      "qjiray": {
+        "aabb_xy_min": [
+          -0.526044,
+          -1.667302
+        ],
+        "aabb_xy_max": [
+          0.514057,
+          1.668345
+        ],
+        "height_m": 0.7485,
+        "scenes": [
+          {
+            "scene_model": "restaurant_hotel",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_qjiray_0",
+            "scale_xyz": [
+              1.0000206232070923,
+              1.0,
+              1.0000615119934082
+            ]
+          }
+        ]
+      },
+      "rhjoby": {
+        "aabb_xy_min": [
+          -0.591888,
+          -1.463822
+        ],
+        "aabb_xy_max": [
+          0.591218,
+          1.462917
+        ],
+        "height_m": 0.7811,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_rhjoby_0",
+            "scale_xyz": [
+              0.9999933242797852,
+              0.9999943971633911,
+              0.9999465942382812
+            ]
+          }
+        ]
+      },
+      "rjgmmy": {
+        "aabb_xy_min": [
+          -0.379586,
+          -0.476855
+        ],
+        "aabb_xy_max": [
+          0.380074,
+          0.476169
+        ],
+        "height_m": 0.5821,
+        "scenes": []
+      },
+      "sfxqtk": {
+        "aabb_xy_min": [
+          -0.378522,
+          -0.378231
+        ],
+        "aabb_xy_max": [
+          0.378459,
+          0.378479
+        ],
+        "height_m": 0.2862,
+        "scenes": []
+      },
+      "skczfi": {
+        "aabb_xy_min": [
+          -0.255285,
+          -0.603333
+        ],
+        "aabb_xy_max": [
+          0.255263,
+          0.603328
+        ],
+        "height_m": 0.4808,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.0423808097839355,
+              0.5933150053024292,
+              1.4337444305419922
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "living_room_1",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.443250060081482,
+              1.3453667163848877,
+              1.5360655784606934
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.0423808097839355,
+              0.5933150053024292,
+              1.4337444305419922
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "living_room_1",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.443250060081482,
+              1.3453667163848877,
+              1.5360655784606934
+            ]
+          },
+          {
+            "scene_model": "Beechwood_1_int",
+            "room_instance": "childs_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              0.8419461846351624,
+              0.3593564033508301,
+              1.0240436792373657
+            ]
+          },
+          {
+            "scene_model": "Beechwood_1_int",
+            "room_instance": "playroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.7737943530082703,
+              0.5130671262741089,
+              0.9830735921859741
+            ]
+          },
+          {
+            "scene_model": "Ihlen_0_int",
+            "room_instance": "storage_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3831398487091064,
+              2.573795795440674,
+              2.2529377937316895
+            ]
+          },
+          {
+            "scene_model": "Ihlen_1_int",
+            "room_instance": "bedroom_1",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.7617321014404297,
+              0.3593564033508301,
+              1.0240436792373657
+            ]
+          },
+          {
+            "scene_model": "Merom_0_garden",
+            "room_instance": "utility_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3449426889419556,
+              1.6934983730316162,
+              2.0480873584747314
+            ]
+          },
+          {
+            "scene_model": "Merom_0_int",
+            "room_instance": "utility_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3449426889419556,
+              1.6934983730316162,
+              2.0480873584747314
+            ]
+          },
+          {
+            "scene_model": "Merom_1_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.8441194295883179,
+              1.2701447010040283,
+              1.638594627380371
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_garden",
+            "room_instance": "bedroom_1",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.9020565152168274,
+              0.7019596099853516,
+              1.4337444305419922
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_int",
+            "room_instance": "bedroom_1",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.9020565152168274,
+              0.7019596099853516,
+              1.4337444305419922
+            ]
+          },
+          {
+            "scene_model": "Pomaria_2_int",
+            "room_instance": "bathroom_0",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              0.7416283488273621,
+              0.9609642028808594,
+              1.3312151432037354
+            ]
+          },
+          {
+            "scene_model": "Rs_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.5148195028305054,
+              0.8021438121795654,
+              1.5360655784606934
+            ]
+          },
+          {
+            "scene_model": "Rs_int",
+            "room_instance": "living_room_0",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.5148195028305054,
+              0.8021438121795654,
+              1.5360655784606934
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.1539567708969116,
+              1.0629075765609741,
+              1.638594627380371
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "living_room_1",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_3",
+            "scale_xyz": [
+              0.9822705388069153,
+              1.0195167064666748,
+              1.4747143983840942
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "living_room_2",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.262919306755066,
+              0.5264696478843689,
+              1.4337444305419922
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.1539567708969116,
+              1.0629075765609741,
+              1.638594627380371
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "living_room_1",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_3",
+            "scale_xyz": [
+              0.9822705388069153,
+              1.0195167064666748,
+              1.4747143983840942
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "living_room_2",
+            "instance_count": 2,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.262919306755066,
+              0.5264696478843689,
+              1.4337444305419922
+            ]
+          },
+          {
+            "scene_model": "Wainscott_1_int",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_2",
+            "scale_xyz": [
+              1.062484622001648,
+              0.38440245389938354,
+              1.638594627380371
+            ]
+          },
+          {
+            "scene_model": "Wainscott_1_int",
+            "room_instance": "playroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_0",
+            "scale_xyz": [
+              1.3831398487091064,
+              0.7103362083435059,
+              2.2529377937316895
+            ]
+          },
+          {
+            "scene_model": "Wainscott_1_int",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_skczfi_1",
+            "scale_xyz": [
+              1.1827051639556885,
+              1.4958105087280273,
+              1.5976245403289795
+            ]
+          }
+        ]
+      },
+      "uhrsex": {
+        "aabb_xy_min": [
+          -0.302579,
+          -0.604389
+        ],
+        "aabb_xy_max": [
+          0.30319,
+          0.598271
+        ],
+        "height_m": 0.4282,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.2722396850585938,
+              1.1470935344696045,
+              1.7314584255218506
+            ]
+          },
+          {
+            "scene_model": "Beechwood_1_int",
+            "room_instance": "playroom_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.1884735822677612,
+              1.2476128339767456,
+              1.1543835401535034
+            ]
+          },
+          {
+            "scene_model": "Ihlen_0_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.3893446922302246,
+              0.7200537323951721,
+              2.262526273727417
+            ]
+          },
+          {
+            "scene_model": "Ihlen_1_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.5232030153274536,
+              1.666275978088379,
+              1.7776992321014404
+            ]
+          },
+          {
+            "scene_model": "Pomaria_1_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_uhrsex_0",
+            "scale_xyz": [
+              1.3223319053649902,
+              0.7033842206001282,
+              1.8239399194717407
+            ]
+          }
+        ]
+      },
+      "wdbwhc": {
+        "aabb_xy_min": [
+          -0.439138,
+          -0.452125
+        ],
+        "aabb_xy_max": [
+          0.451214,
+          0.45557
+        ],
+        "height_m": 0.7634,
+        "scenes": [
+          {
+            "scene_model": "restaurant_urban",
+            "room_instance": "dining_room_0",
+            "instance_count": 24,
+            "instance_name": "breakfast_table_wdbwhc_0",
+            "scale_xyz": [
+              0.9999952912330627,
+              0.9999791383743286,
+              1.0000520944595337
+            ]
+          }
+        ]
+      },
+      "wnrior": {
+        "aabb_xy_min": [
+          -0.41531,
+          -0.793463
+        ],
+        "aabb_xy_max": [
+          0.395966,
+          0.794196
+        ],
+        "height_m": 0.7122,
+        "scenes": [
+          {
+            "scene_model": "restaurant_hotel",
+            "room_instance": "dining_room_0",
+            "instance_count": 10,
+            "instance_name": "breakfast_table_wnrior_0",
+            "scale_xyz": [
+              0.9999779462814331,
+              0.9999701380729675,
+              1.0000630617141724
+            ]
+          }
+        ]
+      },
+      "xftrki": {
+        "aabb_xy_min": [
+          -0.46526,
+          -0.745029
+        ],
+        "aabb_xy_max": [
+          0.465295,
+          0.745291
+        ],
+        "height_m": 0.6791,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_lower",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_xftrki_0",
+            "scale_xyz": [
+              1.0000485181808472,
+              0.9999868273735046,
+              0.9999451637268066
+            ]
+          }
+        ]
+      },
+      "yaanqr": {
+        "aabb_xy_min": [
+          -0.357065,
+          -0.557516
+        ],
+        "aabb_xy_max": [
+          0.357063,
+          0.556555
+        ],
+        "height_m": 0.749,
+        "scenes": [
+          {
+            "scene_model": "restaurant_asian",
+            "room_instance": "dining_room_0",
+            "instance_count": 6,
+            "instance_name": "breakfast_table_yaanqr_0",
+            "scale_xyz": [
+              0.9999985694885254,
+              1.0000147819519043,
+              0.9999848008155823
+            ]
+          }
+        ]
+      },
+      "yclkbw": {
+        "aabb_xy_min": [
+          -0.565023,
+          -1.762426
+        ],
+        "aabb_xy_max": [
+          0.579909,
+          1.762424
+        ],
+        "height_m": 0.943,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "break_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_yclkbw_0",
+            "scale_xyz": [
+              0.9999556541442871,
+              1.0000017881393433,
+              0.9999918341636658
+            ]
+          }
+        ]
+      },
+      "ylykeh": {
+        "aabb_xy_min": [
+          -0.764252,
+          -1.007437
+        ],
+        "aabb_xy_max": [
+          0.756876,
+          1.00665
+        ],
+        "height_m": 0.8,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_cafe",
+            "room_instance": "grocery_store_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_ylykeh_0",
+            "scale_xyz": [
+              0.9999985694885254,
+              0.9999991655349731,
+              0.9999992847442627
+            ]
+          }
+        ]
+      },
+      "ytelxk": {
+        "aabb_xy_min": [
+          -0.562647,
+          -1.162632
+        ],
+        "aabb_xy_max": [
+          0.56266,
+          1.162669
+        ],
+        "height_m": 0.75,
+        "scenes": [
+          {
+            "scene_model": "Pomaria_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_ytelxk_0",
+            "scale_xyz": [
+              0.9999977350234985,
+              1.0,
+              0.9999995231628418
+            ]
+          }
+        ]
+      },
+      "zypvuv": {
+        "aabb_xy_min": [
+          -0.380818,
+          -0.600039
+        ],
+        "aabb_xy_max": [
+          0.381479,
+          0.594062
+        ],
+        "height_m": 0.397,
+        "scenes": [
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_zypvuv_0",
+            "scale_xyz": [
+              1.4880552291870117,
+              1.578094244003296,
+              1.8002424240112305
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "breakfast_table_zypvuv_0",
+            "scale_xyz": [
+              1.4880552291870117,
+              1.578094244003296,
+              1.8002424240112305
+            ]
+          }
+        ]
+      }
+    },
+    "checkout_counter": {
+      "hhvxxr": {
+        "aabb_xy_min": [
+          -0.601095,
+          -1.751529
+        ],
+        "aabb_xy_max": [
+          0.40089,
+          1.272082
+        ],
+        "height_m": 1.0133,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_cafe",
+            "room_instance": "grocery_store_0",
+            "instance_count": 1,
+            "instance_name": "checkout_counter_hhvxxr_0",
+            "scale_xyz": [
+              1.0000016689300537,
+              1.000004529953003,
+              0.9999827146530151
+            ]
+          }
+        ]
+      },
+      "sckdal": {
+        "aabb_xy_min": [
+          -0.612413,
+          -1.29642
+        ],
+        "aabb_xy_max": [
+          0.394156,
+          1.795575
+        ],
+        "height_m": 0.9693,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_cafe",
+            "room_instance": "grocery_store_0",
+            "instance_count": 1,
+            "instance_name": "checkout_counter_sckdal_0",
+            "scale_xyz": [
+              1.0000269412994385,
+              0.9999940395355225,
+              1.0000404119491577
+            ]
+          }
+        ]
+      },
+      "umnoqh": {
+        "aabb_xy_min": [
+          -0.469546,
+          -1.70299
+        ],
+        "aabb_xy_max": [
+          0.457448,
+          1.70299
+        ],
+        "height_m": 0.8124,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_convenience",
+            "room_instance": "grocery_store_0",
+            "instance_count": 1,
+            "instance_name": "checkout_counter_umnoqh_0",
+            "scale_xyz": [
+              1.0000066757202148,
+              1.0000057220458984,
+              0.9999837279319763
+            ]
+          }
+        ]
+      }
+    },
+    "coffee_table": {
+      "cjjayg": {
+        "aabb_xy_min": [
+          -0.37818,
+          -0.378026
+        ],
+        "aabb_xy_max": [
+          0.377978,
+          0.378115
+        ],
+        "height_m": 0.2848,
+        "scenes": []
+      },
+      "dnsjnv": {
+        "aabb_xy_min": [
+          -0.377284,
+          -0.377301
+        ],
+        "aabb_xy_max": [
+          0.377291,
+          0.377273
+        ],
+        "height_m": 0.3381,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              2.7133326530456543,
+              1.3702144622802734,
+              2.1689140796661377
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              2.7133326530456543,
+              1.3702144622802734,
+              2.1689140796661377
+            ]
+          },
+          {
+            "scene_model": "Merom_0_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              1.14386785030365,
+              1.1972527503967285,
+              1.3975342512130737
+            ]
+          },
+          {
+            "scene_model": "Merom_0_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              1.14386785030365,
+              1.1972527503967285,
+              1.3975342512130737
+            ]
+          },
+          {
+            "scene_model": "Pomaria_1_int",
+            "room_instance": "corridor_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              0.8246364593505859,
+              0.9312707185745239,
+              1.164463996887207
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_1",
+            "scale_xyz": [
+              1.3965035676956177,
+              1.516618013381958,
+              2.1834070682525635
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "living_room_2",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              0.6516749858856201,
+              0.6651552319526672,
+              1.164463996887207
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_1",
+            "scale_xyz": [
+              1.3965035676956177,
+              1.516618013381958,
+              2.1834070682525635
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "living_room_2",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              0.6516749858856201,
+              0.6651552319526672,
+              1.164463996887207
+            ]
+          },
+          {
+            "scene_model": "Wainscott_1_int",
+            "room_instance": "playroom_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_dnsjnv_0",
+            "scale_xyz": [
+              1.6758310794830322,
+              1.7161378860473633,
+              2.037886142730713
+            ]
+          }
+        ]
+      },
+      "ejlbho": {
+        "aabb_xy_min": [
+          -0.305387,
+          -0.30052
+        ],
+        "aabb_xy_max": [
+          0.305388,
+          0.305984
+        ],
+        "height_m": 0.4719,
+        "scenes": [
+          {
+            "scene_model": "Pomaria_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_ejlbho_0",
+            "scale_xyz": [
+              0.9999939799308777,
+              0.9999885559082031,
+              0.9999449849128723
+            ]
+          }
+        ]
+      },
+      "elhvfw": {
+        "aabb_xy_min": [
+          -0.27567,
+          -0.803298
+        ],
+        "aabb_xy_max": [
+          0.272488,
+          0.800851
+        ],
+        "height_m": 0.4616,
+        "scenes": []
+      },
+      "fhqimf": {
+        "aabb_xy_min": [
+          -0.304349,
+          -0.59803
+        ],
+        "aabb_xy_max": [
+          0.303147,
+          0.601221
+        ],
+        "height_m": 0.49,
+        "scenes": [
+          {
+            "scene_model": "gates_bedroom",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_fhqimf_0",
+            "scale_xyz": [
+              1.0000200271606445,
+              0.9999722242355347,
+              1.0
+            ]
+          }
+        ]
+      },
+      "fqluyq": {
+        "aabb_xy_min": [
+          -0.267627,
+          -0.604704
+        ],
+        "aabb_xy_max": [
+          0.265834,
+          0.602539
+        ],
+        "height_m": 0.4071,
+        "scenes": [
+          {
+            "scene_model": "Ihlen_0_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              0.9473989009857178,
+              1.0071531534194946,
+              0.8994969129562378
+            ]
+          },
+          {
+            "scene_model": "Merom_1_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.1115257740020752,
+              0.9650216102600098,
+              0.9238142371177673
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.0612010955810547,
+              1.3317748308181763,
+              0.972449004650116
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.0612010955810547,
+              1.3317748308181763,
+              0.972449004650116
+            ]
+          },
+          {
+            "scene_model": "Rs_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.1711909770965576,
+              1.0265920162200928,
+              0.9481316208839417
+            ]
+          },
+          {
+            "scene_model": "Rs_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_fqluyq_0",
+            "scale_xyz": [
+              1.1711909770965576,
+              1.0265920162200928,
+              0.9481316208839417
+            ]
+          }
+        ]
+      },
+      "gcollb": {
+        "aabb_xy_min": [
+          -0.229535,
+          -0.495294
+        ],
+        "aabb_xy_max": [
+          0.229535,
+          0.495322
+        ],
+        "height_m": 0.4244,
+        "scenes": [
+          {
+            "scene_model": "Ihlen_1_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_gcollb_0",
+            "scale_xyz": [
+              1.1087536811828613,
+              0.9079281687736511,
+              1.0915615558624268
+            ]
+          },
+          {
+            "scene_model": "Pomaria_1_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_gcollb_0",
+            "scale_xyz": [
+              0.8913595676422119,
+              0.6960378289222717,
+              0.8128399848937988
+            ]
+          }
+        ]
+      },
+      "hbgcej": {
+        "aabb_xy_min": [
+          -0.354398,
+          -0.356114
+        ],
+        "aabb_xy_max": [
+          0.354585,
+          0.353216
+        ],
+        "height_m": 0.3723,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_hbgcej_0",
+            "scale_xyz": [
+              0.9999488592147827,
+              0.9999488592147827,
+              1.0000617504119873
+            ]
+          }
+        ]
+      },
+      "ixvmic": {
+        "aabb_xy_min": [
+          -0.37877,
+          -0.378771
+        ],
+        "aabb_xy_max": [
+          0.37877,
+          0.378769
+        ],
+        "height_m": 0.1877,
+        "scenes": []
+      },
+      "jkhlnp": {
+        "aabb_xy_min": [
+          -0.385156,
+          -0.383859
+        ],
+        "aabb_xy_max": [
+          0.384592,
+          0.384054
+        ],
+        "height_m": 0.6638,
+        "scenes": [
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_jkhlnp_0",
+            "scale_xyz": [
+              0.9999915361404419,
+              0.9999867677688599,
+              0.9999853372573853
+            ]
+          }
+        ]
+      },
+      "koagbh": {
+        "aabb_xy_min": [
+          -0.406272,
+          -0.83319
+        ],
+        "aabb_xy_max": [
+          0.407958,
+          0.837816
+        ],
+        "height_m": 0.4063,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_lower",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_koagbh_0",
+            "scale_xyz": [
+              0.9999982714653015,
+              1.0000159740447998,
+              1.000001311302185
+            ]
+          }
+        ]
+      },
+      "lpwbgm": {
+        "aabb_xy_min": [
+          -0.358868,
+          -0.359603
+        ],
+        "aabb_xy_max": [
+          0.359924,
+          0.359342
+        ],
+        "height_m": 0.2646,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_lpwbgm_0",
+            "scale_xyz": [
+              0.9999767541885376,
+              1.0000507831573486,
+              1.0000574588775635
+            ]
+          }
+        ]
+      },
+      "lyhpbr": {
+        "aabb_xy_min": [
+          -0.30019,
+          -0.300294
+        ],
+        "aabb_xy_max": [
+          0.300418,
+          0.300309
+        ],
+        "height_m": 0.5564,
+        "scenes": [
+          {
+            "scene_model": "restaurant_hotel",
+            "room_instance": "lobby_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_lyhpbr_0",
+            "scale_xyz": [
+              0.9999257922172546,
+              0.9999257922172546,
+              0.9999961256980896
+            ]
+          }
+        ]
+      },
+      "metubv": {
+        "aabb_xy_min": [
+          -0.382249,
+          -0.596784
+        ],
+        "aabb_xy_max": [
+          0.379457,
+          0.604113
+        ],
+        "height_m": 0.4365,
+        "scenes": []
+      },
+      "mtchfd": {
+        "aabb_xy_min": [
+          -0.376961,
+          -0.376925
+        ],
+        "aabb_xy_max": [
+          0.377463,
+          0.377532
+        ],
+        "height_m": 0.4456,
+        "scenes": [
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "shared_office_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_mtchfd_0",
+            "scale_xyz": [
+              1.000037670135498,
+              1.000037431716919,
+              1.000018835067749
+            ]
+          }
+        ]
+      },
+      "osroux": {
+        "aabb_xy_min": [
+          -0.400329,
+          -0.728845
+        ],
+        "aabb_xy_max": [
+          0.399671,
+          0.728845
+        ],
+        "height_m": 0.3558,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_upper",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_osroux_0",
+            "scale_xyz": [
+              1.0,
+              1.0000073909759521,
+              0.9999943971633911
+            ]
+          }
+        ]
+      },
+      "puwazg": {
+        "aabb_xy_min": [
+          -0.42917,
+          -0.422073
+        ],
+        "aabb_xy_max": [
+          0.429787,
+          0.426597
+        ],
+        "height_m": 0.3354,
+        "scenes": [
+          {
+            "scene_model": "Rs_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_puwazg_0",
+            "scale_xyz": [
+              0.9999840259552002,
+              0.9999683499336243,
+              1.000048041343689
+            ]
+          }
+        ]
+      },
+      "qlmqyy": {
+        "aabb_xy_min": [
+          -0.257605,
+          -0.322835
+        ],
+        "aabb_xy_max": [
+          0.257273,
+          0.323285
+        ],
+        "height_m": 0.3947,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.4909361600875854,
+              1.372869610786438,
+              1.0021377801895142
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.4909361600875854,
+              1.372869610786438,
+              1.0021377801895142
+            ]
+          },
+          {
+            "scene_model": "Ihlen_0_int",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              0.8830657601356506,
+              0.8967307209968567,
+              1.0021377801895142
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 2,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.2962523698806763,
+              1.1192314624786377,
+              0.9271358847618103
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "living_room_0",
+            "instance_count": 2,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.2962523698806763,
+              1.1192314624786377,
+              0.9271358847618103
+            ]
+          },
+          {
+            "scene_model": "Wainscott_1_int",
+            "room_instance": "bedroom_1",
+            "instance_count": 2,
+            "instance_name": "coffee_table_qlmqyy_0",
+            "scale_xyz": [
+              1.0397577285766602,
+              0.8580825924873352,
+              1.0021377801895142
+            ]
+          }
+        ]
+      },
+      "qplrhv": {
+        "aabb_xy_min": [
+          -0.30378,
+          -0.301652
+        ],
+        "aabb_xy_max": [
+          0.302992,
+          0.303879
+        ],
+        "height_m": 0.4719,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_qplrhv_0",
+            "scale_xyz": [
+              0.9999939799308777,
+              0.9999886751174927,
+              0.9999449849128723
+            ]
+          }
+        ]
+      },
+      "qtwqqb": {
+        "aabb_xy_min": [
+          -0.446438,
+          -0.880355
+        ],
+        "aabb_xy_max": [
+          0.446757,
+          0.877504
+        ],
+        "height_m": 0.4686,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "living_room_1",
+            "instance_count": 1,
+            "instance_name": "coffee_table_qtwqqb_0",
+            "scale_xyz": [
+              1.0000237226486206,
+              1.0000253915786743,
+              0.9999806880950928
+            ]
+          }
+        ]
+      },
+      "rlsebe": {
+        "aabb_xy_min": [
+          -0.487437,
+          -0.487437
+        ],
+        "aabb_xy_max": [
+          0.487437,
+          0.487437
+        ],
+        "height_m": 0.2692,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_rlsebe_0",
+            "scale_xyz": [
+              1.0000269412994385,
+              1.000026822090149,
+              0.999855637550354
+            ]
+          }
+        ]
+      },
+      "semdkc": {
+        "aabb_xy_min": [
+          -0.67004,
+          -0.671076
+        ],
+        "aabb_xy_max": [
+          0.669896,
+          0.668862
+        ],
+        "height_m": 0.3668,
+        "scenes": [
+          {
+            "scene_model": "hotel_gym_spa",
+            "room_instance": "spa_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_semdkc_0",
+            "scale_xyz": [
+              1.000025749206543,
+              1.000025749206543,
+              1.0001131296157837
+            ]
+          }
+        ]
+      },
+      "skseyx": {
+        "aabb_xy_min": [
+          -0.316581,
+          -0.641638
+        ],
+        "aabb_xy_max": [
+          0.289275,
+          0.563327
+        ],
+        "height_m": 0.3462,
+        "scenes": []
+      },
+      "wgtaip": {
+        "aabb_xy_min": [
+          -0.68042,
+          -1.654419
+        ],
+        "aabb_xy_max": [
+          0.680414,
+          1.654436
+        ],
+        "height_m": 0.758,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_wgtaip_0",
+            "scale_xyz": [
+              0.9999980330467224,
+              1.0000022649765015,
+              0.9999971985816956
+            ]
+          }
+        ]
+      },
+      "wwgaym": {
+        "aabb_xy_min": [
+          -0.254998,
+          -0.255042
+        ],
+        "aabb_xy_max": [
+          0.255086,
+          0.255043
+        ],
+        "height_m": 0.4221,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_wwgaym_0",
+            "scale_xyz": [
+              0.9999662041664124,
+              0.9999662041664124,
+              0.9999986290931702
+            ]
+          }
+        ]
+      },
+      "wwsikw": {
+        "aabb_xy_min": [
+          -0.331884,
+          -0.603461
+        ],
+        "aabb_xy_max": [
+          0.332149,
+          0.603532
+        ],
+        "height_m": 0.4833,
+        "scenes": []
+      },
+      "wzyqgx": {
+        "aabb_xy_min": [
+          -0.499056,
+          -0.638033
+        ],
+        "aabb_xy_max": [
+          0.499056,
+          0.637916
+        ],
+        "height_m": 0.3304,
+        "scenes": [
+          {
+            "scene_model": "office_bike",
+            "room_instance": "break_room_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_wzyqgx_0",
+            "scale_xyz": [
+              0.9999703168869019,
+              0.9999778866767883,
+              0.9998790621757507
+            ]
+          }
+        ]
+      },
+      "xshzms": {
+        "aabb_xy_min": [
+          -0.25664,
+          -0.256787
+        ],
+        "aabb_xy_max": [
+          0.256656,
+          0.25675
+        ],
+        "height_m": 0.2319,
+        "scenes": []
+      },
+      "zehult": {
+        "aabb_xy_min": [
+          -0.2237,
+          -0.221262
+        ],
+        "aabb_xy_max": [
+          0.281639,
+          0.221277
+        ],
+        "height_m": 0.5983,
+        "scenes": [
+          {
+            "scene_model": "restaurant_hotel",
+            "room_instance": "lobby_0",
+            "instance_count": 1,
+            "instance_name": "coffee_table_zehult_0",
+            "scale_xyz": [
+              1.0000163316726685,
+              1.0000249147415161,
+              0.9999876618385315
+            ]
+          }
+        ]
+      },
+      "zisekv": {
+        "aabb_xy_min": [
+          -0.262878,
+          -0.461287
+        ],
+        "aabb_xy_max": [
+          0.26615,
+          0.461286
+        ],
+        "height_m": 0.4551,
+        "scenes": [
+          {
+            "scene_model": "restaurant_brunch",
+            "room_instance": "dining_room_0",
+            "instance_count": 2,
+            "instance_name": "coffee_table_zisekv_0",
+            "scale_xyz": [
+              1.0000298023223877,
+              0.9999764561653137,
+              1.000013828277588
+            ]
+          }
+        ]
+      }
+    },
+    "commercial_kitchen_table": {
+      "hmwzxn": {
+        "aabb_xy_min": [
+          -0.492522,
+          -2.273763
+        ],
+        "aabb_xy_max": [
+          0.376274,
+          2.248543
+        ],
+        "height_m": 0.8938,
+        "scenes": [
+          {
+            "scene_model": "restaurant_cafeteria",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_hmwzxn_0",
+            "scale_xyz": [
+              1.0000053644180298,
+              0.9999983310699463,
+              1.0000169277191162
+            ]
+          }
+        ]
+      },
+      "nisnrl": {
+        "aabb_xy_min": [
+          -0.321503,
+          -0.56323
+        ],
+        "aabb_xy_max": [
+          0.385351,
+          0.563229
+        ],
+        "height_m": 0.9435,
+        "scenes": [
+          {
+            "scene_model": "restaurant_asian",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_nisnrl_0",
+            "scale_xyz": [
+              1.000044822692871,
+              1.0000184774398804,
+              0.9999951720237732
+            ]
+          },
+          {
+            "scene_model": "restaurant_diner",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_nisnrl_0",
+            "scale_xyz": [
+              1.000044822692871,
+              1.0000184774398804,
+              0.9999951720237732
+            ]
+          }
+        ]
+      },
+      "vxvtec": {
+        "aabb_xy_min": [
+          -0.401039,
+          -1.401131
+        ],
+        "aabb_xy_max": [
+          0.403809,
+          1.40443
+        ],
+        "height_m": 0.8668,
+        "scenes": [
+          {
+            "scene_model": "restaurant_asian",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_vxvtec_0",
+            "scale_xyz": [
+              0.9999405145645142,
+              1.0000137090682983,
+              1.000051498413086
+            ]
+          },
+          {
+            "scene_model": "restaurant_diner",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "commercial_kitchen_table_vxvtec_0",
+            "scale_xyz": [
+              0.9999405145645142,
+              1.0000137090682983,
+              1.000051498413086
+            ]
+          }
+        ]
+      }
+    },
+    "conference_table": {
+      "fpkmyw": {
+        "aabb_xy_min": [
+          -0.768904,
+          -1.713765
+        ],
+        "aabb_xy_max": [
+          0.759783,
+          1.701894
+        ],
+        "height_m": 0.6699,
+        "scenes": [
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "meeting_room_0",
+            "instance_count": 1,
+            "instance_name": "conference_table_fpkmyw_0",
+            "scale_xyz": [
+              1.0000029802322388,
+              1.0000085830688477,
+              0.9999430775642395
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_right",
+            "room_instance": "meeting_room_0",
+            "instance_count": 1,
+            "instance_name": "conference_table_fpkmyw_0",
+            "scale_xyz": [
+              1.0000029802322388,
+              1.0000085830688477,
+              0.9999430775642395
+            ]
+          }
+        ]
+      },
+      "jxixdw": {
+        "aabb_xy_min": [
+          -0.509648,
+          -1.009096
+        ],
+        "aabb_xy_max": [
+          0.506433,
+          1.01048
+        ],
+        "height_m": 0.7313,
+        "scenes": [
+          {
+            "scene_model": "office_vendor_machine",
+            "room_instance": "meeting_room_0",
+            "instance_count": 1,
+            "instance_name": "conference_table_jxixdw_0",
+            "scale_xyz": [
+              1.0000239610671997,
+              1.0000050067901611,
+              1.0000663995742798
+            ]
+          }
+        ]
+      },
+      "qzmjrj": {
+        "aabb_xy_min": [
+          -0.359777,
+          -0.901751
+        ],
+        "aabb_xy_max": [
+          0.361019,
+          0.906558
+        ],
+        "height_m": 0.7216,
+        "scenes": [
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "meeting_room_2",
+            "instance_count": 6,
+            "instance_name": "conference_table_qzmjrj_0",
+            "scale_xyz": [
+              2.374127149581909,
+              0.34098827838897705,
+              1.069928526878357
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "meeting_room_2",
+            "instance_count": 8,
+            "instance_name": "conference_table_qzmjrj_0",
+            "scale_xyz": [
+              0.9999307990074158,
+              1.0000207424163818,
+              0.9999487996101379
+            ]
+          }
+        ]
+      }
+    },
+    "console_table": {
+      "tvhett": {
+        "aabb_xy_min": [
+          -0.142813,
+          -0.191063
+        ],
+        "aabb_xy_max": [
+          0.166686,
+          0.191822
+        ],
+        "height_m": 0.4531,
+        "scenes": []
+      }
+    },
+    "countertop": {
+      "epaijd": {
+        "aabb_xy_min": [
+          -0.317686,
+          -1.868255
+        ],
+        "aabb_xy_max": [
+          0.317216,
+          1.654155
+        ],
+        "height_m": 0.05,
+        "scenes": [
+          {
+            "scene_model": "office_cubicles_right",
+            "room_instance": "copy_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_epaijd_0",
+            "scale_xyz": [
+              1.0000003576278687,
+              1.0000008344650269,
+              0.9999951720237732
+            ]
+          }
+        ]
+      },
+      "ikwqer": {
+        "aabb_xy_min": [
+          -0.322823,
+          -2.163727
+        ],
+        "aabb_xy_max": [
+          0.327644,
+          2.304036
+        ],
+        "height_m": 0.0379,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "utility_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_ikwqer_0",
+            "scale_xyz": [
+              1.000056266784668,
+              1.0000085830688477,
+              0.9999606609344482
+            ]
+          }
+        ]
+      },
+      "jveutp": {
+        "aabb_xy_min": [
+          -0.496634,
+          -0.742454
+        ],
+        "aabb_xy_max": [
+          0.275203,
+          0.775069
+        ],
+        "height_m": 0.0185,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "kitchen_0",
+            "instance_count": 3,
+            "instance_name": "countertop_jveutp_0",
+            "scale_xyz": [
+              0.9246153235435486,
+              0.9246565103530884,
+              0.9979653358459473
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 3,
+            "instance_name": "countertop_jveutp_0",
+            "scale_xyz": [
+              1.0000324249267578,
+              1.00003182888031,
+              0.9979653358459473
+            ]
+          }
+        ]
+      },
+      "kelker": {
+        "aabb_xy_min": [
+          -0.431274,
+          -1.722842
+        ],
+        "aabb_xy_max": [
+          0.431274,
+          1.722838
+        ],
+        "height_m": 0.0361,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "countertop_kelker_0",
+            "scale_xyz": [
+              0.9999452829360962,
+              1.0000067949295044,
+              1.0006266832351685
+            ]
+          }
+        ]
+      },
+      "kelzer": {
+        "aabb_xy_min": [
+          -0.529131,
+          -1.530123
+        ],
+        "aabb_xy_max": [
+          0.546021,
+          1.577194
+        ],
+        "height_m": 0.0361,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "countertop_kelzer_0",
+            "scale_xyz": [
+              1.0000444650650024,
+              0.9999945759773254,
+              1.0007061958312988
+            ]
+          }
+        ]
+      },
+      "ncqmrq": {
+        "aabb_xy_min": [
+          -1.745336,
+          -0.557981
+        ],
+        "aabb_xy_max": [
+          1.051734,
+          1.237501
+        ],
+        "height_m": 0.0694,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_half_stocked",
+            "room_instance": "grocery_store_0",
+            "instance_count": 1,
+            "instance_name": "countertop_ncqmrq_0",
+            "scale_xyz": [
+              1.0000109672546387,
+              1.0000100135803223,
+              0.9994204044342041
+            ]
+          }
+        ]
+      },
+      "qfhqhy": {
+        "aabb_xy_min": [
+          -0.410003,
+          -1.050103
+        ],
+        "aabb_xy_max": [
+          0.409999,
+          1.050106
+        ],
+        "height_m": 0.05,
+        "scenes": [
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_0",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "private_office_1",
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_1",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "private_office_2",
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_3",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "private_office_3",
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_2",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "private_office_4",
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_4",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "private_office_5",
+            "instance_count": 1,
+            "instance_name": "countertop_qfhqhy_5",
+            "scale_xyz": [
+              0.9999999403953552,
+              0.9999958872795105,
+              0.9999951720237732
+            ]
+          }
+        ]
+      },
+      "sjxber": {
+        "aabb_xy_min": [
+          -0.220622,
+          -0.487684
+        ],
+        "aabb_xy_max": [
+          0.222366,
+          0.487706
+        ],
+        "height_m": 0.0379,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "utility_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_sjxber_0",
+            "scale_xyz": [
+              1.0000237226486206,
+              1.000012755393982,
+              0.9999550580978394
+            ]
+          }
+        ]
+      },
+      "tpuwys": {
+        "aabb_xy_min": [
+          -0.279177,
+          -0.511074
+        ],
+        "aabb_xy_max": [
+          0.279169,
+          0.511074
+        ],
+        "height_m": 0.0317,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "kitchen_0",
+            "instance_count": 4,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.0687692165374756,
+              1.5421793460845947,
+              0.5826772451400757
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_5",
+            "scale_xyz": [
+              0.6670383810997009,
+              1.7092905044555664,
+              2.349606513977051
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "living_room_1",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_4",
+            "scale_xyz": [
+              0.5343846082687378,
+              1.9610828161239624,
+              0.8503937721252441
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 4,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.0687692165374756,
+              1.5421793460845947,
+              0.5826772451400757
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "living_room_1",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_1",
+            "scale_xyz": [
+              0.5343846082687378,
+              1.9610828161239624,
+              0.8503937721252441
+            ]
+          },
+          {
+            "scene_model": "Beechwood_1_int",
+            "room_instance": "bathroom_1",
+            "instance_count": 2,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              2.743366003036499,
+              0.5368698835372925,
+              0.5826772451400757
+            ]
+          },
+          {
+            "scene_model": "Beechwood_1_int",
+            "room_instance": "childs_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_2",
+            "scale_xyz": [
+              0.5878769159317017,
+              2.1765551567077637,
+              0.8787401914596558
+            ]
+          },
+          {
+            "scene_model": "Benevolence_1_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.8194376230239868,
+              2.264467239379883,
+              2.9354331493377686
+            ]
+          },
+          {
+            "scene_model": "Benevolence_1_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 4,
+            "instance_name": "countertop_tpuwys_1",
+            "scale_xyz": [
+              1.1044906377792358,
+              1.278639316558838,
+              0.5858268141746521
+            ]
+          },
+          {
+            "scene_model": "Benevolence_2_int",
+            "room_instance": "bathroom_1",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.40980857610702515,
+              1.132184624671936,
+              1.1748032569885254
+            ]
+          },
+          {
+            "scene_model": "Benevolence_2_int",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_1",
+            "scale_xyz": [
+              0.5428212881088257,
+              1.084802269935608,
+              1.4677165746688843
+            ]
+          },
+          {
+            "scene_model": "Ihlen_0_int",
+            "room_instance": "storage_room_1",
+            "instance_count": 5,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.34195590019226074,
+              1.2490742206573486,
+              0.8787401914596558
+            ]
+          },
+          {
+            "scene_model": "Ihlen_1_int",
+            "room_instance": "dining_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_6",
+            "scale_xyz": [
+              0.765945315361023,
+              1.64947509765625,
+              25.23149871826172
+            ]
+          },
+          {
+            "scene_model": "Ihlen_1_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 6,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.6769111156463623,
+              0.4294763505458832,
+              0.5858268141746521
+            ]
+          },
+          {
+            "scene_model": "Merom_0_garden",
+            "room_instance": "playroom_0",
+            "instance_count": 3,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.9975060224533081,
+              2.645092725753784,
+              0.5858268141746521
+            ]
+          },
+          {
+            "scene_model": "Merom_0_int",
+            "room_instance": "playroom_0",
+            "instance_count": 3,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.9975060224533081,
+              2.645092725753784,
+              0.5858268141746521
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_garden",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.1044906377792358,
+              1.6202036142349243,
+              0.5826772451400757
+            ]
+          },
+          {
+            "scene_model": "Pomaria_0_int",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.1044906377792358,
+              1.6202036142349243,
+              0.5826772451400757
+            ]
+          },
+          {
+            "scene_model": "Pomaria_1_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 6,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.8194376230239868,
+              1.9813475608825684,
+              0.5574803352355957
+            ]
+          },
+          {
+            "scene_model": "Pomaria_1_int",
+            "room_instance": "pantry_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_6",
+            "scale_xyz": [
+              2.547347068786621,
+              0.6734369397163391,
+              0.5574803352355957
+            ]
+          },
+          {
+            "scene_model": "Rs_garden",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.5878769159317017,
+              1.7666583061218262,
+              1.3196852207183838
+            ]
+          },
+          {
+            "scene_model": "Rs_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.5878769159317017,
+              1.7666583061218262,
+              1.3196852207183838
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "kitchen_0",
+            "instance_count": 8,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.3005094528198242,
+              0.6344737410545349,
+              0.5858268141746521
+            ]
+          },
+          {
+            "scene_model": "Wainscott_0_int",
+            "room_instance": "kitchen_0",
+            "instance_count": 8,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              1.3005094528198242,
+              0.6344737410545349,
+              0.5858268141746521
+            ]
+          },
+          {
+            "scene_model": "Wainscott_1_int",
+            "room_instance": "bathroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              2.7255947589874268,
+              0.5758330821990967,
+              0.5574803352355957
+            ]
+          },
+          {
+            "scene_model": "house_double_floor_lower",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "countertop_tpuwys_0",
+            "scale_xyz": [
+              0.6670383810997009,
+              1.7092905044555664,
+              2.349606513977051
+            ]
+          }
+        ]
+      },
+      "zkhelh": {
+        "aabb_xy_min": [
+          -0.26426,
+          -2.220919
+        ],
+        "aabb_xy_max": [
+          0.264261,
+          2.220919
+        ],
+        "height_m": 0.0955,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_asian",
+            "room_instance": "bathroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
+          },
+          {
+            "scene_model": "hall_glass_ceiling",
+            "room_instance": "bathroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_left",
+            "room_instance": "bathroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_right",
+            "room_instance": "bathroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
+          },
+          {
+            "scene_model": "office_vendor_machine",
+            "room_instance": "bathroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
+          },
+          {
+            "scene_model": "restaurant_urban",
+            "room_instance": "bathroom_0",
+            "instance_count": 1,
+            "instance_name": "countertop_zkhelh_0",
+            "scale_xyz": [
+              0.9999606609344482,
+              0.9999912977218628,
+              1.0004911422729492
+            ]
+          }
+        ]
+      }
+    },
+    "desk": {
+      "aduafr": {
+        "aabb_xy_min": [
+          -0.281339,
+          -0.78721
+        ],
+        "aabb_xy_max": [
+          0.349081,
+          0.725922
+        ],
+        "height_m": 0.7854,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_upper",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "desk_aduafr_0",
+            "scale_xyz": [
+              0.9999683499336243,
+              0.9999781847000122,
+              0.9999521970748901
+            ]
+          }
+        ]
+      },
+      "ccxuey": {
+        "aabb_xy_min": [
+          -0.365937,
+          -0.861669
+        ],
+        "aabb_xy_max": [
+          0.321087,
+          0.627318
+        ],
+        "height_m": 0.8818,
+        "scenes": [
+          {
+            "scene_model": "school_computer_lab_and_infirmary",
+            "room_instance": "infirmary_0",
+            "instance_count": 1,
+            "instance_name": "desk_ccxuey_0",
+            "scale_xyz": [
+              0.9999425411224365,
+              1.0000076293945312,
+              1.0000168085098267
+            ]
+          }
+        ]
+      },
+      "cjhriz": {
+        "aabb_xy_min": [
+          -0.336476,
+          -0.599276
+        ],
+        "aabb_xy_max": [
+          0.393068,
+          0.594521
+        ],
+        "height_m": 0.5306,
+        "scenes": []
+      },
+      "clenrz": {
+        "aabb_xy_min": [
+          -0.268481,
+          -0.812284
+        ],
+        "aabb_xy_max": [
+          0.258489,
+          0.812449
+        ],
+        "height_m": 0.6018,
+        "scenes": []
+      },
+      "ghtnfq": {
+        "aabb_xy_min": [
+          -0.877102,
+          -1.278803
+        ],
+        "aabb_xy_max": [
+          1.146781,
+          1.536132
+        ],
+        "height_m": 0.7494,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_2",
+            "instance_count": 1,
+            "instance_name": "desk_ghtnfq_0",
+            "scale_xyz": [
+              1.0000020265579224,
+              1.000017523765564,
+              0.9999619126319885
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_4",
+            "instance_count": 1,
+            "instance_name": "desk_ghtnfq_1",
+            "scale_xyz": [
+              1.0000020265579224,
+              1.000017523765564,
+              0.9999619126319885
+            ]
+          }
+        ]
+      },
+      "iotfzl": {
+        "aabb_xy_min": [
+          -0.270703,
+          -0.707299
+        ],
+        "aabb_xy_max": [
+          0.270217,
+          0.703246
+        ],
+        "height_m": 0.7282,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_upper",
+            "room_instance": "living_room_0",
+            "instance_count": 1,
+            "instance_name": "desk_iotfzl_0",
+            "scale_xyz": [
+              0.999945342540741,
+              0.9999765753746033,
+              0.9999732971191406
+            ]
+          }
+        ]
+      },
+      "juzwaf": {
+        "aabb_xy_min": [
+          -0.269048,
+          -0.750871
+        ],
+        "aabb_xy_max": [
+          0.344967,
+          0.750873
+        ],
+        "height_m": 0.77,
+        "scenes": [
+          {
+            "scene_model": "school_computer_lab_and_infirmary",
+            "room_instance": "computer_lab_0",
+            "instance_count": 21,
+            "instance_name": "desk_juzwaf_0",
+            "scale_xyz": [
+              0.9999899864196777,
+              0.9999669790267944,
+              0.9999427795410156
+            ]
+          }
+        ]
+      },
+      "mdhelw": {
+        "aabb_xy_min": [
+          -0.44266,
+          -1.404285
+        ],
+        "aabb_xy_max": [
+          0.487891,
+          1.407032
+        ],
+        "height_m": 0.77,
+        "scenes": [
+          {
+            "scene_model": "office_cubicles_right",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_2",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_right",
+            "room_instance": "private_office_1",
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_3",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_right",
+            "room_instance": "private_office_2",
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_1",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
+          },
+          {
+            "scene_model": "office_cubicles_right",
+            "room_instance": "private_office_3",
+            "instance_count": 1,
+            "instance_name": "desk_mdhelw_0",
+            "scale_xyz": [
+              0.9999846816062927,
+              1.000009298324585,
+              0.9999880790710449
+            ]
+          }
+        ]
+      },
+      "nbpuns": {
+        "aabb_xy_min": [
+          -0.274055,
+          -0.552146
+        ],
+        "aabb_xy_max": [
+          0.283024,
+          0.549933
+        ],
+        "height_m": 0.5426,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "childs_room_2",
+            "instance_count": 1,
+            "instance_name": "desk_nbpuns_0",
+            "scale_xyz": [
+              1.0000795125961304,
+              0.9999760389328003,
+              0.999965488910675
+            ]
+          }
+        ]
+      },
+      "obvwds": {
+        "aabb_xy_min": [
+          -0.2094,
+          -0.749453
+        ],
+        "aabb_xy_max": [
+          0.404651,
+          0.749489
+        ],
+        "height_m": 0.7699,
+        "scenes": [
+          {
+            "scene_model": "school_geography",
+            "room_instance": "classroom_0",
+            "instance_count": 1,
+            "instance_name": "desk_obvwds_0",
+            "scale_xyz": [
+              0.9999810457229614,
+              1.0000314712524414,
+              0.9999629259109497
+            ]
+          }
+        ]
+      },
+      "ohjotf": {
+        "aabb_xy_min": [
+          -0.286067,
+          -0.825751
+        ],
+        "aabb_xy_max": [
+          0.284893,
+          0.829432
+        ],
+        "height_m": 0.6683,
+        "scenes": [
+          {
+            "scene_model": "hotel_suite_large",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "desk_ohjotf_0",
+            "scale_xyz": [
+              1.0000156164169312,
+              0.9999873638153076,
+              0.9999291896820068
+            ]
+          }
+        ]
+      },
+      "pfsjbc": {
+        "aabb_xy_min": [
+          -0.553428,
+          -2.240169
+        ],
+        "aabb_xy_max": [
+          0.603887,
+          2.006249
+        ],
+        "height_m": 1.0847,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "lobby_0",
+            "instance_count": 1,
+            "instance_name": "desk_pfsjbc_0",
+            "scale_xyz": [
+              0.9999740719795227,
+              0.9999921917915344,
+              1.0000317096710205
+            ]
+          }
+        ]
+      },
+      "pniubv": {
+        "aabb_xy_min": [
+          -0.352393,
+          -0.858083
+        ],
+        "aabb_xy_max": [
+          0.324709,
+          1.678276
+        ],
+        "height_m": 0.85,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "break_room_0",
+            "instance_count": 1,
+            "instance_name": "desk_pniubv_0",
+            "scale_xyz": [
+              1.0000053644180298,
+              0.9999856352806091,
+              1.0
+            ]
+          }
+        ]
+      },
+      "puapey": {
+        "aabb_xy_min": [
+          -0.807435,
+          -0.801784
+        ],
+        "aabb_xy_max": [
+          0.808215,
+          0.80629
+        ],
+        "height_m": 1.0336,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "shared_office_0",
+            "instance_count": 23,
+            "instance_name": "desk_puapey_0",
+            "scale_xyz": [
+              0.9999691843986511,
+              1.000016450881958,
+              0.9999567270278931
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "shared_office_1",
+            "instance_count": 1,
+            "instance_name": "desk_puapey_23",
+            "scale_xyz": [
+              0.9999691843986511,
+              1.000016450881958,
+              0.9999567270278931
+            ]
+          }
+        ]
+      },
+      "qpuflh": {
+        "aabb_xy_min": [
+          -0.876095,
+          -1.537103
+        ],
+        "aabb_xy_max": [
+          1.146674,
+          1.278697
+        ],
+        "height_m": 0.75,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_1",
+            "instance_count": 1,
+            "instance_name": "desk_qpuflh_0",
+            "scale_xyz": [
+              0.9999963045120239,
+              0.9999893307685852,
+              1.0000228881835938
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_3",
+            "instance_count": 1,
+            "instance_name": "desk_qpuflh_1",
+            "scale_xyz": [
+              0.9999963045120239,
+              0.9999893307685852,
+              1.0000228881835938
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_5",
+            "instance_count": 1,
+            "instance_name": "desk_qpuflh_2",
+            "scale_xyz": [
+              0.9999963045120239,
+              0.9999893307685852,
+              1.0000228881835938
+            ]
+          }
+        ]
+      },
+      "rzyfxk": {
+        "aabb_xy_min": [
+          -0.269023,
+          -0.749483
+        ],
+        "aabb_xy_max": [
+          0.345053,
+          0.74945
+        ],
+        "height_m": 0.77,
+        "scenes": [
+          {
+            "scene_model": "Beechwood_0_garden",
+            "room_instance": "private_office_0",
+            "instance_count": 2,
+            "instance_name": "desk_rzyfxk_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000249147415161,
+              0.9999793171882629
+            ]
+          },
+          {
+            "scene_model": "Beechwood_0_int",
+            "room_instance": "private_office_0",
+            "instance_count": 2,
+            "instance_name": "desk_rzyfxk_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000249147415161,
+              0.9999793171882629
+            ]
+          },
+          {
+            "scene_model": "school_geography",
+            "room_instance": "classroom_0",
+            "instance_count": 1,
+            "instance_name": "desk_rzyfxk_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000249147415161,
+              0.9999793171882629
+            ]
+          }
+        ]
+      },
+      "sfstso": {
+        "aabb_xy_min": [
+          -0.425667,
+          -0.634976
+        ],
+        "aabb_xy_max": [
+          0.42078,
+          0.635799
+        ],
+        "height_m": 0.4671,
+        "scenes": []
+      },
+      "sjugsf": {
+        "aabb_xy_min": [
+          -0.282022,
+          -1.094973
+        ],
+        "aabb_xy_max": [
+          0.275482,
+          1.971295
+        ],
+        "height_m": 0.4868,
+        "scenes": [
+          {
+            "scene_model": "hotel_suite_small",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "desk_sjugsf_0",
+            "scale_xyz": [
+              0.9999764561653137,
+              0.9999892115592957,
+              1.0000078678131104
+            ]
+          }
+        ]
+      },
+      "tmluxa": {
+        "aabb_xy_min": [
+          -0.251585,
+          -0.355348
+        ],
+        "aabb_xy_max": [
+          0.26292,
+          0.355485
+        ],
+        "height_m": 0.7001,
+        "scenes": [
+          {
+            "scene_model": "school_biology",
+            "room_instance": "biology_lab_0",
+            "instance_count": 15,
+            "instance_name": "desk_tmluxa_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000511407852173,
+              0.9999924302101135
+            ]
+          },
+          {
+            "scene_model": "school_chemistry",
+            "room_instance": "chemistry_lab_0",
+            "instance_count": 12,
+            "instance_name": "desk_tmluxa_0",
+            "scale_xyz": [
+              0.9999497532844543,
+              1.0000511407852173,
+              0.9999924302101135
+            ]
+          }
+        ]
+      },
+      "uffjvo": {
+        "aabb_xy_min": [
+          -0.315969,
+          -0.60339
+        ],
+        "aabb_xy_max": [
+          0.318226,
+          0.603689
+        ],
+        "height_m": 0.4777,
+        "scenes": []
+      },
+      "uqcmzf": {
+        "aabb_xy_min": [
+          -0.552343,
+          -0.705326
+        ],
+        "aabb_xy_max": [
+          1.052317,
+          0.89473
+        ],
+        "height_m": 0.7151,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_upper",
+            "room_instance": "bedroom_2",
+            "instance_count": 1,
+            "instance_name": "desk_uqcmzf_0",
+            "scale_xyz": [
+              1.0000251531600952,
+              1.0000274181365967,
+              0.9999312162399292
+            ]
+          }
+        ]
+      },
+      "wtlxfr": {
+        "aabb_xy_min": [
+          -0.413569,
+          -0.67947
+        ],
+        "aabb_xy_max": [
+          0.419673,
+          0.672073
+        ],
+        "height_m": 0.72,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "conference_hall_0",
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_0",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "phone_room_0",
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_2",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "phone_room_1",
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_3",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "phone_room_2",
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_4",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_0",
+            "instance_count": 1,
+            "instance_name": "desk_wtlxfr_1",
+            "scale_xyz": [
+              0.9999601244926453,
+              0.9999996423721313,
+              1.0
+            ]
+          }
+        ]
+      },
+      "zjbhgq": {
+        "aabb_xy_min": [
+          -0.423424,
+          -0.883305
+        ],
+        "aabb_xy_max": [
+          0.42351,
+          0.883484
+        ],
+        "height_m": 0.5981,
+        "scenes": []
+      },
+      "zlyqcq": {
+        "aabb_xy_min": [
+          -0.242778,
+          -0.426151
+        ],
+        "aabb_xy_max": [
+          0.268952,
+          0.635454
+        ],
+        "height_m": 0.7525,
+        "scenes": [
+          {
+            "scene_model": "gates_bedroom",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "desk_zlyqcq_0",
+            "scale_xyz": [
+              0.9999995231628418,
+              0.9999997615814209,
+              0.9999396204948425
+            ]
+          }
+        ]
+      },
+      "ztsyqx": {
+        "aabb_xy_min": [
+          -0.259848,
+          -0.375718
+        ],
+        "aabb_xy_max": [
+          0.348042,
+          0.375877
+        ],
+        "height_m": 0.7848,
+        "scenes": [
+          {
+            "scene_model": "school_geography",
+            "room_instance": "classroom_0",
+            "instance_count": 25,
+            "instance_name": "desk_ztsyqx_0",
+            "scale_xyz": [
+              1.0000070333480835,
+              0.9999686479568481,
+              1.0000101327896118
+            ]
+          }
+        ]
+      }
+    },
+    "garden_coffee_table": {
+      "skxdpc": {
+        "aabb_xy_min": [
+          -0.636179,
+          -0.362595
+        ],
+        "aabb_xy_max": [
+          0.637708,
+          0.361265
+        ],
+        "height_m": 0.4728,
+        "scenes": [
+          {
+            "scene_model": "Merom_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "garden_coffee_table_skxdpc_0",
+            "scale_xyz": [
+              1.000000238418579,
+              1.0000003576278687,
+              0.9999484419822693
+            ]
+          }
+        ]
+      }
+    },
+    "nightstand": {
+      "aykehx": {
+        "aabb_xy_min": [
+          -0.255294,
+          -0.321498
+        ],
+        "aabb_xy_max": [
+          0.251703,
+          0.321495
+        ],
+        "height_m": 0.3025,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_upper",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "nightstand_aykehx_0",
+            "scale_xyz": [
+              1.0,
+              1.0,
+              0.9999998211860657
+            ]
+          }
+        ]
+      },
+      "geeldi": {
+        "aabb_xy_min": [
+          -0.303896,
+          -0.359849
+        ],
+        "aabb_xy_max": [
+          0.314018,
+          0.359666
+        ],
+        "height_m": 0.7557,
+        "scenes": []
+      },
+      "hessxe": {
+        "aabb_xy_min": [
+          -0.265359,
+          -0.258567
+        ],
+        "aabb_xy_max": [
+          0.253247,
+          0.260043
+        ],
+        "height_m": 0.5964,
+        "scenes": []
+      },
+      "kanola": {
+        "aabb_xy_min": [
+          -0.258664,
+          -0.306411
+        ],
+        "aabb_xy_max": [
+          0.263499,
+          0.306425
+        ],
+        "height_m": 0.7557,
+        "scenes": []
+      },
+      "ljtrka": {
+        "aabb_xy_min": [
+          -0.233292,
+          -0.234862
+        ],
+        "aabb_xy_max": [
+          0.236592,
+          0.234982
+        ],
+        "height_m": 0.7558,
+        "scenes": []
+      },
+      "roxnbe": {
+        "aabb_xy_min": [
+          -0.232834,
+          -0.387241
+        ],
+        "aabb_xy_max": [
+          0.297668,
+          0.387989
+        ],
+        "height_m": 0.7,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_upper",
+            "room_instance": "bedroom_1",
+            "instance_count": 2,
+            "instance_name": "nightstand_roxnbe_0",
+            "scale_xyz": [
+              0.9999985098838806,
+              0.999971330165863,
+              0.9999985694885254
+            ]
+          }
+        ]
+      },
+      "uudzva": {
+        "aabb_xy_min": [
+          -0.174738,
+          -0.229997
+        ],
+        "aabb_xy_max": [
+          0.17526,
+          0.230001
+        ],
+        "height_m": 0.7,
+        "scenes": [
+          {
+            "scene_model": "gates_bedroom",
+            "room_instance": "bedroom_0",
+            "instance_count": 1,
+            "instance_name": "nightstand_uudzva_0",
+            "scale_xyz": [
+              1.0,
+              1.0000001192092896,
+              0.9999994039535522
+            ]
+          }
+        ]
+      },
+      "uzxrlg": {
+        "aabb_xy_min": [
+          -0.225373,
+          -0.387907
+        ],
+        "aabb_xy_max": [
+          0.251627,
+          0.387093
+        ],
+        "height_m": 0.347,
+        "scenes": [
+          {
+            "scene_model": "house_double_floor_upper",
+            "room_instance": "bedroom_2",
+            "instance_count": 1,
+            "instance_name": "nightstand_uzxrlg_0",
+            "scale_xyz": [
+              1.0000001192092896,
+              1.0000001192092896,
+              1.0000001192092896
+            ]
+          }
+        ]
+      },
+      "wbxekb": {
+        "aabb_xy_min": [
+          -0.252605,
+          -0.388474
+        ],
+        "aabb_xy_max": [
+          0.226359,
+          0.387727
+        ],
+        "height_m": 0.347,
+        "scenes": [
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "bedroom_0",
+            "instance_count": 2,
+            "instance_name": "nightstand_wbxekb_0",
+            "scale_xyz": [
+              1.0000756978988647,
+              0.9999943971633911,
+              0.9999978542327881
+            ]
+          },
+          {
+            "scene_model": "house_single_floor",
+            "room_instance": "childs_room_1",
+            "instance_count": 1,
+            "instance_name": "nightstand_wbxekb_2",
+            "scale_xyz": [
+              1.0000756978988647,
+              0.6022898554801941,
+              0.9999978542327881
+            ]
+          }
+        ]
+      }
+    },
+    "pedestal_table": {
+      "aympln": {
+        "aabb_xy_min": [
+          -0.456813,
+          -0.453466
+        ],
+        "aabb_xy_max": [
+          0.453397,
+          0.456553
+        ],
+        "height_m": 0.7213,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "meeting_room_3",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_aympln_3",
+            "scale_xyz": [
+              0.9999998211860657,
+              0.9999998211860657,
+              1.0000439882278442
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "meeting_room_4",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_aympln_2",
+            "scale_xyz": [
+              0.9999998211860657,
+              0.9999998211860657,
+              1.0000439882278442
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "shared_office_0",
+            "instance_count": 2,
+            "instance_name": "pedestal_table_aympln_0",
+            "scale_xyz": [
+              0.9999998211860657,
+              0.9999998211860657,
+              1.0000439882278442
+            ]
+          }
+        ]
+      },
+      "djflkd": {
+        "aabb_xy_min": [
+          -0.494274,
+          -0.499775
+        ],
+        "aabb_xy_max": [
+          0.489559,
+          0.484057
+        ],
+        "height_m": 0.8041,
+        "scenes": [
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_djflkd_0",
+            "scale_xyz": [
+              1.000049352645874,
+              0.9999499320983887,
+              1.0000227689743042
+            ]
+          }
+        ]
+      },
+      "dmghrm": {
+        "aabb_xy_min": [
+          -0.554795,
+          -0.552055
+        ],
+        "aabb_xy_max": [
+          0.555049,
+          0.539242
+        ],
+        "height_m": 0.6932,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "break_room_0",
+            "instance_count": 3,
+            "instance_name": "pedestal_table_dmghrm_0",
+            "scale_xyz": [
+              0.9999656081199646,
+              0.999965488910675,
+              1.0000702142715454
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "meeting_room_0",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_dmghrm_1",
+            "scale_xyz": [
+              0.9999656081199646,
+              0.999965488910675,
+              1.0000702142715454
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "meeting_room_1",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_dmghrm_2",
+            "scale_xyz": [
+              0.9999656081199646,
+              0.999965488910675,
+              1.0000702142715454
+            ]
+          }
+        ]
+      },
+      "gikdir": {
+        "aabb_xy_min": [
+          -0.399549,
+          -0.40117
+        ],
+        "aabb_xy_max": [
+          0.397092,
+          0.397052
+        ],
+        "height_m": 0.3597,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "lobby_0",
+            "instance_count": 2,
+            "instance_name": "pedestal_table_gikdir_0",
+            "scale_xyz": [
+              1.0000277757644653,
+              0.9999454617500305,
+              1.000088095664978
+            ]
+          }
+        ]
+      },
+      "ifmhpn": {
+        "aabb_xy_min": [
+          -0.569409,
+          -0.576268
+        ],
+        "aabb_xy_max": [
+          0.570541,
+          0.566984
+        ],
+        "height_m": 0.9601,
+        "scenes": [
+          {
+            "scene_model": "Wainscott_0_garden",
+            "room_instance": "garden_0",
+            "instance_count": 2,
+            "instance_name": "pedestal_table_ifmhpn_0",
+            "scale_xyz": [
+              1.0000327825546265,
+              1.0000040531158447,
+              0.9999744892120361
+            ]
+          }
+        ]
+      },
+      "jdilum": {
+        "aabb_xy_min": [
+          -0.447917,
+          -0.440143
+        ],
+        "aabb_xy_max": [
+          0.46553,
+          0.425298
+        ],
+        "height_m": 0.77,
+        "scenes": [
+          {
+            "scene_model": "restaurant_hotel",
+            "room_instance": "dining_room_0",
+            "instance_count": 4,
+            "instance_name": "pedestal_table_jdilum_0",
+            "scale_xyz": [
+              1.0,
+              1.0000327825546265,
+              0.9999707937240601
+            ]
+          }
+        ]
+      },
+      "ktevfe": {
+        "aabb_xy_min": [
+          -0.378137,
+          -0.378145
+        ],
+        "aabb_xy_max": [
+          0.37814,
+          0.377681
+        ],
+        "height_m": 0.6726,
+        "scenes": []
+      },
+      "mbojpo": {
+        "aabb_xy_min": [
+          -0.371474,
+          -0.371678
+        ],
+        "aabb_xy_max": [
+          0.370296,
+          0.370612
+        ],
+        "height_m": 0.762,
+        "scenes": []
+      },
+      "nlfgwe": {
+        "aabb_xy_min": [
+          -0.542487,
+          -0.542666
+        ],
+        "aabb_xy_max": [
+          0.542511,
+          0.542532
+        ],
+        "height_m": 0.7656,
+        "scenes": [
+          {
+            "scene_model": "restaurant_diner",
+            "room_instance": "dining_room_0",
+            "instance_count": 3,
+            "instance_name": "pedestal_table_nlfgwe_0",
+            "scale_xyz": [
+              0.9999760389328003,
+              0.9999751448631287,
+              0.999988853931427
+            ]
+          }
+        ]
+      },
+      "nyprvh": {
+        "aabb_xy_min": [
+          -0.311585,
+          -0.31097
+        ],
+        "aabb_xy_max": [
+          0.311584,
+          0.31097
+        ],
+        "height_m": 0.5937,
+        "scenes": [
+          {
+            "scene_model": "Rs_garden",
+            "room_instance": "garden_0",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_nyprvh_0",
+            "scale_xyz": [
+              1.0000497102737427,
+              0.9999367594718933,
+              0.9999476671218872
+            ]
+          }
+        ]
+      },
+      "oqclwq": {
+        "aabb_xy_min": [
+          -0.453764,
+          -0.453241
+        ],
+        "aabb_xy_max": [
+          0.453764,
+          0.453235
+        ],
+        "height_m": 0.5721,
+        "scenes": []
+      },
+      "pljlcn": {
+        "aabb_xy_min": [
+          -0.296997,
+          -0.297788
+        ],
+        "aabb_xy_max": [
+          0.298312,
+          0.298
+        ],
+        "height_m": 0.3448,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_0",
+            "instance_count": 3,
+            "instance_name": "pedestal_table_pljlcn_0",
+            "scale_xyz": [
+              1.000077724456787,
+              1.000077724456787,
+              0.9999079704284668
+            ]
+          }
+        ]
+      },
+      "poukwl": {
+        "aabb_xy_min": [
+          -0.451587,
+          -0.453684
+        ],
+        "aabb_xy_max": [
+          0.455096,
+          0.452998
+        ],
+        "height_m": 0.3043,
+        "scenes": []
+      },
+      "pyybeq": {
+        "aabb_xy_min": [
+          -0.364425,
+          -0.353651
+        ],
+        "aabb_xy_max": [
+          0.339271,
+          0.335018
+        ],
+        "height_m": 0.7594,
+        "scenes": []
+      },
+      "ssnzie": {
+        "aabb_xy_min": [
+          -0.313055,
+          -0.311938
+        ],
+        "aabb_xy_max": [
+          0.310752,
+          0.312432
+        ],
+        "height_m": 0.3594,
+        "scenes": [
+          {
+            "scene_model": "office_large",
+            "room_instance": "private_office_4",
+            "instance_count": 2,
+            "instance_name": "pedestal_table_ssnzie_0",
+            "scale_xyz": [
+              0.9999963045120239,
+              1.0000743865966797,
+              1.0000211000442505
+            ]
+          },
+          {
+            "scene_model": "office_large",
+            "room_instance": "shared_office_1",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_ssnzie_2",
+            "scale_xyz": [
+              0.9999963045120239,
+              1.0000743865966797,
+              1.0000211000442505
+            ]
+          }
+        ]
+      },
+      "swgvxs": {
+        "aabb_xy_min": [
+          -0.508364,
+          -0.507618
+        ],
+        "aabb_xy_max": [
+          0.507753,
+          0.508074
+        ],
+        "height_m": 0.76,
+        "scenes": [
+          {
+            "scene_model": "restaurant_urban",
+            "room_instance": "dining_room_0",
+            "instance_count": 5,
+            "instance_name": "pedestal_table_swgvxs_0",
+            "scale_xyz": [
+              1.0000258684158325,
+              1.000025749206543,
+              0.9999935626983643
+            ]
+          }
+        ]
+      },
+      "tdpuit": {
+        "aabb_xy_min": [
+          -0.441262,
+          -0.62436
+        ],
+        "aabb_xy_max": [
+          0.441105,
+          0.624992
+        ],
+        "height_m": 0.6634,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_convenience",
+            "room_instance": "grocery_store_0",
+            "instance_count": 2,
+            "instance_name": "pedestal_table_tdpuit_0",
+            "scale_xyz": [
+              1.0000370740890503,
+              1.000038504600525,
+              0.9999342560768127
+            ]
+          }
+        ]
+      },
+      "wnqrci": {
+        "aabb_xy_min": [
+          -0.420491,
+          -0.417982
+        ],
+        "aabb_xy_max": [
+          0.419508,
+          0.419679
+        ],
+        "height_m": 0.5703,
+        "scenes": [
+          {
+            "scene_model": "office_vendor_machine",
+            "room_instance": "break_room_0",
+            "instance_count": 1,
+            "instance_name": "pedestal_table_wnqrci_0",
+            "scale_xyz": [
+              1.0000295639038086,
+              0.9999679923057556,
+              1.0000689029693604
+            ]
+          }
+        ]
+      },
+      "xcnvsy": {
+        "aabb_xy_min": [
+          -0.198797,
+          -0.770276
+        ],
+        "aabb_xy_max": [
+          0.198979,
+          0.770189
+        ],
+        "height_m": 0.7025,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_convenience",
+            "room_instance": "grocery_store_0",
+            "instance_count": 2,
+            "instance_name": "pedestal_table_xcnvsy_0",
+            "scale_xyz": [
+              1.0000741481781006,
+              0.9999787211418152,
+              1.0000463724136353
+            ]
+          }
+        ]
+      },
+      "xrrhik": {
+        "aabb_xy_min": [
+          -0.391949,
+          -0.391072
+        ],
+        "aabb_xy_max": [
+          0.388052,
+          0.389429
+        ],
+        "height_m": 0.6845,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_cafe",
+            "room_instance": "dining_room_0",
+            "instance_count": 4,
+            "instance_name": "pedestal_table_xrrhik_0",
+            "scale_xyz": [
+              0.9999359250068665,
+              0.9999943971633911,
+              1.0000622272491455
+            ]
+          }
+        ]
+      }
+    },
+    "reception_desk": {
+      "kjmhgc": {
+        "aabb_xy_min": [
+          -0.319021,
+          -0.72471
+        ],
+        "aabb_xy_max": [
+          0.245577,
+          0.725641
+        ],
+        "height_m": 0.8128,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_convenience",
+            "room_instance": "grocery_store_0",
+            "instance_count": 1,
+            "instance_name": "reception_desk_kjmhgc_0",
+            "scale_xyz": [
+              1.0000008344650269,
+              1.000014305114746,
+              1.0
+            ]
+          }
+        ]
+      },
+      "ukonss": {
+        "aabb_xy_min": [
+          -0.363881,
+          -1.295687
+        ],
+        "aabb_xy_max": [
+          0.277253,
+          1.295188
+        ],
+        "height_m": 1.0063,
+        "scenes": [
+          {
+            "scene_model": "restaurant_hotel",
+            "room_instance": "lobby_0",
+            "instance_count": 1,
+            "instance_name": "reception_desk_ukonss_0",
+            "scale_xyz": [
+              0.9999263882637024,
+              1.0000030994415283,
+              0.9999935030937195
+            ]
+          }
+        ]
+      },
+      "vxombm": {
+        "aabb_xy_min": [
+          -0.343641,
+          -1.079998
+        ],
+        "aabb_xy_max": [
+          0.256358,
+          1.079999
+        ],
+        "height_m": 0.8,
+        "scenes": [
+          {
+            "scene_model": "grocery_store_cafe",
+            "room_instance": "grocery_store_0",
+            "instance_count": 1,
+            "instance_name": "reception_desk_vxombm_0",
+            "scale_xyz": [
+              1.0000016689300537,
+              1.0000017881393433,
+              1.0
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

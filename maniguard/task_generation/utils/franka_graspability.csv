@@ -1,0 +1,1256 @@
+category,model,status,n_candidates,n_tried,elapsed_s,note
+acetone_atomizer,krtwsl,graspable,496,13,21.8,i=36 z_rise=0.065
+acorn,qkjrwt,no_grasp,560,128,150.5,
+address,pbfbxj,graspable,912,5,9.2,i=30 z_rise=0.061
+agave,bvlsig,no_candidates,0,0,2.6,
+agave,cnlzlq,no_grasp,16,6,9.8,
+air_conditioner,pekain,no_grasp,16,5,7.5,
+air_filter,eguida,graspable,320,6,13.4,i=12 z_rise=0.062
+air_freshener_atomizer,vxtgpy,no_grasp,160,54,60.3,
+alarm_clock,cvknrh,graspable,608,7,16.3,i=53 z_rise=0.054
+alarm_clock,trwyaq,graspable,320,6,15.7,i=30 z_rise=0.067
+alarm_clock,vqwovi,graspable,320,3,6.5,i=9 z_rise=0.051
+allen_wrench,neqlcn,no_grasp,480,103,118.5,
+allspice_shaker,cibgje,graspable,624,3,8.6,i=13 z_rise=0.074
+alphabet_abacus,wojwvu,graspable,880,20,39.5,i=65 z_rise=0.058
+aluminum_foil,ebsqqe,no_candidates,0,0,1.8,
+ammonia_water_atomizer,bnrlqd,graspable,528,2,6.2,i=5 z_rise=0.084
+antlers,nlsanr,no_grasp,592,38,47.6,
+antlers,ovwdwa,graspable,736,23,30.7,i=53 z_rise=0.043
+apple,agveuv,graspable,944,1,3.5,i=0 z_rise=0.060
+apple,bwteqh,graspable,512,13,17.0,i=34 z_rise=0.050
+apple,dfgurb,graspable,96,4,7.6,i=7 z_rise=0.043
+apple,hwrflj,graspable,416,8,11.6,i=12 z_rise=0.048
+apple,netbsb,graspable,656,1,3.6,i=0 z_rise=0.069
+apple,obixxh,graspable,464,2,4.9,i=2 z_rise=0.085
+apple,omzprq,graspable,896,2,4.8,i=5 z_rise=0.062
+apple,qrqzvs,no_grasp,32,12,15.2,
+apple,rizrsp,no_grasp,432,148,168.9,
+apple,ymhxqk,graspable,544,6,9.4,i=10 z_rise=0.051
+apple,yyuiva,graspable,208,5,8.8,i=6 z_rise=0.051
+apple,zlxfxt,graspable,400,2,4.9,i=3 z_rise=0.063
+apple,zutnsf,graspable,512,3,6.0,i=9 z_rise=0.053
+apple_pie,ejrgdj,no_grasp,576,50,62.0,
+apple_pie,rpdhbr,graspable,720,5,7.2,i=53 z_rise=0.047
+apricot,qmwmwm,graspable,16,1,3.5,i=4 z_rise=0.072
+apron,uxgjdv,no_grasp,16,0,3.1,
+arbor,qewqan,no_grasp,1008,0,2.1,
+architectural_plan,upkcfq,graspable,416,7,12.0,i=20 z_rise=0.073
+arepa,hhtbuy,graspable,688,19,26.7,i=72 z_rise=0.069
+armchair,axcwcm,no_grasp,672,132,172.2,
+armchair,axudcx,no_grasp,864,121,154.6,
+armchair,bdgwkg,timeout,560,142,180.5,after 142 tries
+armchair,bslhmj,timeout,336,119,182.1,after 119 tries
+armchair,ccpgpe,no_grasp,992,26,20.1,
+armchair,cehzwd,timeout,992,77,185.9,after 77 tries
+armchair,cyvmhv,timeout,704,4,947.9,after 4 tries
+armchair,esfrjm,timeout,432,148,180.3,close 148
+armchair,fsrprw,no_grasp,16,4,7.4,
+armchair,hdibix,no_grasp,608,141,170.5,
+armchair,hfydou,no_grasp,848,137,164.7,
+armchair,ihhodt,no_grasp,992,127,176.9,
+armchair,irzlby,timeout,400,134,180.3,settle 134
+armchair,jmunen,no_grasp,912,110,139.3,
+armchair,jzthdw,no_grasp,160,37,31.4,
+armchair,nckeqb,no_candidates,0,0,1.8,
+armchair,nibzys,no_grasp,608,112,130.9,
+armchair,ouqlrc,timeout,624,152,180.4,close 152
+armchair,pfntgd,no_grasp,976,83,97.0,
+armchair,pmrcex,no_grasp,848,74,97.1,
+armchair,qerjol,no_grasp,960,113,126.9,
+armchair,qgcjtr,no_grasp,304,66,76.5,
+armchair,qhcrgb,no_grasp,176,68,80.3,
+armchair,qjwuus,no_grasp,512,177,158.8,
+armchair,qplklw,no_grasp,928,143,143.1,
+armchair,qyntri,timeout,560,64,187.7,close 64
+armchair,rabzuf,timeout,352,4,2575.7,ik 4
+armchair,rtbsof,too_large,0,0,0.0,too_large(max_dim=0.92m)
+armchair,tcscts,too_large,0,0,0.0,too_large(max_dim=0.76m)
+armchair,tcxiue,too_large,0,0,0.0,too_large(max_dim=0.79m)
+armchair,tgbaim,too_large,0,0,0.0,too_large(max_dim=0.88m)
+armchair,thfelc,too_large,0,0,0.0,too_large(max_dim=0.81m)
+armchair,thhqkc,too_large,0,0,0.0,too_large(max_dim=1.40m)
+armchair,umbrpd,too_large,0,0,0.0,too_large(max_dim=0.77m)
+armchair,viphen,too_large,0,0,0.0,too_large(max_dim=0.83m)
+armchair,vtsoat,too_large,0,0,0.0,too_large(max_dim=0.77m)
+armchair,vzfhpv,too_large,0,0,0.0,too_large(max_dim=0.81m)
+armchair,vzhxuf,too_large,0,0,0.0,too_large(max_dim=0.83m)
+armchair,wkmkvd,too_large,0,0,0.0,too_large(max_dim=1.08m)
+armchair,xkacfd,too_large,0,0,0.0,too_large(max_dim=0.77m)
+armchair,xpcheg,too_large,0,0,0.0,too_large(max_dim=0.83m)
+armchair,xqovyv,too_large,0,0,0.0,too_large(max_dim=0.83m)
+armchair,ybcnmu,too_large,0,0,0.0,too_large(max_dim=1.04m)
+armchair,zoamsi,too_large,0,0,0.0,too_large(max_dim=0.88m)
+armchair,zrgdsz,too_large,0,0,0.0,too_large(max_dim=0.85m)
+armchair,zxhcxt,too_large,0,0,0.0,too_large(max_dim=0.83m)
+artichoke,tfclmg,graspable,416,40,48.2,i=137 z_rise=0.082
+arugula,lbkpoh,graspable,272,8,11.9,i=15 z_rise=0.077
+ashtray,dhkkfo,graspable,560,2,5.9,i=13 z_rise=0.073
+ashtray,nfuxzd,graspable,512,67,79.0,i=284 z_rise=0.041
+asparagus,eodozo,no_grasp,464,102,105.0,
+asparagus,npggjn,graspable,560,11,13.6,i=38 z_rise=0.090
+asparagus,xguktb,graspable,608,31,35.5,i=136 z_rise=0.080
+auricularia,coecnm,no_grasp,512,116,136.3,
+avocado,arswzs,graspable,832,3,6.1,i=11 z_rise=0.066
+axe,plqyos,too_large,0,0,0.0,too_large(max_dim=0.53m)
+baby_bottle,mzedhe,graspable,208,2,5.6,i=1 z_rise=0.131
+baby_shoe,jzwnri,graspable,400,2,5.1,i=3 z_rise=0.060
+baby_shoe,tnbjlw,graspable,432,9,13.5,i=33 z_rise=0.041
+background,eydaus,too_large,0,0,0.0,too_large(max_dim=49.68m)
+background,gkemae,too_large,0,0,0.0,too_large(max_dim=5.69m)
+background,miopfw,too_large,0,0,0.0,too_large(max_dim=100.76m)
+background,zqogsh,too_large,0,0,0.0,too_large(max_dim=49.68m)
+backpack,gvbiwl,graspable,512,5,10.3,i=17 z_rise=0.286
+bacon,eclhdh,no_candidates,0,0,1.6,
+bacon,iiatla,no_candidates,0,0,1.6,
+bacon,ioogif,no_grasp,32,14,16.7,
+bag_of_auricularia,vyxoju,no_grasp,288,15,18.6,
+bag_of_breadcrumbs,nvhvxe,graspable,224,3,5.9,i=3 z_rise=0.044
+bag_of_brown_rice,tnfazj,no_grasp,80,26,38.7,
+bag_of_chips,bryahw,graspable,592,18,21.8,i=97 z_rise=0.043
+bag_of_chips,dwkdko,graspable,640,4,8.5,i=16 z_rise=0.045
+bag_of_chips,ennnjj,graspable,624,14,21.0,i=122 z_rise=0.045
+bag_of_chips,jphwer,graspable,640,14,17.4,i=62 z_rise=0.047
+bag_of_chips,qstxpj,graspable,368,2,5.4,i=2 z_rise=0.142
+bag_of_chips,uevvib,graspable,576,2,4.8,i=7 z_rise=0.047
+bag_of_chips,wnuoym,graspable,224,25,33.0,i=57 z_rise=0.056
+bag_of_cookies,bbyvsc,no_grasp,592,28,32.5,
+bag_of_cookies,ikivgk,no_grasp,304,29,34.2,
+bag_of_cookies,ksjtde,no_grasp,640,0,1.7,
+bag_of_cookies,vafomx,graspable,960,2,4.4,i=11 z_rise=0.054
+bag_of_cream_cheese,dxrsol,graspable,384,16,19.7,i=114 z_rise=0.045
+bag_of_fertilizer,rqpgrk,too_large,0,0,0.0,too_large(max_dim=0.54m)
+bag_of_flour,fntqmd,graspable,192,33,44.9,i=72 z_rise=0.059
+bag_of_flour,rlejxx,graspable,32,9,14.1,i=19 z_rise=0.047
+bag_of_ice_cream,himfgn,graspable,576,22,27.8,i=113 z_rise=0.078
+bag_of_ice_cream,jwalbo,graspable,528,2,4.6,i=12 z_rise=0.054
+bag_of_jerky,wblype,no_grasp,416,17,19.6,
+bag_of_mulch,foxqdk,too_large,0,0,0.0,too_large(max_dim=0.59m)
+bag_of_oranges,vohgas,no_grasp,960,130,147.0,
+bag_of_popcorn,dmubtt,no_grasp,96,30,33.4,
+bag_of_popcorn,ebygfp,no_grasp,272,72,74.4,
+bag_of_rice,eddcjz,no_grasp,656,58,78.1,
+bag_of_rice,feerye,no_grasp,400,53,57.3,
+bag_of_rice,jzjqjb,graspable,720,5,8.5,i=53 z_rise=0.086
+bag_of_rice,xcokwx,graspable,784,6,10.3,i=42 z_rise=0.101
+bag_of_rubbish,qfkzkd,too_large,0,0,0.0,too_large(max_dim=0.73m)
+bag_of_shiitake,jazecy,no_grasp,304,17,20.7,
+bag_of_snacks,pkwgid,graspable,736,4,9.2,i=20 z_rise=0.059
+bag_of_starch,npegpl,too_large,0,0,0.0,too_large(max_dim=0.53m)
+bag_of_tea,jjweyi,graspable,720,1,3.4,i=3 z_rise=0.041
+bag_of_yeast,ibvtik,graspable,48,4,8.0,i=6 z_rise=0.051
+bagel,zlxkry,graspable,640,1,4.3,i=5 z_rise=0.083
+bagel_dough,iuembm,no_grasp,544,69,79.8,
+baguette,pjzkeh,graspable,640,24,30.7,i=77 z_rise=0.043
+baguette,xhqnuc,graspable,624,3,5.5,i=6 z_rise=0.047
+baguette,xydhpd,graspable,512,104,116.5,i=375 z_rise=0.066
+baguette,ypbyek,graspable,560,6,8.8,i=36 z_rise=0.067
+bait,lghbdw,no_grasp,80,28,33.7,
+baking_powder_jar,lgopij,graspable,384,3,10.8,i=3 z_rise=0.074
+baking_sheet,yhurut,graspable,304,2,4.7,i=9 z_rise=0.058
+balloon,ixhbmk,no_candidates,0,0,1.9,
+banana,verqwv,graspable,464,1,3.8,i=0 z_rise=0.058
+banana,vvyyyv,graspable,656,15,19.1,i=69 z_rise=0.060
+banana,wmglhc,graspable,528,1,4.1,i=5 z_rise=0.047
+banana,znakxm,graspable,528,9,12.6,i=35 z_rise=0.059
+banana_bread,outrja,no_grasp,96,30,36.5,
+bandage,riftxh,no_candidates,0,0,2.7,
+bandana,wbhliu,graspable,176,11,16.0,i=34 z_rise=0.080
+bap,enbbud,graspable,464,18,23.2,i=117 z_rise=0.047
+bap,pabfde,no_grasp,400,32,36.6,
+bar,byvbuc,too_large,0,0,0.0,too_large(max_dim=2.15m)
+bar,cowjqr,too_large,0,0,0.0,too_large(max_dim=3.80m)
+bar,egwapq,too_large,0,0,0.0,too_large(max_dim=2.43m)
+bar,hhltqq,too_large,0,0,0.0,too_large(max_dim=9.30m)
+bar,joihle,too_large,0,0,0.0,too_large(max_dim=1.03m)
+bar,jvkwcc,too_large,0,0,0.0,too_large(max_dim=2.03m)
+bar,udatjt,too_large,0,0,0.0,too_large(max_dim=2.99m)
+bar,ukorzz,too_large,0,0,0.0,too_large(max_dim=4.40m)
+bar,xxftww,too_large,0,0,0.0,too_large(max_dim=5.76m)
+bar_soap,feqemg,graspable,432,2,5.2,i=9 z_rise=0.045
+bar_soap,lyigsj,graspable,464,58,62.8,i=309 z_rise=0.050
+bar_soap,ofargb,graspable,352,3,5.3,i=61 z_rise=0.048
+bar_soap,ozifwa,graspable,528,9,11.9,i=44 z_rise=0.060
+bar_soap,utgixp,no_grasp,544,83,89.2,
+bar_stool,haaiau,too_large,0,0,0.0,too_large(max_dim=0.77m)
+barbecue_sauce_bottle,gfxrnj,graspable,288,5,10.7,i=11 z_rise=0.042
+baseball,zanmar,graspable,496,3,6.4,i=5 z_rise=0.053
+baseball_bat,spcxrt,too_large,0,0,0.0,too_large(max_dim=0.75m)
+baseball_bat,yalgei,too_large,0,0,0.0,too_large(max_dim=0.81m)
+baseball_cap,ogptul,graspable,144,1,5.8,i=0 z_rise=0.050
+baseball_glove,feakpw,graspable,544,1,4.5,i=0 z_rise=0.051
+baseboard,djaeet,too_large,0,0,0.0,too_large(max_dim=1.83m)
+baseboard,dsajeh,too_large,0,0,0.0,too_large(max_dim=2.48m)
+baseboard,gmhhek,too_large,0,0,0.0,too_large(max_dim=1.87m)
+baseboard,peorza,too_large,0,0,0.0,too_large(max_dim=3.39m)
+basil,bebpnf,graspable,80,10,14.3,i=28 z_rise=0.088
+basil,dkuhvb,graspable,80,10,14.2,i=34 z_rise=0.084
+basil_jar,swytaw,graspable,400,2,9.6,i=3 z_rise=0.059
+bath_towel,thmepr,too_large,0,0,0.0,too_large(max_dim=1.08m)
+bathtub,azdgtl,too_large,0,0,0.0,too_large(max_dim=1.55m)
+bathtub,enpxbn,too_large,0,0,0.0,too_large(max_dim=1.69m)
+bathtub,euxylv,too_large,0,0,0.0,too_large(max_dim=1.84m)
+bathtub,fdjykf,too_large,0,0,0.0,too_large(max_dim=1.69m)
+bathtub,gulceo,too_large,0,0,0.0,too_large(max_dim=1.55m)
+bathtub,jfhrwj,too_large,0,0,0.0,too_large(max_dim=1.60m)
+bathtub,oobbwn,too_large,0,0,0.0,too_large(max_dim=1.67m)
+bathtub,pdcrfs,too_large,0,0,0.0,too_large(max_dim=1.88m)
+bathtub,rufepf,too_large,0,0,0.0,too_large(max_dim=2.19m)
+bathtub,uqmgtw,too_large,0,0,0.0,too_large(max_dim=1.75m)
+bathtub,wxrafq,too_large,0,0,0.0,too_large(max_dim=1.67m)
+battery,dcjyzg,graspable,544,24,26.8,i=61 z_rise=0.067
+batting_gloves,uteyjv,graspable,768,3,6.5,i=22 z_rise=0.117
+bay_leaf,blazyi,no_candidates,0,0,1.7,
+bay_leaf,cdhuzx,no_candidates,0,0,1.7,
+bay_leaf,cwnnyb,no_candidates,0,0,1.7,
+bay_leaf,dffqtk,no_candidates,0,0,1.7,
+bay_leaf,dwqqxh,no_candidates,0,0,1.7,
+bay_leaf,ghcnzp,no_candidates,0,0,1.7,
+bay_leaf,llmoti,no_candidates,0,0,1.7,
+bay_leaf,rqtlsv,no_candidates,0,0,1.7,
+bay_leaf,xofecb,no_candidates,0,0,1.7,
+beach_toy,kjoafi,no_candidates,0,0,2.1,
+beach_toy,wonucj,no_candidates,0,0,2.0,
+beach_toy,zsljeg,graspable,192,5,9.2,i=15 z_rise=0.041
+beaker,dtjmai,graspable,128,5,10.8,i=22 z_rise=0.049
+beaker,effbnc,no_grasp,32,0,1.8,
+beaker,exzsal,graspable,704,2,6.3,i=6 z_rise=0.064
+beaker,fxrsyi,graspable,48,1,4.0,i=1 z_rise=0.047
+beaker,fyrkzs,graspable,384,1,4.5,i=0 z_rise=0.069
+beaker,jdijek,graspable,400,1,4.8,i=2 z_rise=0.057
+beaker,rhohgs,graspable,416,1,5.0,i=0 z_rise=0.098
+beaker,sfvswx,graspable,240,1,4.4,i=2 z_rise=0.041
+beaker,sstojv,graspable,336,1,4.6,i=0 z_rise=0.050
+beaker,uobdoq,graspable,288,1,4.8,i=8 z_rise=0.072
+beaker,uzgibd,graspable,288,1,4.6,i=5 z_rise=0.066
+beaker,zycgen,graspable,352,1,4.8,i=4 z_rise=0.079
+bean_curd,hekigc,graspable,544,109,119.1,i=324 z_rise=0.082
+bed,fnzxxr,too_large,0,0,0.0,too_large(max_dim=2.24m)
+bed,gcgodj,too_large,0,0,0.0,too_large(max_dim=2.56m)
+bed,guguqb,too_large,0,0,0.0,too_large(max_dim=2.25m)
+bed,gxfipj,too_large,0,0,0.0,too_large(max_dim=2.14m)
+bed,hojitx,too_large,0,0,0.0,too_large(max_dim=2.03m)
+bed,ivdnny,too_large,0,0,0.0,too_large(max_dim=1.66m)
+bed,jpuihb,too_large,0,0,0.0,too_large(max_dim=1.98m)
+bed,kddswt,too_large,0,0,0.0,too_large(max_dim=2.17m)
+bed,klcjcy,too_large,0,0,0.0,too_large(max_dim=2.30m)
+bed,lslyyi,too_large,0,0,0.0,too_large(max_dim=2.17m)
+bed,mpgavt,too_large,0,0,0.0,too_large(max_dim=1.93m)
+bed,mykwrc,too_large,0,0,0.0,too_large(max_dim=3.00m)
+bed,nwzbyk,too_large,0,0,0.0,too_large(max_dim=2.03m)
+bed,pqptex,too_large,0,0,0.0,too_large(max_dim=2.06m)
+bed,rhanfx,too_large,0,0,0.0,too_large(max_dim=2.28m)
+bed,rrcvaq,too_large,0,0,0.0,too_large(max_dim=1.99m)
+bed,siuxgz,too_large,0,0,0.0,too_large(max_dim=2.39m)
+bed,smmmaf,too_large,0,0,0.0,too_large(max_dim=2.18m)
+bed,tjfzsb,too_large,0,0,0.0,too_large(max_dim=2.14m)
+bed,wbjidf,too_large,0,0,0.0,too_large(max_dim=2.20m)
+bed,wfxgbb,too_large,0,0,0.0,too_large(max_dim=3.79m)
+bed,wyxtqf,too_large,0,0,0.0,too_large(max_dim=1.95m)
+bed,yghbxh,too_large,0,0,0.0,too_large(max_dim=2.15m)
+bed,zrumze,too_large,0,0,0.0,too_large(max_dim=2.03m)
+bed_screen,klvmfw,too_large,0,0,0.0,too_large(max_dim=2.79m)
+bed_screen,ofpyax,too_large,0,0,0.0,too_large(max_dim=2.79m)
+bed_sheet,ivmsdt,too_large,0,0,0.0,too_large(max_dim=1.43m)
+bed_sheet,jfsovh,too_large,0,0,0.0,too_large(max_dim=1.50m)
+bed_sheet,ldpbcu,too_large,0,0,0.0,too_large(max_dim=1.44m)
+bed_sheet,omsbux,too_large,0,0,0.0,too_large(max_dim=1.48m)
+bed_sheet,padfds,too_large,0,0,0.0,too_large(max_dim=1.57m)
+bed_sheet,xeskbh,too_large,0,0,0.0,too_large(max_dim=1.45m)
+beef_broth_carton,ecqxgd,graspable,416,3,10.7,i=3 z_rise=0.115
+beefsteak_tomato,altlfz,graspable,480,12,15.8,i=35 z_rise=0.086
+beefsteak_tomato,eevvzv,graspable,544,3,6.4,i=5 z_rise=0.074
+beefsteak_tomato,ogpans,graspable,464,2,4.4,i=10 z_rise=0.058
+beefsteak_tomato,pnrdxh,graspable,400,6,8.7,i=28 z_rise=0.055
+beer_bottle,nigfha,graspable,544,1,5.4,i=0 z_rise=0.076
+beer_glass,lymciz,graspable,592,1,4.8,i=2 z_rise=0.065
+beer_glass,mxsliu,graspable,400,3,7.1,i=9 z_rise=0.071
+beer_glass,rxscji,graspable,560,2,5.7,i=10 z_rise=0.040
+beer_keg,xtqbuf,too_large,0,0,0.0,too_large(max_dim=0.60m)
+beer_tap,bebcmz,graspable,864,2,6.6,i=5 z_rise=0.228
+beer_tap,vgaluf,too_large,0,0,0.0,too_large(max_dim=0.50m)
+beer_tap,zcrgvq,graspable,640,6,10.7,i=20 z_rise=0.168
+beeswax_candle,aiuhyv,no_grasp,208,24,28.5,
+beeswax_candle,kxange,graspable,592,3,6.2,i=18 z_rise=0.077
+beeswax_candle,nhdnje,graspable,688,1,4.5,i=0 z_rise=0.072
+beeswax_candle,nxewyk,graspable,816,1,4.4,i=10 z_rise=0.044
+beeswax_candle,oimgmh,graspable,928,3,7.1,i=5 z_rise=0.081
+beeswax_candle,ouzkdj,graspable,816,4,8.7,i=20 z_rise=0.068
+beeswax_candle,pfewit,graspable,880,1,4.4,i=4 z_rise=0.080
+beeswax_candle,rptogj,graspable,464,1,3.5,i=7 z_rise=0.051
+beet,wantjv,graspable,512,29,38.5,i=70 z_rise=0.054
+bell,oshurh,no_grasp,32,6,8.5,
+bell_pepper,ggurxn,graspable,480,3,5.9,i=8 z_rise=0.070
+bell_pepper,ihctxa,graspable,592,13,17.9,i=38 z_rise=0.088
+bell_pepper,ukkycp,graspable,480,1,3.6,i=1 z_rise=0.083
+bell_pepper,uqcenz,graspable,720,3,6.4,i=22 z_rise=0.050
+bell_pepper,wszvwc,graspable,464,1,3.9,i=1 z_rise=0.055
+belt,gqwddb,too_large,0,0,0.0,too_large(max_dim=0.69m)
+bench,esagiq,too_large,0,0,0.0,too_large(max_dim=1.23m)
+bench,fdxevw,too_large,0,0,0.0,too_large(max_dim=2.38m)
+bench,ftvzzg,too_large,0,0,0.0,too_large(max_dim=2.20m)
+bench,hezgut,too_large,0,0,0.0,too_large(max_dim=1.62m)
+bench,jaklov,too_large,0,0,0.0,too_large(max_dim=1.93m)
+bench,jhfkdc,too_large,0,0,0.0,too_large(max_dim=1.38m)
+bench,jvygiq,too_large,0,0,0.0,too_large(max_dim=1.69m)
+bench,kpeeai,too_large,0,0,0.0,too_large(max_dim=5.83m)
+bench,nnzwxs,too_large,0,0,0.0,too_large(max_dim=1.67m)
+bench,nokayw,too_large,0,0,0.0,too_large(max_dim=1.43m)
+bench,nzsfrw,too_large,0,0,0.0,too_large(max_dim=1.84m)
+bench,pcymmc,too_large,0,0,0.0,too_large(max_dim=1.88m)
+bench,pfjnnj,too_large,0,0,0.0,too_large(max_dim=1.17m)
+bench,qhuvow,too_large,0,0,0.0,too_large(max_dim=4.05m)
+bench,sfglvm,too_large,0,0,0.0,too_large(max_dim=4.29m)
+bench,sihckt,too_large,0,0,0.0,too_large(max_dim=6.07m)
+bench,sntjne,too_large,0,0,0.0,too_large(max_dim=1.83m)
+bench,svnyht,too_large,0,0,0.0,too_large(max_dim=1.65m)
+bench,uuhugq,too_large,0,0,0.0,too_large(max_dim=2.38m)
+bench,wtkahs,too_large,0,0,0.0,too_large(max_dim=0.98m)
+bench,wvtbnn,too_large,0,0,0.0,too_large(max_dim=2.23m)
+bench,xwphjd,too_large,0,0,0.0,too_large(max_dim=1.24m)
+bench,ybkjzd,too_large,0,0,0.0,too_large(max_dim=9.15m)
+bench,yldwmi,too_large,0,0,0.0,too_large(max_dim=2.21m)
+bench,zfpjkj,too_large,0,0,0.0,too_large(max_dim=1.37m)
+bench_press_machine,pxlgue,too_large,0,0,0.0,too_large(max_dim=1.33m)
+bench_press_machine,qjakhy,too_large,0,0,0.0,too_large(max_dim=1.02m)
+bench_press_machine,zfhbwy,too_large,0,0,0.0,too_large(max_dim=1.73m)
+bicycle,fjvlyf,too_large,0,0,0.0,too_large(max_dim=1.73m)
+bicycle,xjumcf,too_large,0,0,0.0,too_large(max_dim=1.73m)
+bicycle_chain,czrssf,no_grasp,48,12,14.9,
+bicycle_rack,mltrbs,too_large,0,0,0.0,too_large(max_dim=1.57m)
+bikini,ttgike,no_candidates,0,0,1.8,
+bird_feed_bag,dpxnlc,graspable,288,7,17.4,i=18 z_rise=0.051
+bird_feeder,hvlkjx,graspable,448,2,5.0,i=1 z_rise=0.043
+birdcage,ogkdoh,too_large,0,0,0.0,too_large(max_dim=0.50m)
+biscuit,ukcwqw,no_grasp,544,82,89.4,
+biscuit_dough,vbhtbo,no_grasp,400,67,78.2,
+blackberry,tvpfvb,no_grasp,176,58,66.2,
+blackboard,dgcavd,too_large,0,0,0.0,too_large(max_dim=1.93m)
+blackboard,pktarr,too_large,0,0,0.0,too_large(max_dim=3.19m)
+blackboard_eraser,oynrtw,graspable,592,78,81.0,i=340 z_rise=0.076
+blanket,corgks,no_grasp,384,20,25.4,
+blanket,uksirc,too_large,0,0,0.0,too_large(max_dim=1.72m)
+blanket,uwbyty,too_large,0,0,0.0,too_large(max_dim=1.55m)
+blanket,vwzlnn,too_large,0,0,0.0,too_large(max_dim=1.90m)
+blanket,yscwot,too_large,0,0,0.0,too_large(max_dim=1.50m)
+bleaching_agent_atomizer,arxjfa,graspable,496,6,11.0,i=23 z_rise=0.069
+blender,cwkvib,graspable,416,67,110.3,i=200 z_rise=0.041
+blender,dhfqid,graspable,432,25,49.9,i=77 z_rise=0.044
+blender,eyedvd,graspable,448,7,18.8,i=53 z_rise=0.069
+bleu,wxahdr,graspable,448,2,4.7,i=2 z_rise=0.068
+blouse,htcikj,too_large,0,0,0.0,too_large(max_dim=0.87m)
+board,fxugbm,too_large,0,0,0.0,too_large(max_dim=1.12m)
+board_game,eoywpy,no_grasp,544,5,6.9,
+board_game,frgdqh,no_grasp,368,6,8.0,
+board_game,fzyuip,no_grasp,432,11,14.8,
+board_game,gcfkqa,no_grasp,688,10,11.9,
+board_game,gumkqh,no_grasp,464,0,1.6,
+board_game,ibzhzu,no_grasp,352,5,7.3,
+board_game,iqfvfl,no_grasp,32,7,9.4,
+board_game,lzslbu,no_grasp,272,0,1.6,
+board_game,nfewft,no_grasp,400,19,23.2,
+board_game,ovttum,no_grasp,416,11,13.4,
+board_game,phwwnx,graspable,832,28,31.0,i=170 z_rise=0.058
+board_game,qdkyzl,graspable,352,14,18.0,i=206 z_rise=0.078
+board_game,qgvsnb,no_grasp,560,5,7.1,
+board_game,rgvkmy,no_grasp,288,6,8.7,
+board_game,twkglv,no_grasp,288,3,5.0,
+board_game,vbamua,no_grasp,736,6,9.0,
+bobby_pin,zphpcz,no_candidates,0,0,7.3,
+bok_choy,bbvcji,graspable,448,1,38.6,i=0 z_rise=0.060
+bok_choy,jpkewd,timeout,384,3,238.5,close 3
+bookcase,bsvnni,too_large,0,0,0.0,too_large(max_dim=0.79m)
+bookcase,ckjxoo,too_large,0,0,0.0,too_large(max_dim=1.95m)
+bookcase,cqcoox,too_large,0,0,0.0,too_large(max_dim=0.65m)
+bookcase,eckdny,too_large,0,0,0.0,too_large(max_dim=1.63m)
+bookcase,eeamky,too_large,0,0,0.0,too_large(max_dim=2.18m)
+bookcase,eniafz,too_large,0,0,0.0,too_large(max_dim=1.01m)
+bookcase,eyidvz,too_large,0,0,0.0,too_large(max_dim=0.92m)
+bookcase,ftzmow,too_large,0,0,0.0,too_large(max_dim=1.06m)
+bookcase,gsksby,too_large,0,0,0.0,too_large(max_dim=1.01m)
+bookcase,iwziew,too_large,0,0,0.0,too_large(max_dim=0.80m)
+bookcase,jaysra,too_large,0,0,0.0,too_large(max_dim=1.76m)
+bookcase,jpdtvg,too_large,0,0,0.0,too_large(max_dim=1.43m)
+bookcase,kdnyfh,too_large,0,0,0.0,too_large(max_dim=1.59m)
+bookcase,kmuacd,too_large,0,0,0.0,too_large(max_dim=1.22m)
+bookcase,kvlewx,too_large,0,0,0.0,too_large(max_dim=5.56m)
+bookcase,lbbims,too_large,0,0,0.0,too_large(max_dim=2.01m)
+bookcase,mfyvai,too_large,0,0,0.0,too_large(max_dim=1.01m)
+bookcase,njwsoa,too_large,0,0,0.0,too_large(max_dim=2.00m)
+bookcase,opryhp,too_large,0,0,0.0,too_large(max_dim=0.77m)
+bookcase,otwukr,too_large,0,0,0.0,too_large(max_dim=1.05m)
+bookcase,owvfik,too_large,0,0,0.0,too_large(max_dim=0.75m)
+bookcase,pkgbcp,too_large,0,0,0.0,too_large(max_dim=1.08m)
+bookcase,ptxdid,too_large,0,0,0.0,too_large(max_dim=4.59m)
+bookcase,qpylqf,too_large,0,0,0.0,too_large(max_dim=1.47m)
+bookcase,svhjxd,too_large,0,0,0.0,too_large(max_dim=2.12m)
+bookcase,sylmbu,too_large,0,0,0.0,too_large(max_dim=2.18m)
+bookcase,tahafx,too_large,0,0,0.0,too_large(max_dim=2.08m)
+bookcase,uriudf,too_large,0,0,0.0,too_large(max_dim=2.02m)
+bookcase,vehhll,too_large,0,0,0.0,too_large(max_dim=2.41m)
+bookcase,vgzdul,too_large,0,0,0.0,too_large(max_dim=1.92m)
+bookcase,vndvrn,timeout,0,0,877.1,settle
+bookcase,wnvxme,too_large,0,0,0.0,too_large(max_dim=3.09m)
+bookcase,xgvyyv,too_large,0,0,0.0,too_large(max_dim=1.96m)
+bookcase,xsfeyi,too_large,0,0,0.0,too_large(max_dim=1.54m)
+bookcase,xurqal,too_large,0,0,0.0,too_large(max_dim=0.95m)
+bookcase,zdsmhe,too_large,0,0,0.0,too_large(max_dim=1.54m)
+bookcase,zfpyqe,too_large,0,0,0.0,too_large(max_dim=1.64m)
+bookcase_back,gjsnrt,too_large,0,0,0.0,too_large(max_dim=2.02m)
+bookcase_baseboard,hlhneo,too_large,0,0,0.0,too_large(max_dim=0.74m)
+bookcase_shelf,ymtnqa,too_large,0,0,0.0,too_large(max_dim=0.74m)
+bookcase_side,bxfkjj,too_large,0,0,0.0,too_large(max_dim=2.02m)
+bookcase_side,yujrmw,too_large,0,0,0.0,too_large(max_dim=2.02m)
+bookcase_top,pfiole,too_large,0,0,0.0,too_large(max_dim=0.74m)
+bookend,detqsw,graspable,496,5,121.0,i=20 z_rise=0.046
+bookend,eyddem,timeout,512,2,203.6,lift 2
+bookend,hlpgle,timeout,560,1,222.5,close 1
+bookend,huxmnl,timeout,0,0,250.7,settle
+bookend,jmodol,timeout,0,0,302.6,settle
+bookend,oxfecv,graspable,592,5,10.5,i=17 z_rise=0.045
+bookend,rwvcah,graspable,656,26,33.9,i=104 z_rise=0.051
+bookend,sgiryo,graspable,256,6,10.8,i=29 z_rise=0.045
+bookend,xqyxrq,graspable,592,10,17.1,i=18 z_rise=0.214
+bookend,ygynyq,graspable,352,17,24.9,i=41 z_rise=0.098
+booth,xzrpar,too_large,0,0,0.0,too_large(max_dim=1.31m)
+bottle_of_alcohol,qvhrjh,graspable,720,10,17.6,i=33 z_rise=0.113
+bottle_of_alfredo_sauce,xwzqjr,graspable,128,1,3.7,i=1 z_rise=0.066
+bottle_of_almond_oil,nlokfa,graspable,368,13,23.9,i=22 z_rise=0.070
+bottle_of_ammonia,daasuw,graspable,112,22,31.3,i=61 z_rise=0.043
+bottle_of_antihistamines,agavwx,graspable,688,3,5.3,i=4 z_rise=0.086
+bottle_of_apple_cider,frekrp,graspable,352,15,20.8,i=39 z_rise=0.253
+bottle_of_apple_juice,xvrbdy,no_candidates,0,0,1.7,
+bottle_of_aspirin,psvktc,graspable,160,3,6.2,i=4 z_rise=0.070
+bottle_of_baby_oil,xpdlrr,graspable,736,7,9.3,i=22 z_rise=0.042
+bottle_of_barbecue_sauce,ikbsox,no_candidates,0,0,1.6,
+bottle_of_barbecue_sauce,nkqvex,no_candidates,0,0,1.6,
+bottle_of_barbecue_sauce,rzevkb,no_grasp,512,117,120.3,
+bottle_of_beer,bwaboq,graspable,736,2,4.4,i=2 z_rise=0.041
+bottle_of_beer,crfcwo,graspable,480,8,13.4,i=28 z_rise=0.050
+bottle_of_beer,dcwvkg,graspable,224,3,6.0,i=5 z_rise=0.074
+bottle_of_beer,dqfsgv,graspable,736,4,7.4,i=6 z_rise=0.057
+bottle_of_beer,eicnxj,graspable,656,2,4.7,i=4 z_rise=0.041
+bottle_of_beer,fcnrqt,graspable,672,1,3.7,i=3 z_rise=0.074
+bottle_of_beer,fgzjnb,graspable,624,1,3.8,i=0 z_rise=0.083
+bottle_of_beer,gxxbhh,graspable,672,9,14.1,i=22 z_rise=0.083
+bottle_of_beer,hauvsg,graspable,688,1,3.7,i=0 z_rise=0.067
+bottle_of_beer,ikgezm,graspable,608,7,12.6,i=27 z_rise=0.059
+bottle_of_beer,jssuog,graspable,624,2,4.7,i=6 z_rise=0.065
+bottle_of_beer,jtgyoo,graspable,624,14,17.0,i=56 z_rise=0.049
+bottle_of_beer,jxhtdl,graspable,736,17,20.6,i=56 z_rise=0.043
+bottle_of_beer,kqskmv,graspable,640,7,11.2,i=10 z_rise=0.052
+bottle_of_beer,meqliv,graspable,432,1,3.7,i=2 z_rise=0.058
+bottle_of_beer,mhzpkh,graspable,640,1,3.8,i=1 z_rise=0.040
+bottle_of_beer,miiijl,graspable,560,2,4.8,i=6 z_rise=0.051
+bottle_of_beer,mljzrl,graspable,656,1,3.7,i=3 z_rise=0.080
+bottle_of_beer,nfzzqc,graspable,336,1,3.7,i=0 z_rise=0.069
+bottle_of_beer,noxtlc,graspable,752,4,6.7,i=7 z_rise=0.044
+bottle_of_beer,phdimo,graspable,752,22,30.1,i=60 z_rise=0.041
+bottle_of_beer,qepxvl,graspable,736,6,11.2,i=20 z_rise=0.064
+bottle_of_beer,rbpakt,graspable,608,1,3.7,i=2 z_rise=0.070
+bottle_of_beer,rdnopv,graspable,608,2,5.3,i=3 z_rise=0.079
+bottle_of_beer,rjwdae,graspable,720,4,6.8,i=21 z_rise=0.049
+bottle_of_beer,saslsh,graspable,608,3,6.3,i=7 z_rise=0.042
+bottle_of_beer,ukbhdj,graspable,688,1,3.7,i=0 z_rise=0.063
+bottle_of_beer,vhscym,graspable,288,16,22.3,i=30 z_rise=0.125
+bottle_of_beer,xpqnfz,graspable,736,17,23.6,i=48 z_rise=0.047
+bottle_of_beer,zbsxro,graspable,528,1,3.7,i=0 z_rise=0.049
+bottle_of_beer,zlmwyn,graspable,320,2,4.5,i=2 z_rise=0.061
+bottle_of_black_pepper,ejtiig,graspable,160,4,7.1,i=11 z_rise=0.044
+bottle_of_black_pepper,honise,graspable,528,2,5.1,i=2 z_rise=0.051
+bottle_of_black_pepper,ydzzrv,graspable,224,1,3.7,i=4 z_rise=0.070
+bottle_of_black_pepper,zybfok,graspable,352,5,8.5,i=8 z_rise=0.180
+bottle_of_bleach_agent,lfjumk,no_grasp,64,20,26.6,
+bottle_of_bug_repellent,qqztry,graspable,352,1,3.2,i=1 z_rise=0.042
+bottle_of_carrot_juice,jkuhio,no_candidates,0,0,1.7,
+bottle_of_catsup,ahoiqe,graspable,464,1,3.3,i=1 z_rise=0.074
+bottle_of_catsup,bcqfxb,graspable,784,1,3.5,i=1 z_rise=0.063
+bottle_of_catsup,dmyfdf,graspable,304,10,15.7,i=20 z_rise=0.043
+bottle_of_catsup,hvxkso,graspable,656,7,9.9,i=15 z_rise=0.073
+bottle_of_catsup,ialodu,graspable,304,23,29.8,i=44 z_rise=0.070
+bottle_of_caulk,iwhxca,graspable,576,22,26.1,i=72 z_rise=0.040
+bottle_of_champagne,ahpwlg,no_grasp,192,76,92.0,
+bottle_of_champagne,mjpyvh,graspable,640,30,32.8,i=109 z_rise=0.044
+bottle_of_champagne,npsevx,graspable,304,45,57.6,i=171 z_rise=0.044
+bottle_of_champagne,pxaayf,graspable,160,22,33.7,i=33 z_rise=0.114
+bottle_of_chili_pepper,hjalqq,graspable,224,3,6.0,i=16 z_rise=0.040
+bottle_of_chocolate_sauce,tsyldw,graspable,528,3,7.1,i=12 z_rise=0.057
+bottle_of_cleaner,svzbeq,graspable,96,1,4.3,i=1 z_rise=0.043
+bottle_of_cleaner,ykzonz,graspable,256,7,11.1,i=14 z_rise=0.066
+bottle_of_cocoa,ganhpw,graspable,448,4,7.5,i=6 z_rise=0.074
+bottle_of_coconut_milk,idenxg,graspable,48,10,14.2,i=30 z_rise=0.045
+bottle_of_coconut_oil,rrwzkq,graspable,592,4,7.3,i=26 z_rise=0.062
+bottle_of_coconut_water,lsixio,graspable,832,6,8.8,i=7 z_rise=0.187
+bottle_of_coffee,zywanc,graspable,496,1,4.0,i=2 z_rise=0.052
+bottle_of_coke,bmtvvb,no_grasp,16,0,3.2,
+bottle_of_cold_cream,lyzvuk,no_grasp,560,115,119.4,
+bottle_of_cologne,lyipur,graspable,528,1,3.5,i=0 z_rise=0.049
+bottle_of_conditioner,teafxb,graspable,560,32,33.3,i=155 z_rise=0.059
+bottle_of_cooking_oil,ywrkyg,graspable,384,9,18.5,i=20 z_rise=0.053
+bottle_of_cranberry_juice,heoxnw,graspable,336,5,12.0,i=14 z_rise=0.053
+bottle_of_deicer,xepoez,graspable,128,2,5.3,i=3 z_rise=0.043
+bottle_of_detergent,gkpmii,graspable,128,46,62.9,i=127 z_rise=0.044
+bottle_of_detergent,qjkmhq,graspable,64,8,12.8,i=18 z_rise=0.076
+bottle_of_dish_soap,bnmixt,graspable,272,13,19.3,i=29 z_rise=0.118
+bottle_of_disinfectant,faedff,graspable,464,5,8.0,i=8 z_rise=0.077
+bottle_of_disinfectant,ucqzck,graspable,208,2,7.0,i=1 z_rise=0.055
+bottle_of_essential_oil,eyyhld,no_grasp,96,0,1.8,
+bottle_of_essential_oil,wansva,no_grasp,48,19,21.3,
+bottle_of_essential_oil,xhoipk,graspable,176,2,4.5,i=8 z_rise=0.080
+bottle_of_essential_oil,xvqshn,graspable,96,16,18.8,i=81 z_rise=0.083
+bottle_of_essential_oil,yjxvpg,no_grasp,128,13,15.2,
+bottle_of_fabric_softener,rmrnev,graspable,192,13,25.4,i=30 z_rise=0.042
+bottle_of_face_cream,dztaed,graspable,512,1,3.3,i=0 z_rise=0.051
+bottle_of_fennel,ihlkfu,no_grasp,192,21,28.3,
+bottle_of_frosting,eqdsmn,no_grasp,16,7,11.2,
+bottle_of_fruit_punch,azcigi,graspable,928,3,5.8,i=5 z_rise=0.094
+bottle_of_fruit_punch,ykfnwi,no_grasp,48,7,11.9,
+bottle_of_garlic_sauce,ucnmax,no_grasp,16,7,8.8,
+bottle_of_gin,qzgcdx,graspable,144,7,16.0,i=24 z_rise=0.050
+bottle_of_ginger,drqhzo,graspable,192,30,42.2,i=60 z_rise=0.049
+bottle_of_ginger_beer,zkocwb,graspable,688,1,3.3,i=0 z_rise=0.055
+bottle_of_glass_cleaner,yukmlw,graspable,96,8,8.1,i=19 z_rise=0.071
+bottle_of_glue,evtytd,no_grasp,208,33,34.8,
+bottle_of_ground_cloves,vzamzb,graspable,336,3,6.1,i=14 z_rise=0.057
+bottle_of_ground_mace,lgpxro,graspable,256,3,5.8,i=10 z_rise=0.047
+bottle_of_ground_nutmeg,qebruq,graspable,208,2,4.8,i=3 z_rise=0.049
+bottle_of_hot_sauce,zqhkzh,graspable,80,3,5.7,i=28 z_rise=0.047
+bottle_of_lacquer,cykzcp,graspable,256,3,6.7,i=3 z_rise=0.074
+bottle_of_lavender_oil,csalbx,graspable,304,10,13.0,i=21 z_rise=0.057
+bottle_of_lemon_juice,vsjter,graspable,384,50,60.0,i=187 z_rise=0.048
+bottle_of_lemon_sauce,iyijeb,graspable,224,3,5.7,i=5 z_rise=0.057
+bottle_of_lemonade,hqobwj,no_grasp,464,97,108.3,
+bottle_of_lighter_fluid,qudpzo,graspable,672,6,9.7,i=16 z_rise=0.072
+bottle_of_lime_juice,ouuhaa,graspable,352,43,52.6,i=138 z_rise=0.059
+bottle_of_liquid_soap,bhquvg,no_grasp,48,18,20.6,
+bottle_of_lotion,tkryrh,graspable,848,3,5.7,i=7 z_rise=0.074
+bottle_of_lubricant,bjfgim,graspable,272,6,10.2,i=10 z_rise=0.091
+bottle_of_maple_syrup,qfgewi,graspable,192,1,4.6,i=2 z_rise=0.056
+bottle_of_mayonnaise,cirpak,graspable,864,21,28.1,i=49 z_rise=0.069
+bottle_of_medicine,egondf,graspable,464,5,8.1,i=7 z_rise=0.056
+bottle_of_medicine,fmfwng,graspable,416,4,6.8,i=4 z_rise=0.057
+bottle_of_medicine,hvocpc,graspable,352,1,3.2,i=1 z_rise=0.075
+bottle_of_medicine,kasbsy,graspable,528,2,4.5,i=2 z_rise=0.050
+bottle_of_medicine,kqkwoq,graspable,496,3,5.5,i=16 z_rise=0.056
+bottle_of_medicine,qqsukh,graspable,512,2,4.5,i=2 z_rise=0.063
+bottle_of_medicine,syfpak,graspable,368,7,10.1,i=15 z_rise=0.082
+bottle_of_medicine,zfbnjh,graspable,464,3,34.2,i=3 z_rise=0.062
+bottle_of_milk,czblzn,no_grasp,496,103,106.7,
+bottle_of_milk,ddvsgl,graspable,864,54,60.6,i=250 z_rise=0.053
+bottle_of_milk,debqen,no_grasp,544,54,54.8,
+bottle_of_milk,gchrwu,graspable,240,14,24.6,i=39 z_rise=0.059
+bottle_of_milk,mrejrs,graspable,528,109,112.7,i=307 z_rise=0.055
+bottle_of_milk,qsnnbp,graspable,928,30,36.1,i=96 z_rise=0.041
+bottle_of_milk,utfsmp,graspable,912,29,32.3,i=94 z_rise=0.055
+bottle_of_milk,uuvmfm,no_grasp,384,65,67.0,
+bottle_of_milkshake,naxqya,graspable,224,11,22.2,i=24 z_rise=0.073
+bottle_of_molasses,jvsjop,graspable,592,21,32.1,i=49 z_rise=0.061
+bottle_of_mushroom_sauce,xamfxi,graspable,112,2,5.1,i=4 z_rise=0.067
+bottle_of_mustard,qbbqat,graspable,384,6,10.1,i=13 z_rise=0.077
+bottle_of_mustard,sjasxe,graspable,832,11,16.8,i=19 z_rise=0.075
+bottle_of_mustard_seeds,grryaf,graspable,272,7,11.2,i=35 z_rise=0.066
+bottle_of_oil,kzvkyp,graspable,320,25,35.7,i=48 z_rise=0.068
+bottle_of_oil,ueanhf,graspable,48,5,13.0,i=14 z_rise=0.044
+bottle_of_olive_oil,ajswsh,graspable,832,3,6.0,i=3 z_rise=0.055
+bottle_of_olive_oil,cqycjk,graspable,864,8,12.9,i=15 z_rise=0.042
+bottle_of_olive_oil,jocrsz,graspable,880,4,7.4,i=9 z_rise=0.063
+bottle_of_olive_oil,ksxqkk,graspable,304,3,6.5,i=7 z_rise=0.064
+bottle_of_olive_oil,luikop,graspable,576,5,8.4,i=12 z_rise=0.041
+bottle_of_olive_oil,lvsfgc,graspable,720,25,32.2,i=75 z_rise=0.069
+bottle_of_olive_oil,wztvie,no_grasp,480,72,81.4,
+bottle_of_onion_powder,xruqod,graspable,528,5,11.8,i=14 z_rise=0.078
+bottle_of_orange_juice,edltwh,graspable,640,4,7.4,i=5 z_rise=0.066
+bottle_of_orange_juice,jcvqmb,graspable,368,4,6.7,i=6 z_rise=0.071
+bottle_of_orange_juice,rtqqor,no_grasp,16,6,7.8,
+bottle_of_paint,volzrj,graspable,864,1,3.9,i=4 z_rise=0.055
+bottle_of_paint_remover,abrsty,graspable,896,10,14.7,i=28 z_rise=0.069
+bottle_of_papaya_juice,nmfmxy,no_grasp,16,7,10.2,
+bottle_of_papaya_juice,tcauim,graspable,880,26,34.1,i=65 z_rise=0.063
+bottle_of_paprika,nrdgrp,graspable,176,3,6.6,i=19 z_rise=0.073
+bottle_of_peanut_butter,edcvwr,graspable,304,16,22.9,i=30 z_rise=0.045
+bottle_of_perfume,ipurzb,graspable,528,5,7.8,i=13 z_rise=0.058
+bottle_of_pesticide,yyrecb,graspable,832,1,3.2,i=0 z_rise=0.061
+bottle_of_pesto,hyeetr,no_grasp,48,7,12.3,
+bottle_of_pizza_sauce,clttao,no_grasp,176,14,18.2,
+bottle_of_pop,bqretx,graspable,160,6,9.7,i=8 z_rise=0.077
+bottle_of_pop,cmqubs,graspable,912,26,28.7,i=56 z_rise=0.061
+bottle_of_pop,dlqmit,graspable,64,18,24.8,i=51 z_rise=0.044
+bottle_of_pop,drqbiy,graspable,112,8,120.9,i=16 z_rise=0.044
+bottle_of_pop,exapzb,graspable,928,3,79.5,i=5 z_rise=0.055
+bottle_of_pop,eyazzi,timeout,752,3,243.0,close 3
+bottle_of_pop,ghxeqz,graspable,944,4,9.2,i=8 z_rise=0.054
+bottle_of_pop,gkwdyt,graspable,816,33,30.0,i=82 z_rise=0.041
+bottle_of_pop,haoywb,graspable,960,5,8.5,i=14 z_rise=0.050
+bottle_of_pop,hjrwqb,graspable,496,11,16.1,i=31 z_rise=0.051
+bottle_of_pop,iynssk,graspable,800,20,23.3,i=56 z_rise=0.049
+bottle_of_pop,jnoksl,graspable,544,1,3.3,i=0 z_rise=0.060
+bottle_of_pop,kviogj,graspable,960,2,5.0,i=9 z_rise=0.355
+bottle_of_pop,mdznsn,graspable,976,6,9.8,i=18 z_rise=0.049
+bottle_of_pop,mhzttm,graspable,944,2,4.2,i=6 z_rise=0.045
+bottle_of_pop,msmlud,graspable,448,22,32.9,i=53 z_rise=0.052
+bottle_of_pop,nepfjl,graspable,960,28,34.9,i=69 z_rise=0.050
+bottle_of_pop,nyupqh,graspable,928,14,20.4,i=26 z_rise=0.059
+bottle_of_pop,oeipjl,graspable,576,2,4.9,i=5 z_rise=0.044
+bottle_of_pop,oghrnk,graspable,1008,3,5.8,i=5 z_rise=0.057
+bottle_of_pop,pfjzkn,graspable,512,28,37.2,i=67 z_rise=0.058
+bottle_of_pop,pvabxf,graspable,464,36,51.0,i=98 z_rise=0.043
+bottle_of_pop,pyrics,graspable,576,6,10.1,i=13 z_rise=0.052
+bottle_of_pop,rhclfg,graspable,528,1,3.2,i=0 z_rise=0.051
+bottle_of_pop,ribekf,graspable,816,10,13.3,i=36 z_rise=0.061
+bottle_of_pop,sevoto,graspable,928,37,47.0,i=78 z_rise=0.061
+bottle_of_pop,tfvmik,graspable,336,12,26.1,i=25 z_rise=0.040
+bottle_of_pop,twtsry,graspable,912,44,57.2,i=101 z_rise=0.061
+bottle_of_pop,ubazru,graspable,592,26,33.9,i=57 z_rise=0.052
+bottle_of_pop,uwdeok,graspable,1008,9,12.0,i=17 z_rise=0.048
+bottle_of_pop,uwmchl,graspable,912,30,40.7,i=71 z_rise=0.063
+bottle_of_pop,vfjhav,graspable,880,10,13.8,i=26 z_rise=0.052
+bottle_of_pop,wmqhul,graspable,960,2,4.9,i=9 z_rise=0.041
+bottle_of_pop,wrgmdt,graspable,960,6,9.3,i=14 z_rise=0.056
+bottle_of_pop,wuuoes,graspable,928,23,29.3,i=48 z_rise=0.055
+bottle_of_pop,xoldze,graspable,960,12,17.4,i=27 z_rise=0.046
+bottle_of_pop,xvxcvv,graspable,432,7,10.6,i=20 z_rise=0.043
+bottle_of_pop,zjbqvb,no_grasp,48,20,24.0,
+bottle_of_pop,zsisxf,no_grasp,208,64,67.8,
+bottle_of_pop,zxambx,graspable,928,1,3.5,i=0 z_rise=0.075
+bottle_of_poppy_seeds,xdtrgi,graspable,288,3,6.0,i=18 z_rise=0.040
+bottle_of_powder,vfabau,graspable,416,63,68.6,i=205 z_rise=0.043
+bottle_of_protein_powder,rbvrrp,no_grasp,48,19,20.4,
+bottle_of_protein_powder,ysgesq,no_grasp,32,9,11.1,
+bottle_of_pumpkin_pie_spice,oindrv,graspable,608,1,4.1,i=2 z_rise=0.042
+bottle_of_rum,bnvoux,graspable,272,20,27.5,i=33 z_rise=0.057
+bottle_of_rum,oidmvy,graspable,480,24,44.1,i=59 z_rise=0.301
+bottle_of_rum,rduqdf,graspable,288,2,4.6,i=6 z_rise=0.048
+bottle_of_rum,xdaefn,graspable,528,7,10.0,i=20 z_rise=0.076
+bottle_of_sage,bterim,graspable,256,3,6.1,i=4 z_rise=0.053
+bottle_of_sake,hbpenm,graspable,400,48,80.7,i=100 z_rise=0.043
+bottle_of_sake,luadgb,graspable,384,20,36.1,i=49 z_rise=0.086
+bottle_of_sake,mvvomd,graspable,432,1,5.5,i=7 z_rise=0.051
+bottle_of_sake,pwtebq,graspable,640,3,6.3,i=5 z_rise=0.044
+bottle_of_sake,rctijo,graspable,480,23,42.2,i=59 z_rise=0.117
+bottle_of_sake,swlykk,graspable,352,10,13.5,i=20 z_rise=0.076
+bottle_of_sake,utwglw,graspable,224,1,3.4,i=0 z_rise=0.041
+bottle_of_sake,vfxfuj,no_grasp,112,34,43.6,
+bottle_of_sake,zrkfim,graspable,400,9,18.5,i=25 z_rise=0.049
+bottle_of_salsa,dvxotd,graspable,464,16,24.1,i=60 z_rise=0.065
+bottle_of_salsa,mavope,graspable,384,11,16.7,i=23 z_rise=0.093
+bottle_of_salsa,nafwlf,graspable,256,4,7.8,i=8 z_rise=0.057
+bottle_of_sealant,nfqpwi,graspable,848,38,52.2,i=104 z_rise=0.047
+bottle_of_seasoning,vqwqqv,graspable,176,6,10.4,i=112 z_rise=0.049
+bottle_of_sesame_oil,jipawg,graspable,352,4,11.1,i=8 z_rise=0.065
+bottle_of_sesame_seeds,lzndie,graspable,304,49,63.2,i=281 z_rise=0.063
+bottle_of_shampoo,dvrzmy,graspable,736,6,10.5,i=20 z_rise=0.053
+bottle_of_shampoo,hlkpwd,graspable,784,38,39.5,i=139 z_rise=0.055
+bottle_of_shampoo,lvvkhx,graspable,496,3,6.1,i=9 z_rise=0.050
+bottle_of_shampoo,stjjjm,graspable,592,9,12.8,i=18 z_rise=0.200
+bottle_of_skin_cream,ynwxtx,graspable,400,35,37.7,i=120 z_rise=0.051
+bottle_of_soda,eqyqlx,graspable,784,8,11.2,i=26 z_rise=0.055
+bottle_of_solvent,gsafbo,graspable,368,4,6.9,i=30 z_rise=0.049
+bottle_of_soup,maycxf,graspable,752,7,11.3,i=22 z_rise=0.048
+bottle_of_soup,xctslq,graspable,688,3,6.1,i=14 z_rise=0.041
+bottle_of_sour_cream,pmawft,no_grasp,112,7,8.4,
+bottle_of_soy_milk,lyxwhd,graspable,816,30,37.8,i=83 z_rise=0.059
+bottle_of_soy_milk,mcjlhs,graspable,848,3,5.7,i=7 z_rise=0.067
+bottle_of_soy_sauce,afxisg,graspable,160,7,17.4,i=17 z_rise=0.044
+bottle_of_sriracha,gnklax,graspable,208,1,3.5,i=0 z_rise=0.059
+bottle_of_strawberry_juice,mlnuza,graspable,960,1,5.2,i=6 z_rise=0.054
+bottle_of_sunscreen,prlrwi,graspable,48,1,3.6,i=1 z_rise=0.054
+bottle_of_supplements,kgreql,graspable,272,4,6.9,i=4 z_rise=0.049
+bottle_of_supplements,oqakev,graspable,128,10,13.6,i=68 z_rise=0.057
+bottle_of_tea,iladfg,graspable,400,2,4.5,i=3 z_rise=0.074
+bottle_of_tea,yatmrs,graspable,1008,9,12.0,i=17 z_rise=0.066
+bottle_of_tea_leaves,pfbtus,no_grasp,192,25,32.0,
+bottle_of_tequila,gbozpr,graspable,480,4,9.6,i=11 z_rise=0.056
+bottle_of_tomato_juice,csumos,no_grasp,32,5,6.7,
+bottle_of_tomato_paste,kkqtjv,no_grasp,16,0,2.6,
+bottle_of_tomato_paste,pnshkj,no_candidates,0,0,2.4,
+bottle_of_tomato_paste,toeelk,no_grasp,16,5,7.4,
+bottle_of_tonic,hpddkk,graspable,816,17,23.4,i=55 z_rise=0.059
+bottle_of_tonic,zblovn,graspable,32,3,5.7,i=5 z_rise=0.043
+bottle_of_vinegar,snzyfk,graspable,592,3,5.1,i=3 z_rise=0.062
+bottle_of_vodka,nwegts,graspable,256,1,4.8,i=0 z_rise=0.061
+bottle_of_water,atvnqy,graspable,848,5,7.8,i=10 z_rise=0.057
+bottle_of_water,cytqio,graspable,608,7,11.1,i=20 z_rise=0.067
+bottle_of_water,cyzaue,graspable,416,2,4.1,i=2 z_rise=0.071
+bottle_of_water,eeaimz,graspable,16,4,7.0,i=8 z_rise=0.041
+bottle_of_water,emquat,graspable,832,13,18.2,i=27 z_rise=0.051
+bottle_of_water,hrzznl,graspable,224,12,16.5,i=25 z_rise=0.042
+bottle_of_water,jmwngr,graspable,240,5,8.2,i=8 z_rise=0.137
+bottle_of_water,lkpaas,graspable,64,16,19.9,i=53 z_rise=0.053
+bottle_of_water,lojipo,graspable,880,2,4.7,i=7 z_rise=0.107
+bottle_of_water,migvlt,graspable,960,13,16.8,i=36 z_rise=0.097
+bottle_of_water,qaceen,graspable,848,7,11.8,i=15 z_rise=0.140
+bottle_of_water,rmtdxh,graspable,752,46,51.4,i=155 z_rise=0.056
+bottle_of_water,rrkhva,graspable,224,8,14.3,i=17 z_rise=0.058
+bottle_of_water,suytyi,graspable,720,6,11.0,i=30 z_rise=0.069
+bottle_of_water,sxffiv,graspable,928,2,4.5,i=5 z_rise=0.045
+bottle_of_whiskey,aipxlu,graspable,128,7,12.6,i=8 z_rise=0.144
+bottle_of_whiskey,hejqyo,graspable,352,15,29.6,i=42 z_rise=0.165
+bottle_of_whiskey,jfjclv,graspable,736,11,19.9,i=33 z_rise=0.073
+bottle_of_whiskey,lzjuvy,graspable,432,1,4.6,i=7 z_rise=0.144
+bottle_of_whiskey,mtwsme,graspable,736,33,42.4,i=88 z_rise=0.059
+bottle_of_whiskey,pyfpss,graspable,544,25,41.1,i=102 z_rise=0.067
+bottle_of_whiskey,tihatc,graspable,496,22,25.8,i=62 z_rise=0.047
+bottle_of_whiskey,wfflbd,graspable,192,11,15.2,i=57 z_rise=0.071
+bottle_of_whiskey,wmpcxu,graspable,624,32,39.9,i=90 z_rise=0.049
+bottle_of_wine,bmudli,graspable,608,3,5.2,i=4 z_rise=0.050
+bottle_of_wine,cldder,graspable,992,74,87.1,i=193 z_rise=0.055
+bottle_of_wine,dawhco,graspable,208,35,45.1,i=79 z_rise=0.063
+bottle_of_wine,dbccri,no_grasp,160,59,74.5,
+bottle_of_wine,dijgvu,graspable,352,1,3.7,i=1 z_rise=0.056
+bottle_of_wine,fzuiwy,graspable,640,44,56.5,i=122 z_rise=0.042
+bottle_of_wine,gaqzfq,no_grasp,112,46,66.9,
+bottle_of_wine,hnkiog,graspable,880,8,11.8,i=23 z_rise=0.069
+bottle_of_wine,ivuvbv,graspable,832,6,8.8,i=7 z_rise=0.091
+bottle_of_wine,jdqahn,graspable,800,24,29.8,i=96 z_rise=0.060
+bottle_of_wine,jivcff,graspable,336,17,28.6,i=40 z_rise=0.087
+bottle_of_wine,klbwkf,graspable,624,2,5.3,i=6 z_rise=0.069
+bottle_of_wine,kqokhv,no_grasp,176,75,108.5,
+bottle_of_wine,lacaoa,graspable,512,63,80.9,i=162 z_rise=0.110
+bottle_of_wine,nhmtvt,graspable,608,4,7.8,i=18 z_rise=0.053
+bottle_of_wine,njoeiz,graspable,576,9,13.2,i=21 z_rise=0.049
+bottle_of_wine,ntzera,graspable,224,4,7.3,i=12 z_rise=0.042
+bottle_of_wine,oldpru,graspable,688,2,6.1,i=3 z_rise=0.117
+bottle_of_wine,oslewp,graspable,528,3,7.1,i=5 z_rise=0.051
+bottle_of_wine,pgfplm,graspable,816,30,43.2,i=83 z_rise=0.057
+bottle_of_wine,pzhwxn,graspable,352,7,11.8,i=11 z_rise=0.057
+bottle_of_wine,qtefba,graspable,192,56,85.6,i=158 z_rise=0.382
+bottle_of_wine,qvsnjo,graspable,864,8,12.0,i=15 z_rise=0.044
+bottle_of_wine,rfsuxc,graspable,80,2,4.5,i=6 z_rise=0.060
+bottle_of_wine,rztiuc,graspable,896,8,13.1,i=20 z_rise=0.055
+bottle_of_wine,tisclo,graspable,432,6,10.7,i=20 z_rise=0.050
+bottle_of_wine,uoykwx,graspable,640,11,17.4,i=21 z_rise=0.043
+bottle_of_wine,vecadn,graspable,784,3,6.3,i=6 z_rise=0.049
+bottle_of_wine,vmdwln,graspable,384,5,12.9,i=8 z_rise=0.050
+bottle_of_wine,wcokej,graspable,624,4,7.1,i=13 z_rise=0.053
+bottle_of_wine,wzdrcl,graspable,880,14,34.4,i=46 z_rise=0.052
+bottle_of_wine,xkjyby,graspable,528,4,139.4,i=12 z_rise=0.092
+bottle_of_wine,xzipsi,timeout,784,2,199.8,close 2
+bottle_of_wine,yaxufs,graspable,512,18,27.8,i=35 z_rise=0.061
+bottle_of_wine,ynfvhg,graspable,1024,6,8.5,i=22 z_rise=0.041
+bottom_cabinet,bamfsz,too_large,0,0,0.0,too_large(max_dim=0.54m)
+bottom_cabinet,bycegi,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,ccjinv,too_large,0,0,0.0,too_large(max_dim=1.81m)
+bottom_cabinet,cjcyed,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,dajebq,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,dsbcxl,too_large,0,0,0.0,too_large(max_dim=0.54m)
+bottom_cabinet,eluyvx,no_grasp,592,64,80.2,
+bottom_cabinet,eupgpt,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,fancyy,too_large,0,0,0.0,too_large(max_dim=1.97m)
+bottom_cabinet,gcrjan,too_large,0,0,0.0,too_large(max_dim=0.72m)
+bottom_cabinet,getjzo,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,glefdh,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,gvtucm,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,hnxyev,too_large,0,0,0.0,too_large(max_dim=0.69m)
+bottom_cabinet,hrdeys,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,ilofmb,too_large,0,0,0.0,too_large(max_dim=0.79m)
+bottom_cabinet,immwzb,too_large,0,0,0.0,too_large(max_dim=0.54m)
+bottom_cabinet,imyaje,too_large,0,0,0.0,too_large(max_dim=0.69m)
+bottom_cabinet,jhymlr,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,jrhgeu,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,kctcuj,too_large,0,0,0.0,too_large(max_dim=1.97m)
+bottom_cabinet,kdbgpm,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,kenkcw,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,kubcdk,too_large,0,0,0.0,too_large(max_dim=0.92m)
+bottom_cabinet,kxushk,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,leizjb,graspable,432,57,81.2,i=158 z_rise=0.443
+bottom_cabinet,lhucjo,too_large,0,0,0.0,too_large(max_dim=0.85m)
+bottom_cabinet,lwjdmj,too_large,0,0,0.0,too_large(max_dim=0.92m)
+bottom_cabinet,mbmbpa,graspable,704,5,9.7,i=25 z_rise=0.063
+bottom_cabinet,mwgceh,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,mxrzpj,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,ncbfwr,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,nddvba,graspable,800,13,21.4,i=72 z_rise=0.072
+bottom_cabinet,nnvyol,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,nrlayx,too_large,0,0,0.0,too_large(max_dim=0.92m)
+bottom_cabinet,nyfebf,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,ojceew,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,olgoza,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,phoesw,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,pkdnbu,graspable,768,37,63.3,i=124 z_rise=0.069
+bottom_cabinet,plccav,too_large,0,0,0.0,too_large(max_dim=0.60m)
+bottom_cabinet,pllcur,too_large,0,0,0.0,too_large(max_dim=0.82m)
+bottom_cabinet,pzjecb,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,qacthv,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,qbdweu,too_large,0,0,0.0,too_large(max_dim=1.37m)
+bottom_cabinet,qkgfln,too_large,0,0,0.0,too_large(max_dim=0.92m)
+bottom_cabinet,rhdbzv,too_large,0,0,0.0,too_large(max_dim=2.34m)
+bottom_cabinet,rmmvcd,too_large,0,0,0.0,too_large(max_dim=1.95m)
+bottom_cabinet,rntwkg,too_large,0,0,0.0,too_large(max_dim=0.57m)
+bottom_cabinet,rvpunw,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,rvunhj,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,ryznya,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,slgzfc,too_large,0,0,0.0,too_large(max_dim=0.54m)
+bottom_cabinet,smujam,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,songes,too_large,0,0,0.0,too_large(max_dim=0.84m)
+bottom_cabinet,sxppcj,too_large,0,0,0.0,too_large(max_dim=0.75m)
+bottom_cabinet,tolupn,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,ttmejh,too_large,0,0,0.0,too_large(max_dim=0.61m)
+bottom_cabinet,twhums,too_large,0,0,0.0,too_large(max_dim=0.92m)
+bottom_cabinet,ujniob,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,vceupd,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,vespxk,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,wesxdp,too_large,0,0,0.0,too_large(max_dim=0.86m)
+bottom_cabinet,xiurwn,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,xpdbgf,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet,xqmipa,too_large,0,0,0.0,too_large(max_dim=2.35m)
+bottom_cabinet,ybntlp,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,yohygj,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,yxfueo,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet,zuwvdo,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet_no_top,apjbrw,too_large,0,0,0.0,too_large(max_dim=0.61m)
+bottom_cabinet_no_top,bmsclc,too_large,0,0,0.0,too_large(max_dim=0.60m)
+bottom_cabinet_no_top,exgntg,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet_no_top,fmelap,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet_no_top,gjeoer,too_large,0,0,0.0,too_large(max_dim=2.81m)
+bottom_cabinet_no_top,gjrero,too_large,0,0,0.0,too_large(max_dim=0.73m)
+bottom_cabinet_no_top,motill,too_large,0,0,0.0,too_large(max_dim=0.61m)
+bottom_cabinet_no_top,ncgmqr,too_large,0,0,0.0,too_large(max_dim=0.70m)
+bottom_cabinet_no_top,ozzcvs,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet_no_top,pluwfl,too_large,0,0,0.0,too_large(max_dim=0.73m)
+bottom_cabinet_no_top,qohxjq,too_large,0,0,0.0,too_large(max_dim=0.62m)
+bottom_cabinet_no_top,qudfwe,too_large,0,0,0.0,too_large(max_dim=0.68m)
+bottom_cabinet_no_top,rkgjer,too_large,0,0,0.0,too_large(max_dim=3.06m)
+bottom_cabinet_no_top,spojpj,too_large,0,0,0.0,too_large(max_dim=0.62m)
+bottom_cabinet_no_top,ufhpbn,too_large,0,0,0.0,too_large(max_dim=0.91m)
+bottom_cabinet_no_top,vdedzt,too_large,0,0,0.0,too_large(max_dim=0.63m)
+bottom_cabinet_no_top,vzzafs,too_large,0,0,0.0,too_large(max_dim=0.87m)
+bottom_cabinet_no_top,wamrju,too_large,0,0,0.0,too_large(max_dim=0.60m)
+bottom_cabinet_no_top,wtnrwl,too_large,0,0,0.0,too_large(max_dim=0.82m)
+bouillon_cube,ctzwzz,no_grasp,384,91,93.3,
+boulder,aqgqkc,too_large,0,0,0.0,too_large(max_dim=1.18m)
+boulder,axxuoc,too_large,0,0,0.0,too_large(max_dim=1.49m)
+boulder,cystrq,no_grasp,48,16,17.4,
+boulder,flldzz,too_large,0,0,0.0,too_large(max_dim=0.66m)
+boulder,fplkmx,no_grasp,48,15,16.1,
+boulder,gptwey,too_large,0,0,0.0,too_large(max_dim=0.50m)
+boulder,ibmosd,no_grasp,256,95,106.7,
+boulder,jzbcis,no_grasp,752,76,77.7,
+boulder,kmiazp,too_large,0,0,0.0,too_large(max_dim=1.25m)
+boulder,kmzdov,too_large,0,0,0.0,too_large(max_dim=1.45m)
+boulder,lwndzg,no_grasp,32,11,11.1,
+boulder,qaepnw,no_grasp,96,10,11.8,
+boulder,vxbkjq,too_large,0,0,0.0,too_large(max_dim=1.63m)
+boulder,whsafp,no_grasp,112,29,31.3,
+boulder,wxvbzg,no_grasp,640,46,45.2,
+boulder,zzvigh,too_large,0,0,0.0,too_large(max_dim=0.69m)
+bouquet,hrvulc,graspable,464,41,47.2,i=139 z_rise=0.073
+bow,fhchql,no_grasp,144,22,26.1,
+bow,puwdwq,no_grasp,288,59,64.8,
+bowl,adciys,graspable,688,2,6.4,i=3 z_rise=0.081
+bowl,ajzltc,graspable,608,2,6.6,i=8 z_rise=0.065
+bowl,aspeds,graspable,784,14,19.9,i=72 z_rise=0.048
+bowl,belcml,graspable,448,4,8.9,i=17 z_rise=0.041
+bowl,bexgtn,graspable,448,2,5.3,i=6 z_rise=0.059
+bowl,byzaxy,graspable,480,17,24.7,i=71 z_rise=0.071
+bowl,ckxwea,graspable,784,6,12.2,i=38 z_rise=0.055
+bowl,cypjlv,graspable,176,2,5.8,i=5 z_rise=0.058
+bowl,dalyim,graspable,560,15,23.6,i=69 z_rise=0.046
+bowl,eawgwj,graspable,400,6,10.2,i=48 z_rise=0.049
+bowl,eipwho,graspable,208,1,4.7,i=0 z_rise=0.071
+bowl,fedafr,graspable,768,2,4.9,i=13 z_rise=0.071
+bowl,feuaak,graspable,416,2,6.1,i=2 z_rise=0.077
+bowl,fiarri,graspable,592,1,4.6,i=1 z_rise=0.050
+bowl,fwdfeg,graspable,352,4,7.9,i=6 z_rise=0.067
+bowl,haewxp,no_grasp,720,37,45.4,
+bowl,hitnkv,graspable,368,3,7.7,i=11 z_rise=0.056
+bowl,hpqjug,graspable,592,1,5.1,i=3 z_rise=0.059
+bowl,hynhgz,graspable,384,3,7.5,i=6 z_rise=0.171
+bowl,jblalf,graspable,704,22,30.4,i=85 z_rise=0.070
+bowl,jfvjep,graspable,592,11,19.9,i=45 z_rise=0.067
+bowl,jhtxxh,graspable,736,22,27.1,i=324 z_rise=0.061
+bowl,jpvcjv,graspable,896,4,9.6,i=26 z_rise=0.051
+bowl,kasebx,graspable,544,1,4.5,i=1 z_rise=0.051
+bowl,kdkrov,graspable,192,6,11.5,i=71 z_rise=0.052
+bowl,kthvrl,graspable,640,2,5.7,i=2 z_rise=0.064
+bowl,lgaxzt,no_grasp,832,58,89.6,
+bowl,mspdar,graspable,672,3,8.0,i=10 z_rise=0.064
+bowl,nkkhbn,graspable,592,21,34.1,i=107 z_rise=0.040
+bowl,nmhxfz,graspable,480,29,40.1,i=317 z_rise=0.054
+bowl,npuuir,graspable,576,2,6.0,i=5 z_rise=0.057
+bowl,oyidja,graspable,528,12,18.9,i=43 z_rise=0.103
+bowl,pihjqa,graspable,720,86,116.6,i=365 z_rise=0.171
+bowl,pyilfa,no_grasp,480,70,88.1,
+bowl,qzodht,graspable,672,19,28.7,i=116 z_rise=0.061
+bowl,rbnyxi,graspable,432,1,4.6,i=7 z_rise=0.047
+bowl,rlwpcd,graspable,528,6,11.4,i=41 z_rise=0.077
+bowl,sqqahm,graspable,544,2,7.1,i=1 z_rise=0.053
+bowl,szgdpc,graspable,816,21,32.0,i=109 z_rise=0.049
+bowl,tvtive,graspable,768,1,4.6,i=6 z_rise=0.048
+bowl,tyczoo,graspable,352,3,5.2,i=4 z_rise=0.044
+bowl,vccsrl,graspable,576,20,27.8,i=76 z_rise=0.059
+bowl,wryghu,graspable,560,9,13.5,i=29 z_rise=0.042
+bowl,wtepsx,graspable,496,1,3.7,i=2 z_rise=0.041
+bowl,xplzbo,graspable,96,8,14.6,i=33 z_rise=0.096
+bowl,xpnlup,graspable,496,1,4.3,i=9 z_rise=0.053
+bowl,ycbbwl,graspable,304,5,8.7,i=33 z_rise=0.064
+bowling_ball,qzzett,no_grasp,64,24,24.6,
+box_of_almond_milk,oiiqwq,graspable,912,14,21.4,i=30 z_rise=0.042
+box_of_aluminium_foil,lhwgty,graspable,336,6,10.0,i=21 z_rise=0.056
+box_of_apple_juice,pttzdw,graspable,576,18,20.8,i=42 z_rise=0.043
+box_of_apple_juice,zjzgjy,graspable,144,1,3.2,i=2 z_rise=0.062
+box_of_baking_mix,fmewsz,graspable,192,2,4.3,i=4 z_rise=0.044
+box_of_baking_mix,fnbgwd,graspable,336,1,3.3,i=0 z_rise=0.061
+box_of_baking_mix,lgusnr,graspable,128,1,3.3,i=1 z_rise=0.081
+box_of_baking_mix,ltccey,graspable,80,1,3.3,i=3 z_rise=0.047
+box_of_baking_mix,luwlfd,graspable,48,4,6.9,i=6 z_rise=0.059
+box_of_baking_mix,qkvqkm,graspable,224,1,3.3,i=1 z_rise=0.077
+box_of_baking_mix,uhvkxj,graspable,144,1,3.3,i=2 z_rise=0.078
+box_of_baking_mix,xcxrek,graspable,352,2,4.2,i=3 z_rise=0.071
+box_of_baking_powder,vzgrlv,graspable,592,6,9.1,i=14 z_rise=0.082
+box_of_baking_powder,zevydc,graspable,624,2,5.0,i=6 z_rise=0.051
+box_of_baking_soda,pskrgy,graspable,576,5,7.9,i=13 z_rise=0.073
+box_of_barley,lxpwnw,graspable,544,21,27.4,i=59 z_rise=0.058
+box_of_beer,lzrdiz,timeout,384,133,180.3,settle 133
+box_of_beer,ubvfih,no_candidates,0,0,1.6,
+box_of_brown_sugar,kqyevo,graspable,480,2,4.4,i=3 z_rise=0.072
+box_of_butter,mfjuil,graspable,320,4,6.9,i=9 z_rise=0.054
+box_of_butter,oixapu,graspable,272,1,3.2,i=2 z_rise=0.057
+box_of_candy,gvreky,graspable,720,20,25.2,i=68 z_rise=0.046
+box_of_candy,jodwfv,no_grasp,16,0,1.6,
+box_of_cane_sugar,cqlofx,graspable,656,5,8.1,i=12 z_rise=0.123
+box_of_cane_sugar,gpbobo,graspable,544,8,12.2,i=16 z_rise=0.066
+box_of_cane_sugar,pozpqi,graspable,496,9,14.4,i=24 z_rise=0.047
+box_of_cane_sugar,qvjiti,graspable,384,6,11.6,i=13 z_rise=0.063
+box_of_cane_sugar,rvsivw,no_candidates,0,0,1.5,
+box_of_cereal,dkhgxn,graspable,144,10,13.6,i=23 z_rise=0.066
+box_of_cereal,hcwbzw,graspable,656,3,5.2,i=9 z_rise=0.056
+box_of_cereal,hosfhj,graspable,608,10,12.8,i=33 z_rise=0.046
+box_of_cereal,ihedod,graspable,464,4,6.9,i=6 z_rise=0.044
+box_of_cereal,iucshm,graspable,800,4,6.2,i=12 z_rise=0.059
+box_of_cereal,pfwgkm,graspable,304,1,3.3,i=1 z_rise=0.078
+box_of_cereal,qirvmd,graspable,672,2,4.4,i=8 z_rise=0.055
+box_of_cereal,sgirte,graspable,480,10,13.0,i=30 z_rise=0.115
+box_of_cereal,surzft,graspable,736,23,29.0,i=60 z_rise=0.061
+box_of_cereal,tiykku,graspable,784,6,10.7,i=15 z_rise=0.066
+box_of_cereal,wdkcbu,graspable,448,2,4.8,i=1 z_rise=0.051
+box_of_cereal,wrlalk,graspable,544,1,3.3,i=0 z_rise=0.070
+box_of_cereal,ykuyqb,graspable,608,23,29.5,i=55 z_rise=0.068
+box_of_cereal,yorray,graspable,368,10,14.4,i=18 z_rise=0.043
+box_of_champagne,cizogj,no_grasp,16,0,1.4,
+box_of_champagne,lfygch,no_candidates,0,0,1.6,
+box_of_champagne,rjsibn,no_candidates,0,0,1.4,
+box_of_chocolates,bdvkbh,no_grasp,368,96,97.9,
+box_of_coconut_milk,dagbyl,graspable,832,2,4.8,i=2 z_rise=0.062
+box_of_coffee,cjtadw,graspable,464,2,4.4,i=2 z_rise=0.069
+box_of_coffee,mreyla,graspable,720,2,4.8,i=8 z_rise=0.043
+box_of_cookies,apjokz,no_grasp,256,0,1.5,
+box_of_cookies,dlhqft,no_grasp,576,0,1.5,
+box_of_cookies,fsdjun,no_candidates,0,0,1.5,
+box_of_cookies,fzlaol,no_grasp,704,0,1.5,
+box_of_cookies,hdgsxz,no_grasp,784,0,1.5,
+box_of_cookies,jtalxs,no_grasp,704,0,1.5,
+box_of_cookies,levwda,no_grasp,784,0,1.5,
+box_of_cookies,lwhbid,no_grasp,400,0,1.5,
+box_of_cookies,nirfva,no_grasp,736,0,1.5,
+box_of_cookies,nnfisz,no_grasp,672,0,1.5,
+box_of_cookies,ohhshb,no_grasp,720,0,1.5,
+box_of_cookies,qkzrdd,graspable,864,35,41.3,i=156 z_rise=0.052
+box_of_cookies,sjcnoq,no_grasp,640,0,1.5,
+box_of_cookies,swilxz,no_candidates,0,0,1.5,
+box_of_corn_flakes,zbwzkq,graspable,800,4,6.9,i=124 z_rise=0.040
+box_of_crackers,cmdigf,graspable,720,4,6.3,i=21 z_rise=0.077
+box_of_cream,njrpai,no_grasp,496,101,107.1,
+box_of_flour,ylezpk,no_candidates,0,0,1.5,
+box_of_fruit,jsgbcz,too_large,0,0,0.0,too_large(max_dim=0.53m)
+box_of_fruit,jzfgwc,too_large,0,0,0.0,too_large(max_dim=0.58m)
+box_of_granola_bars,awombj,graspable,80,1,3.3,i=3 z_rise=0.075
+box_of_granola_bars,bqeeki,graspable,160,1,3.3,i=0 z_rise=0.079
+box_of_granola_bars,tqwhvz,graspable,96,1,3.2,i=1 z_rise=0.081
+box_of_ice_cream,joizft,graspable,624,4,6.7,i=88 z_rise=0.469
+box_of_lasagna,oaonbr,graspable,496,1,3.1,i=2 z_rise=0.062
+box_of_lemons,suhxjl,no_grasp,688,150,164.0,
+box_of_milk,ahmgjv,no_candidates,0,0,1.5,
+box_of_oatmeal,jtqeef,graspable,848,11,14.3,i=167 z_rise=0.073
+box_of_oatmeal,rabeel,graspable,752,1,3.5,i=1 z_rise=0.081
+box_of_oatmeal,zkggxm,no_candidates,0,0,1.5,
+box_of_raspberries,rxvopf,graspable,560,5,9.6,i=22 z_rise=0.077
+box_of_rice,fvulow,graspable,672,1,3.1,i=3 z_rise=0.055
+box_of_rice,pstqvm,graspable,624,26,35.3,i=67 z_rise=0.058
+box_of_rice,yyheuw,graspable,592,3,5.1,i=3 z_rise=0.057
+box_of_rum,lnjbjj,no_candidates,0,0,1.4,
+box_of_rum,lvruzr,no_candidates,0,0,1.5,
+box_of_rum,tumgbj,no_candidates,0,0,13.5,
+box_of_rum,xlhqjr,no_candidates,0,0,1.4,
+box_of_sake,abpqcs,no_candidates,0,0,1.4,
+box_of_sake,azjfky,no_candidates,0,0,1.5,
+box_of_sake,hxrhoc,no_candidates,0,0,1.4,
+box_of_sake,iohsjz,no_grasp,32,0,1.5,
+box_of_sake,ojvfmv,no_candidates,0,0,1.5,
+box_of_sake,qfrurx,no_candidates,0,0,1.4,
+box_of_sake,rczpdw,no_candidates,0,0,1.4,
+box_of_sake,tuzwhy,no_candidates,0,0,1.5,
+box_of_sanitary_napkins,acaivd,graspable,352,1,3.2,i=1 z_rise=0.061
+box_of_sanitary_napkins,arqcyu,graspable,384,3,5.7,i=3 z_rise=0.049
+box_of_sanitary_napkins,cmnpuv,graspable,416,4,6.2,i=4 z_rise=0.064
+box_of_sanitary_napkins,humkqw,graspable,480,4,6.2,i=8 z_rise=0.057
+box_of_sanitary_napkins,mxdefq,graspable,480,1,3.2,i=1 z_rise=0.064
+box_of_sanitary_napkins,skltgp,graspable,432,2,4.8,i=7 z_rise=0.082
+box_of_sanitary_napkins,tkrzkb,graspable,400,5,7.2,i=12 z_rise=0.077
+box_of_sanitary_napkins,ykpeja,graspable,432,1,3.2,i=2 z_rise=0.059
+box_of_sanitary_napkins,zqinib,graspable,416,5,7.9,i=6 z_rise=0.077
+box_of_shampoo,bclpiq,graspable,464,5,7.9,i=7 z_rise=0.042
+box_of_shampoo,jccyom,graspable,592,4,6.9,i=6 z_rise=0.073
+box_of_shampoo,nijidu,graspable,560,2,5.0,i=6 z_rise=0.041
+box_of_shampoo,tzghev,graspable,864,6,9.5,i=12 z_rise=0.103
+box_of_takeout,bvcopi,no_grasp,224,33,36.4,
+box_of_tissues,ntbrtz,no_grasp,448,0,1.5,
+box_of_tissues,uglbjc,graspable,352,2,4.2,i=27 z_rise=0.043
+box_of_tissues,xwstls,no_grasp,416,0,1.5,
+box_of_tissues,zutrxn,no_grasp,464,0,1.5,
+box_of_vegetable_juice,jsnnlv,graspable,448,3,5.7,i=5 z_rise=0.043
+box_of_vegetable_juice,qgjdbn,graspable,528,1,3.1,i=0 z_rise=0.072
+box_of_wagashi,mlmrwy,no_grasp,656,0,1.5,
+box_of_whiskey,ftapxo,graspable,672,62,83.1,i=156 z_rise=0.041
+box_of_whiskey,hawwyv,graspable,656,11,16.0,i=38 z_rise=0.086
+box_of_whiskey,jcuvit,graspable,672,6,10.1,i=16 z_rise=0.069
+box_of_whiskey,noptlp,graspable,640,19,28.0,i=35 z_rise=0.115
+box_of_whiskey,wiupey,graspable,704,4,6.9,i=7 z_rise=0.185
+box_of_yogurt,jkemqc,graspable,480,41,46.4,i=152 z_rise=0.043
+box_of_yogurt,jtjcrx,no_grasp,48,14,14.5,
+box_of_yogurt,thxfjq,no_candidates,0,0,1.5,
+box_of_yogurt,znhjgm,graspable,528,2,4.2,i=12 z_rise=0.041
+boxed_cake,yjazet,no_grasp,432,0,1.5,
+boxed_cpu_board,xlqvil,graspable,576,3,7.4,i=7 z_rise=0.144
+boxed_ink_cartridge,ltblou,no_grasp,176,13,14.7,
+boxed_ink_cartridge,oepuip,graspable,384,17,21.3,i=281 z_rise=0.070
+boxed_ink_cartridge,oinelo,no_grasp,352,62,66.6,
+boxed_router,dsgtpk,no_candidates,0,0,2.1,
+boxers,uwzqxm,graspable,528,2,5.5,i=22 z_rise=0.059
+boxing_gloves,jlfuaf,graspable,368,14,20.2,i=40 z_rise=0.240
+bra,uaidmc,no_grasp,32,13,14.9,
+bracelet,thqqmo,no_grasp,336,125,135.0,
+branch,ijgexf,too_large,0,0,0.0,too_large(max_dim=1.25m)
+bratwurst,pqfrrn,graspable,1024,9,12.0,i=36 z_rise=0.069
+bratwurst,wuyflp,graspable,1008,5,7.6,i=9 z_rise=0.083
+bread_slice,pfggnm,no_grasp,512,30,32.4,
+bread_slice,pgzsxe,no_grasp,512,62,64.9,
+bread_slice,yedlgq,no_grasp,560,25,27.7,
+bread_slice,yremdf,graspable,464,11,14.3,i=120 z_rise=0.067
+breakfast_table,bhszwe,too_large,0,0,0.0,too_large(max_dim=1.76m)
+breakfast_table,bmnubh,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,dcdtsr,too_large,0,0,0.0,too_large(max_dim=2.27m)
+breakfast_table,hggsao,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,hmzwxn,too_large,0,0,0.0,too_large(max_dim=1.21m)
+breakfast_table,iaritq,too_large,0,0,0.0,too_large(max_dim=0.75m)
+breakfast_table,idnnmz,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,jcqdlx,too_large,0,0,0.0,too_large(max_dim=1.80m)
+breakfast_table,jruvif,too_large,0,0,0.0,too_large(max_dim=1.37m)
+breakfast_table,kpwegp,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,kwmfdg,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,lcsizg,too_large,0,0,0.0,too_large(max_dim=1.14m)
+breakfast_table,lnwggc,too_large,0,0,0.0,too_large(max_dim=0.75m)
+breakfast_table,lwtcfh,too_large,0,0,0.0,too_large(max_dim=1.07m)
+breakfast_table,mwsyqb,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,nvoqyl,too_large,0,0,0.0,too_large(max_dim=1.20m)
+breakfast_table,pdpkuw,too_large,0,0,0.0,too_large(max_dim=1.54m)
+breakfast_table,pllvrt,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,qjiray,too_large,0,0,0.0,too_large(max_dim=3.30m)
+breakfast_table,rhjoby,too_large,0,0,0.0,too_large(max_dim=2.90m)
+breakfast_table,rjgmmy,too_large,0,0,0.0,too_large(max_dim=0.94m)
+breakfast_table,sfxqtk,too_large,0,0,0.0,too_large(max_dim=0.75m)
+breakfast_table,skczfi,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,uhrsex,too_large,0,0,0.0,too_large(max_dim=1.19m)
+breakfast_table,wdbwhc,too_large,0,0,0.0,too_large(max_dim=0.91m)
+breakfast_table,wnrior,too_large,0,0,0.0,too_large(max_dim=1.58m)
+breakfast_table,xftrki,too_large,0,0,0.0,too_large(max_dim=1.49m)
+breakfast_table,yaanqr,too_large,0,0,0.0,too_large(max_dim=1.10m)
+breakfast_table,yclkbw,too_large,0,0,0.0,too_large(max_dim=3.50m)
+breakfast_table,ylykeh,too_large,0,0,0.0,too_large(max_dim=2.00m)
+breakfast_table,ytelxk,too_large,0,0,0.0,too_large(max_dim=2.30m)
+breakfast_table,zypvuv,too_large,0,0,0.0,too_large(max_dim=1.18m)
+briefcase,fdpjtj,graspable,768,17,23.8,i=250 z_rise=0.057
+briefcase,haecvf,no_grasp,48,7,9.0,
+briefcase,lwbctq,graspable,144,11,17.1,i=29 z_rise=0.054
+briefcase,ohelib,graspable,864,4,7.9,i=45 z_rise=0.056
+briefcase,psvdau,graspable,640,14,17.9,i=254 z_rise=0.098
+briefcase,rxvbea,graspable,448,2,8.7,i=8 z_rise=0.098
+briefcase,uquevd,graspable,832,40,42.0,i=235 z_rise=0.053
+brisket,nnnnqw,no_grasp,384,50,53.5,
+brisket,wzcycr,no_grasp,480,66,70.7,
+broccoli,wsxavx,no_grasp,64,23,27.2,
+broccoli_rabe,ushqbz,graspable,448,79,83.6,i=261 z_rise=0.073
+broccolini,rlsytp,graspable,384,55,61.4,i=200 z_rise=0.071
+broken_glass,beltgg,graspable,544,18,22.2,i=83 z_rise=0.061
+broken_glass,rvpgpt,graspable,240,9,12.2,i=19 z_rise=0.064
+broken_light_bulb,cugtye,no_grasp,96,28,37.7,
+broom,tpyvbt,graspable,112,5,8.0,i=7 z_rise=0.071
+brown_rice_sack,pbvpua,graspable,320,15,33.4,i=37 z_rise=0.198
+brown_sugar_sack,uftzyo,graspable,336,68,121.1,i=176 z_rise=0.088
+brownie,vqgqja,graspable,464,13,16.5,i=64 z_rise=0.052
+brussels_sprouts,hkwyzk,graspable,400,12,15.1,i=46 z_rise=0.077
+brussels_sprouts,mbkrxe,no_grasp,32,10,12.3,
+brussels_sprouts,siodbb,graspable,464,4,6.8,i=23 z_rise=0.078
+brussels_sprouts,vdamtq,no_grasp,16,5,7.1,
+bucket,bdhvnt,graspable,304,17,29.9,i=62 z_rise=0.046
+bucket,lsmlzi,graspable,352,3,8.0,i=6 z_rise=0.078
+bucket,wlilma,graspable,16,3,7.6,i=8 z_rise=0.048
+bucket_of_paint,gjjugj,no_grasp,16,0,2.0,
+bucket_of_paint,mxyrzd,no_grasp,224,29,31.8,
+bucket_of_paint,qbqche,graspable,192,3,7.2,i=13 z_rise=0.245
+bucket_of_paint,ycnaho,graspable,448,37,49.5,i=102 z_rise=0.048
+bulldog_clip,cqxnkn,no_candidates,0,0,2.1,
+bulletin_board,ayaoal,too_large,0,0,0.0,too_large(max_dim=1.08m)
+bulletin_board,rjlpsy,too_large,0,0,0.0,too_large(max_dim=1.07m)
+bunch_of_bananas,mxnwwk,graspable,1056,5,10.6,i=13 z_rise=0.208
+bunk_bed,hkmwyc,too_large,0,0,0.0,too_large(max_dim=2.00m)
+bunk_bed,sunfhf,too_large,0,0,0.0,too_large(max_dim=2.02m)
+bunk_bed,sztpse,too_large,0,0,0.0,too_large(max_dim=1.93m)
+bunk_bed,xhegju,too_large,0,0,0.0,too_large(max_dim=2.03m)
+buret,naqnom,too_large,0,0,0.0,too_large(max_dim=0.81m)
+buret_clamp,gknfxt,too_large,0,0,0.0,too_large(max_dim=0.58m)
+buret_clamp,jkzyfr,too_large,0,0,0.0,too_large(max_dim=0.59m)
+buret_clamp,pflmbv,too_large,0,0,0.0,too_large(max_dim=0.58m)
+burlap_bag,endfho,graspable,480,3,9.7,i=7 z_rise=0.057
+burlap_bag,hlqrxm,graspable,416,1,4.7,i=0 z_rise=0.057
+burner,lfyqat,too_large,0,0,0.0,too_large(max_dim=0.70m)
+burner,mdanhg,too_large,0,0,0.0,too_large(max_dim=0.81m)
+burner,mjvqii,too_large,0,0,0.0,too_large(max_dim=0.81m)
+burner,pmntxh,too_large,0,0,0.0,too_large(max_dim=0.70m)
+burrito,mqjwjq,graspable,624,21,24.2,i=91 z_rise=0.065
+bush,albnbz,too_large,0,0,0.0,too_large(max_dim=1.59m)
+bush,bqdskl,too_large,0,0,0.0,too_large(max_dim=1.09m)
+bush,cwsigt,too_large,0,0,0.0,too_large(max_dim=2.60m)
+bush,dsjegk,too_large,0,0,0.0,too_large(max_dim=1.16m)
+bush,ebuvur,too_large,0,0,0.0,too_large(max_dim=1.67m)
+bush,frqici,too_large,0,0,0.0,too_large(max_dim=6.97m)
+bush,hnzfgt,too_large,0,0,0.0,too_large(max_dim=2.62m)
+bush,hobkxy,too_large,0,0,0.0,too_large(max_dim=0.53m)
+bush,hqlggp,no_grasp,928,167,172.1,
+bush,jivsft,too_large,0,0,0.0,too_large(max_dim=1.27m)
+bush,jonbyb,too_large,0,0,0.0,too_large(max_dim=1.30m)
+bush,jylruu,too_large,0,0,0.0,too_large(max_dim=1.09m)
+bush,kjakgd,too_large,0,0,0.0,too_large(max_dim=7.65m)
+bush,knspbi,too_large,0,0,0.0,too_large(max_dim=1.45m)
+bush,kyghri,too_large,0,0,0.0,too_large(max_dim=2.07m)
+bush,lcktfs,too_large,0,0,0.0,too_large(max_dim=1.28m)
+bush,lfyqkj,too_large,0,0,0.0,too_large(max_dim=1.43m)
+bush,llcsvc,too_large,0,0,0.0,too_large(max_dim=1.27m)
+bush,nhorlu,too_large,0,0,0.0,too_large(max_dim=1.16m)
+bush,oedeqi,too_large,0,0,0.0,too_large(max_dim=4.74m)
+bush,pjhpwk,too_large,0,0,0.0,too_large(max_dim=3.93m)
+bush,rkxgdi,too_large,0,0,0.0,too_large(max_dim=1.38m)
+bush,ujrbvp,too_large,0,0,0.0,too_large(max_dim=1.31m)
+bush,vxulvs,too_large,0,0,0.0,too_large(max_dim=1.59m)
+bush,waafqw,too_large,0,0,0.0,too_large(max_dim=1.35m)
+bush,xsqlhv,too_large,0,0,0.0,too_large(max_dim=1.28m)
+bush,yhjhta,too_large,0,0,0.0,too_large(max_dim=3.63m)
+bush,ysfopl,too_large,0,0,0.0,too_large(max_dim=0.53m)
+bush,zwhhlc,too_large,0,0,0.0,too_large(max_dim=1.27m)
+bust,tnnbxo,no_grasp,592,121,150.7,
+butter,ovirmc,no_grasp,352,56,57.2,
+butter_cookie,kukrla,graspable,416,4,6.6,i=16 z_rise=0.085
+butter_package,qixpto,graspable,544,8,18.8,i=10 z_rise=0.066
+buttermilk_pancake,ogghhf,graspable,528,4,6.6,i=49 z_rise=0.057
+butternut_squash,swehmg,no_candidates,0,0,1.5,
+butternut_squash,xfpdui,graspable,304,31,37.4,i=115 z_rise=0.064
+cabinet_base,dcmhhh,graspable,560,10,13.3,i=29 z_rise=0.146
+cabinet_door,ertkre,graspable,208,45,55.5,i=91 z_rise=0.173
+cactus,imitmg,graspable,448,12,16.3,i=27 z_rise=0.060
+cake_stand,tpchsr,graspable,672,3,5.9,i=22 z_rise=0.079
+calculator,kwmmty,graspable,416,1,4.0,i=2 z_rise=0.052
+calendar,ydunsu,graspable,160,1,4.0,i=0 z_rise=0.076
+caliper,sngjmj,graspable,576,1,3.4,i=20 z_rise=0.042
+camera_tripod,hnpofr,too_large,0,0,0.0,too_large(max_dim=1.28m)
+can,damllm,graspable,464,9,15.2,i=33 z_rise=0.093
+can,dhqrwr,graspable,400,8,10.7,i=23 z_rise=0.055
+can,moeqjz,no_grasp,48,0,1.5,
+can_of_baking_mix,blrqqz,no_candidates,0,0,1.7,
+can_of_baking_mix,fpbxfp,no_candidates,0,0,1.7,
+can_of_baking_mix,ohtiap,no_grasp,16,7,9.0,
+can_of_baking_mix,orwvfx,no_grasp,16,6,7.9,
+can_of_baking_mix,rxorlp,graspable,16,6,8.0,i=15 z_rise=0.064
+can_of_baking_mix,xefopo,no_grasp,32,12,13.8,
+can_of_bay_leaves,ppwvjf,graspable,240,4,7.3,i=23 z_rise=0.054
+can_of_beans,kclbuu,graspable,256,2,4.1,i=1 z_rise=0.048
+can_of_beans,ojqgjz,graspable,144,3,5.2,i=10 z_rise=0.043
+can_of_cat_food,omiuox,no_grasp,32,0,1.9,
+can_of_coffee,poteji,graspable,656,7,12.4,i=32 z_rise=0.048
+can_of_coffee,zubwua,no_grasp,96,7,7.9,
+can_of_corn,alphlq,no_grasp,320,7,8.8,
+can_of_corn,kwwlfn,graspable,112,3,5.3,i=16 z_rise=0.081
+can_of_corn,pddtfk,no_grasp,64,26,29.4,
+can_of_dog_food,rgwfxq,graspable,288,5,12.3,i=13 z_rise=0.172
+can_of_icetea,ifrjsc,graspable,880,6,9.3,i=13 z_rise=0.067
+can_of_oatmeal,qyukhm,graspable,80,2,5.0,i=6 z_rise=0.075
+can_of_sardines,dpgmry,no_candidates,0,0,1.8,
+can_of_soda,bfrzvk,graspable,816,3,4.8,i=17 z_rise=0.081
+can_of_soda,chwjfu,graspable,816,4,7.4,i=20 z_rise=0.051
+can_of_soda,evcxlr,graspable,800,1,3.1,i=5 z_rise=0.078
+can_of_soda,frewxk,graspable,816,3,5.8,i=20 z_rise=0.077
+can_of_soda,iloapr,graspable,912,11,15.7,i=23 z_rise=0.041
+can_of_soda,itolcg,graspable,576,6,9.9,i=13 z_rise=0.072
+can_of_soda,ixrfxv,graspable,544,4,6.3,i=6 z_rise=0.069
+can_of_soda,lugwcz,graspable,784,2,4.2,i=2 z_rise=0.081
+can_of_soda,mrrozu,graspable,832,5,7.3,i=30 z_rise=0.041
+can_of_soda,opivig,graspable,496,2,4.2,i=9 z_rise=0.067
+can_of_soda,ttxyui,graspable,816,18,26.9,i=55 z_rise=0.053
+can_of_soda,uzbpnw,graspable,864,29,33.1,i=72 z_rise=0.074
+can_of_soda,vszbvb,graspable,848,3,5.1,i=7 z_rise=0.080
+can_of_soda,wbrrad,graspable,672,1,3.1,i=3 z_rise=0.077
+can_of_soda,xlyult,graspable,736,6,9.4,i=21 z_rise=0.065
+can_of_soda,xmjfcg,graspable,800,13,17.1,i=41 z_rise=0.068
+can_of_tomato_paste,sqqdzb,graspable,720,3,5.3,i=23 z_rise=0.041
+can_of_tomatoes,ckdouu,no_candidates,0,0,1.9,
+candied_yam,axmnvy,graspable,528,9,11.8,i=35 z_rise=0.044
+candied_yam,ayqjzg,graspable,912,4,7.2,i=11 z_rise=0.048
+candied_yam,ivkukc,graspable,400,39,42.8,i=234 z_rise=0.066
+candied_yam,mztmgb,no_grasp,528,49,53.1,
+candied_yam,zzxnmn,graspable,896,3,6.8,i=8 z_rise=0.041
+candle_holder,nygnlp,graspable,800,4,6.9,i=12 z_rise=0.049
+candle_holder,svqdrl,no_candidates,0,0,3.0,
+candle_holder,szulaa,graspable,544,2,5.0,i=5 z_rise=0.057
+candle_holder,tnlkzg,graspable,592,5,8.2,i=14 z_rise=0.046
+candle_holder,wiufnv,graspable,464,8,14.6,i=18 z_rise=0.052
+candy_cane,qfomjj,no_grasp,544,101,107.8,
+candy_dispenser_shelf,hrehue,too_large,0,0,0.0,too_large(max_dim=2.17m)
+canister,gqwnfv,graspable,608,2,5.9,i=3 z_rise=0.092
+canister,xcppkc,no_candidates,0,0,2.1,
+canned_food,acgdtc,graspable,48,4,7.1,i=6 z_rise=0.079
+canned_food,byakrm,graspable,368,4,6.2,i=6 z_rise=0.044
+canned_food,cbmndg,graspable,112,1,3.3,i=1 z_rise=0.046
+canned_food,foetdd,graspable,368,1,3.5,i=1 z_rise=0.077
+canned_food,pkopdw,graspable,720,11,15.4,i=42 z_rise=0.041
+canned_food,qhgdys,graspable,800,2,4.2,i=10 z_rise=0.079
+canned_food,ycbspm,graspable,448,7,11.5,i=26 z_rise=0.180
+canned_food,ycodks,no_candidates,0,0,1.5,
+canned_food,zfmfje,graspable,848,2,4.9,i=6 z_rise=0.074
+cantaloup,jakyah,no_grasp,16,6,8.0,
+cantaloup,pqcnoc,no_candidates,0,0,1.5,
+canteen,ouhqnw,graspable,640,8,15.0,i=16 z_rise=0.050
+canteen,ttxunv,graspable,144,2,7.1,i=4 z_rise=0.104
+canvas,adxquq,too_large,0,0,0.0,too_large(max_dim=1.15m)
+cap,actmgl,no_candidates,0,0,1.7,
+cap,amryfj,no_grasp,464,115,121.1,
+cap,arskxc,graspable,496,2,4.3,i=4 z_rise=0.085
+cap,ceizxn,graspable,304,95,109.3,i=214 z_rise=0.084
+cap,ciopwh,graspable,224,57,68.2,i=215 z_rise=0.088
+cap,clhquh,graspable,304,8,11.7,i=35 z_rise=0.076
+cap,dduopd,graspable,32,5,8.8,i=8 z_rise=0.042
+cap,dmzavi,no_grasp,352,154,170.3,
+cap,dwpcld,graspable,304,41,49.5,i=175 z_rise=0.086
+cap,eukcfr,no_grasp,480,105,110.6,
+cap,fomiem,no_grasp,288,122,138.0,
+cap,ghwjwe,graspable,512,100,109.2,i=263 z_rise=0.087
+cap,gmdwwe,no_grasp,560,116,122.0,
+cap,gxkbcd,no_candidates,0,0,1.8,
+cap,hbafeb,no_candidates,0,0,1.9,
+cap,hkvuxj,graspable,208,1,3.5,i=0 z_rise=0.084
+cap,iizvmn,no_grasp,368,112,117.4,
+cap,iqeyba,no_grasp,576,39,42.7,
+cap,jybxvq,no_grasp,256,69,81.0,
+cap,kaolpg,graspable,704,1,3.3,i=25 z_rise=0.083
+cap,mgirzi,no_grasp,112,46,53.3,
+cap,ngionj,graspable,32,1,3.5,i=13 z_rise=0.082
+cap,nkjxbc,graspable,528,10,13.0,i=35 z_rise=0.085
+cap,owcsun,no_grasp,272,118,135.7,
+cap,oyofsv,graspable,48,3,6.3,i=4 z_rise=0.154
+cap,pwsngg,no_grasp,80,0,2.4,
+cap,qcfsnv,graspable,304,59,70.6,i=238 z_rise=0.084
+cap,qscujv,no_grasp,128,0,1.7,
+cap,qwrndi,graspable,304,22,27.9,i=39 z_rise=0.082
+cap,rgtedj,no_grasp,240,98,132.3,
+cap,rhoycw,graspable,464,20,23.0,i=61 z_rise=0.086
+cap,sjsles,no_grasp,48,20,28.9,
+cap,tkwpyr,no_grasp,480,115,121.1,
+cap,tpknvf,graspable,608,19,23.3,i=61 z_rise=0.066
+cap,uxpeaz,no_grasp,32,9,11.5,

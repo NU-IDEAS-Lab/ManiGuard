@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maniguard"
+dynamic = ["version"]
+description = "A safety-aware benchmark and toolkit for vision-language-action manipulation: LTL-monitored task generation, data collection, SFT, and policy evaluation on BEHAVIOR-1K / OmniGibson"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "NU-IDEAS Lab" }]
+keywords = ["robotics", "simulation", "LTL", "safety", "BEHAVIOR-1K", "OmniGibson", "VLA"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Pure-Python runtime deps that maniguard imports directly.
+# Heavy simulator / model deps (omnigibson, bddl, spot) are installed
+# out-of-band by behavior-1k/setup.sh — declaring them here would only
+# cause version conflicts.
+dependencies = [
+    "numpy>=1.23",
+    "torch>=2.0",
+    "networkx>=3.0",
+    "PyYAML>=6.0",
+    "omegaconf>=2.3",
+    "Pillow>=9.0",
+    "einops>=0.6",
+    "imageio>=2.25",
+    "h5py>=3.8",
+    "msgpack>=1.0",
+]
+
+[project.optional-dependencies]
+serve = [
+    "websockets>=11.0",
+    "pyzmq>=25.0",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.4",
+]
+
+[project.urls]
+Repository = "https://github.com/NU-IDEAS-Lab/ManiGuard"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["maniguard*"]
+exclude = [
+    "behavior-1k*",
+    "vla_models*",
+    "tests*",
+    "tools*",
+    "scripts*",
+    "configs*",
+    "teleop_bridge*",
+    "datasets*",
+    "outputs*",
+]
+
+[tool.setuptools.package-data]
+maniguard = [
+    "task_generation/**/*.json",
+    "task_generation/**/*.csv",
+    "task_generation/*.md",
+    "data/**/*.json",
+    "data/datagen/*.md",
+]
+
+# Version is derived from the latest ``v*`` git tag, so ``pyproject.toml``
+# never needs a manual version bump. At a tagged commit ⇒ clean version
+# (e.g. ``v0.1.0`` → ``0.1.0``); past the tag ⇒ PEP 440 dev version (e.g.
+# ``0.1.1.dev3+g<sha>``); no matching tag at all ⇒ ``fallback_version``.
+# ``--match v*`` restricts git describe to semver tags and ignores the
+# legacy ``generation-pipeline-v2.0`` label on older commits.
+[tool.setuptools_scm]
+write_to = "maniguard/_version.py"
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v*"]
+fallback_version = "0.1.0.dev0"

@@ -1,0 +1,168 @@
+# ManiGuard datagen-v1 post-training config for LingBot-VLA 2.0 (8x GPU).
+#
+# Cloned from the upstream SIMULATION sample (configs/vla/robotwin/robotwin.yaml) and
+# changed ONLY where our setup differs; every MoE / distillation / parallelism knob is left
+# exactly as upstream ships it, so this stays LingBot's own recipe.
+#
+# Diffs vs the robotwin sample, and why:
+#   * data.data_name        -> maniguard  (configs/robot_configs/maniguard.yaml)
+#   * data.cameras          -> 2 views (camera_top = the `left` overview, camera_wrist_left
+#                              = wrist). Benchmark parity: pi0.5 / pi0 / GR00T / SmolVLA all
+#                              consume the same two views.
+#   * data.norm_type        -> kept bounds_99_woclip (upstream's SIMULATION choice).
+#   * data.joints           -> UNCHANGED from upstream, including the unused end.position:
+#                              these sizes align with the pretrained action/state heads, and
+#                              a joint type is only used if the robot config maps data to it.
+#   * batch + lr            -> micro 32 / global 256 = the 8-GPU shape upstream itself ships
+#                              in configs/vla/real_robot/real_robot.yaml (32x8), which also
+#                              pairs it with lr 5e-5 (robotwin's 1e-4 is for global 1024).
+#                              global 256 also equals the pi0.5 / pi0 global batch.
+#                              Decay stays cosine (robotwin's schedule) with lr_min = lr/2,
+#                              the same ratio robotwin uses (1e-4 -> 5e-5).
+#   * max_steps / save_steps-> 2 EPOCHS of the family, overridden per run by run_sft.sh
+#                              (values below are clutter's). Every base model in the
+#                              ManiGuard benchmark trains 2 epochs on the same data.
+#   * paths                 -> assets/pretrained/... (see tools/lingbot_sft/SFT.md).
+#                              model_path is the PRETRAIN checkpoint lingbot-vla-v2-6b, NOT
+#                              the RoboTwin post-trained lingbot-vla-v2-6b-robotwin.
+#   * use_wandb             -> true (runs report to the ManiGuard project).
+
+model:
+  model_path: assets/pretrained/lingbot-vla-v2-6b
+  tokenizer_path: assets/pretrained/Qwen3-VL-4B-Instruct
+  post_training: true
+  adanorm_time: true
+  config_key: LingbotVLAV2Config
+  moe_implementation: fused
+
+data:
+  datasets_type: vla
+  data_name: maniguard
+  train_path: /path/to/datagen-clutter-v1-joint-5cam   # overridden per family by run_sft.sh
+  robot_config_root: ./configs/robot_configs
+  joints:
+    - arm.position: 14
+    - end.position: 14
+    - effector.position: 2
+  cameras:
+    - camera_top
+    - camera_wrist_left
+  norm_type:
+    - arm.position: bounds_99_woclip
+    - end.position: bounds_99_woclip
+    - effector.position: bounds_99_woclip
+  num_workers: 8
+  use_future_image: true
+
+train:
+  output_dir: outputs/lingbot_sft/runs/clutter        # overridden per family by run_sft.sh
+  moe_monitor_interval: 1000
+  enable_gradient_checkpointing: false # Set to true if GPU memory is insufficient, but this will slow down training.
+  precompute_grid_thw: true
+  vlm_causal: true
+  vlm_fsdp: true
+  attention_implementation: flex_cached
+  use_moe: true
+  token_moe_layers: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]
+  token_num_experts: 32
+  token_top_k: 4
+  token_moe_intermediate_size: 512
+  token_shared_intermediate_size: 704
+  bias_update_speed: 0
+  sequence_wise_mode: "per_sequence"
+  sequence_wise_loss_coeff: 1e-3
+  router_z_loss_coeff: 1e-4
+  router_activation: "sigmoid"
+  routed_scaling_factor: 4.0
+  use_shared_expert_gate: false
+  use_moe_expert_lr: true
+  loss_type: L1_fm
+  data_parallel_mode: fsdp2
+  enable_full_shard: false
+  module_fsdp_enable: true
+  use_compile: true
+  use_wandb: true
+  rmpad: false
+  rmpad_with_pos_ids: false
+  ulysses_parallel_size: 1
+  freeze_vision_encoder: false
+  tokenizer_max_length: 72
+  action_dim: 55
+  max_action_dim: 55
+  max_state_dim: 55
+  lr: 5.0e-5
+  lr_min: 2.5e-5
+  lr_decay_style: cosine
+  optimizer: muon
+  num_train_epochs: 29000
+  micro_batch_size: 32
+  global_batch_size: 256 # Training uses 8 GPUs: global_batch_size = micro_batch_size * 8
+  max_steps: 7100        # clutter (2 epochs); overridden per family by run_sft.sh
+  ckpt_manager: dcp
+  save_steps: 1775       # max_steps / 4 -> a 4-rung ladder, as for the other base models
+  save_epochs: 29000
+  enable_fp32: true
+  enable_resume: true
+  align_params:
+    mode: 'query'
+    num_task_tokens: 8
+    depth_loss_weight: 0.004
+    future_depth_loss_weight: 0.004
+    use_future_video: true
+    llm:
+      dim_out: 2560
+      image_token_size: 8
+      image_input_size: 224
+    depth:
+      model_type: MoRGBD
+      moge_path: assets/pretrained/moge-2-vitb-normal/model.pt
+      morgbd_path: assets/pretrained/lingbot-vla-v2-6b/depth/model.pt
+      num_layers: 1
+      num_heads: 4
+      dim_head: 32
+      ff_mult: 1
+      num_backbone_tokens: 256
+      token_size: 16
+      dim_out: 1024
+      input_size: 224
+      use_future_depth: true
+      block_future_depth_to_action: false
+      detach_future_image_feats: true
+    video:
+      ckpt_path: assets/pretrained/lingbot-vla-v2-6b/dino_video/teacher_step_10000.pth
+      config_path: assets/pretrained/lingbot-vla-v2-6b/dino_video/config.yaml
+      attention_mode: flex_block_causal
+      input_size: 256
+      block_suffix_to_future_video: false
+      share_future_depth_query: true
+      use_shared_future_task_proj: true
+      use_current_shared_task_proj: true
+      num_future_frames: 1
+      # Keeps DINO teacher input as [warmup current, current, future].
+      # Current-DINO target uses current_index=1 in code.
+      use_warmup_frame: true
+      effective_fps: 1.0
+      n_blocks: 1
+      cls_pool: last
+      detach_image_feats: true
+      num_layers: 1
+      num_heads: 4
+      dim_head: 32
+      ff_mult: 1
+      num_backbone_tokens: 256
+      dim_out: 1024
+      future_video_loss_weight: 0.004
+      use_smooth_l1_loss: false
+      use_mse_loss: true
+      mse_loss_weight: 1.0
+      # Enables current-DINO patch alignment and current depth/DINO shared query projection.
+      use_patch_loss: true
+      use_current_patch_loss: true
+      use_cosine_loss: true
+      cosine_loss_weight: 0.2
+      use_cls_loss: false
+      cls_loss_type: mse
+      cls_loss_weight: 0.2
+      log_max_samples: 32
+      log_scale: 16
+    visual_steps: 5000

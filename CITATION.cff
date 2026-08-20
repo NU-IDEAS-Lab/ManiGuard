@@ -1,0 +1,73 @@
+cff-version: 1.2.0
+message: "If you use ManiGuard, please cite the paper below."
+title: "ManiGuard"
+authors:
+  - family-names: Peng
+    given-names: Yiyan
+  - family-names: Wang
+    given-names: Philip
+  - family-names: Zhan
+    given-names: Simon Sinong
+  - family-names: Lyu
+    given-names: Yiqi
+  - family-names: Ni
+    given-names: Zhenyang
+  - family-names: Yan
+    given-names: Jixin
+  - family-names: Wong
+    given-names: Fiorelli
+  - family-names: Jiao
+    given-names: Ruochen
+  - family-names: Yin
+    given-names: Hang
+  - family-names: Cao
+    given-names: Xinyu
+  - family-names: Shao
+    given-names: Huajie
+  - family-names: Li
+    given-names: Manling
+  - family-names: Zhang
+    given-names: Ruohan
+  - family-names: Zhu
+    given-names: Qi
+repository-code: "https://github.com/NU-IDEAS-Lab/ManiGuard"
+url: "https://nu-ideas-lab.github.io/ManiGuard/"
+license: Apache-2.0
+preferred-citation:
+  type: generic
+  title: "MANIGUARD: A Benchmark and Data Suite for Specification-Grounded Safety Evaluation and Improvement of Robotic Manipulation"
+  authors:
+    - family-names: Peng
+      given-names: Yiyan
+    - family-names: Wang
+      given-names: Philip
+    - family-names: Zhan
+      given-names: Simon Sinong
+    - family-names: Lyu
+      given-names: Yiqi
+    - family-names: Ni
+      given-names: Zhenyang
+    - family-names: Yan
+      given-names: Jixin
+    - family-names: Wong
+      given-names: Fiorelli
+    - family-names: Jiao
+      given-names: Ruochen
+    - family-names: Yin
+      given-names: Hang
+    - family-names: Cao
+      given-names: Xinyu
+    - family-names: Shao
+      given-names: Huajie
+    - family-names: Li
+      given-names: Manling
+    - family-names: Zhang
+      given-names: Ruohan
+    - family-names: Zhu
+      given-names: Qi
+  year: 2026
+  identifiers:
+    - type: other
+      value: "arXiv:2608.17386"
+      description: "arXiv preprint"
+  url: "https://arxiv.org/abs/2608.17386"
