@@ -1,4 +1,5 @@
-<h1 align="center">ManiGuard</h1>
+<h1 align="center">ManiGuard: A Benchmark and Data Suite for<br>
+Specification-Grounded Safety Evaluation and Improvement of Robotic Manipulation</h1>
 
 <p align="center">
   <a href="https://arxiv.org/abs/2608.17386"><img src="https://img.shields.io/badge/arXiv-2608.17386-b31b1b.svg" alt="arXiv"></a>
@@ -67,6 +68,10 @@ grasp-annotation database, and the six-family SFT demonstration datasets; and
 — every fine-tuned checkpoint behind the paper's rollout evaluations.
 
 ## Quick start
+
+Requires a Linux machine with an NVIDIA RTX GPU on a **≤ 580-series driver**
+(newer drivers crash Isaac Sim) — see
+[System requirements](https://nu-ideas-lab.github.io/ManiGuard/docs/getting-started/installation/#system-requirements).
 
 ```bash
 # 1. clone with submodules

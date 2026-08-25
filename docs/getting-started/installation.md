@@ -5,6 +5,30 @@ teleop, task generation, scripted data generation, and eval. Policy training/ser
 runs in each model's own environment (openpi / GR00T / SmolVLA — see the
 [Fine-Tuning](../fine_tuning/index.md) pages).
 
+## System requirements
+
+| | Requirement |
+|---|---|
+| OS | Linux x86_64 (tested on Ubuntu 22.04 / 24.04); fully headless servers are supported (`OMNIGIBSON_HEADLESS=1`) |
+| GPU | NVIDIA **RTX**-class GPU (Isaac Sim requires ray-tracing hardware); tested on RTX 3090 / 4080 / 4090 |
+| NVIDIA driver | **A 5xx-series driver up to the 580 series** (CUDA ≤ 13.0) — see the warning below |
+| CUDA toolkit | Not needed system-wide — the `behavior` env ships its own runtime (torch 2.6.0 + cu124) |
+| VRAM | **16 GB runs the full eval pipeline on one card** — simulation + the heaviest policy server (π0 / π0.5) peaks at ~13 GB measured (GR00T ~11 GB, SmolVLA ~6 GB). The simulation client alone needs only ~4 GB, so an 8 GB card works when the policy server sits on another GPU or machine |
+| RAM | ≥ 32 GB (64 GB comfortable) |
+| Disk | ≥ 80 GB free: BEHAVIOR assets ~36 GB + the `behavior` conda env ~22 GB + benchmark & headroom |
+
+!!! warning "NVIDIA drivers newer than the 580 series crash Isaac Sim"
+    We have repeatedly observed Isaac Sim 4.5 **segfault at startup** on driver
+    versions above the 580 series (CUDA 13.0) — across multiple machines and GPU
+    models. Check yours with `nvidia-smi`; if it is newer, downgrade to a
+    580-series (or older 5xx) driver before installing. Driver 580.x + CUDA 12.x
+    userland is the verified configuration.
+
+!!! note "RTX 50-series (Blackwell) GPUs"
+    `sm_120` needs a newer torch than the env default: after setup, replace torch
+    with **2.7.0 + cu128** inside the `behavior` env. The rest of the stack is
+    unchanged.
+
 ## 1. Clone with submodules
 
 ```bash
