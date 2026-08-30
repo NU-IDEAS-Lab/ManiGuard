@@ -1,12 +1,15 @@
 name: docs
 
-# Build the MkDocs site and publish it to GitHub Pages.
-# Enable once: repo Settings → Pages → Source = "Deploy from a branch" → gh-pages.
+# Build the site and publish it to GitHub Pages (gh-pages branch):
+#   /       <- page/  (the project page)
+#   /docs/  <- the MkDocs documentation build
+# Pages source: repo Settings → Pages → "Deploy from a branch" → gh-pages.
 on:
   push:
     branches: [dev]
     paths:
       - docs/**
+      - page/**
       - mkdocs.yml
       - .github/workflows/docs.yml
   workflow_dispatch:
@@ -19,11 +22,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
       - run: pip install mkdocs-material
-      - run: mkdocs build --strict
-      - run: mkdocs gh-deploy --force
+      - run: mkdocs build --strict -d _site/docs
+      - run: cp -r page/. _site/
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          force_orphan: true

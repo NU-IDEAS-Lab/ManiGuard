@@ -135,6 +135,9 @@ class EvalConfig:
     tau_reach: float = 0.12   # eef came within this (m) of target -> "reached"
     camera_resolution: int = 256
     save_video: bool = True
+    # Frames buffer in RAM until the rollout ends; at high camera_resolution the
+    # wrist stream doubles that peak, so it can be dropped independently.
+    save_wrist_video: bool = True
 
     # -- Output --
     # Per-CONFIG base directory. Each run writes to <output_dir>/<run_name> so
@@ -261,6 +264,7 @@ def config_from_cli() -> EvalConfig:
         "run_name": "run_name",
         "tag": "tag",
         "save_video": "save_video",
+        "save_wrist_video": "save_wrist_video",
         "external_cam": "external_cam",
         "grasping_mode": "grasping_mode",
         "camera_resolution": "camera_resolution",

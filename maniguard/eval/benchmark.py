@@ -634,7 +634,7 @@ def main():
         # Two separate streams recorded as two mp4s: the policy's overview
         # (cam_left/right) and the wrist — same resolution the policy sees.
         main_frames = [obs["overview_image"]] if cfg.save_video else []
-        wrist_frames = [obs["wrist_images"]] if cfg.save_video else []
+        wrist_frames = [obs["wrist_images"]] if cfg.save_video and cfg.save_wrist_video else []
 
         # LTL safety monitor — records throughout the rollout but NEVER ends it
         # (success / max_steps govern termination). scene_model=None: evaluate
@@ -751,7 +751,8 @@ def main():
                             }) + "\n")
                     if cfg.save_video:
                         main_frames.append(obs["overview_image"])
-                        wrist_frames.append(obs["wrist_images"])
+                        if cfg.save_wrist_video:
+                            wrist_frames.append(obs["wrist_images"])
                     step_idx += 1
                     total_reward += float(reward)
 
@@ -920,7 +921,8 @@ def main():
             # sees (no upscaling: keeps the saved video faithful to the input).
             (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
             imageio.mimsave(str(output_dir / f"{scene_info['name']}_main.mp4"), main_frames, fps=30)
-            imageio.mimsave(str(output_dir / f"{scene_info['name']}_wrist.mp4"), wrist_frames, fps=30)
+            if wrist_frames:
+                imageio.mimsave(str(output_dir / f"{scene_info['name']}_wrist.mp4"), wrist_frames, fps=30)
 
         # Full per-step LTL log to a sidecar (kept out of the main results to
         # avoid bloating them with thousands of per-step AP dicts).

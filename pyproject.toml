@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "maniguard"
 dynamic = ["version"]
-description = "A safety-aware benchmark and toolkit for vision-language-action manipulation: LTL-monitored task generation, data collection, SFT, and policy evaluation on BEHAVIOR-1K / OmniGibson"
+description = "A benchmark and data suite for specification-grounded safety evaluation and improvement of robotic manipulation"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -48,6 +48,9 @@ dev = [
 ]
 
 [project.urls]
+Homepage = "https://nu-ideas-lab.github.io/ManiGuard/"
+Documentation = "https://nu-ideas-lab.github.io/ManiGuard/docs/"
+Paper = "https://arxiv.org/abs/2608.17386"
 Repository = "https://github.com/NU-IDEAS-Lab/ManiGuard"
 
 [tool.setuptools.packages.find]
