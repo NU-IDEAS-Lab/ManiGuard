@@ -1,15 +1,15 @@
-<h1 align="center">ManiGuard: A Benchmark and Data Suite for<br>
-Specification-Grounded Safety Evaluation and Improvement of Robotic Manipulation</h1>
+<h1 align="center">ManiGuard</h1>
 
 <p align="center">
   <a href="https://arxiv.org/abs/2608.17386"><img src="https://img.shields.io/badge/arXiv-2608.17386-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://nu-ideas-lab.github.io/ManiGuard/"><img src="https://img.shields.io/badge/Project-Page-3D888C.svg" alt="Project Page"></a>
   <a href="https://nu-ideas-lab.github.io/ManiGuard/docs/"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Documentation"></a>
-  <a href="https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Benchmark%20%26%20Datasets-yellow" alt="Hugging Face"></a>
+  <a href="https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Bench%20%26%20Data-yellow" alt="Hugging Face"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green.svg" alt="License"></a>
 </p>
 
 <p align="center">
-  <img src="docs/index_gallery/overview.png" alt="ManiGuard-Bench task overview" width="760">
+  <img src="https://nu-ideas-lab.github.io/ManiGuard/static/teaser_figure.png" alt="ManiGuard project overview" width="900">
 </p>
 
 <p align="center">
@@ -20,6 +20,8 @@ Specification-Grounded Safety Evaluation and Improvement of Robotic Manipulation
 
 <p align="center">
   <a href="https://arxiv.org/abs/2608.17386"><b>📄 Paper</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://nu-ideas-lab.github.io/ManiGuard/"><b>🌐 Project Page</b></a>
   &nbsp;·&nbsp;
   <a href="https://nu-ideas-lab.github.io/ManiGuard/docs/"><b>📖 Documentation</b></a>
   &nbsp;·&nbsp;
@@ -38,8 +40,8 @@ manipulation. It pairs a **frozen evaluation benchmark** — six tabletop
 task families, each with an in-distribution base task and **four out-of-distribution
 perturbation levels** (target / language / location / env) — with **LTL-based safety
 monitoring**, so a policy is scored on **two axes: task success *and* safety**, not task
-completion alone. A capable-but-reckless policy that finishes the task while knocking a
-glass off the table is *not* a pass.
+completion alone. A rollout that completes the task while violating its task-level safety
+specification is counted as *unsafe-success*, not *safe-success*.
 
 Around the benchmark, ManiGuard provides the full **data-to-eval pipeline**:
 LTL-monitored **task generation**, **teleop + scripted data collection**, model-agnostic

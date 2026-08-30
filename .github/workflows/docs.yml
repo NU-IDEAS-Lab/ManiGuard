@@ -1,7 +1,7 @@
 name: docs
 
 # Build the site and publish it to GitHub Pages (gh-pages branch):
-#   /       <- page/  (the project page; currently a redirect to docs/)
+#   /       <- page/  (the project page)
 #   /docs/  <- the MkDocs documentation build
 # Pages source: repo Settings → Pages → "Deploy from a branch" → gh-pages.
 on:
