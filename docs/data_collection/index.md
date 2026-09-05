@@ -23,7 +23,7 @@ task-gen / bench frozen scene
 
 <figure markdown>
   ![ManiGuard demonstration engine: automated and teleop collection under a shared per-step LTL monitor](img/datagen_overall_pipeline.webp){ loading=lazy }
-  <figcaption>Both collection routes share one substrate (scenes, cameras, control, recorder) and one per-step LTL<sub>f</sub> monitor — the same monitor evaluation uses. A trajectory enters the dataset only if it succeeds <em>and</em> satisfies the task's safety spec φ, yielding 8,000 safe-success episodes across the 6 families.</figcaption>
+  <figcaption>Both collection routes share one substrate (scenes, cameras, control, recorder) and one per-step LTL<sub>f</sub> monitor — the same monitor used for evaluation. The released suite is produced by the scripted generator and contains 8,000 automatically generated, monitor-verified safe-success episodes across the six families.</figcaption>
 </figure>
 
 ---

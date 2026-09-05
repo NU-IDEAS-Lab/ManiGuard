@@ -36,12 +36,13 @@
 
 **ManiGuard** is a benchmark and data suite for specification-grounded safety
 evaluation and improvement of foundation model (e.g., VLA)-driven robotic
-manipulation. It pairs a **frozen evaluation benchmark** — six tabletop
-task families, each with an in-distribution base task and **four out-of-distribution
-perturbation levels** (target / language / location / env) — with **LTL-based safety
-monitoring**, so a policy is scored on **two axes: task success *and* safety**, not task
-completion alone. A rollout that completes the task while violating its task-level safety
-specification is counted as *unsafe-success*, not *safe-success*.
+manipulation. It pairs a **frozen evaluation benchmark** — **200 base tasks across six
+tabletop task families, each instantiated under one ID condition and four single-axis
+OOD conditions** (target appearance, language, object location, and environment) —
+with **task-level LTL<sub>f</sub> safety monitoring**, so a policy is scored on
+**two axes: task success *and* safety**, not task completion alone. A rollout that
+completes the task while violating its task-level safety specification is counted as
+*unsafe-success*, not *safe-success*.
 
 Around the benchmark, ManiGuard provides the full **data-to-eval pipeline**:
 LTL-monitored **task generation**, **teleop + scripted data collection**, model-agnostic
@@ -71,8 +72,9 @@ grasp-annotation database, and the six-family SFT demonstration datasets; and
 
 ## Quick start
 
-Requires a Linux machine with an NVIDIA RTX GPU on a **≤ 580-series driver**
-(newer drivers crash Isaac Sim) — see
+Requires a Linux machine with an NVIDIA RTX GPU. For ManiGuard's pinned
+OmniGibson / Isaac Sim 4.5 stack, we recommend a tested 5xx-series driver
+(580.x is verified); in our setup, newer drivers produced startup segfaults. See
 [System requirements](https://nu-ideas-lab.github.io/ManiGuard/docs/getting-started/installation/#system-requirements).
 
 ```bash

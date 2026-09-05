@@ -160,8 +160,8 @@
       ManiGuard-Bench organizes six contact-rich household task families into <strong>200</strong> locked base tasks along a skill &times; constraint taxonomy, with safety specified independently of task success: success does not imply safety.
       Each task is evaluated under one in-distribution and four single-axis out-of-distribution perturbations that hold the safety specification fixed, giving <strong>1,000</strong> locked evaluation scenarios.
       Every simulated rollout is runtime-checked by LTL<sub>f</sub>-grounded automaton monitors over physics-grounded predicates rather than learned classifiers or LLM judges, in Isaac Sim / OmniGibson; the same specifications are scored on a physical Franka platform.
-      The paired trajectory-generation pipeline combines an automated motion-planning generator with a human-teleoperation option, both safety-annotated by the same per-step LTL<sub>f</sub> monitor used for evaluation; it is family-agnostic and extensible, and directly supports safety-aware fine-tuning of policies toward safer behavior.
-      We release <strong>8,000</strong> safety-annotated demonstrations produced this way, 40 for every base task.
+      The paired trajectory-generation pipeline supports an automated motion-planning generator and a human-teleoperation pathway, both safety-annotated by the same per-step LTL<sub>f</sub> monitor used for evaluation; it is family-agnostic and extensible, and directly supports safety-aware fine-tuning of policies toward safer behavior.
+      We release <strong>8,000</strong> automatically generated, monitor-verified safe-success demonstrations, 40 for every base task.
       Benchmarking zero-shot and fine-tuned VLAs on ManiGuard-Bench across more than <strong>23,000</strong> evaluation rollouts, the experiments demonstrate that:
       (i) safety must be evaluated as a first-class objective independent of task success, as 6&ndash;21% of successful rollouts violate the specification and two policies with nearly identical task success differ by six points in safety violation rate;
       (ii) fine-tuning on our paired safety-annotated suite substantially improves safety, raising safe task completion from near zero to 7.5&ndash;29.8% and engaged-and-safe behavior from 16&ndash;40% to 51&ndash;72%;
@@ -223,9 +223,9 @@
       <img src="static/datagen_overall_pipeline.png" width="3236" height="1104"
            alt="Data generation pipeline" loading="lazy" decoding="async">
       <p class="cap">
-        An automated motion-planning generator and a teleoperation option share one substrate;
-        every demonstration is filtered by the <em>same</em> per-step monitor used at
-        evaluation — safe by construction, 40 demonstrations for each of the 200 tasks.
+        ManiGuard supports both automated motion-planning generation and human teleoperation
+        on a shared substrate. The released suite contains 8,000 automatically generated,
+        monitor-verified safe-success demonstrations — 40 for each of the 200 base tasks.
       </p>
     </div>
     <div class="fig-wrap" style="margin-top:1.6rem; max-width:640px;">
@@ -275,7 +275,7 @@
     <div class="finding-block">
       <div class="finding-head">
         <span class="finding-chip">III &middot; Demo scaling</span>
-        <p class="finding-title">The bottleneck is the kind of trajectories, <b style="color:#BC2A2A;">NOT</b> the amount of data.</p>
+        <p class="finding-title">More of the same demonstrations does <b style="color:#BC2A2A;">NOT</b> close the safety gap.</p>
       </div>
       <div class="fig-wrap" style="margin:0 auto; max-width:560px;"><img src="static/fig_demo_scaling.png" width="1363" height="953" alt="Demonstration scaling for pi0.5 on Clutter and Cabinet" loading="lazy" decoding="async"></div>
     </div>
@@ -283,7 +283,7 @@
     <div class="finding-block">
       <div class="finding-head">
         <span class="finding-chip">IV &middot; Specification format</span>
-        <p class="finding-title">Stating the constraint helps inconsistently: format alone <b style="color:#BC2A2A;">CANNOT</b> steer behavior.</p>
+        <p class="finding-title">Safety-specification format alone does not reliably steer behavior.</p>
       </div>
       <div class="fig-wrap" style="margin:0 auto; max-width:480px;"><img src="static/fig_q4_table.png" width="1080" height="602" alt="Effect of safety-specification format: Safe|Eng. under None, NL, and LTLf" loading="lazy" decoding="async"></div>
     </div>
