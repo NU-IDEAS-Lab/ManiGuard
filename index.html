@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ManiGuard: A Benchmark and Data Suite for Specification-Grounded Safety Evaluation and Improvement of Robotic Manipulation</title>
+  <meta name="description" content="ManiGuard pairs task-level LTLf specifications with 200 benchmark tasks (1,000 ID/OOD scenarios) and 8,000 safety-annotated demonstrations for evaluating and improving safe robotic manipulation.">
+  <link rel="canonical" href="https://nu-ideas-lab.github.io/ManiGuard/">
+
+  <meta property="og:title" content="ManiGuard: Specification-Grounded Safety for Robotic Manipulation">
+  <meta property="og:description" content="ManiGuard pairs task-level LTLf specifications with 200 benchmark tasks (1,000 ID/OOD scenarios) and 8,000 safety-annotated demonstrations for evaluating and improving safe robotic manipulation.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nu-ideas-lab.github.io/ManiGuard/">
+  <meta property="og:site_name" content="ManiGuard">
+  <meta property="og:image" content="https://nu-ideas-lab.github.io/ManiGuard/static/teaser_social_card.png">
+  <meta property="og:image:secure_url" content="https://nu-ideas-lab.github.io/ManiGuard/static/teaser_social_card.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="ManiGuard project cover showing its formal specification, benchmark, and safety-annotated data suite.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ManiGuard: Specification-Grounded Safety for Robotic Manipulation">
+  <meta name="twitter:description" content="ManiGuard pairs task-level LTLf specifications with 200 benchmark tasks (1,000 ID/OOD scenarios) and 8,000 safety-annotated demonstrations for evaluating and improving safe robotic manipulation.">
+  <meta name="twitter:image" content="https://nu-ideas-lab.github.io/ManiGuard/static/teaser_social_card.png">
+  <meta name="twitter:image:alt" content="ManiGuard project cover showing its formal specification, benchmark, and safety-annotated data suite.">
+
+  <link rel="icon" type="image/png" href="static/favicon.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans', sans-serif; color: #363636; }
+    .publication-title, .title { font-family: 'Google Sans', 'Noto Sans', sans-serif; }
+    .publication-title { line-height: 1.25; }
+    .publication-authors { font-size: 1.08rem; }
+    .publication-authors .author-block { display: inline-block; margin: 0 .35em; }
+    .publication-authors a { color: inherit; }
+    .publication-authors a:hover { color: #3273dc; text-decoration: underline; }
+    .affil { font-size: .95rem; color: #555; }
+    .link-block { margin: 0 .18rem .4rem; }
+
+    section.band { padding: 3.2rem 1.5rem; }
+    .sec-title { display: flex; align-items: center; gap: 1.4rem; justify-content: center;
+                 max-width: 760px; margin: 0 auto 1.6rem; }
+    .sec-title::before, .sec-title::after { content: ""; flex: 1; height: 1px; background: #d8d8d8; }
+    .sec-title h2 { margin-bottom: 0 !important; white-space: nowrap; }
+    section.band.tight { padding: 2.2rem 1.5rem; }
+
+    .tagline { font-size: 1.15rem; max-width: 46rem; margin: 1.4rem auto 0; line-height: 1.65; }
+    .fig-wrap { max-width: 880px; margin: 1.2rem auto 0; }
+    .fig-wrap img, .fig-wrap video { width: 100%; border-radius: 8px; display: block; }
+    .cap { font-size: .9rem; color: #6a6a6a; margin: .7rem 0 0; line-height: 1.55; text-align: left; }
+    .figure-img { border-radius: 8px; }
+    .abstract-copy { max-width: 880px; margin: 0 auto; font-size: 1rem; line-height: 1.75;
+                     text-align: justify; }
+
+    .stat-box .heading { font-size: .78rem; letter-spacing: .06em; color: #888; }
+    .stat-box .title { margin-bottom: 0; }
+
+    .finding-block { margin-top: 3.4rem; text-align: center; }
+    .finding-block:first-of-type { margin-top: 1.5rem; }
+    .finding-head { display: flex; align-items: center; gap: 1.1rem; margin-bottom: 1.6rem; text-align: left; }
+    .finding-chip { background: #3D888C; color: #fff; font-weight: 700; font-size: 1.02rem;
+                    padding: .42rem 1.15rem; border-radius: 9px; white-space: nowrap;
+                    font-family: 'Google Sans','Noto Sans',sans-serif; }
+    .finding-title { font-size: 1.42rem; font-weight: 600; color: #2a2a2a; margin: 0;
+                     font-family: 'Google Sans','Noto Sans',sans-serif; line-height: 1.4; }
+
+    pre.bibtex { text-align: left; font-size: .8rem; border-radius: 8px; }
+    .footer { padding: 2.5rem 1.5rem; }
+
+    @media (max-width: 768px) {
+      .hero-body { padding: 2rem 1rem 1.2rem !important; }
+      .publication-title { font-size: 1.75rem !important; }
+      .publication-authors { font-size: .95rem; }
+      section.band { padding: 2.5rem 1rem; }
+      section.band.tight { padding: 1.8rem 1rem; }
+      .sec-title { gap: .8rem; margin-bottom: 1.25rem; }
+      .sec-title::before, .sec-title::after { display: none; }
+      .sec-title h2 { white-space: normal; text-align: center; font-size: 1.65rem; }
+      .abstract-copy { text-align: left; }
+      .finding-block { margin-top: 2.8rem; }
+      .finding-head { flex-direction: column; align-items: flex-start; gap: .7rem;
+                      margin-bottom: 1.2rem; }
+      .finding-chip { white-space: normal; font-size: .94rem; }
+      .finding-title { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================== HERO ============================== -->
+<section class="hero">
+  <div class="hero-body" style="padding-bottom:1.2rem;">
+    <div class="container is-max-desktop has-text-centered">
+      <h1 class="title is-2 publication-title">
+        <span style="color:#3D888C;">ManiGuard</span>: A Benchmark and Data Suite for
+        Specification-Grounded Safety Evaluation and Improvement of Robotic Manipulation
+      </h1>
+      <div class="publication-authors">
+        <span class="author-block"><a href="https://666harrypeng.github.io/">Yiyan Peng</a><sup>*,1</sup></span>
+        <span class="author-block"><a href="https://philipwzf.github.io/">Philip Wang</a><sup>*,1</sup></span>
+        <span class="author-block"><a href="https://simon-zhan.com/">Simon Sinong Zhan</a><sup>*,&dagger;,1</sup></span>
+        <span class="author-block"><a href="https://yiqilyu.me/">Yiqi Lyu</a><sup>1</sup></span>
+        <span class="author-block"><a href="https://scholar.google.com/citations?user=3vmr65IAAAAJ&amp;hl=en">Zhenyang Ni</a><sup>1</sup></span>
+        <span class="author-block"><a href="https://jixinyan.github.io/">Jixin Yan</a><sup>1</sup></span>
+        <span class="author-block"><a href="https://www.linkedin.com/in/fiorelliwong/">Fiorelli Wong</a><sup>1</sup></span>
+        <span class="author-block"><a href="https://jrcblue.github.io/">Ruochen Jiao</a><sup>1</sup></span>
+        <span class="author-block"><a href="https://hang-yin.github.io/">Hang Yin</a><sup>2</sup></span>
+        <span class="author-block"><a href="https://www.linkedin.com/in/xinyu-cao-b6959214a/">Xinyu Cao</a><sup>1</sup></span>
+        <span class="author-block"><a href="https://huajieshao.github.io/">Huajie Shao</a><sup>3</sup></span>
+        <span class="author-block"><a href="https://limanling.github.io/">Manling Li</a><sup>1</sup></span>
+        <span class="author-block"><a href="https://ruohanzhang.com/">Ruohan Zhang</a><sup>1,2</sup></span>
+        <span class="author-block"><a href="https://www.mccormick.northwestern.edu/research-faculty/directory/profiles/zhu-qi.html">Qi Zhu</a><sup>1</sup></span>
+      </div>
+      <div class="affil" style="margin-top:.5rem;">
+        <sup>1</sup>Northwestern University &nbsp;&nbsp; <sup>2</sup>Stanford University &nbsp;&nbsp; <sup>3</sup>William &amp; Mary<br>
+        <sup>*</sup>Equal contribution &nbsp;&nbsp; <sup>&dagger;</sup>Project lead
+      </div>
+      <div style="margin-top:1.2rem;">
+        <span class="link-block"><a href="https://arxiv.org/abs/2608.17386" class="button is-dark is-rounded">
+          <span class="icon"><i class="fas fa-file-alt"></i></span><span>arXiv</span></a></span>
+        <span class="link-block"><a href="https://github.com/NU-IDEAS-Lab/ManiGuard" class="button is-dark is-rounded">
+          <span class="icon"><i class="fab fa-github"></i></span><span>Code</span></a></span>
+        <span class="link-block"><a href="docs/" class="button is-dark is-rounded">
+          <span class="icon"><i class="fas fa-book"></i></span><span>Docs</span></a></span>
+        <span class="link-block"><a href="https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e" class="button is-dark is-rounded">
+          <span>&#129303; Bench &amp; Data</span></a></span>
+        <span class="link-block"><a href="./" class="button is-dark is-rounded" title="X thread coming soon" aria-label="X thread coming soon">
+          <span class="icon"><i class="fa-brands fa-x-twitter"></i></span><span>Thread</span></a></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== TEASER ============================== -->
+<section class="band tight" style="padding-top:.6rem;">
+  <div class="container is-max-desktop">
+    <div class="fig-wrap" style="margin-top:0; max-width:960px;">
+      <img src="static/teaser_figure.png" width="4400" height="2475" alt="ManiGuard project overview"
+           decoding="async" fetchpriority="high">
+      <p class="cap">
+        <b>ManiGuard</b> pairs task-level LTL<sub>f</sub> specifications with 200 benchmark
+        tasks (1,000 ID/OOD scenarios) and 8,000 safety-annotated demonstrations for
+        evaluating and improving safe robotic manipulation.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== ABSTRACT ============================== -->
+<section class="band tight">
+  <div class="container is-max-desktop">
+    <div class="sec-title"><h2 class="title is-3">Abstract</h2></div>
+    <p class="abstract-copy">
+      Foundation-model policies for robotic manipulation are advancing rapidly on task success, but rigorous evaluation of whether they succeed <em>safely</em> is still lacking.
+      We introduce ManiGuard, a specification-grounded framework for evaluating and improving the safety of foundation-model manipulation, comprising the ManiGuard-Bench task suite for evaluation and a paired safety-annotated trajectory-generation pipeline for improvement.
+      ManiGuard-Bench organizes six contact-rich household task families into <strong>200</strong> locked base tasks along a skill &times; constraint taxonomy, with safety specified independently of task success: success does not imply safety.
+      Each task is evaluated under one in-distribution and four single-axis out-of-distribution perturbations that hold the safety specification fixed, giving <strong>1,000</strong> locked evaluation scenarios.
+      Every simulated rollout is runtime-checked by LTL<sub>f</sub>-grounded automaton monitors over physics-grounded predicates rather than learned classifiers or LLM judges, in Isaac Sim / OmniGibson; the same specifications are scored on a physical Franka platform.
+      The paired trajectory-generation pipeline supports an automated motion-planning generator and a human-teleoperation pathway, both safety-annotated by the same per-step LTL<sub>f</sub> monitor used for evaluation; it is family-agnostic and extensible, and directly supports safety-aware fine-tuning of policies toward safer behavior.
+      We release <strong>8,000</strong> automatically generated, monitor-verified safe-success demonstrations, 40 for every base task.
+      Benchmarking zero-shot and fine-tuned VLAs on ManiGuard-Bench across more than <strong>23,000</strong> evaluation rollouts, the experiments demonstrate that:
+      (i) safety must be evaluated as a first-class objective independent of task success, as 6&ndash;21% of successful rollouts violate the specification and two policies with nearly identical task success differ by six points in safety violation rate;
+      (ii) fine-tuning on our paired safety-annotated suite substantially improves safety, raising safe task completion from near zero to 7.5&ndash;29.8% and engaged-and-safe behavior from 16&ndash;40% to 51&ndash;72%;
+      but (iii) a substantial gap remains that scaling the same demonstrations does not close, with 21&ndash;42% of engaged rollouts still violating &phi;, two of the six task families below 2% safe success for every policy, and these failures persisting under distribution shift and on hardware.
+    </p>
+  </div>
+</section>
+
+<!-- ============================== FRAMEWORK ============================== -->
+<section class="band">
+  <div class="container is-max-desktop has-text-centered">
+    <div class="sec-title"><h2 class="title is-3">Framework</h2></div>
+    <div class="fig-wrap">
+      <img src="static/overall_pipeline.webp" width="1815" height="1336"
+           alt="ManiGuard framework overview" loading="lazy" decoding="async">
+      <p class="cap">
+        Safety is specified independently of task success as LTL<sub>f</sub> constraints and
+        compiled into automaton monitors over physics-grounded predicates — no learned
+        classifiers, no LLM judges. The same monitor that scores evaluation rollouts also
+        annotates the demonstration suite.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== BENCHMARK ============================== -->
+<section class="band">
+  <div class="container is-max-desktop has-text-centered">
+    <div class="sec-title"><h2 class="title is-3">ManiGuard-Bench</h2></div>
+    <nav class="level" style="margin-bottom:.6rem; margin-top:1.6rem;">
+      <div class="level-item has-text-centered stat-box"><div><p class="heading">Task families</p><p class="title is-3">6</p></div></div>
+      <div class="level-item has-text-centered stat-box"><div><p class="heading">Base tasks</p><p class="title is-3">200</p></div></div>
+      <div class="level-item has-text-centered stat-box"><div><p class="heading">Eval scenarios</p><p class="title is-3">1,000</p></div></div>
+      <div class="level-item has-text-centered stat-box"><div><p class="heading">Safe demos</p><p class="title is-3">8,000</p></div></div>
+      <div class="level-item has-text-centered stat-box"><div><p class="heading">Eval rollouts</p><p class="title is-3">23,000+</p></div></div>
+    </nav>
+    <p style="font-size:.9rem; color:#888; margin-bottom:2rem;">
+      1,000 scenarios&nbsp;=&nbsp;200 base tasks&nbsp;&times;&nbsp;(<b style="color:#3D888C;">1 ID</b>&nbsp;+&nbsp;<b style="color:#3D888C;">4 single-axis OOD</b> conditions)
+    </p>
+    <div class="fig-wrap">
+      <img src="static/ood_pipeline.png" width="3453" height="1618"
+           alt="ID and OOD structure of ManiGuard-Bench" loading="lazy" decoding="async">
+      <p class="cap">
+        <b>One ID + four OOD conditions per task.</b> Every base (in-distribution) task is
+        perturbed along exactly one axis at a time — target appearance, environment
+        background, object location, or instruction language — while the safety
+        specification and its monitor stay fixed. A drop in safe-success under a single
+        axis therefore isolates <em>what</em> the policy's safety depends on.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== DATA GENERATION ============================== -->
+<section class="band">
+  <div class="container is-max-desktop has-text-centered">
+    <div class="sec-title"><h2 class="title is-3">Safety-Annotated Data Generation</h2></div>
+    <div class="fig-wrap">
+      <img src="static/datagen_overall_pipeline.png" width="3236" height="1104"
+           alt="Data generation pipeline" loading="lazy" decoding="async">
+      <p class="cap">
+        ManiGuard supports both automated motion-planning generation and human teleoperation
+        on a shared substrate. The released suite contains 8,000 automatically generated,
+        monitor-verified safe-success demonstrations — 40 for each of the 200 base tasks.
+      </p>
+    </div>
+    <div class="fig-wrap" style="margin-top:1.6rem; max-width:640px;">
+      <video muted loop playsinline controls preload="none" data-autoplay-on-view
+             poster="static/datagen_6fam_montage_poster.jpg"
+             aria-label="Monitor-checked demonstrations across the six task families">
+        <source src="static/datagen_6fam_montage.mp4" type="video/mp4">
+      </video>
+      <p class="cap" style="text-align:center;">Monitor-checked demonstrations across the six task families.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== FINDINGS ============================== -->
+<section class="band">
+  <div class="container is-max-desktop">
+    <div class="sec-title"><h2 class="title is-3">What 23,000+ Rollouts Show</h2></div>
+
+    <div class="finding-block">
+      <div class="finding-head">
+        <span class="finding-chip">I &middot; Safety across the taxonomy</span>
+        <p class="finding-title">Task completion does <b style="color:#BC2A2A;">NOT</b> imply safety — and the raw safe rate does <b style="color:#BC2A2A;">NOT</b> measure it.</p>
+      </div>
+      <div class="fig-wrap" id="qualitative-safety-example" style="margin:0 auto 1.8rem; max-width:960px;">
+        <video muted loop playsinline controls preload="none" data-autoplay-on-view
+               poster="static/safe_unsafe_rollout_comparison_poster.jpg"
+               aria-label="Safe and unsafe successful rollouts under spatial and temporal safety constraints">
+          <source src="static/safe_unsafe_rollout_comparison.mp4" type="video/mp4">
+        </video>
+        <p class="cap">
+          Both rollouts complete the task, but only one satisfies the task-level safety
+          specification. The figures below quantify this unsafe-success outcome across policies.
+        </p>
+      </div>
+      <div class="fig-wrap" style="margin:0 auto; max-width:1080px;"><img src="static/fig_main_table.png" width="2696" height="618" alt="ID safety evaluation: per-family SSR and overall outcome metrics" loading="lazy" decoding="async"></div>
+      <div class="fig-wrap" style="margin:1.2rem auto 0;"><img src="static/fig_q1_analysis.png" width="2122" height="661" alt="Outcome composition of ID rollouts, zero-shot vs SFT" loading="lazy" decoding="async"></div>
+    </div>
+
+    <div class="finding-block">
+      <div class="finding-head">
+        <span class="finding-chip">II &middot; OOD shift</span>
+        <p class="finding-title">Safe-success does <b style="color:#BC2A2A;">NOT</b> survive observation shift — each policy breaks along its own axis.</p>
+      </div>
+      <div class="fig-wrap" style="margin:0 auto;"><img src="static/fig_ood_gap.png" width="2082" height="826" alt="Safe-success generalization gaps under single-axis OOD shift" loading="lazy" decoding="async"></div>
+    </div>
+
+    <div class="finding-block">
+      <div class="finding-head">
+        <span class="finding-chip">III &middot; Demo scaling</span>
+        <p class="finding-title">More of the same demonstrations does <b style="color:#BC2A2A;">NOT</b> close the safety gap.</p>
+      </div>
+      <div class="fig-wrap" style="margin:0 auto; max-width:560px;"><img src="static/fig_demo_scaling.png" width="1363" height="953" alt="Demonstration scaling for pi0.5 on Clutter and Cabinet" loading="lazy" decoding="async"></div>
+    </div>
+
+    <div class="finding-block">
+      <div class="finding-head">
+        <span class="finding-chip">IV &middot; Specification format</span>
+        <p class="finding-title">Safety-specification format alone does not reliably steer behavior.</p>
+      </div>
+      <div class="fig-wrap" style="margin:0 auto; max-width:480px;"><img src="static/fig_q4_table.png" width="1080" height="602" alt="Effect of safety-specification format: Safe|Eng. under None, NL, and LTLf" loading="lazy" decoding="async"></div>
+    </div>
+
+    <div class="finding-block">
+      <div class="finding-head">
+        <span class="finding-chip">V &middot; Sim-to-real</span>
+        <p class="finding-title">Simulation predicts which policy is safer, <b style="color:#BC2A2A;">NOT</b> how unsafe it is.</p>
+      </div>
+      <div class="fig-wrap" style="margin:0 auto;"><img src="static/fig_sim2real_ab.png" width="2129" height="763" alt="Sim-to-real transfer" loading="lazy" decoding="async"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================== BIBTEX ============================== -->
+<section class="band tight" id="BibTeX" style="background:#f5f5f5;">
+  <div class="container is-max-desktop">
+    <h2 class="title is-4">BibTeX</h2>
+    <pre class="bibtex"><code>@misc{peng2026maniguard,
+  title         = {{MANIGUARD}: A Benchmark and Data Suite for Specification-Grounded
+                   Safety Evaluation and Improvement of Robotic Manipulation},
+  author        = {Peng, Yiyan and Wang, Philip and Zhan, Simon Sinong and Lyu, Yiqi
+                   and Ni, Zhenyang and Yan, Jixin and Wong, Fiorelli and Jiao, Ruochen
+                   and Yin, Hang and Cao, Xinyu and Shao, Huajie and Li, Manling
+                   and Zhang, Ruohan and Zhu, Qi},
+  year          = {2026},
+  eprint        = {2608.17386},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.RO},
+  url           = {https://arxiv.org/abs/2608.17386},
+}</code></pre>
+  </div>
+</section>
+
+<!-- ============================== FOOTER ============================== -->
+<footer class="footer">
+  <div class="container is-max-desktop has-text-centered">
+    <p style="font-size:.9rem; color:#666;">
+      Code: Apache-2.0 &nbsp;·&nbsp; Released datasets and assets use repository-specific licenses;
+      see the individual release cards and applicable upstream terms.
+      Built on <a href="https://github.com/StanfordVL/BEHAVIOR-1K">BEHAVIOR-1K</a> / OmniGibson (NVIDIA Isaac Sim).<br>
+      Template adapted from <a href="https://github.com/nerfies/nerfies.github.io">Nerfies</a>
+      (<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>).
+    </p>
+  </div>
+</footer>
+
+<script>
+  (() => {
+    const videos = document.querySelectorAll('video[data-autoplay-on-view]');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion || !('IntersectionObserver' in window)) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const video = entry.target;
+        if (entry.isIntersecting) {
+          const playPromise = video.play();
+          if (playPromise !== undefined) playPromise.catch(() => {});
+        } else {
+          video.pause();
+        }
+      });
+    }, { threshold: 0.25 });
+
+    videos.forEach((video) => observer.observe(video));
+  })();
+</script>
+
+</body>
+</html>
