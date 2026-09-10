@@ -5,6 +5,7 @@
   <a href="https://nu-ideas-lab.github.io/ManiGuard/"><img src="https://img.shields.io/badge/Project-Page-3D888C.svg" alt="Project Page"></a>
   <a href="https://nu-ideas-lab.github.io/ManiGuard/docs/"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Documentation"></a>
   <a href="https://huggingface.co/collections/IDEAS-Lab-Northwestern/maniguard-benchmark-and-datasets-6a83d488178bcba81688cd4e"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Bench%20%26%20Data-yellow" alt="Hugging Face"></a>
+  <a href="https://x.com/SimonZHAN7/status/2098153581610483899"><img src="https://img.shields.io/badge/X-Thread-000000.svg?logo=x" alt="X Thread"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green.svg" alt="License"></a>
 </p>
 
