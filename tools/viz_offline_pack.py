@@ -1,32 +1,13 @@
-"""Visualize the offline max-rectangles pack for a given object set + surface.
+"""Visualize an offline object-packing result from packaged geometry catalogs.
 
-Reads object AABBs from ``object_footprints.json`` and surface bounds from
-``placeable_surfaces_v1.json`` so the visualization uses exactly the same
-inputs the pipeline does. Saves a PNG showing:
+Read unscaled object extents and a selected support region, apply the requested
+edge buffer and clearance, and run solve_pack. Plot placed rectangles, padded
+footprints, and unplaced instance identifiers in the surface catalog frame.
+The plot is a geometric diagnostic; it does not simulate placement or prove
+that runtime scaling and poses match the plotted inputs.
 
-  * The full surface region (light grey).
-  * The 2 cm shrunken pack region (dashed black outline).
-  * Each placed object as a coloured rectangle (target = red, fragile =
-    orange, clutter = blue), labelled with ``{category}/{model}``.
-  * Padded AABB (faded outline) so you can see the clearance budget.
-  * Unplaced objects listed in the figure title.
-
-Run examples
-------------
-# Episode 1 of the validation sim (Wainscott_0_garden countertop tpuwys):
-python tools/viz_offline_pack.py \\
-    --surface-cat countertop --surface-model tpuwys \\
-    --target shampoo_dispenser/nrthyl \\
-    --fragile vase/hkwtnf goblet/nawrfs wineglass/adiwil wineglass/akusda \\
-    --clutter scoop/oaghrf mug/yxaapv
-
-# Episode 4 (the bottle_of_beer failure case):
-python tools/viz_offline_pack.py \\
-    --surface-cat breakfast_table --surface-model iaritq \\
-    --target bottle_of_beer/ikgezm \\
-    --fragile vase/hkwtnf vase/nuqzjs wineglass/adiwil wineglass/akusda \\
-    --clutter box_of_granola_bars/bqeeki hardback/qomarm
-"""
+Example:
+    python tools/viz_offline_pack.py --surface-cat countertop --surface-model tpuwys --target shampoo_dispenser/nrthyl"""
 from __future__ import annotations
 
 import argparse

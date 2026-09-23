@@ -1,19 +1,13 @@
-"""Prune user-decided bad tasks from a finalized ManiGuard-Bench family + reindex contiguously.
+"""Delete explicitly selected tasks and renumber the remaining base tasks.
 
-After a full ``run_finalize_base`` run, fails land in ``base_manifest.jsonl`` (+ a ``drop_list.json``
-CANDIDATE list). The user reviews them: tool bugs get fixed (re-validate, not dropped); genuinely
-unreasonable tasks (e.g. jar task_0004 — light container + heavy lid tips over) get pruned here.
+The command removes task directories, renames survivors to task_0000 onward,
+updates base result rows and base_manifest.jsonl, and writes a mapping from
+new names to the names present before this invocation. It also removes
+drop_list.json. Run this before generating variants or review snapshots, whose
+separate manifests and image names are not updated. Use --dry-run to inspect
+the proposed deletions and renames without writing files.
 
-``prune_and_reindex(family, drop)`` deletes the dropped task folders and renames the survivors to a
-gap-free ``task_0000..`` sequence — the bench keeps its OWN contiguous index, decoupled from the
-read-only source. Only the folder name + the per-task ``_finalize_row.json``/manifest ``task`` field
-carry the index (activity_name's ``trial_N`` is a decoupled generation label that moves with the
-task; the snapshot/videos carry no index), so this is a pure rename + manifest rebuild. Writes
-``_index_map.json`` (``bench task -> original task``, = source task pre-prune) for traceability and
-deletes ``drop_list.json``.
-
-Usage:
-  python -m maniguard.data.bench_builder.prune_reindex --family jar_transport --drop 4
+Example:
   python -m maniguard.data.bench_builder.prune_reindex --family clutter_pickup --drop 3,17 --dry-run
 """
 from __future__ import annotations
@@ -48,7 +42,7 @@ def prune_and_reindex(family: str, drop: set[str], out_root: str = OUT_ROOT_DEFA
         raise ValueError(f"--drop names not present in {fam_dir}: {missing}")
 
     keep = [t for t in tasks if t not in drop]                       # sorted ascending
-    index_map = {f"task_{i:04d}": old for i, old in enumerate(keep)}  # new -> original(=source)
+    index_map = {f"task_{i:04d}": old for i, old in enumerate(keep)}  # new name -> name before this invocation
     renames = [(old, new) for new, old in index_map.items() if new != old]  # new<=old -> asc-safe
 
     plan = {

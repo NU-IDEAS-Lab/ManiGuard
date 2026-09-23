@@ -1,19 +1,9 @@
-"""Correct the hand-typed ``approach_hint`` of each annotated grasp from its ACTUAL stored
-eef pose — NO sim.
+"""Derive approach_hint from each stored grasp orientation.
 
-The viser tool's ``approach_hint`` is a manual dropdown (defaults to top_down) and is often
-left wrong (e.g. a side grasp still tagged top_down). This derives the true approach class
-from the grasp orientation (gripper +Z = approach), expressed in the object's UPRIGHT/world
-frame, and:
-  * CONFIDENT class that differs from the stored hint  -> corrected in grasp_annotations.json
-  * AMBIGUOUS (in-between top_down/side or side/bottom_up band) -> left as-is and REPORTED
-    for the user to decide.
-
-Default is a dry-run (report only). Pass --apply to write the corrections back.
-
-  conda activate behavior
-  PYTHONPATH=$HOME/project/ManiGuard \
-  python -m maniguard.data.datagen.annotation.fix_approach_tags [--family clutter] [--apply]
+Transform the end-effector +Z axis into the upright object frame and classify its
+angle from downward: top_down through 60 degrees, side between 60 and 120 degrees,
+and bottom_up from 120 degrees. The current classifier has no ambiguous band.
+Report changes by default; pass --apply to update grasp_annotations.json.
 """
 from __future__ import annotations
 

@@ -261,7 +261,7 @@ def main():
     # the shared load-side rule (camera_setup.place_recorded_task_cameras)
     # applies the ``cameras`` recorded in the snapshot's sibling
     # diagnostics.jsonl — the same views datagen/eval/playback use — with the
-    # canonical robot-frame recompute as the (warned) fallback for legacy
+    # canonical robot-frame recompute as the (warned) fallback for
     # snapshots without recorded poses.
     from maniguard.utils.camera_setup import place_recorded_task_cameras
 

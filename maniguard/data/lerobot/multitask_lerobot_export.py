@@ -6,7 +6,8 @@ Discovers rendered episodes under --input-root (both layouts auto-detected):
     nested: <input_root>/task_NNNN/<subdir>/scene_ep*.hdf5
 
 and looks up each task's language prompt at
-    <diag_root>/<task_id>/diagnostics.jsonl
+    <diag_root>/<task_id>/<subdir>/diagnostics.jsonl
+with a fallback to <diag_root>/<task_id>/diagnostics.jsonl.
 
 All episodes merge into ONE dataset whose meta/tasks.jsonl enumerates the unique
 prompts; each frame's task_index resolves to the right prompt at train time.
@@ -20,13 +21,11 @@ The schema is auto-selected from the playback fingerprint stamped on each HDF5
     n_cams=2         -> image + wrist_image
 
 Usage:
-    .venv-lerobot/bin/python -m maniguard.data.lerobot.multitask_lerobot_export \\
-        --input-root outputs/teleop_rendered_maniguard-demo/dusty_transfer \\
-        --diag-root outputs/benchmark_base_task_sets_reviewed/05_HF_6fam-base/dusty_transfer \\
-        --repo-id IDEAS-Lab-Northwestern/sim-dusty-transfer-joint \\
-        --root outputs/lerobot_datasets/sim-dusty-transfer-joint \\
-        --push-to-hub IDEAS-Lab-Northwestern/sim-dusty-transfer-joint \\
-        --hub-private
+    python -m maniguard.data.lerobot.multitask_lerobot_export \
+        --input-root /path/to/rendered_episodes \
+        --diag-root outputs/lerobot_datasets/maniguard-bench/dusty_transfer \
+        --repo-id IDEAS-Lab-Northwestern/sim-dusty-transfer-joint \
+        --root /path/to/output_dataset
 """
 from __future__ import annotations
 
@@ -50,7 +49,7 @@ def _load_prompt(diag_path: Path) -> str:
     """Extract ``prompt`` from a diagnostics file.
 
     Handles two on-disk shapes: a pretty-printed single JSON object (the
-    6fam-base benchmark tasks, multi-line) and JSONL (one compact record per
+    ManiGuard benchmark tasks, multi-line) and JSONL (one compact record per
     line). Tries whole-file JSON first, then falls back to the first line.
     """
     text = diag_path.read_text()
@@ -138,10 +137,9 @@ def _compute_eef_delta_actions(
     return actions
 
 
-# Schema tables, indexed by the playback fingerprint. These ARE the
-# "hardcoded per-config" mappings -- the export reads the stamp and looks the
-# schema up here, no per-run flags. Image obs keys are in dataset column order
-# (rendered HDF5 stores them under obs/<key>); state is always 8D.
+# Schema tables indexed by the playback fingerprint. Image keys follow
+# dataset column order; rendered HDF5 stores them under obs/<key>.
+# Both supported state layouts have eight values.
 _IMAGE_KEYS = {
     2: ["image", "wrist_image"],
     3: ["image_left", "image_right", "wrist_image"],
@@ -281,7 +279,7 @@ def main():
     for tid in sorted(by_task):
         # Prompt lookup honours --subdir: flat-rendered families (task_*_traj_*.hdf5)
         # still keep their per-task diagnostics under <tid>/<subdir>/ in the base-task
-        # tree (e.g. 6fam-base/<family>/task_NNNN/base/diagnostics.jsonl). Fall back
+        # tree (e.g. maniguard-bench/<family>/task_NNNN/base/diagnostics.jsonl). Fall back
         # to <tid>/diagnostics.jsonl for trees that store it flat at the task level.
         diag_path = args.diag_root / tid / args.subdir / "diagnostics.jsonl"
         if not diag_path.exists():

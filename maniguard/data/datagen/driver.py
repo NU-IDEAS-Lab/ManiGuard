@@ -1,14 +1,11 @@
-"""Layer-3 driver / orchestration (family-agnostic).
+"""Single-task orchestration for scripted demonstration collection.
 
-Single-task flow:
-  scene_from_task_dir → family skeleton derives waypoints → per-subtask cuRobo plan
-  (grasp / move / contact primitives) → JointController execute → Recorder → commit
-  on success / abort on failure.
+Reconstruct a frozen task, initialize its family skeleton and shared executor,
+sample grasp and motion variants, and record attempts that pass the configured
+goal, safety, and family acceptance checks. Collection can use a bounded number
+of variants per grasp or a target number of accepted demonstrations.
 
-Also: batch sweep over a family's tasks (n variants each) + quality-audit artifacts
-(per-family base|demo grids + success-rate stats), 2 tmux concurrent like the bench.
-
-Filled in Step 2 (clutter end-to-end template) — see doc §6, §9.
+Use datagen.sweep to collect across multiple tasks in separate processes.
 """
 from __future__ import annotations
 
@@ -48,15 +45,15 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
 
     t0 = time.time()
     task_dir = Path(task_dir)
-    skeleton = FAMILY[family]()                        # built early so its grasping_mode() (the family
+    skeleton = FAMILY[family]()                        # Initialize the family before reading its grasping-mode default.
     # liquid/particle tasks (diagnostics selection.system_name, e.g. "water") REQUIRE GPU dynamics +
     # flatcache OFF or the PhysX water system NaN-segfaults at init; dry tasks stay on the CPU pipeline.
     # Must be decided BEFORE init_omnigibson (gm macros take effect only before `import omnigibson`).
     needs_gpu = scenemod.task_needs_gpu_dynamics(task_dir)
     if needs_gpu:
         print("[driver] liquid/particle task -> gm.USE_GPU_DYNAMICS=True, ENABLE_FLATCACHE=False", flush=True)
-    og = scenemod.init_omnigibson(headless=headless, needs_gpu_dynamics=needs_gpu)   # default, e.g. cabinet
-    ag_mode = grasping_mode or skeleton.grasping_mode()   # -> "sticky"; CLI --grasping-mode wins
+    og = scenemod.init_omnigibson(headless=headless, needs_gpu_dynamics=needs_gpu)   # Initialize the selected physics configuration.
+    ag_mode = grasping_mode or skeleton.grasping_mode()   # CLI override takes precedence over the family default.
     print(f"[driver] grasping_mode={ag_mode!r} (family default={skeleton.grasping_mode()!r}, "
           f"cli_override={grasping_mode!r})", flush=True)
     bundle = scenemod.scene_from_task_dir(
@@ -71,7 +68,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     # takes the goal from it and the engine takes the recorded prompt from it -- so one
     # substitution here keeps success checking and language consistent, and consistent with
     # eval, which applies the same table to its scene_info. Omitted (the default) = the
-    # shipped full-horizon task, byte-identical to before this hook existed.
+    # task's stored full-horizon goal and instruction.
     if horizon_override:
         from maniguard.eval.horizon_override import apply_horizon_override
         # Key includes the perturbation level (…/task_0019/base): a variant hard-codes concrete
@@ -116,14 +113,11 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
 
     world = obstacles.CuroboWorld(env, robot)
     gate = build_gate(env, bundle.diagnostics, surface_name=surface_name)
-    skeleton.select_grasps(ctx, world, robot)   # built earlier (grasping_mode); pre-filter family-internal aux grasps
+    skeleton.select_grasps(ctx, world, robot)   # Pre-filter family-internal auxiliary grasps.
     engine = DemoEngine(env, robot, world, timeout=timeout, steps_per_waypoint=steps_per_waypoint,
-                        max_steps=4500, plan_tries=4)   # max_steps: the 4-phase cabinet demo lands ~3.6-3.7k
-    #                                       steps (backstop, safe for shorter families). plan_tries=4: each
-    #                                       cuRobo FREE segment retries with a fresh seed up to 4x — a failing
-    #                                       segment (e.g. the winding close_pre) gets more shots, a succeeding
-    #                                       one breaks on try 1 (no extra cost). Lifts the ~50% close_pre rate.
-    recorder = record.Recorder()      # sim-state dump ON (D7 MimicGen hook); recorder pads if ragged
+                        max_steps=4500, plan_tries=4)   # Bound rollout length and retry failed plans up to four times.
+                        # Each retry samples fresh planner seeds; successful plans return immediately.
+    recorder = record.Recorder()      # Record simulation states, padding variable-length dumps.
 
     cands = skeleton.grasp_candidates(ctx)
     if grasp_ids is not None:
@@ -158,9 +152,9 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     from maniguard.data.datagen.executor.resume import compute_next_draw, resolve_start_k
     summary_path = out_base / "_summary.json"
     prev_summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
-    # on-disk floor: the highest draw index any existing traj already used (new-encoding trajs carry
-    # draw_index; pre-fix "old encoding" trajs used a disjoint seed space + no draw_index -> skipped).
-    # This makes resume re-draw-proof even if the summary's next_draw was lost (dedup/crash/partial run).
+    # Floor the resume cursor at the highest draw_index stored on disk.
+    # Trajectories without draw_index do not contribute to this bound.
+    # This protects against a missing or incomplete summary cursor.
     ondisk_max_draw = -1
     for _mp in out_base.glob("traj_*/meta.json"):
         try:
@@ -271,9 +265,7 @@ if __name__ == "__main__":
              score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos,
              grasping_mode=a.grasping_mode, start_draw=a.start_draw,
              horizon_override=a.horizon_override)
-    # The Python interpreter teardown SEGFAULTS during torch/Isaac extension unload (faulthandler dump
-    # right after the "[driver] DONE" line). That abnormal exit leaves the GPU's CUDA context in a "bad
-    # state" that accumulates across per-task process restarts into the per-GPU wedge. All data is already
-    # on disk (summary + per-demo hdf5/mp4), so terminate cleanly here and skip the segfaulting teardown.
+    # All summaries and trajectory files are written before process exit. Bypass
+    # torch/Isaac extension teardown, which can segfault during interpreter shutdown.
     import os
     os._exit(0)

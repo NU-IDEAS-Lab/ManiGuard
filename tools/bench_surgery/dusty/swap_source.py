@@ -1,18 +1,11 @@
-"""Swap a dusty_transfer task's SOURCE carrier model (bench surgery, stage 2).
+"""Replace a dusty-transfer source container using a donor task.
 
-User-authorized: any of (source, dest, food) may swap as long as the family-wide
-(food, source, dest) triple stays unique. The FOOD rides the source, so the food's
-xy offset from the source centre is KEPT (new sources are chosen bigger) and its z is
-raised onto the new source top + buffer — the rerender's gravity settle drops it to
-true rest.
-
-Donor-based dossier: init args (model/hash) come from a task that already uses the
-new model; geometry from the family probe table.
-
-Usage:
-  python -m tools.bench_surgery.dusty.swap_source --task task_0017 --model plate/pjinwe \\
-      --donor-task task_0013 [--apply]
-"""
+Copy the donor model/hash and support-relative root height while preserving
+the existing instance name and XY position. Raise the food origin by at least
+1 cm, with a minimum height of support_top + 0.06 m. Update source selection
+and recognized prompt phrases. The command does not check family-wide
+object-combination uniqueness or simulate the resulting layout.
+Preview by default; --apply writes one-time backups and updated JSON files."""
 from __future__ import annotations
 
 import argparse
@@ -84,15 +77,15 @@ def swap(task: str, model_key: str, donor_task: str, apply: bool) -> str:
         init["args"]["category"] = cat
         init["args"]["expected_file_hash"] = d_args.get("expected_file_hash")
         root = reg["root_link"]
-        # keep xy; sit the new model at the donor's proven support offset
+        # Preserve XY and use the donor's recorded support-relative height.
         root["pos"][2] = support_top + root_above_support + 0.002
         for k in ("lin_vel", "ang_vel"):
             if k in root:
                 root[k] = [0.0, 0.0, 0.0]
             if k in freg["root_link"]:
                 freg["root_link"][k] = [0.0, 0.0, 0.0]
-        # food: keep its xy offset (new source is bigger); raise onto the new top +1cm
-        # buffer — the rerender's gravity settle drops it to true rest
+        # Preserve food XY and raise its origin by at least 1 cm, with a minimum
+        # of support_top + 0.06 m. This is a placement heuristic for later settling.
         food_z_old = float(freg["root_link"]["pos"][2])
         freg["root_link"]["pos"][2] = max(food_z_old + 0.01, support_top + 0.05 + 0.01)
         n_edit += 1

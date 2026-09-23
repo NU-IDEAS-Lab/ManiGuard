@@ -1,15 +1,8 @@
-"""Reader for the datagen demo dataset.
+"""Read RAW demonstration trajectories without importing OmniGibson.
 
-On-disk layout (written by ``driver.run_task``)::
-
-    outputs/datagen/<dataset>/<family>/<task>/<traj>/
-        image_opposite.mp4  image_left.mp4  image_right.mp4  image_left_shoulder.mp4  wrist_image.mp4
-        traj.hdf5     # state (N,8), actions (N,8), actions_commanded (N,8), states (N,*) sim-dump
-        meta.json     # family / source_task / task / traj / target_key / grasp_id / approach / seed / success...
-
-This is the SINGLE entry point the LeRobot converter + review tooling use to enumerate and
-load collected demos, so the on-disk layout and its consumers stay in sync. Pure h5py / PyAV
-/ json — no OmniGibson.
+Enumerate outputs/datagen/<dataset>/<family>/<task>/<traj> folders containing
+traj.hdf5. Load metadata, joint arrays, optional serialized states, and video
+paths. Video decoding is provided separately by read_frames.
 """
 from __future__ import annotations
 

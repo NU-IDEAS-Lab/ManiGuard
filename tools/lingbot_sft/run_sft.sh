@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# Post-train LingBot-VLA 2.0 on ONE ManiGuard datagen-v1 family, 8-GPU.
-#
-# Wraps upstream's own entrypoints (train.sh -> torchrun -> tasks/vla/train_lingbotvla.py)
-# and only overrides the per-family knobs on the command line, exactly the way upstream's
-# lingbotvla/data/vla_data/README.md documents. Upstream code is never edited; our layer is
-# configs/robot_configs/maniguard.yaml + configs/vla/maniguard/maniguard.yaml + this script.
-#
-# Per family it: [computes norm stats if absent] -> trains 2 epochs -> leaves a 4-rung
-# checkpoint ladder under <run root>/<family>/checkpoints/.
-#
-# Scale (identical across the ManiGuard base models): global batch 256 = micro 32 x 8 GPUs;
-# steps = 2 epochs of that family = the same numbers the pi0.5 / pi0 tracks use.
-#
-# Prereqs (once per shell):
-#   conda activate <lingbot env>          # built by tools/create_train_env.sh
-#   export HF_TOKEN=...  WANDB_API_KEY=...
-#   bash tools/lingbot_sft/download_weights.sh     # the 3 weight sets under assets/pretrained
-#
-# Usage:
-#   bash tools/lingbot_sft/run_sft.sh --family clutter --data-root <shared_lerobot_root> \
-#        [--gpus 8] [--norm-stats] [--steps N] [--out DIR] [-- <extra train overrides>...]
+# Post-train one ManiGuard family from an installed LingBot source tree.
+# Compute missing normalization statistics, then invoke upstream train.sh
+# with the family dataset, checkpoint schedule, and output directory.
+# The fixed step table targets approximately two passes at global batch 256;
+# --steps can override it. Training YAML controls the global batch.
+# Usage: bash tools/lingbot_sft/run_sft.sh --family clutter --data-root /path/to/data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,11 +37,11 @@ NORM_CONFIG="configs/vla/norm_compute/maniguard.yaml"
 # builder does not `pip install -e .`, so put the repo root on PYTHONPATH for the children.
 export PYTHONPATH="$(cd "$HERE/../.." && pwd)${PYTHONPATH:+:$PYTHONPATH}"
 
-# LeRobot decodes the dataset's mp4s through torchcodec, which dlopen()s FFmpeg's shared
-# libraries at runtime. A bare container has none, and the failure surfaces inside the
-# dataloader workers (not at import), so it looks like a data bug. Point FFMPEG_LIB_DIR at a
-# dir holding libav*/libsw* (e.g. a conda env's lib) and it is prepended here, before any
-# worker forks. pyav is the fallback if this is ever unavailable -- it bundles its own FFmpeg.
+# Prepend FFMPEG_LIB_DIR when supplied so video decoders can locate
+# FFmpeg shared libraries. This script does not choose a decoder fallback.
+
+
+
 if [ -n "${FFMPEG_LIB_DIR:-}" ]; then
   export LD_LIBRARY_PATH="$FFMPEG_LIB_DIR:${LD_LIBRARY_PATH:-}"
 fi
@@ -54,8 +54,8 @@ declare -A FRAMES=(
   [clutter]=901520  [cabinet]=4172962  [stack]=2652083
   [jar]=946870      [lid]=1055142      [dusty]=1879498
 )
-# family -> 2-epoch step count at global batch 256, rounded up; identical to the pi0.5 / pi0
-# tracks so the five base models see the same data for the same number of updates.
+# Configured per-family training steps for approximately two dataset passes
+# at global batch 256. These values are not recomputed when GPUS changes.
 declare -A STEPS=(
   [clutter]=7100  [cabinet]=32650  [stack]=20750
   [jar]=7400      [lid]=8250       [dusty]=14700
@@ -121,8 +121,8 @@ fi
 
 # --- train: upstream train.sh derives nproc from CUDA_VISIBLE_DEVICES / nvidia-smi ---
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-$(seq -s, 0 $((GPUS-1)))}"
-# upstream calls wandb.init() WITHOUT project=, so the project comes from this env var.
-# -yanZ marks runs from this operator, matching the other ManiGuard SFT rounds.
+# Supply a default WandB project when the environment does not specify one.
+
 export WANDB_PROJECT="${WANDB_PROJECT:-maniguard-lingbot-sft-yanZ}"
 bash train.sh tasks/vla/train_lingbotvla.py "$CONFIG" \
   --data.data_name maniguard \

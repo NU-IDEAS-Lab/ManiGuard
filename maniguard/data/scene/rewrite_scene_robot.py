@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
-"""Copy a safety-benchmark scene directory and rewrite its robot to
-match the teleop training distribution.
+"""Copy a scene snapshot with a selected Franka robot class and IK controller.
 
-Pipeline output seeds scenes with a ``FrankaMounted`` fixed-base chassis
-sitting at ``z=0``. Teleop rewrites the snapshot on load to a
-``FrankaPanda`` (full reach) raised by 0.5 m so the arm can reach the
-tabletop. This script produces the same rewrite as a persisted copy, so
-eval / SFT can consume a benchmark that already matches the training
-distribution without any per-run rewrite.
-
-Mirrors ``so101_franka_teleop._build_from_snapshot`` but writes to disk
-instead of an ephemeral sibling path.
+Rewrites the first Franka entry, clears its saved controller goals and
+adds ``--z-offset`` to the base position (default: 0.5 m). The offset is
+applied regardless of the source robot class. Companion diagnostics and
+an optional safety JSON file are copied to the new directory.
 
 Usage:
-    python -m maniguard.data.scene.rewrite_scene_robot \\
-        datasets/safety-benchmark/clutter_goblet_00 \\
-        datasets/safety-benchmark/clutter_goblet_00_frankapanda
+    python -m maniguard.data.scene.rewrite_scene_robot \
+        /path/to/source_scene /path/to/output_scene --z-offset 0.5
 """
 
 from __future__ import annotations
@@ -33,11 +26,10 @@ def rewrite_snapshot_robot(
     z_offset: float = 0.5,
     target_robot: str = "FrankaPanda",
 ) -> None:
-    """Swap FrankaMounted -> target_robot and raise base z by z_offset.
+    """Set the first Franka entry to target_robot and raise its base by z_offset.
 
-    Also stubs the controller state block so the saved
-    OperationalSpaceController goal (from FrankaMounted) doesn't clash
-    with the new IK-style controller's expected load_state shape.
+    Replace the controller configuration with IK and binary gripper control,
+    and clear saved controller goals to avoid loading incompatible state.
     """
     snap = json.loads(src_snapshot.read_text(encoding="utf-8"))
 
@@ -53,7 +45,7 @@ def rewrite_snapshot_robot(
     entry["class_module"] = "omnigibson.robots.franka"
     entry["class_name"] = target_robot
     entry["args"].pop("expected_file_hash", None)
-    # Swap the controller to IK to match teleop + SFT action-space.
+    # Use IK arm commands and binary gripper commands for this output snapshot.
     entry["args"]["controller_config"] = {
         "arm_0": {
             "name": "InverseKinematicsController",

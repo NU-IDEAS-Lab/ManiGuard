@@ -1,27 +1,13 @@
 #!/usr/bin/env python3
-"""Upload SFT checkpoints to HF as they finalize, in parallel with training.
+"""Poll for finalized openpi checkpoints and upload missing parameter file sets.
 
-Runs as a sidecar process (``run_sft.sh`` launches it in the background before
-training): it polls the checkpoint dir, and the moment a checkpoint finalizes on
-disk -- and is not already complete on HF -- it uploads that checkpoint's
-``params/`` + ``assets/`` (skipping ``train_state/``). This way checkpoints reach
-HF during the run, not only after it finishes, without ever blocking the GPU
-(pure filesystem reads + a separate process).
+Use _hf_push_common for discovery, remote filename checks, and uploads.
+Retry upload exceptions on a later scan. Exit once the final checkpoint
+passes the remote filename-presence check. The process runs independently
+of training but can still consume shared host I/O and network resources.
 
-De-dup is shared with the one-shot ``hf_push.py`` via ``_hf_push_common``: both
-decide "already pushed" by comparing the local ``params/`` filename set against
-the live HF repo, so nothing is uploaded twice. Run ``hf_push.py`` afterwards to
-backfill anything the watcher missed (it will skip everything already complete).
-
-Exits automatically once the final step (relabeled to ``num_train_steps``) is
-complete on HF, so ``run_sft.sh`` can ``wait`` on it.
-
-Usage:
-    HF_TOKEN=... python tools/openpi_sft/hf_push_watcher.py \
-        --ckpt-dir <openpi>/checkpoints/<cfg>/<exp> \
-        --repo IDEAS-Lab-Northwestern/<model-repo> \
-        --num-train-steps 10000 [--poll-interval 30] [--private]
-"""
+Example:
+    python tools/openpi_sft/hf_push_watcher.py --ckpt-dir /path/to/checkpoints --repo organization/model-name --num-train-steps 10000"""
 
 from __future__ import annotations
 

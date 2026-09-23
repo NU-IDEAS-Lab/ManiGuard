@@ -1,19 +1,12 @@
-"""Phase B — viser grasp-annotation tool.
+"""Annotate object-local end-effector grasp poses with a Viser interface.
 
-Loads the Phase-A mesh DB and lets you annotate, per object, the eef_link TARGET pose(s)
-to grasp it. The object is shown UPRIGHT (its scene orientation) with the world XYZ axes
-and the real longfinger gripper rendered at the current draft grasp. Two input modes,
-both producing the SAME stored record (object-local eef-target, locked schema §4.2):
+Display the object in its stored upright orientation and the longfinger gripper
+at the draft pose. Use surface clicks with approach, yaw, and depth controls, or
+a free-drag pose gizmo. Save records incrementally to grasp_annotations.json and
+resume from an existing database.
 
-  mode③ (default): click a point on the object + pick an approach preset + yaw/depth
-                   sliders  ->  fast, for regular top-down/side grasps.
-  mode① (toggle "free drag"): a 6-DoF gizmo on the gripper  ->  for odd semantic grasps.
-
-Open the printed http://localhost:8080 in a browser. Saves incrementally + resumes from
-an existing grasp_annotations.json.
-
-  conda activate behavior
-  PYTHONPATH=$HOME/project/ManiGuard python -m maniguard.data.datagen.annotation.annotate_tool
+Run from the repository root:
+    python -m maniguard.data.datagen.annotation.annotate_tool
 """
 from __future__ import annotations
 
@@ -60,13 +53,7 @@ def _load_mesh(path) -> trimesh.Trimesh:
 
 
 def _eef_R_from_approach(a, yaw_rad):
-    """eef rotation (display frame) for approach ``a`` + roll ``yaw`` about it.
-
-    Gripper eef-local frame (sim-measured, NOT the old probe — the probe mislabelled the
-    finger-link origins as the tips): **fingertips / approach = eef +Z**, **closing
-    (between fingers) = eef -Y**. So the gripper travels toward the object along its +Z;
-    to grasp along world approach ``a`` we set eef +Z = a (fingertips lead toward object).
-    """
+    """Return the end-effector rotation for approach vector a and roll yaw. End-effector +Z points along the approach toward the fingertips; -Y is the finger-closing axis."""
     a = np.asarray(a, float); a /= np.linalg.norm(a) + 1e-9
     z_col = a                                             # eef +Z = approach (fingertips)
     ref = np.array([1.0, 0, 0]) if abs(a[0]) < 0.9 else np.array([0, 1.0, 0])

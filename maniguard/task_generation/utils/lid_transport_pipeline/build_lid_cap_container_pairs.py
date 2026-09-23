@@ -24,10 +24,9 @@ Verdict logic (per pair):
                              ``LID_TRANSPORT_NO_GRASP_OK`` (kettle,
                              hingeless_jar) and ready (status ∈ {graspable,
                              no_grasp, not_ready} + no complaint). The
-                             container is the *destination* in lid-transport
-                             tasks and isn't itself manipulated by the
-                             robot, so no_grasp on the container is
-                             tolerable for these wide-mouth categories.
+                             configured relaxation admits those statuses
+                             for these container categories. Admission does
+                             not certify that a policy can grasp the container.
   * ``dropped_item_*``      — item graspable check failed.
   * ``dropped_container_*`` — item OK but container check failed.
 

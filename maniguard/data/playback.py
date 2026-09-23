@@ -8,8 +8,8 @@ step records (defaults: --controller joint, --cams 3):
       joint (default): [arm_q(7), gripper_pos(1)]  -- absolute joint config for
                        a JointController policy; gripper_pos is the mean of the
                        two finger qpos.
-      eef:             [eef_pos(3), eef_axisangle(3), gripper_qpos(2)]  -- legacy
-                       LIBERO / IsaacLab-Stack-Cube layout (both fingers kept).
+      eef:             [eef_pos(3), eef_axisangle(3), gripper_qpos(2)]
+                       end-effector state with both finger positions.
 
   --cams        camera set recorded as image obs (see CAMERA_SETS):
       3 (default): image_left + image_right + wrist_image  (cam_left/cam_right
@@ -19,8 +19,8 @@ step records (defaults: --controller joint, --cams 3):
 `action` handling depends on what the leader arm recorded:
   GELLO  (8D absolute joint target, JointController)      -> copied unchanged.
   SO-101 (7D EEF delta, InverseKinematicsController)      -> rewritten to the
-         same 8D joint convention from the replayed joint states (a delta is
-         meaningless as an SFT action); requires --controller joint.
+         8D joint targets from the next replayed joint state and the recorded
+         gripper command; requires --controller joint.
 Either way Stage 2 receives an 8D joint action and decides eef-delta vs joint.
 
 Output HDF5 is consumed by Stage 2 (maniguard.data.lerobot.*), which writes a
@@ -225,20 +225,18 @@ def _stamp_metadata(hdf5_path: str, controller_mode: str, n_cams: int) -> None:
 
 
 def _normalize_actions_to_joint(output_path: str, input_path: str, controller_mode: str) -> None:
-    """Rewrite SO-101 raw actions (7D IK delta) as 8D joint-native actions.
+    """Convert SO-101 IK-delta recordings to joint-space training targets.
 
-    GELLO records the SFT convention directly (8D absolute joint target) and is
-    passed through untouched. SO-101's InverseKinematicsController records
-    [dpos(3), drot(3), gripper(1)] — a delta command is meaningless as an SFT
-    action, but under ``--controller joint`` the output's ``obs/state`` holds the
-    N+1 replayed absolute joint configs, so the faithful joint target for step t
-    is the configuration the arm actually reached after applying raw action t:
+    GELLO's eight-dimensional joint-target actions pass through unchanged.
+    For seven-dimensional SO-101 recordings, joint-mode playback supplies
+    N+1 achieved joint states. Each exported action uses the next achieved
+    arm configuration and the recorded gripper command:
 
         action_t = [state_{t+1}[:7], raw_gripper_cmd_t]
 
-    (the same "commanded target ~ next config" relation the GELLO recordings
-    exhibit). The result is stamped as ``data.attrs['action_source']`` so the
-    provenance stays visible downstream.
+    This is an achieved-state target, not the original controller's
+    commanded joint target. ``data.attrs['action_source']`` records
+    which conversion was used.
     """
     import h5py
 
@@ -364,9 +362,7 @@ def main():
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
 
-    # Force 256x256 for both main and wrist cameras. The teleop HDF5 was
-    # recorded at Kit's default (~1280x720) but we need square 256x256 for
-    # the Pi0.5 / OmniGibsonDataConfig pipeline.
+    # Render overview and wrist images at the requested square resolution.
     external_names = [c for c in CAMERA_SETS[args.cams] if c != "wrist"]
     external_cfg = build_external_camera_configs(
         names=external_names,

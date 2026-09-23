@@ -1,19 +1,10 @@
-"""In-place CONTAINER pose surgery for lid_transport bench tasks.
+"""Adjust a container, lid, or goal-marker pose in saved task JSON.
 
-Light layout surgery (dusty task_0006 layout-swap precedent): rotate the container
-about its own z (bring a comfortable annotated grasp azimuth toward the robot),
-translate it toward the robot (reach-envelope rescue), or flip it 180 deg about x
-(asset with the F attachment meta-link authored at the BOTTOM: can/damllm).
-
-Edits BOTH json trees (top-level + nested init_info.args.scene_file), zeroes
-velocities, backs up to ``*.bak_pose``. Re-finalize with ``tools.bench_surgery.lid.rerender_base``
-afterwards (gravity settle + camera/gate/LTL re-bake).
-
-Usage:
-  python -m tools.bench_surgery.lid.adjust_pose --task task_0003 --yaw-deg 90 --apply
-  python -m tools.bench_surgery.lid.adjust_pose --task task_0024 --toward-robot-m 0.20 --apply
-  python -m tools.bench_surgery.lid.adjust_pose --task task_0028 --flip --apply
-"""
+Apply world-Z yaw, an optional local-X flip with a 2 cm lift, explicit XY
+translation, or movement toward the robot. Update top-level and nested scene
+copies and zero velocities. Goal-role edits also update the recorded goal XY.
+Preview by default; --apply creates one-time .bak_pose backups and writes
+the scene and diagnostics. Re-finalize afterward to refresh review outputs."""
 from __future__ import annotations
 
 import argparse

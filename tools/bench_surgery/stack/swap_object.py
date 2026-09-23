@@ -1,20 +1,10 @@
-"""Swap a stack_retrieve (same-mode) task's stacked objects for a donor object.
+"""Replace same-model stacked objects with a selected donor asset.
 
-Same idea as ``tools.bench_surgery.cabinet.swap_object`` but for the stack family: a same-mode task has 4 task
-objects — the bottom ``target`` + 3 ``stack`` instances — ALL of one category/model. This rewrites the
-task's ``base/scene_ep1.json`` (init_info args + registry poses, every object RENAMED to the donor and
-RE-STACKED at the donor's thickness) + ``base/diagnostics.jsonl`` (selection / spawn_specs / goal_region
-names / ltl over-globs / prompt). Then re-finalize with ``tools.bench_surgery.stack.rerender_base --tasks task_NNNN``
-(settles physics + re-renders the 4 review videos + recomputes cameras/gate/LTL/surface).
-
-The donor's geometry (scale + expected_file_hash) is read from ANY base scene where it already appears
-(bench first, then 6fam-base). Its stacking thickness is the upright bbox z-extent from the dataset
-object metadata. Idempotent per task; backs both files up to ``*.bak_swap`` on first touch.
-
-Usage:
-  python -m tools.bench_surgery.stack.swap_object --task-dir <ABS>/task_0022/base --object toy_dice/ievnsq
-  python -m tools.bench_surgery.stack.swap_object --task-dir <ABS>/task_0026/base --object folder/lktggf
-"""
+Look up donor scale/hash in the configured roots, obtain upright thickness
+from object metadata, rename the selected target/stack instances, and rebuild
+their vertical positions. Update selection, goal names, safety patterns, and
+prompt text. Preserve one-time .bak_swap backups. Re-finalize afterward to
+refresh measurements and videos; physical feasibility is not checked here."""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +22,7 @@ GAP = 0.003          # small load-time gap between stacked objects (gravity clos
 
 
 def _donor_args(cat: str, model: str) -> dict:
-    """First base scene (bench, then 6fam) that spawns cat/model -> its init_info args (scale + hash)."""
+    """Return scale and hash from the first matching scene in the configured roots."""
     for root in (BENCH, SIXFAM):
         for scene_path in sorted(glob.glob(str(root / "task_*" / "*" / "scene_ep1.json"))
                                  + glob.glob(str(root / "task_*" / "*" / "scene_ep1_replay.json"))):

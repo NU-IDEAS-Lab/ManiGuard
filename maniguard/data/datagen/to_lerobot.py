@@ -1,10 +1,9 @@
-"""Datagen RAW -> LeRobot v2.1 converter (family-agnostic; runs in the lerobot uv env).
+"""Convert RAW demonstrations into LeRobot v2.1 datasets.
 
-Repackages outputs/datagen/<dataset>/<family>/task_*/traj_*/ (traj.hdf5 + 5 mp4 + meta.json) into ONE
-LeRobot v2.1 dataset per family: numeric (state + actions + actions_commanded) in parquet, the 5 camera
-mp4s passthrough-placed (no re-encode), prompt per episode from meta. Reuses datagen.reader +
-data_format; imports NONE of maniguard.data.lerobot.* (technique referenced, not imported). Heavy imports
-(lerobot / h5py / reader) are lazy so the pure helpers test in any env.
+Read joint arrays and prompts from RAW trajectory folders, copy the five MP4
+streams without re-encoding, and write numeric features as Parquet. Image
+statistics are sampled from the copied videos through temporary LeRobot 0.3.3
+adapters. Conversion runs separately from simulation collection.
 """
 from __future__ import annotations
 
@@ -36,7 +35,7 @@ def frame_rows(traj: dict) -> list[dict]:
             for t in range(n)]
 
 
-# --- passthrough (self-contained; VERIFIED against lerobot 0.3.3) ---
+# --- MP4 passthrough adapters for LeRobot 0.3.3 ---
 
 def _png_to_mp4(png_path):
     """Map a would-be PNG path <root>/images/<key>/episode_NNNNNN/frame_MMMMMM.png to the pre-placed
@@ -74,10 +73,7 @@ def _frame_count(mp4_path) -> int:
 
 
 def _passthrough_images():
-    """Context manager: patch lerobot 0.3.3 so add_frame writes no PNGs and save_episode does NOT
-    re-encode a camera whose mp4 is already at its target path. Three patches (verified Task 0):
-    _save_image no-op; get_safe_version local (offline repo_id); compute_stats.sample_images mp4-aware
-    (the only PNG readback during commit). Restored on exit."""
+    """Temporarily adapt LeRobot 0.3.3 for MP4 passthrough: suppress image writes, resolve versions locally, and sample image statistics from existing videos. Restore the patched functions on exit."""
     import contextlib
 
     import lerobot.datasets.compute_stats as _cs

@@ -1,19 +1,9 @@
-"""Load the human grasp-annotation DB and turn a target's object-local grasp frames into
-WORLD eef-target poses at runtime — the bridge from ``annotation/`` (the DB) to the
-executor.
+"""Load object-local grasp annotations and transform them into world-frame targets.
 
-Each annotated grasp is an eef_link TARGET pose in the object-LOCAL frame
-(``position`` + ``orientation_xyzw``). At runtime, given the target object's live world
-pose, the world eef target is::
-
-    T_eef_world = T_object_world @ T_grasp_local
-
-Pure numpy/scipy — no OmniGibson / cuRobo, so it imports cheaply and unit-tests without a
-sim. (Same transform the annotation ``validate_grasps`` loader verified to 0.0 mm.)
-
-The released database (1,547 grasps / 221 object instances) is the HF dataset
-``IDEAS-Lab-Northwestern/maniguard-grasp-annotations`` — download it into
-``outputs/grasp_annotation/`` (the default ``ANN_PATH`` below).
+The default database is outputs/grasp_annotation/grasp_annotations.json.
+Each pose specifies the target eef_link frame relative to its object:
+T_eef_world = T_object_world @ T_grasp_local.
+This module depends on NumPy and SciPy, not the simulator.
 """
 from __future__ import annotations
 

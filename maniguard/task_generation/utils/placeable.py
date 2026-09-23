@@ -85,7 +85,7 @@ def pick_surface_from_placeable(
     required_model=None,
     weighted_by_area=False,
 ):
-    """Pick one placeable region by area (no scene constraint).
+    """Select an area-filtered region, optionally weighting candidates by area.
 
     Each region is its own candidate (2-region models contribute two entries).
     Intended for empty-scene pipelines that don't care which B1K scene the

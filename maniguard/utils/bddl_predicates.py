@@ -28,8 +28,7 @@ def _build_stashed_predicate_class():
         The object is imported at a stash position by
         ``BDDLSampler._import_sampleable_objects`` and left there. Pipeline
         code is responsible for teleporting it to the desired location after
-        ``env.reset()``. Evaluation always returns ``True`` (the object
-        exists and is available for manipulation).
+        ``env.reset()``. Evaluation returns the entity's ``exists`` flag.
         """
 
         STATE_NAME = "stashed"

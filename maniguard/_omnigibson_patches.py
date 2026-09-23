@@ -1,40 +1,11 @@
-"""Runtime patches that add ManiGuard-specific behavior to upstream OmniGibson.
+"""Integrate ManiGuard object states, predicates, and robot assets with OmniGibson.
 
-The refactor/omnigibson branch is incrementally peeling ManiGuard's code out of
-the vendored ``OmniGibson/`` tree so OmniGibson can be consumed as an upstream
-dependency. This module is the central place where the *remaining* runtime
-modifications live. Two kinds of patches are applied:
+Import hooks register Dropped, Upright, and the Grasped alias before dependent
+modules load. Runtime patches provide the long-finger Franka configuration,
+gripper collision handling, grasp-goal and reward integration, debug drawing,
+and simulator compatibility helpers.
 
-1. **Post-load hook on ``omnigibson.object_states``** — the moment the
-   ``omnigibson.object_states`` subpackage finishes executing its ``__init__``,
-   ManiGuard injects three extra names: ``Dropped`` / ``Upright`` (new state
-   classes defined under :mod:`maniguard.object_states`) plus ``Grasped`` as a
-   backwards-compatible alias of upstream ``IsGrasping``. This runs *during*
-   ``import omnigibson`` so downstream modules that reference
-   ``object_states.Grasped`` / ``object_states.Upright`` at module load time
-   (e.g. ``omnigibson.utils.bddl_utils``) see the attributes they expect.
-
-2. **Eager class / function patches** — applied after ``import omnigibson``
-   completes:
-
-   * ``omnigibson.object_states.factory._DEFAULT_STATE_SET`` gains the two new
-     states so any object can be annotated with them.
-   * ``omnigibson.termination_conditions.grasp_goal.GraspGoal`` learns an
-     optional ``hold_steps`` counter.
-   * ``omnigibson.reward_functions.grasp_reward.GraspReward`` falls back to an
-     alternative link when robots lack ``torso_lift_link``.
-   * ``omnigibson.utils.sampling_utils.draw_debug_markers`` is replaced with a
-     tensor-dtype/device-safe variant.
-   * ``omnigibson.utils.bddl_utils.SUPPORTED_PREDICATES`` gains four new keys
-     (``upright`` / ``dropped`` / ``grasped`` / ``stashed``) registered from
-     :mod:`maniguard.utils.bddl_predicates`.
-
-Set ``MANIGUARD_SKIP_OMNIGIBSON_PATCH=1`` in the environment to opt out.
-
-Two upstream files still carry ManiGuard modifications on this branch
-(``utils/bddl_utils.py``, ``tasks/grasp_task.py``). Extracting them requires
-either upstream PRs or a full sys.modules override of the module and is
-tracked as follow-up work.
+Set MANIGUARD_SKIP_OMNIGIBSON_PATCH=1 to disable these hooks.
 """
 from __future__ import annotations
 
@@ -329,10 +300,7 @@ def _patch_franka_longfinger() -> None:
     import torch as _th
     from omnigibson.robots.manipulation_robot import GraspingPoint as _GraspingPoint
 
-    # 1 × 4 (= 4 points per finger). The x sweep we tried earlier was
-    # measurably slower (12×12 = 144 ray pairs every step) and wasn't the
-    # gating factor anyway — AG mostly fails on the "two fingers in
-    # contact" requirement, not on raycast coverage.
+    # Four longitudinal sample points per finger provide sixteen ray pairs.
     LONG_AG_X = (0.0,)
     LONG_AG_Z = (0.045, 0.085, 0.120, 0.140)
 
@@ -492,7 +460,7 @@ def _patch_create_joint_skip_render() -> None:
     provides explicit ``joint_frame_*`` arguments, because those values
     immediately overwrite whatever the render auto-filled. So we wrap
     ``create_joint`` and skip the render in that case. When some pose
-    args are omitted (e.g. legacy callers relying on the default), we
+    args are omitted (e.g. callers using default arguments), we
     fall back to the original behaviour.
 
     Upstream OG already flags this as fragile (see the in-source comment

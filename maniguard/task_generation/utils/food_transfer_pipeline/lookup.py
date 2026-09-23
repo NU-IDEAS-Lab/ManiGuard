@@ -1,12 +1,8 @@
-"""Runtime lookup of a container's opening drop-XY.
+"""Look up a cached container-opening offset and add it to a live AABB center.
 
-Looks up the offline-derived opening centroid offset stored in
-``container_openings.json`` and applies it to the live AABB center.
-The offset is in the container's AABB-relative frame, so no orientation
-sensitivity and no per-call simulator work — pure JSON lookup + arithmetic.
-
-Cache: the JSON is loaded lazily on first call and reused.
-"""
+The stored offset assumes the scan orientation and scale. This helper does
+not rotate or rescale it. Load container_openings.json on first use and
+cache the mapping for subsequent lookups."""
 from __future__ import annotations
 
 import json

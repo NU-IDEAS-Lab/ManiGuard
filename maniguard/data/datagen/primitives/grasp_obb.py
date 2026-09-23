@@ -1,24 +1,10 @@
-"""OBB-based grasp-pose sampler — Layer-1 primitive (family-agnostic geometry).
+"""Sample and rank grasp poses using oriented boxes around a parallel-jaw gripper.
 
-"Where should the two-finger gripper grab this object?" Models the open gripper as
-five oriented boxes in the grasp frame (perp=X, closing=Y, approach=Z):
-
-  left_finger / right_finger / palm   must be EMPTY of object material (open gripper
-                                      straddles the object without pre-colliding)
-  swept (the AG raycast firing zone   must be NON-EMPTY (closing the fingers WILL
-   corridor between the fingers)       capture object material)
-
-Candidate poses are seeded from convex-hull support points + uniform anchors, with
-the approach direction sampled in a cone around the inward surface normal. Each pose
-is scored by how much object material the swept box captures AND how CENTERED that
-material is along the closing axis, so the two
-fingers contact the object near-simultaneously on closing. (An off-center grasp lets
-the first-contacting finger shove the object out of the gripper before the second
-finger lands — the assisted-grasp raycast then misses and the grasp fails; this was
-the common push-away failure in teleop.)
-
-Franka constants are calibrated for the active `franka_panda_longfinger` asset + our
-AG raycast patch (`_omnigibson_patches.LONG_AG_Z`).
+Generate candidates from object-surface samples and approach directions. Reject
+poses whose finger or palm boxes contain sampled object material, and require
+material in the swept closing corridor. Rank accepted poses by corridor coverage
+and centering. Geometry constants describe the longfinger Franka asset and its
+assisted-grasp raycast region.
 """
 from __future__ import annotations
 
@@ -139,8 +125,7 @@ def gather_obstacle_surf_local(env, target_obj, points_per_obstacle: int = 1500,
 
 
 def _gripper_boxes(cfg: GraspConfig):
-    """The 5 OBBs (center_offset, half_extents, must_be_nonempty) in the grasp
-    frame (perp=X, closing=Y, approach=Z), origin at eef_link."""
+    """Return the four oriented boxes (two fingers, palm, and swept closing corridor) as center offsets, half-extents, and required occupancy flags."""
     open_half = 0.5 * _MAX_OPENING
     fl, fb, ft, et, s = _FINGER_LEN, _FINGER_BREAD, _FINGER_THICK, _EEF_TO_TIP, cfg.shrink_m
     fz = et - fl / 2

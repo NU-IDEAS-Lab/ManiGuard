@@ -1,23 +1,12 @@
-"""Goal checking via OmniGibson object states.
+"""Check success from goal-region or predicate specifications.
 
-Goal conditions are stored in diagnostics.jsonl by the pipeline at
-generation time, using actual scene object names (not BDDL synsets).
-Eval reads them and evaluates using OmniGibson's native state API.
+A goal_region takes precedence and requires the target to be held while its
+AABB intersects the goal sphere. Predicate goals use scene object names and
+OmniGibson states, with additional joint-opening, particle-coverage, and
+contact checks. Lists are conjunctions; dictionary nodes declare operators.
 
-Flat format (list of AND'd predicates):
-    "goal_conditions": [
-        {"predicate": "inside", "subject": "potato_124", "reference": "stockpot_122"}
-    ]
-
-Compound format (AND/OR/NOT tree):
-    "goal_conditions": {
-        "op": "and",
-        "terms": [
-            {"predicate": "inside", "subject": "potato_124", "reference": "stockpot_122"},
-            {"op": "not", "term": {"predicate": "touching", "subject": "robot", "reference": "wineglass_3"}}
-        ]
-    }
-"""
+Goal predicates and goal-region metadata are read from diagnostics. This
+module evaluates task completion separately from the LTL safety monitor."""
 
 from __future__ import annotations
 
@@ -63,7 +52,7 @@ class GoalRegionChecker:
     # lid_transport only (set by build_goal_checker when the diag carries ``lid_info``):
     # wide containers are legitimately carried by their WELDED lid (rim+lid sandwich or
     # lid-top grip) — grasping the lid of the assembly counts as holding the target.
-    # None for every other family => behavior byte-identical.
+    # None disables the attached-lid holding alternative.
     assembly_lid_name: str | None = None
     _objects: dict[str, Any] = field(default_factory=dict)
 

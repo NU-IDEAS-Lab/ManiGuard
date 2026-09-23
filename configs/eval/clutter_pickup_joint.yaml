@@ -9,9 +9,9 @@
 #   2. python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml
 name: eval_clutter_pickup_joint
 
-# -- Benchmark source: the whole family (base + 4 OOD levels); eval_family.sh picks the instance + level via --scenes --
+# -- Benchmark source: the whole family (base + 4 OOD conditions); eval_family.sh picks the instance + condition via --scenes --
 benchmark_root: outputs/lerobot_datasets/maniguard-bench/clutter_pickup
-scene_filter: ""           # empty: eval_family.sh selects instance + level via --scenes (ID=base, OOD=target/language/location/env)
+scene_filter: ""           # empty: eval_family.sh selects instance + condition via --scenes (ID=base, OOD=target/language/location/env)
 
 # -- Policy server --
 host: 127.0.0.1
@@ -32,7 +32,7 @@ grasping_mode: assisted      # MUST match datagen grasp mode (clutter skeleton -
 
 # -- Sim / eval --
 max_steps: 1100            # 1.5x the family's LONGEST datagen-v1 demo (292/402/706 min/med/max
-                           # steps, episodes.jsonl); ends early on success / safety termination
+                           # steps, episodes.jsonl); ends early when the success condition holds
 success_hold_steps: 10     # goal must hold N consecutive steps (anti false-positive)
 camera_resolution: 256
 save_video: true

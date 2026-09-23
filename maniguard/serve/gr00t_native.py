@@ -1,47 +1,19 @@
 #!/usr/bin/env python3
-"""Serve a ManiGuard GR00T N1.6 SFT checkpoint over the openpi-client websocket contract.
+"""Serve a GR00T N1.6 checkpoint through the openpi websocket protocol.
 
-Runs in the Isaac-GR00T venv. Wraps gr00t's ``Gr00tPolicy`` and speaks the SAME
-websocket / msgpack-numpy protocol as ``maniguard.serve.openpi_native`` and openpi's
-``WebsocketPolicyServer`` -- so ``maniguard.eval.benchmark`` connects with NO client
-change (same ``base_0``/wrist/state/prompt contract, same ``{"actions": (H, A)}`` reply).
+The simulation schema accepts observation/image_left, observation/wrist_image,
+and observation/state. --real accepts DROID exterior/wrist images and separate
+joint_position/gripper_position observations. Both map to GR00T video, state,
+and language groups. The first assembled state is checked against joint limits.
 
-Action reconstruction (verified against gr00t source):
-    GR00T N1.6 reconstructs ABSOLUTE joint targets INTERNALLY. At inference,
-    ``Gr00tPolicy`` -> ``processor.decode_action(..., state=state)`` ->
-    ``StateActionProcessor.unapply_action`` -> ``to_absolute_chunking`` computes
-    ``absolute = current_state + relative_pred`` for the state-relative arm
-    (``use_relative_action`` is baked in the checkpoint's processor); the gripper is
-    absolute throughout. So this server passes the action through AS-IS and MUST send the
-    robot's TRUE current absolute arm joints in ``observation/state`` (that IS the
-    reconstruction reference). It must NEVER re-add state -- that would double-add.
+Return the checkpoint-decoded arm and gripper actions without adding state.
+Simulation checkpoints reconstruct absolute joint targets internally; real
+checkpoints configured with absolute velocity actions return velocities in rad/s.
+--real selects observation keys and does not convert action units.
 
-Obs contract -- TWO client schemas, selected by ``--real``:
-    sim (default, ``benchmark._remap_obs_for_openpi``):
-        observation/image_left, observation/wrist_image, observation/state (8-D joint)
-    real (``--real``, the DROID-schema real-robot client):
-        observation/exterior_image_1_left, observation/wrist_image_left,
-        observation/joint_position (7,), observation/gripper_position (1,)
-Both are repacked to the SAME GR00T nested dict (B=1, T=1): video.{image_left,wrist},
-state.{single_arm(7), gripper(1)} (MUST be split), language.<task_key>=[[prompt]] -- the
-real embodiment config deliberately keeps sim's modality KEY names and differs only in
-``original_key``, so nothing downstream of this unpacking branches on the mode.
-
-``--real`` changes ONLY which observation keys are read. It does NOT change how actions are
-interpreted: the action representation is baked into the checkpoint's processor at SFT time
-(sim = state-relative arm, reconstructed to absolute internally; real = absolute, i.e. the
-stored joint VELOCITY passed through). Serving a real checkpoint therefore also means the
-returned chunk is joint velocity rad/s, which the real client applies as ``delta = action/15``
-with NO clip.
-
-⚠️ ``--real`` NEVER falls back to the sim keys. A silent fallback would produce a
-plausible-looking rollout built from the wrong inputs, which is unrecoverable after the fact.
-A missing DROID key raises, and the first assembled state is range-checked against the Franka
-joint limits (a swapped concat order is otherwise invisible).
-
-Usage (in the gr00t venv; needs ``pip install websockets msgpack``):
-    <gr00t-venv>/bin/python -m maniguard.serve.gr00t_native \
-        --checkpoint /path/to/gr00t-checkpoint --device cuda:0 --port 8000 [--real]
+The handshake reports checkpoint, mode, embodiment, and an optional task label;
+--task is required with --real. Clients must use the checkpoint's action contract.
+Run in an environment containing Isaac-GR00T, websockets, msgpack, and this module.
 """
 from __future__ import annotations
 

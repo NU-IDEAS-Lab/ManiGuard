@@ -1,20 +1,10 @@
-"""Swap a jar_transport task's TARGET JAR MODEL for a donor jar (the content item is untouched —
-use ``tools.bench_surgery.jar.swap_content`` for that; combine both for a double swap).
+"""Replace a jar model using another task's asset and articulation state.
 
-Mirrors ``tools.bench_surgery.jar.swap_content`` on the jar side: rewrites ``base/scene_ep1.json`` (jar init_info
-args retargeted to the donor model; registry keeps the task's XY but takes an EXPLICIT ``--root-z``
-because root-to-bottom offsets differ per jar model — jnjtrl's root rides 8cm above the support
-while gqtsam's is flush, so reusing the old z buries or floats the new jar; the donor's root ori +
-lid joint rest angle come along so the lid starts at the model's natural open pose) +
-``base/diagnostics.jsonl`` (selection jar_* / spawn_specs / jar_info). Re-finalize afterwards with
-``tools/bench_surgery/jar/rerender_base.py``, then PROBE the lid-hang direction and yaw-fix via
-``tools.bench_surgery.jar.move_task`` if it faces a bad side (hinge frames differ per model).
-
-Constraint honoured by the caller: (jar_model, item_category) stays UNIQUE family-wide.
-
-Usage:
-  python -m tools.bench_surgery.jar.swap_model --task-dir <ABS>/task_0014/base --model jnjtrl --root-z 0.782
-"""
+Keep the task's XY position and use the explicitly supplied root height.
+Copy donor scale/hash, orientation, and hinge position, then update the
+selection and jar metadata. Preserve one-time .bak_jarswap backups.
+The content object is unchanged, and family-wide uniqueness is not checked.
+Re-finalize afterward to inspect the resulting layout and refresh outputs."""
 from __future__ import annotations
 
 import argparse

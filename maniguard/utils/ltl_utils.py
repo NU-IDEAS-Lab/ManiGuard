@@ -358,8 +358,6 @@ class LTLMonitor:
             raise ValueError(f"Failed to translate LTL formula: {self.formula_str} into automaton.")
 
         self._dict = self._automaton.get_dict()
-        # for ap in self._ap_list:
-        #     self._register_ap(ap)
         self._state = self._automaton.get_init_state_number()
         
         

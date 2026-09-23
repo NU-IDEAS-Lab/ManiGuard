@@ -1,17 +1,9 @@
-"""SafetyGate — the real-time success + LTL-safety verifier the engine runs for the WHOLE
-execution (doc §0.1 revised).
+"""Goal and LTL acceptance checks for demonstration collection.
 
-A datagen demo is kept ONLY if it ENDS in success AND was SAFE at every executed step; any
-LTL violation instantly voids it. We NEVER collect "success but not safe" data.
-
-Both checks reuse the SAME shared modules as teleop, the bench-finalize step, and the eval
-runner — so "success" and "safe" mean exactly the same thing everywhere they are judged:
-
-  * **success**: ``eval.goal_checker.build_goal_checker`` (``GoalRegionChecker`` for goal_region
-    families like clutter = held + in-sphere; ``GoalChecker`` for goal_conditions families like
-    cabinet = ``inside & closed``).
-  * **LTL**: ``utils.safety_monitor.TaskLTLMonitor`` + ``build_active_objects_for_ltl`` (the glob
-    -> scene-object resolver), stepped every executed env step; the gate exposes ``violated``.
+Use eval.goal_checker.build_goal_checker for the task goal and
+utils.safety_monitor.TaskLTLMonitor for the supplied LTL specification. Reset
+before each attempt and advance through the executor's step callback.
+The engine combines the goal result with the family-specific acceptance check.
 """
 from __future__ import annotations
 
@@ -71,9 +63,7 @@ class SafetyGate:
 
 
 def build_gate(env, diagnostics: dict, *, surface_name: str | None = None) -> SafetyGate:
-    """Build a SafetyGate from a task's diagnostics row. Success comes from the eval checker
-    (goal_region OR goal_conditions, auto-selected); LTL from ``ltl_safety``. ``scene_model=None``
-    (6fam-base tasks are empty Scenes; matches the eval runner)."""
+    """Build the shared goal checker and LTL monitor from task diagnostics. Pass scene_model=None because task safety specifications are supplied directly for the reconstructed empty Scene."""
     from maniguard.eval.goal_checker import build_goal_checker
 
     checker = build_goal_checker(diagnostics)

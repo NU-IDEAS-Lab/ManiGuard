@@ -1,17 +1,9 @@
-"""Pure-numpy stack-retrieve layout geometry (no OmniGibson / cuRobo).
+"""NumPy geometry helpers for stack retrieval.
 
-Three jobs for the stack family's ``_prepare`` / ``resolve_compute``:
-
-  * ``combined_xy_aabb`` / ``transfer_height`` — the 4-object pack's XY footprint + the FIXED safe
-    transfer height (initial tallest point), captured once on the pristine scene.
-  * ``dest_center`` — where to build the ONE right-side re-stack pile: pack-right edge + a ``gap``,
-    graded-clamped onto the surface (ideal -> slide-to-edge -> small overhang), within the robot's
-    reach; ``None`` only if even the tightest non-overlapping pile is off-surface (report / swap).
-  * ``dest_pile_top`` — the live top-z of whatever already sits at the dest footprint, so each place
-    descends onto the growing pile (mirror of the executor's ``max_other_top_z``, scoped to the dest).
-
-All functions take plain numpy AABBs ``(lo(3,), hi(3,))`` / xy arrays — no sim reads, so they are
-trivially unit-testable; the skeleton feeds them live OmniGibson AABBs.
+Compute the initial stack footprint and top height, choose a destination pile
+within surface and reach limits, compute live transfer heights, and determine
+the top of the destination pile. Inputs are arrays of world AABBs and positions;
+the family skeleton supplies the current simulation geometry.
 """
 from __future__ import annotations
 
@@ -73,24 +65,13 @@ def dest_center(pack_lo_xy, pack_hi_xy, right_dir_xy, stack_half, *, gap,
                 surf_lo_xy, surf_hi_xy, robot_xy, reach_max, rail_half=0.0, eef_off=0.0,
                 pull_robot_ward=0.0, min_gap=0.01, edge_slack=0.03,
                 gap_max=None, reach_comfort=None):
-    """XY centre of the right-side re-stack pile, or ``None`` if genuinely infeasible.
+    """Return a destination-pile center satisfying the configured footprint and reach bounds.
 
-    IDEAL centre = ``pack_centre + right_dir*(pack_half_along_right + gap + max(stack_half,
-    rail_half + eef_off))``. The dest clears the source by the WIDER of the object footprint
-    (``stack_half``) and the finger-rail reach toward the source (``rail_half + eef_off``). When the
-    ideal centre (+ the Fix-4 robot-ward pull) keeps the footprint on-surface and in reach it is
-    returned unchanged — the regular wide-table path.
-
-    GRADED FALLBACK (small tables where the ideal pile overshoots the edge — the 10 sweep setup-crashes):
-    instead of failing, slide the pile back along ``right`` toward the source, keeping the MOST clearance
-    that still fits, and only fail if even the tightest non-overlapping pile is off-surface:
-      1. slide so the footprint stays FULLY on-surface (sacrifice gap, never overlap the source);
-      2. still short -> allow the footprint to overhang the edge by ``edge_slack`` (the pile's COM /
-         centre stays on-table — physically it rests, but VALIDATE stacking stability in sim);
-      3. even the source-touching pile (offset < ``pack_half_r + stack_half + min_gap``) is off-surface
-         -> ``None`` (true hard limit: object too big for a 2nd pile on this surface — report / swap).
-    Reach is re-checked on the chosen centre (always closer than the ideal, so it never regresses reach).
-    """
+    The ideal offset clears both the object footprint and the source-facing finger
+    rail. If necessary, reduce the gap to fit the surface, then allow edge_slack of
+    footprint overhang while keeping the center on the surface. Return None when no
+    candidate satisfies the minimum separation and reach checks. Physical stacking
+    stability is assessed during execution."""
     lo = np.asarray(pack_lo_xy, float)
     hi = np.asarray(pack_hi_xy, float)
     d = np.asarray(right_dir_xy, float)
@@ -104,21 +85,14 @@ def dest_center(pack_lo_xy, pack_hi_xy, right_dir_xy, stack_half, *, gap,
     pack_half_r = float(np.max(np.abs((corners - pack_center) @ d)))
     base_term = pack_half_r + max(float(stack_half), float(rail_half) + float(eef_off))
     offset = base_term + float(gap)
-    # ADAPTIVE GAP (opt-in via gap_max + reach_comfort): on a roomy table, EXPAND the source<->dest
-    # clearance beyond the minimal ``gap`` so the exposed bottom target has room to be grasped without
-    # the arm fouling the re-stack pile (task_0023 waffle collapse). Only widens (never below ``gap``),
-    # capped by GAP_MAX and by whichever binds first — the footprint staying on-surface or the dest
-    # staying within COMFORTABLE reach. Small tables keep the minimal offset (graded clamp then shrinks).
+    # When gap_max and reach_comfort are set, widen the gap to leave room for
+    # the bottom-target grasp. Bound it by the surface footprint and comfortable
+    # reach, without reducing the initial minimum gap at this stage.
     if gap_max is not None and reach_comfort is not None and float(gap_max) > float(gap):
         rc = _max_reach_offset(pack_center, d, robot_xy, float(reach_comfort))
-        # The reach cap must bound the CARRY target, not the pile CENTRE. The re-stack carry (``over_dest``)
-        # drives the held object's centre to ``dest_centre`` -> the EEF lands at ``dest_centre + grasp_off``,
-        # where an edge grasp on the pile's far side offsets the EEF by up to ``+stack_half`` ALONG ``d``
-        # (away from the robot). Capping only the centre at ``reach_comfort`` lets a THICK pile's carry
-        # target sit ~stack_half beyond comfort, so the pure-IK servo fails while the centre looks fine
-        # (task_0000: centre reach 0.70 < 0.72 but over_dest 0.81 -> every s0_carry servo_ik_fail). Pull the
-        # centre cap in by stack_half so the WORST-CASE carry stays within comfort. No-op for thin piles;
-        # the ``max(offset, ...)`` floor below still guarantees the minimal-gap dest (old, reachable) behaviour.
+        # Bound the carry end-effector target, not only the destination pile center.
+        # An edge grasp can offset the eef away from the robot by stack_half, so
+        # reduce the center reach cap accordingly. Preserve the minimum-gap floor.
         if rc is not None:
             rc = rc - float(stack_half)
         iv0 = _max_onsurface_offset(pack_center, d, np.asarray(surf_lo_xy, float),
@@ -130,7 +104,7 @@ def dest_center(pack_lo_xy, pack_hi_xy, right_dir_xy, stack_half, *, gap,
     def _reach_ok(c):
         return float(np.linalg.norm(c - robot)) <= float(reach_max)
 
-    # --- tier 1: ideal offset + Fix-4 robot-ward pull (UNCHANGED — wide tables keep the same dest) ---
+    # --- Ideal offset with robot-ward pull ------------------------------------
     center = pack_center + d * offset
     if float(pull_robot_ward) > 0.0:
         to_robot = robot - center

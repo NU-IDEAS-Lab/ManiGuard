@@ -1,25 +1,12 @@
-"""Shared target/stack-item selection for stack-retrieval pipelines.
+"""Select target and stack-item models for stack retrieval.
 
-Both ``stack_scene_pipeline`` (in-scene) and ``empty_scene_pipeline``
-(empty-stage) use this. The three modes:
+The same mode uses stack_same_pool.json and returns identical target and
+stack-item models. Flat and receptacle modes use their compatibility catalogs,
+comparing stack-item XY extents with scanned support-square dimensions.
+Receptacle candidates also satisfy the configured cavity-depth condition.
 
-  * ``same``       — verified self-stack pool: target IS the stack item.
-                     Source: ``stack_same_pool.json`` (physics-tested
-                     3-copy + shake stability + graspable + no unresolved
-                     complaints).
-  * ``flat``       — geometric compat matrix: ``max(item.bbox_xy) <=
-                     target.square_at_z_max_side_m``. Source:
-                     ``stack_flat_compatibility.json``.
-  * ``receptacle`` — geometric compat matrix on the cavity floor:
-                     ``max(item.bbox_xy) <= target.square_at_z_min_side_m``
-                     plus a ``z_range_m`` lower bound. Source:
-                     ``stack_recep_compatibility.json``.
-
-Selection is uniform over categories first, then over models within a
-category, then over the model's ``items`` list. This avoids bias toward
-categories with many models (e.g. ``hardback`` had 245 entries before
-the category-first restructure).
-"""
+Selection samples target categories, then target models, then compatible
+stack-item entries. Both room-based and empty-scene generators use these helpers."""
 from __future__ import annotations
 
 import json

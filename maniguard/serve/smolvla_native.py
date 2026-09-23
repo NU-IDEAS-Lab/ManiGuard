@@ -1,33 +1,14 @@
 #!/usr/bin/env python3
-"""Serve a ManiGuard SmolVLA SFT checkpoint over the openpi-client websocket contract.
+"""Serve a SmolVLA checkpoint through the openpi websocket protocol.
 
-Runs in the lerobot venv. Wraps lerobot's ``SmolVLAPolicy`` behind the
-SAME websocket / msgpack-numpy protocol as ``maniguard.serve.openpi_native`` and
-``maniguard/serve/gr00t_native.py`` -- so ``maniguard.eval.benchmark`` connects with
-NO client change (same image_left/wrist/state/prompt contract, same
-``{"actions": (H, A)}`` reply).
+Read overview/wrist images, an eight-dimensional state, and a prompt. Map them
+to the training keys, apply the checkpoint's saved preprocessing, predict an
+action chunk, and apply its saved postprocessing. Return the eight native action
+dimensions, which are absolute joint targets for the supplied simulation recipes.
 
-Inference path (lerobot's canonical stack, v0.5.x):
-    prepare_observation_for_inference -> saved preprocessor pipeline
-    (rename top/wrist->camera1/2, tokenize, to-device, normalize with the
-    dataset stats baked at SFT time) -> ``policy.predict_action_chunk`` ->
-    saved postprocessor (unnormalize action, to cpu).
-
-Action contract: the checkpoint was trained on NATIVE FULLY-ABSOLUTE 8-D joint
-targets [arm_q(7), gripper(1)] (no delta), so the chunk is passed through AS-IS.
-``_get_action_chunk`` already slices the padded 32-D model output back to 8-D.
-
-Obs contract (from ``benchmark._remap_obs_for_openpi``): the client sends
-    observation/image_left, observation/wrist_image, observation/state (8-D), prompt.
-We repack to the SFT keys (``maniguard.smolvla_sft.embodiment``): the overview ->
-``observation.images.top`` and wrist -> ``observation.images.wrist``; the saved
-rename step maps them onto the checkpoint's camera1/camera2 inputs. camera3 (a
-base-model leftover in input_features) stays absent -- SmolVLA masks missing
-cameras, exactly as during SFT.
-
-Usage (in the lerobot fork venv; needs ``uv pip install websockets``):
-    <fork>/.venv/bin/python maniguard/serve/smolvla_native.py \
-        --checkpoint /path/to/smolvla-checkpoint --device cuda:0 --port 8000
+The model and saved processors must come from a compatible LeRobot environment.
+The server uses an empty metadata handshake and supports optional episode_seed
+re-seeding when the received seed value changes.
 """
 from __future__ import annotations
 

@@ -1,19 +1,10 @@
-"""Swap a dusty_transfer task's FOOD (bench surgery, last resort — full rename cascade).
+"""Replace a dusty-transfer food object using a donor task.
 
-The food's instance NAME carries its category (e.g. ``cherry_124``) and is referenced by
-goal_conditions (subject) and the LTL proposition ``over`` patterns (``cherry_*``), and
-the category is spoken in the prompt — so unlike source/dest swaps this renames the
-instance everywhere, structurally:
-  - objects_info.init_info key + args (category/model/hash from the donor)
-  - state.registry.object_registry key (pose kept; z bumped, gravity settle fixes rest)
-  - goal_conditions subject
-  - ltl_safety propositions ``over`` patterns + selection food fields + prompt phrase
-Both json trees (top-level + nested init_info.args.scene_file) are processed.
-
-Usage:
-  python -m tools.bench_surgery.dusty.swap_food --task task_0023 --model potato/lgupkq \\
-      --donor-task task_0011 [--apply]
-"""
+Rename the food instance in the top-level and nested scene registries, copy
+donor asset parameters, raise the food by 2 cm, and update goal subjects,
+safety patterns, selection fields, and recognized prompt phrases.
+Preview by default; --apply writes files with one-time .bak_foodswap backups.
+Re-finalize afterward to refresh runtime checks and review videos."""
 from __future__ import annotations
 
 import argparse

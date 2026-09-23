@@ -1,29 +1,12 @@
-"""ManiGuard SmolVLA embodiment contract: how the 5-cam datagen LeRobot export
-maps into the 2-cam, standard-keyed dataset SmolVLA / ``lerobot-train`` expects.
+"""Map the five-camera datagen export into a two-camera SmolVLA dataset.
 
-Self-contained (pure Python, no ``lerobot`` / ``torch`` imports) so the
-``tools/smolvla_sft`` scripts can import it directly. This is the single source of
-truth for the SmolVLA data mapping — mirrors ``gr00t_sft.maniguard_embodiment``
-for the GR00T path and ``openpi_sft.data_configs`` for the pi0.5 path.
+Keep a selected external view and wrist_image, rename state to observation.state
+and actions to action, and drop unused views and actions_commanded. The numerical
+state/action representation remains eight-dimensional joint data. The model
+preparation path uses the stored absolute joint actions without a delta transform.
 
-Why a rename step (unlike GR00T / openpi): both of those consume our dataset's
-flat keys through an indirection layer (GR00T's ``modality.json`` ``original_key``,
-openpi's ``RepackTransform``). ``lerobot-train`` has no such indirection — it
-classifies features purely by key prefix (``observation.images.*`` -> visual,
-``observation.state`` -> state, ``action`` -> action). Our export uses flat keys
-(``image_left`` / ``state`` / ``actions``), so ``prepare_dataset.py`` must
-physically rename them (and drop the unused streams) into a standard-keyed copy.
-
-Embodiment: Franka Panda, 8-D joint state/action (7 arm joints + 1 gripper).
-SmolVLA pads state/action to its ``max_state_dim`` / ``max_action_dim`` (32), and
-trains on the dataset's ABSOLUTE joint actions directly (no delta transform — the
-model outputs absolute joint targets that feed a JointController at eval, same
-end-to-end joint contract as the other two paths).
-
-2 camera views (one third-person overview + wrist), matching what pi0.5
-(``external_cam="left"``) and GR00T (2-cam) consume, so all three models train on
-identical inputs (benchmark parity). SmolVLA natively supports more views —
-adding one back is a one-line change to ``rename_map`` + ``DROPPED_STREAMS``.
+This module contains only constants and mapping helpers and imports no model
+runtime. Training and evaluation must use the same external view.
 """
 
 from __future__ import annotations
@@ -31,8 +14,8 @@ from __future__ import annotations
 # Upstream base checkpoint fine-tuned by ``lerobot-train --policy.path=...``.
 BASE_MODEL = "lerobot/smolvla_base"
 
-# 8-D joint state/action (7 arm joints + 1 gripper). SmolVLA left-pads both to its
-# max_state_dim / max_action_dim (32); nothing to configure here.
+# Native state and action dimensions: seven arm joints plus one gripper value.
+# Model-side padding is handled by the SmolVLA preprocessing stack.
 STATE_DIM = 8
 ACTION_DIM = 8
 

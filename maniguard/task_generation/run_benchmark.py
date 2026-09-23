@@ -1,17 +1,13 @@
 #!/usr/bin/env python
-"""Run a scene generation pipeline on all eligible scenes as a benchmark.
+"""Run scene-generation pipelines in separate subprocesses.
 
-Spawns one subprocess per scene to avoid GPU memory accumulation.
-Records videos, saves scene JSON snapshots, and produces a summary report.
+Enumerate eligible scenes, invoke the selected generator, and aggregate
+reported artifacts and diagnostics under a run directory.
 
-Usage:
-    python -m maniguard.task_generation.run_benchmark
-    python -m maniguard.task_generation.run_benchmark --pipeline cabinet
+Examples:
+    python -m maniguard.task_generation.run_benchmark --pipeline table --scenes Rs_int --steps 300
     python -m maniguard.task_generation.run_benchmark --pipeline transfer --no-strict-gate
-    python -m maniguard.task_generation.run_benchmark --pipeline stack --stack-height medium
-    python -m maniguard.task_generation.run_benchmark --scenes Rs_int Merom_1_int --timeout 600
-    python -m maniguard.task_generation.run_benchmark --density high --steps 500 --episodes 2
-"""
+    python -m maniguard.task_generation.run_benchmark --pipeline stack --stack-height medium"""
 
 import argparse
 import csv
@@ -57,11 +53,7 @@ _EXCLUDED_SCENES = {
         "hall_train_station",        # train station restroom
         "school_gym",                # gymnasium, no tables
     }),
-    # cabinet_pickup is empty-scene and managed via cabinet_pickup_pipeline.py's
-    # own --task-id batch flag; it doesn't participate in run_benchmark's
-    # per-scene loop. Leaving the key out so we don't accidentally route a
-    # scene-based subprocess to an empty-scene pipeline.
-    # Transfer and stack pipelines need the same table-like surfaces as table.
+    # No cabinet-specific scene exclusions are configured in this mapping.
     "transfer": frozenset({
         "Benevolence_0_int",
         "grocery_store_convenience",

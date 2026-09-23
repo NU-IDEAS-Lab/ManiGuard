@@ -494,8 +494,9 @@ def build_goal_region_spec(
     If ``rng`` (a numpy Generator) is provided, the sphere centre is
     sampled uniformly in the robot-local reach polygon and at a random
     z above the support top, rejecting samples that overlap the pack.
-    If ``rng`` is None, the legacy deterministic placement (1.5×
-    target-width to the left of the pack) is used.
+    If no sample clears the pack within GOAL_RANDOM_MAX_TRIES, use the
+    deterministic left-of-pack XY anchor. When rng is None, use that anchor
+    directly, offset by distance_scale times the target width.
     """
     family = canonicalize_family(family)
     if family not in SPHERE_GOAL_FAMILIES:
@@ -531,7 +532,7 @@ def build_goal_region_spec(
 
     clamped = False
     if rng is None:
-        # Legacy deterministic placement.
+        # Deterministic placement to the left of the pack.
         desired_x = float(target_center_local[0])
         desired_y = float(pack_local_bounds[1][1]) + float(distance_scale) * target_width
         anchor_x = desired_x

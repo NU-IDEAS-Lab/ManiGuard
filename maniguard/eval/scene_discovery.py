@@ -1,9 +1,7 @@
-"""Lightweight scene discovery — no OmniGibson / torch / imageio deps.
+"""Discover benchmark scene snapshots and task metadata without simulation.
 
-Importable from any Python env (system, conda, venv) to list benchmark
-scenes without triggering heavy GPU/simulation imports. Used by both
-benchmark.py and scripts/run_benchmark_all_scenes.sh.
-"""
+The benchmark runner and batch scripts use this module to enumerate scene
+directories and resolve prompts and manipulation targets from diagnostics."""
 
 from __future__ import annotations
 
@@ -69,8 +67,8 @@ def _category_from_synset(synset: str) -> str:
 def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
     """Discover valid benchmark scenes with diagnostics.
 
-    Handles both 1-level layouts (``<root>/<scene>/``) and 2-level
-    layouts (``<root>/<task_family>/<scene>/``).
+    Search to three directory levels below root, supporting family/task/condition
+    layouts as well as shallower roots.
 
     Returns a list of dicts, each with keys: name, scene_file,
     scene_model, target_name, surface_name, target_rooms, prompt,
@@ -91,9 +89,8 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         ):
             continue
 
-        # diagnostics.jsonl holds one JSON record; it may be a single line OR a
-        # pretty-printed multi-line object (older pipelines, e.g. dusty). Decode
-        # the first complete JSON value rather than assuming a single line.
+        # Decode the first complete JSON value; diagnostics may be compact or
+        # pretty-printed across several lines.
         diag = json.JSONDecoder().raw_decode(
             diag_file.read_text(encoding="utf-8").lstrip()
         )[0]
@@ -110,23 +107,17 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         target_name = None
         prompt = str(diag.get("prompt") or "").strip() or None
 
-        # Resolve the manipulation target per 6fam-base family, keyed on the
-        # diagnostics `pipeline` field. Families with sub-variants (clutter,
-        # lid, stack) group their variant names into one branch; the names do
-        # not overlap across families. else = safety skip only.
+        # Resolve the manipulation target from the diagnostics pipeline name.
+        # Related pipeline variants share a family-specific resolution branch.
         if pipeline == "dusty_transfer":
-            # Target = transferred food. The clean dustify batch carries
-            # food_synset (+ a baked prompt); the merged food_transfer remnants
-            # have empty categories / no synset / no prompt — skip them
-            # (see incomplete_source_note.txt).
+            # Food is the manipulation target. Require its synset metadata
+            # before selecting an object category.
             food_synset = sel.get("food_synset", "")
             if not food_synset:
                 print(f"  Skipping {scene_key}: dusty degraded merge batch (no synset/prompt)")
                 continue
-            # spawn_specs role=="food" carries the actually spawned category
-            # (food_synset can be a stale pre-respawn pick — e.g. potato.n.01 on
-            # tasks whose real food is half_blackberry / garlic_clove) — prefer
-            # it, fall back to the synset-derived category.
+            # Prefer the category declared by the food spawn specification,
+            # then fall back to the synset stem.
             _food_spec = next(
                 (s for s in (sel.get("spawn_specs") or []) if s.get("role") == "food"),
                 None,
@@ -151,12 +142,8 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             target_name = _match_category(init_info, _category_from_synset(sel.get("target_synset", "")))
 
         elif pipeline in ("lid_transport_food", "lid_transport_liquid"):
-            # lid: place the lid on the container, then move the container.
-            # liquid-mode diags carry a STALE selection.container_category (the
-            # pre-respawn pick, e.g. "can"); the actually spawned container is
-            # the spawn_specs entry with role=="target" (e.g. hingeless_jar) —
-            # prefer it, fall back to container_category (the food-mode truth;
-            # food diags have no role=="target" spawn spec).
+            # Prefer a target-role spawn specification when present; otherwise
+            # use selection.container_category.
             _tgt_spec = next(
                 (s for s in (sel.get("spawn_specs") or []) if s.get("role") == "target"),
                 None,
@@ -179,9 +166,8 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
         if not target_name:
             print(f"  Skipping {scene_key}: could not resolve target object (pipeline={pipeline})")
             continue
-        # Every 6fam-base family bakes its prompt into diagnostics; rebuild from
-        # task fields only as a fallback so a missing prompt stays in-distribution
-        # rather than dropping to the generic surface line.
+        # Prefer the saved instruction. Reconstruct from task metadata only
+        # when the prompt is absent; use a generic instruction if reconstruction fails.
         if prompt is None:
             try:
                 prompt = build_task_prompt(scene_info_json, diag, goal_region=diag.get("goal_region"))

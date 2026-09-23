@@ -1,35 +1,14 @@
-"""Offline max-rectangles 2D packer.
+"""Deterministic greedy rectangle packing for object placement.
 
-Given a list of object descriptors with AABB XY half-extents and a target
-rectangular region, compute placements in a single closed-form pass — no
-random retries, no per-attempt settle / jitter.
+Descriptors provide full XY object extents. Pad each footprint for clearance,
+place an optional target at the region center, and process other objects by
+decreasing short and long side. The default surround_target strategy favors
+centers near the target; bssf uses best-short-side fit. Both permit 90-degree
+rotation when enabled and update the free-rectangle list after placement.
 
-Inputs are all known before sim setup:
-  * Pinned object models  → AABB extent_xyz from object_footprints.json.
-  * Picked surface region → computed by compute_tabletop_zone.
-  * min_clearance         → from PackRetryConfig.
-
-The solver:
-  1. Forces the target to the region centroid.
-  2. Splits the region into 4 free rectangles around the target's
-     padded footprint.
-  3. For every other descriptor (largest first by short side, then long
-     side — Decreasing Sort), runs Best-Short-Side-Fit (BSSF) over the
-     free rectangle list, with optional 90° yaw rotation.
-  4. After placement, splits the chosen free rect via the standard
-     guillotine split and prunes fully-contained free rects.
-
-Objects that don't fit are returned in ``unplaced`` so the caller can
-``remove_objects`` and proceed with the survivors. Unlike the greedy
-ring placer, this solver only fails to place an object when there is no
-non-overlapping seat anywhere in the region — guaranteed by the
-free-rect invariant — so culling is genuinely "nothing fits" rather than
-"random seed didn't unlock it".
-
-Coordinate convention: rectangles use ``(x0, y0, w, h)`` where
-``(x0, y0)`` is the bottom-left corner. Placements report the **centre**
-of the object's expanded (padded) footprint, matching ``ClutterPackEntry.rel_pose``.
-"""
+Objects that do not fit the current greedy layout are returned in unplaced.
+The solver does not backtrack or certify global packing feasibility. Returned
+placement centers are relative to the packing-region center."""
 from __future__ import annotations
 
 import math
@@ -52,7 +31,7 @@ class PackInputDescriptor:
 class PackPlacement:
     inst_id: str
     role: str
-    cx: float  # world-frame centre X (region-relative; caller translates to world)
+    cx: float  # X relative to the region center; caller translates to world
     cy: float
     cz: float
     yaw: float  # 0 or pi/2 (rotation introduced by the solver)
@@ -82,7 +61,7 @@ def _prune(free_rects: list[Rect]) -> list[Rect]:
             if i == j:
                 continue
             if _rect_contains(s, r):
-                # If both contain each other (identical), only drop the later index.
+                # Identical rectangles retain the later index.
                 if _rect_contains(r, s) and j < i:
                     continue
                 contained = True
@@ -305,7 +284,7 @@ def solve_pack(
                 _, used_rect, rotated = pick
         if used_rect is None:
             # Fallback (and the path for strategy=="bssf"): standard
-            # Best-Short-Side-Fit. Guaranteed to find any seat that exists.
+            # Best-Short-Side-Fit over the current free rectangles.
             pick = _pick_best_rect(free_rects, w, h, allow_rotation)
             if pick is None:
                 unplaced.append(d.inst_id)

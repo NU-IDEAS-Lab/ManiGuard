@@ -3,11 +3,13 @@
 
 Consumes the npz files written by the real-franka teleop capture
 (outputs/real_teleop/<id>.npz) and emits one HDF5 per episode that
-matches the schema `maniguard.data.lerobot.multitask_lerobot_export` expects:
+contains the following observation and action arrays. Each file is stamped
+with controller_mode="eef" and n_cams=2 on its data group. Supply --task-id
+to emit task-based filenames discoverable by the multi-task exporter:
 
     data/demo_0/obs/image        (N+1, H, W, 3) uint8   <- cam0, resized
     data/demo_0/obs/wrist_image  (N+1, H, W, 3) uint8   <- cam1, resized
-    data/demo_0/obs/state        (N+1, 8)       f32     <- eef_pos(3) + axisangle(3) + gripper/2 (x2)
+    data/demo_0/obs/state        (N+1, 8)       f32     <- eef_pos(3) + axisangle(3) + half-aperture (x2)
     data/demo_0/action           (N,   7)       f32     <- dpos(3) + drot_axisangle(3) + gripper_sign(1)
 
 Real-npz schema (reference):
@@ -28,9 +30,26 @@ Conventions matched with sim:
       axisangle continuity.
 
 Usage:
+    # Default filenames: traj_0.hdf5, traj_1.hdf5, ...
     python -m maniguard.data.real_teleop.real_teleop_to_hdf5 \
         --input-dir outputs/real_teleop \
         --output-dir outputs/real_teleop_hdf5
+
+    # Exporter-ready filenames: task_0000_traj_000.hdf5, ...
+    # All NPZs in this input directory must belong to the SAME task/prompt.
+    # Repeat for each task with its own task ID and the same output directory.
+    python -m maniguard.data.real_teleop.real_teleop_to_hdf5 \
+        --input-dir outputs/real_teleop/task_0000 \
+        --output-dir outputs/real_teleop_hdf5 --task-id task_0000
+
+    # Supply {"prompt": "..."} in
+    # outputs/real_teleop_prompts/task_0000/diagnostics.jsonl for each task.
+    # Set --fps to the actual capture rate and match --resolution to --img-size.
+    python -m maniguard.data.lerobot.multitask_lerobot_export \
+        --input-root outputs/real_teleop_hdf5 \
+        --diag-root outputs/real_teleop_prompts \
+        --repo-id local/real-teleop --root outputs/real_teleop_lerobot \
+        --fps 30 --resolution 256
 """
 
 from __future__ import annotations

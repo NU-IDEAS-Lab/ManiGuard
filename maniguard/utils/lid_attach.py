@@ -1,31 +1,12 @@
-"""Eager lid/cap → container snap-attach helper.
+"""Attach compatible lids and caps after release onto their containers.
 
-When the robot has placed a lid (or cap) physically *touching* its
-canonical container and is no longer grasping it, this helper
-repositions the lid's male attachment meta-link directly onto the
-container's female meta-link and calls ``set_value(container, True)`` on
-the canonical ``AttachedTo`` state. The 7-step OmniGibson orchestration
-creates the fixed joint, after which the lid follows the container.
+Discover pairs with matching attachment meta-links. On each try_snap call,
+select a detached lid that touches its container and is not reported grasped
+by the supplied robot. Align its attachment frame, step physics, request a
+nonbreaking AttachedTo joint, and confirm attachment.
 
-Discovery is automatic: at construction time, walk all loaded objects
-and pair each lid/cap that has an ``AttachedTo`` male meta-link with the
-container that holds the matching female meta-link. Pairs that don't
-match (operator placed two unrelated lids) are simply ignored.
-
-Usage:
-
-    from maniguard.utils.lid_attach import LidSnapper
-
-    snapper = LidSnapper(env)            # discovers eligible pairs once
-    for step in range(N):
-        env.step(action)
-        snapper.try_snap(robot=robot)    # eager attach when touching + released
-
-The snap fires when ALL of:
-  * lid is not already attached to container,
-  * lid is in PhysX contact with the container (any link),
-  * ``robot.is_grasping(candidate_obj=lid)`` is not TRUE.
-"""
+When robot is omitted, grasp state is not checked. The helper returns the
+first attached lid's name, or None when no attachment succeeds."""
 
 from __future__ import annotations
 
@@ -165,8 +146,8 @@ class LidSnapper:
         """Return ``(touching, n_container_links_in_contact)``.
 
         Contact lookup goes via PhysX through the ContactBodies state.
-        Raises if the state isn't on the lid — that means the lid wasn't
-        eligible in the first place, which discover() already filtered for.
+        Requires ContactBodies on the lid; pair discovery checks attachment
+        eligibility but does not check this contact-state dependency.
         """
         ContactBodies = self._ContactBodies
         contact_links = lid.states[ContactBodies].get_value()
@@ -219,10 +200,8 @@ class LidSnapper:
                 continue
             og.sim.step()  # let new poses register
             try:
-                # can_joint_break=False so the FixedJoint can't snap under
-                # Phase 2B's transport acceleration (otherwise the lid's
-                # inertia pulling against the joint mid-motion exceeds the
-                # default break_force and the lid detaches mid-trajectory).
+                # Disable joint breaking so transport acceleration does not
+                # detach the lid from the container.
                 ok = p.lid.states[AttachedTo].set_value(
                     p.container, True, can_joint_break=False)
             except Exception as exc:

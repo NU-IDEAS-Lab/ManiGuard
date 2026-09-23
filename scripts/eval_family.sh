@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# eval_family.sh — full-family eval over ManiGuard-Bench, level-based ID / OOD.
+# eval_family.sh — full-family eval over ManiGuard-Bench, ID / OOD conditions.
 #
 # Runs maniguard.eval.benchmark on every task instance of ONE family, bucketed by
-# perturbation LEVEL (the finalized ManiGuard-Bench ID/OOD definition):
-#   ID  = the base level  (datagen collected 40 demos on every base task)
-#   OOD = the 4 variant levels — target / language / location / env — one bucket each
+# perturbation condition:
+#   ID  = the base condition  (datagen collected 40 demos on every base task)
+#   OOD = the 4 OOD conditions — target / language / location / env — one bucket each
 # Logs (per-instance folders + results/summary under each bucket):
 #   outputs/eval_logs/<leaf>/ID/
 #   outputs/eval_logs/<leaf>/OOD/{target,language,location,env}/
@@ -17,7 +17,7 @@
 #     <family>       ManiGuard-Bench family dir, e.g. clutter_pickup
 #     [output_leaf]  leaf under outputs/eval_logs/ (default: <family>_joint)
 #     [config]       eval config       (default: configs/eval/<family>_joint.yaml)
-#   LEVELS="base target language location env"   restrict which levels to run
+#   LEVELS="base target language location env"   restrict which conditions to run
 #                                                (e.g. LEVELS=base for ID only).
 #   REPEAT=N   run every instance N times (eval is stochastic; default 1).
 #   FORCE=1    clobber a non-empty output dir (guards against wiping finalized logs).

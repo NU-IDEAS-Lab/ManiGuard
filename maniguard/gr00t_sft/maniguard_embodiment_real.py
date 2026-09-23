@@ -1,44 +1,13 @@
-"""GR00T ``NEW_EMBODIMENT`` modality config for the ManiGuard REAL Franka (DROID schema).
+"""Register a DROID-schema real-robot modality configuration as NEW_EMBODIMENT.
 
-The real-robot counterpart of ``maniguard_embodiment.py``. Same robot, same two camera
-slots, same 16-step chunk -- but the **recorded quantities differ**, so this is a separate
-config rather than a flag on the sim one. Self-contained (depends only on ``gr00t``) so it
-can be passed to ``launch_finetune.py --modality-config-path`` inside the Isaac-GR00T venv.
+Read joint_position and gripper_position as separate state columns, and use
+exterior_image_1_left plus wrist_image_left. Actions contain seven joint velocities
+in rad/s and one gripper target. Both action groups use ABSOLUTE representation,
+meaning the processor uses their stored values without subtracting joint position.
 
-Consumed by the real SFT runs over the ``real-{clutter,jar}-60-droid-refined`` and
-``real-cab-higher-firsthalf-60-droid-refined`` datasets, built by
-``maniguard/data/real_teleop/real_teleop_to_droid.py``.
-
-★ THE ONE THING THAT MUST NOT BE COPIED FROM SIM: the arm action representation.
-    sim  stores ABSOLUTE JOINT TARGETS  -> rep=RELATIVE lets GR00T predict state-relative
-         chunks and re-add the state at inference (its equivalent of openpi's
-         ``use_delta_joint_actions=True``).
-    real stores JOINT VELOCITY (rad/s)  -> rep must be ABSOLUTE. With RELATIVE, GR00T would
-         compute ``velocity - joint_position``, which is dimensionally meaningless. This is
-         the error openpi's own DROID config warns about: "We assume joint velocity actions,
-         so we should not apply an additional delta transform ... it would differentiate a
-         velocity twice."
-The gripper is ABSOLUTE on both sides (a normalized open/close target, 0=open 1=closed).
-
-Consequence at inference: with no RELATIVE group, ``StateActionProcessor.unapply_action``
-performs **no** state re-addition, so the served chunk is joint velocity as-is. The real
-client must apply it as ``delta = action / 15`` (15 Hz), with NO clip -- see
-``maniguard/serve/gr00t_native.py --real``.
-
-Schema differences vs sim (all handled by ``original_key``; nothing on disk is renamed):
-    state    sim: one 8-D ``state`` column
-             real: TWO columns -- ``joint_position`` (7,) + ``gripper_position`` (1,)
-    actions  sim: absolute joint targets      real: [joint_velocity(7), gripper_target(1)]
-    video    sim: image_left / wrist_image    real: exterior_image_1_left / wrist_image_left
-    fps      sim: 30                          real: 15  (so a 16-step chunk is 1.07 s, not 0.53 s)
-
-The modality KEYS are deliberately kept identical to sim (``image_left``/``wrist``,
-``single_arm``/``gripper``) even though the underlying columns differ: only ``original_key``
-changes. That keeps ``gr00t_native.py``'s observation packing branch-free -- the sim/real
-difference lives in the checkpoint, where it belongs.
-
-``exterior_image_2_left`` exists in the real datasets but is an ALL-ZERO placeholder (there
-is no second exterior camera on the rig) -- deliberately NOT mapped.
+The 16-frame action chunk spans approximately 1.07 seconds at 15 Hz. The unused
+second exterior-camera placeholder is not mapped. Import this configuration or
+the simulation configuration once per process.
 """
 
 from gr00t.configs.data.embodiment_configs import register_modality_config

@@ -1,19 +1,12 @@
-"""Family membership for annotation-tool filtering (which bench families grasp a mesh_db object).
+"""Resolve annotation-database object membership across benchmark families.
 
-An object ``(category/model)`` can be grasped in MULTIPLE bench families (e.g. ``bowl/wtepsx`` is a
-grasp target in BOTH ``clutter_pickup`` and ``stack_retrieve``). mesh_db therefore stores a multi-family
-``families`` list per object, so the annotation tools (``annotate_tool`` / ``mesh_review`` /
-``fix_approach_tags``) can show a shared object under EVERY family it belongs to — not just the one that
-happened to extract its mesh last.
-
-The legacy single ``source_task`` string is KEPT (it still names one valid task for ``validate_grasps``
-to load the object into) and is used here only as a FALLBACK when ``families`` is absent (a mesh_db
-written before this field existed). Nothing here imports sim / heavy deps — every annotation tool can
-import it cheaply.
+Prefer the per-object families list. If it is absent, infer a single family
+from source_task. This fallback supports existing annotation databases without
+requiring simulation imports.
 """
 from __future__ import annotations
 
-# family CLI key -> bench-family directory name (with trailing "/" for the legacy prefix match).
+# family CLI key -> bench-family directory name (with trailing "/" for source_task prefix matching).
 FAMILY_STEMS = {
     "clutter": "clutter_pickup/", "jar": "jar_transport/", "lid": "lid_transport/",
     "dusty": "dusty_transfer/", "stack": "stack_retrieve/", "cabinet": "cabinet_pickup/",
@@ -22,7 +15,7 @@ FAMILY_STEMS = {
 
 def obj_families(obj: dict) -> set:
     """Bench-family dir names (e.g. ``'clutter_pickup'``) that grasp this mesh_db object. Prefers the
-    multi-family ``families`` list; falls back to the single legacy ``source_task`` prefix."""
+    multi-family ``families`` list; falls back to the single ``source_task`` prefix."""
     fams = obj.get("families")
     if fams:
         return set(fams)

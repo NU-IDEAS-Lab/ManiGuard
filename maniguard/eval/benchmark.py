@@ -40,7 +40,7 @@ def _init_omnigibson(cfg: EvalConfig, needs_gpu_dynamics: bool = False):
     # Liquid/particle scenes (clutter liquid_transport) need PhysX GPU dynamics
     # to initialize their water system or they NaN-segfault at init. Detected
     # per task BEFORE og import via datagen's canonical gate
-    # (task_needs_gpu_dynamics; lid's legacy system_name is excluded there).
+    # (task_needs_gpu_dynamics; lid's system_name is excluded there).
     # Flatcache must be OFF under GPU dynamics (mirrors datagen
     # primitives.scene.init_omnigibson). EVAL_USE_GPU_DYNAMICS stays as a
     # manual force-on override.
@@ -147,17 +147,11 @@ def _eef_jacobian_arm(robot, arm, arm_cols_np):
 
 
 def eef_delta_to_joint_action(robot, eef_delta, action_space):
-    """Convert a 7-D policy action [dpos(3), daa(3), gripper(1)] into the
-    robot's JointController action [target_arm_joints(7), gripper(1)].
+    """Convert a base-frame EEF delta and gripper command to joint targets.
 
-    One damped-least-squares Jacobian step maps the commanded base-frame eef
-    twist to a joint delta; the absolute joint target (current + dq) is what
-    the JointController PD-tracks each step. This reproduces the SFT mechanism
-    (cuRobo joint targets tracked by a JointController), so the joint path that
-    realizes the eef delta matches training instead of diverging like OSC.
-
-    The 6-D eef delta IS the base-frame twist to realize (orientation delta is
-    axis-angle, since R_target = dR @ R_cur)."""
+    Apply one damped-least-squares Jacobian step to the position and axis-angle
+    delta, add the joint delta to the current arm joints, and pass through the
+    gripper command. This is a local IK approximation for JointController use."""
     arm = robot.default_arm
     err6 = np.asarray(eef_delta[:6], dtype=np.float64)
 
@@ -256,11 +250,11 @@ def connect_policy(cfg: EvalConfig):
 
 
 def _remap_obs_for_openpi(obs: dict, cfg: EvalConfig) -> dict:
-    """Pack the 2-cam policy observation (LIBERO convention). The single external
-    overview (cam_left or cam_right per cfg.external_cam) goes to the fixed key
-    observation/image_left; the server (Sim2CamInputs) maps image_left->base_0,
-    wrist->left_wrist_0, and zero-fills+masks the third slot. Matches every
-    ManiGuard joint checkpoint's train config."""
+    """Map the selected overview, wrist image, state, and prompt to policy keys.
+
+    The external view uses observation/image_left regardless of its sensor name.
+    Sim2CamInputs maps these images to its model slots. Include episode_seed when
+    present so compatible policy servers can reset their sampling generators."""
     out = {
         "observation/image_left": obs["overview_image"],
         "observation/wrist_image": obs["wrist_images"],
@@ -292,9 +286,7 @@ def query_policy(policy, obs, client_type, cfg):
 # ---------------------------------------------------------------------------
 # LTL safety
 # ---------------------------------------------------------------------------
-
-# LTL active-object resolution lives in the shared utils.safety_monitor (single source
-# used by the eval runner, datagen, and bench-finalize alike). Thin local aliases keep this
+# Delegate evaluation object resolution to utils.safety_monitor.
 # module's existing call sites + names unchanged.
 def _category_synset_lemma(category: str) -> str:
     from maniguard.utils.safety_monitor import category_synset_lemma
@@ -454,7 +446,7 @@ def main():
         # Per-rollout seed for the policy's sampling noise: derived from the base
         # seed + scene name (stable across scene ordering), sent with every
         # request; the server re-seeds its sampler when the value changes.
-        # None (no --seed) keeps the previous unseeded behavior.
+        # None (no --seed) leaves sampling unseeded.
         episode_seed = None
         if cfg.seed is not None:
             import zlib
@@ -509,15 +501,8 @@ def main():
                 except json.JSONDecodeError:
                     _diag = json.loads([ln for ln in _txt.splitlines() if ln.strip()][0])
 
-            # External-camera placement: LOAD the poses recorded in the task's
-            # diagnostics["cameras"] via the shared load-side rule
-            # (camera_setup.place_recorded_task_cameras) — the same mechanism
-            # datagen uses, so the eval overview equals the training view by
-            # construction. Poses are never recomputed here: the old
-            # setup_external_cameras_robot_frame call took a support_surface-
-            # relative branch on scenes containing an object named
-            # "support_surface" (cabinet) and produced a viewpoint that exists
-            # nowhere in the training data.
+            # Apply saved camera poses through the shared loader. If poses are
+            # absent, that helper warns and recomputes robot-relative views.
             from maniguard.utils.camera_setup import place_recorded_task_cameras
             place_recorded_task_cameras(env, _diag, set_viewer=False)
 
@@ -564,13 +549,8 @@ def main():
                       f"{list(override_cc.keys())}", flush=True)
                 robot.reload_controllers(override_cc)
 
-            # Force grasping semantics to match the training data's grasp mode.
-            # The ManiGuard-Bench scene bakes its own grasping_mode (often 'assisted'),
-            # but the policy was trained under the teleop mode (joint families =
-            # 'sticky'); a mismatch means the learned gripper actions never grasp.
-            # OmniGibson reads grasping_mode per step, so setting it now takes
-            # effect immediately (the per-mode _ag_* state is created at init for
-            # all modes, so switching post-load is safe).
+            # Apply the configured grasping mode after loading the saved robot.
+            # The requested mode should match the policy's training environment.
             if cfg.grasping_mode not in ("physical", "assisted", "sticky"):
                 raise ValueError(
                     f"grasping_mode must be physical/assisted/sticky, got "
@@ -668,7 +648,7 @@ def main():
         nan_terminated_step = None
 
         # --- engagement / contact-gated-safety instrumentation
-        #     (docs/evaluation/engagement_metric.md) ---
+        #     (raw contact and target-motion measurements) ---
         from omnigibson.object_states import ContactBodies as _ContactBodies
         _robot_links = set(robot.links.values())
         _STRUCTURAL = {"walls", "floors", "ceilings", "door", "window"}
@@ -723,7 +703,7 @@ def main():
                 chunk_len = min(cfg.execute_horizon, len(chunk), cfg.max_steps - step_idx)
 
                 for ci in range(chunk_len):
-                    action = chunk[ci].copy()  # policy 7-D eef delta + gripper
+                    action = chunk[ci].copy()  # policy action in the configured convention
                     if cfg.gripper_binarize:
                         action[-1] = np.sign(action[-1]) if abs(action[-1]) > 0.01 else -1.0
                     if cfg.ik_eef_to_joint:
@@ -776,7 +756,7 @@ def main():
                         )
                         break
 
-                    # Engagement (docs/evaluation/engagement_metric.md): contact = ANY
+                    # Engagement: contact = ANY
                     # robot link touching ANY task object (whole arm, not just the
                     # gripper). Stop checking once contacted (we only need ever/first).
                     if not ever_contacted:
@@ -801,9 +781,8 @@ def main():
                         except Exception:  # noqa: BLE001
                             pass
 
-                    # Safety: advance the LTL monitor every executed step. It
-                    # only records (no early-stop); a transient monitor hiccup
-                    # must not abort an otherwise-fine rollout.
+                    # Advance safety monitoring after each executed action.
+                    # Errors are logged here and the rollout continues.
                     if monitor is not None:
                         try:
                             monitor.step(step_idx)
@@ -858,7 +837,7 @@ def main():
                 print(_tb.format_exc(), flush=True)
 
         ltl_summary = monitor.summary() if monitor is not None else None
-        # engagement-metric derived fields (docs/evaluation/engagement_metric.md)
+        # Outcome label and contact-gated first-violation indicator.
         _eef2t = None if eef2target_min_dist == float("inf") else round(eef2target_min_dist, 4)
         if success:
             _outcome = "success"
@@ -897,7 +876,7 @@ def main():
             "ltl_violation_step": (monitor.violation_step if monitor is not None else None),
             "ltl_violation_count": (monitor.violation_count if monitor is not None else 0),
             "ltl_formula": (ltl_summary.get("formula", "") if ltl_summary else ""),
-            # engagement metric (docs/evaluation/engagement_metric.md)
+            # Raw engagement signals and derived outcome fields.
             "ever_contacted": ever_contacted,
             "first_contact_step": first_contact_step,
             "ever_grasped": ever_grasped,
@@ -916,9 +895,8 @@ def main():
             f.write(json.dumps(result, ensure_ascii=True) + "\n")
 
         if cfg.save_video and main_frames:
-            # Two separate mp4s — the policy's overview stream and the wrist
-            # stream — at the training data's 30 fps, same 256-res the policy
-            # sees (no upscaling: keeps the saved video faithful to the input).
+            # Save overview and wrist images at the observed resolution.
+            # Playback is encoded at 30 fps, independent of action_frequency.
             (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
             imageio.mimsave(str(output_dir / f"{scene_info['name']}_main.mp4"), main_frames, fps=30)
             if wrist_frames:
@@ -953,10 +931,8 @@ def main():
         print(f"Safety (LTL): {n_violated}/{n_ltl} scenes had a violation")
     print(f"Results: {results_path}")
 
-    # Whole-run summary recomputed from results.jsonl, which accumulates across
-    # per-task batch processes -> a batch run gets a real aggregate instead of
-    # the last process's single-task stats. results.jsonl stays the per-task
-    # source of truth; summary.json no longer duplicates it.
+    # Aggregate result rows currently saved in this run directory, including
+    # rows appended by other per-scene batch processes.
     if not results_path.exists():
         # 0 scenes evaluated (e.g. every requested scene was skipped by
         # discovery) — nothing to summarize; exit non-zero so callers retry/flag.
@@ -975,7 +951,7 @@ def main():
         "success_rate": (_succ / max(len(_done), 1)) if run_success else None,
         "n_ltl_monitored": sum(1 for r in _done if r.get("ltl_monitored")),
         "n_ltl_violated": sum(1 for r in _done if r.get("ltl_violated")),
-        # -- engagement metric (docs/evaluation/engagement_metric.md), parallel to the above --
+        # Aggregate engagement and contact-gated violation fields.
         "n_idle": sum(1 for r in _done if r.get("outcome") == "idle"),
         "n_reached": sum(1 for r in _done if r.get("outcome") == "reached"),
         "n_manipulated": sum(1 for r in _done if r.get("outcome") == "manipulated"),

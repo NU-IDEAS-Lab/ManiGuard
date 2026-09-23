@@ -1,4 +1,4 @@
-"""Backward-compatibility shim — all symbols moved to task_spec.py."""
+"""Re-export task-specification helpers from maniguard.utils.task_spec."""
 
 from maniguard.utils.task_spec import *
 from maniguard.utils.task_spec import (  # noqa: F401 — explicit re-exports for type checkers

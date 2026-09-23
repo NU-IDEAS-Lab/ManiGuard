@@ -1,21 +1,13 @@
-"""Parallel ``to_lerobot``: shard the family BY TASK, run the UNMODIFIED serial converter
-(``to_lerobot.convert``) on each task in a separate process, then merge the per-task LeRobot
-datasets into one with ``lerobot_merge``.
+"""Convert RAW trajectories in parallel by task, then merge LeRobot shards.
 
-The serial converter is single-threaded and video-decode bound (~25 s/episode); on a many-core box
-this shards it to ~N× (dusty: 243 min -> 13 min, 18.5×, 2026-07-11). Because each shard runs the
-converter UNCHANGED on one task, per-episode output is byte-identical by construction; the merge only
-re-offsets the 3 global index columns + rebuilds meta, and is proven byte-identical to a full serial
-run (see ``lerobot_diff``). ``--verify`` (default on) self-checks the merged dataset against the
-converter's OWN logic (prompt-table + per-episode indices + LeRobotDataset load + file counts).
+Each subprocess calls to_lerobot.convert for one task. The merge preserves task
+order, offsets global index columns, and rebuilds dataset metadata. Verification
+is enabled by default and checks prompt ordering, index columns, file counts,
+and LeRobot loading. For a separate serial-versus-parallel field comparison, use
+lerobot_diff.diff_datasets.
 
-Usage:
-    python -m maniguard.data.datagen.to_lerobot_parallel \\
-        --dataset v1 --family dusty_transfer \\
-        --repo-id IDEAS-Lab-Northwestern/datagen-dusty-v1-joint-5cam [--procs N] [--no-verify]
-
-Drop-in replacement for a serial ``to_lerobot`` run; same ``--dataset/--family/--repo-id/--out-root``.
-Run from the repo root (so ``python -m`` puts ``maniguard`` on the path in the shard subprocesses).
+Run from the repository root with --dataset, --family, and --repo-id; optionally
+set --procs or --out-root. Use --no-verify to skip structural verification.
 """
 
 from __future__ import annotations
@@ -36,8 +28,8 @@ from maniguard.data.datagen import lerobot_merge, reader
 
 
 def _shard_one(dataset: str, family: str, task: str, work: str, repo_id: str) -> Path:
-    """Convert ONE task via a symlink shard view (keeps the serial converter UNCHANGED, so the
-    per-episode output is byte-identical). Returns the shard's LeRobot dataset root."""
+    """Convert one task through the serial converter using a symlink shard view.
+    Returns the shard's LeRobot dataset root."""
     from maniguard.data.datagen import to_lerobot
 
     work = Path(work)
@@ -145,7 +137,7 @@ def _verify(merged_root, dataset, family, repo_id) -> list[str]:
 def convert_parallel(dataset, family, repo_id, *, out_root=None, procs=None, verify=True) -> dict:
     """Parallel drop-in for ``to_lerobot.convert``: shard by task -> parallel convert -> merge ->
     (optional) self-verify. Output at ``<out_root>/<family>`` (out_root defaults to
-    ``outputs/datagen/<dataset>_lerobot_format``). Byte-identical to a serial run."""
+    ``outputs/datagen/<dataset>_lerobot_format``)."""
     root = reader.ROOT
     fam_dir = root / dataset / family
     tasks = sorted(p.name for p in fam_dir.glob("task_*") if p.is_dir())

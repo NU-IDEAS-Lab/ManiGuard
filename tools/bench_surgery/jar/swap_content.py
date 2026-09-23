@@ -1,18 +1,10 @@
-"""Swap a jar_transport task's CONTENT item for a donor object (the jar itself is untouched).
+"""Replace a jar task's content object with a selected donor asset.
 
-Mirrors ``tools.bench_surgery.stack.swap_object`` for the jar family: rewrites the task's ``base/scene_ep1.json``
-(item init_info args + registry entry renamed to the donor, spawn pose ABOVE the jar mouth so the
-bench re-finalize settle drops it INTO the cavity) + ``base/diagnostics.jsonl`` (selection item_* /
-spawn_specs / item_info / prompt). Then re-finalize with the family-generic bench finalize
-(``finalize_base_task``) to settle physics, re-render the review videos and re-stamp runtime stats.
-
-Constraint honoured by the caller: the (jar_model, item_category) pair must stay UNIQUE across the
-family. Donor geometry (scale + expected_file_hash) is read from any bench/6fam base scene where the
-donor already appears. Backs both files up to ``*.bak_swap`` on first touch; idempotent per task.
-
-Usage:
-  python -m tools.bench_surgery.jar.swap_content --task-dir <ABS>/task_0013/base --item jar_of_cumin/tsktnz
-"""
+Search the configured donor roots for asset scale and hash, rename the content
+object, preserve its position, reset its orientation and velocities, and
+update item metadata and prompt text. Create one-time .bak_swap backups.
+The command does not check family-wide pair uniqueness or simulate fit.
+Re-finalize afterward to refresh runtime checks and review videos."""
 from __future__ import annotations
 
 import argparse
@@ -57,9 +49,8 @@ def swap(task_dir: str, new_cat: str, new_model: str) -> None:
     jar_name = diag["jar_info"]["name"]
     jar_pos = reg[jar_name]["root_link"]["pos"]
 
-    # registry: rename the item entry; KEEP the old item's settled position (it sat at/in the mouth,
-    # a bench-legal start) — the smaller donor gently settles from there INTO the cavity. Spawning
-    # high above the mouth free-falls onto the jar and knocks it over (upright violation at settle).
+    # Rename the item registry entry while preserving its existing position.
+    # Reset orientation, velocities, and articulated-state fields for the rigid donor.
     entry = reg.pop(old_name)
     entry["root_link"]["ori"] = [0.0, 0.0, 0.0, 1.0]
     entry["root_link"]["lin_vel"] = [0.0, 0.0, 0.0]

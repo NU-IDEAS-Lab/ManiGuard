@@ -1,14 +1,9 @@
-"""Same-category (container, lid) PAIR swap for lid_transport bench tasks.
+"""Replace a lid/container asset pair using a same-category donor task.
 
-For a task whose container+lid geometry is unworkable (gqwnfv canister tips at any
-contact), swap BOTH models to a donor task's proven pair. Same-category only —
-instance names, prompt wording, and LTL patterns all stay valid; only init args
-(model/hash/scale) change. Positions keep xy; z is re-seated via the donor's
-root-above-support offset; the rerender's gravity settle finishes the rest.
-
-Usage:
-  python -m tools.bench_surgery.lid.swap_pair --task task_0008 --donor-task task_0001 --apply
-"""
+Copy model/hash/scale, preserve XY positions, and set heights from the donor
+objects' support-relative origins with a 3 mm offset. Update selection and
+lid metadata. Preview by default; --apply creates one-time .bak_pairswap
+backups and writes scene and diagnostics. Re-finalize to refresh outputs."""
 from __future__ import annotations
 
 import argparse

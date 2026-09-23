@@ -1,30 +1,23 @@
 """Build the `language` perturbation level for ManiGuard-Bench.
 
-The lightest OOD axis: only the natural-language instruction changes. The scene,
-objects, poses, goal, and physics are byte-identical to `base`, so there is NO
-simulation — each `language/` instance is a copy of `base/` with one rewritten
-field. Eval reads the task prompt straight from ``diagnostics["prompt"]``
-(``scene_discovery.py``), so rewriting that string is the complete change; the
-uniform load hook (``perturbation.apply_perturbation``) is already a no-op for
-``kind == "language"``.
+Only the instruction string changes. The scene snapshot and available review
+videos are copied from base without running a simulator. Evaluation reads the
+rewritten diagnostics["prompt"]. The appearance hook is a no-op for language
+variants.
 
 Each `language/` instance is fully self-describing (same contract as base/ and
 target/):
 
   * ``scene_ep1.json``  — a byte copy of ``base/``.
-  * ``rollout_*.mp4`` ×4 — byte copies of ``base/`` (language does not change pixels).
+  * Existing ``rollout_*.mp4`` files — copied from ``base/`` when present.
   * ``diagnostics.jsonl`` — base diagnostics with ``prompt`` rewritten to the
         rephrase and a ``perturbation`` block
         ``{"kind":"language","language":{base_prompt, rephrased}}``.
 
-The rephrase is a **deterministic, family-aware ordered phrase substitution** on
-the finalized base prompt string (no LLM, no synset reconstruction). The base
-prompts have stable per-family shapes; object names / sides / "or anything else"
-clauses pass through untouched, so task semantics are preserved by construction
-and every base maps to exactly one rephrase.
-
-This module deliberately imports NOTHING from the legacy ``perturbation_scaling``
-(its synonym/banned-word ideas are re-derived here for the bench's prompt shapes).
+Rephrasing uses deterministic ordered substitutions defined per family. These
+rules target the generated prompt templates and are intended to retain object
+references and goals. Validation rejects unchanged or empty prompts and newly
+introduced safety-hint words, and warns about removed content words.
 
 Usage:
   # preview rephrase quality for a family WITHOUT writing variant dirs

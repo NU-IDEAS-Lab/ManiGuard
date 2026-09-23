@@ -1,15 +1,11 @@
-"""Tile each variant level's per-task review STILLS into ONE montage PNG (one image per level)
-for fast visual QC of a whole bench family. Reuses the bench review_snapshots frame extraction
-(last frame = the settled idle-step state), then lays the 35 task stills out in a labelled grid.
+"""Build one labeled review-frame montage per task condition.
 
-Output: ``<out-dir>/<family>_<level>_<view>_grid.png`` — one per level (base/target/location/env/
-language). Each cell is the task's last review frame with a ``task_NNNN`` tag; a title bar names
-the level. Missing/undecodable clips become a grey "MISSING" cell so the grid stays 1:1 with tasks.
+Read the last video frame for each existing task and arrange it in a grid.
+Missing clips or clips with no decoded frames receive a MISSING cell. Other
+decode errors can propagate. Output names include family, condition, and view.
 
-Usage:
-  python -m tools.bench_surgery.cabinet.review_grid --family cabinet_pickup --view left_shoulder
-  python -m tools.bench_surgery.cabinet.review_grid --family cabinet_pickup --view opposite_side_front --levels base
-"""
+Example:
+    python -m tools.bench_surgery.cabinet.review_grid --family cabinet_pickup --levels base"""
 from __future__ import annotations
 
 import argparse

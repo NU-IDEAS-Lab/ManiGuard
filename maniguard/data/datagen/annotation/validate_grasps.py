@@ -1,18 +1,4 @@
-"""Phase C-lite — load annotated grasps into their object's task, drive the Franka eef
-to each grasp pose, hold, and render the 4 bench third-person cameras for review.
-
-For each annotated object: loads its source task (the bench task where it is the grasp
-target, longfinger + the 4 bench cameras), finds the target instance, then per grasp:
-``T_eef_world = T_object_world @ grasp_local`` and TELEPORTS the robot base so eef_link
-lands EXACTLY at that pose (no IK confound — exact placement to verify the grasp POINT),
-hides the (non-physical floating) arm links so only the gripper + scene show, opens the
-gripper, and saves the 4 third-person views + a montage. Lets you confirm each annotated
-grasp grabs the intended part before doing the full annotation.
-
-  VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json CUDA_VISIBLE_DEVICES=0 \
-  OMNIGIBSON_HEADLESS=1 PYTHONPATH=$HOME/project/ManiGuard \
-  python -u -m maniguard.data.datagen.annotation.validate_grasps [--limit N]
-"""
+"""Visualize annotated grasp poses relative to a source task's goal target. The current tool assumes the annotation key matches that target; auxiliary-object annotations need a matching source task before these previews can be interpreted as object-relative validation."""
 from __future__ import annotations
 
 import argparse
@@ -68,11 +54,7 @@ def main() -> int:
     from maniguard.data.datagen.primitives.grasp_obb import _pose_to_mat, _to_np
     from maniguard.data.datagen.primitives.record import _sensor_rgb_uint8
 
-    # TEMPORARY review-only close-up (NOT part of utils/camera_setup): rather than ADD a
-    # 5th VisionSensor (adding an extra render target crashes the GPU here), we REUSE the
-    # existing cam_opposite — grab its wide view, then park it close to the grasp (same
-    # viewing direction) for a zoomed shot, then restore it. Repositioning an existing
-    # camera is the reliable path.
+    # Read cam_opposite's viewing direction for the mesh-rendered close-up.
     CLOSEUP_DIST = 0.30
 
     def _opposite_cam(diag):
@@ -124,10 +106,7 @@ def main() -> int:
         task_dir = BENCH / src / "base"
         if ti > 0:
             og.clear()
-        # NOTE: install_wrist_camera (injects a USD Camera under panda_hand) was found to
-        # intermittently trigger Vulkan ERROR_DEVICE_LOST during scene build on this box,
-        # and the wrist view is too close to be useful here — so the review uses the 4
-        # bench cams + a matplotlib 3D close-up only.
+        # Use the four benchmark cameras and a mesh-rendered close-up for review.
         bundle = scenemod.scene_from_task_dir(
             task_dir, external_sensors=cameras.external_camera_configs(),
             pre_build_hooks=[_patch_franka_longfinger])

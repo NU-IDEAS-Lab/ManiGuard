@@ -1,14 +1,9 @@
-"""Field-level diff of two LeRobot datasets (reference vs candidate).
+"""Compare two LeRobot datasets at metadata, field, and video-byte level.
 
-Compares, for byte/field-level identity:
-  * ``meta/info.json`` (all keys),
-  * ``meta/tasks.jsonl`` / ``episodes.jsonl`` / ``episodes_stats.jsonl``,
-  * every episode's parquet (ALL columns, exact values),
-  * every episode's videos (md5).
-
-Used to prove a parallel / merged dataset byte-identical to a serial ``to_lerobot`` reference
-(the ``--verify`` self-check in ``to_lerobot_parallel`` and ad-hoc gold-standard checks).
-``diff_datasets`` returns the list of differences (empty list == identical).
+Compare parsed JSON metadata, every Parquet column value, and MP4 checksums.
+Return a list of differences; an empty list means these comparisons agree.
+This check is separate from to_lerobot_parallel's structural verification and
+does not compare the complete serialized Parquet files byte for byte.
 """
 
 from __future__ import annotations

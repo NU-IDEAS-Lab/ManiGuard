@@ -72,7 +72,7 @@ MIN_Z_MAX_M = 0.02              # rim must sit ≥ 2 cm above the floor
 # semantically valid receptacle target. Add categories here only after
 # confirming the failure mode visually.
 TARGET_EXCLUDE_CATS = frozenset({
-    # No-op for now; populate from real-world inspection later.
+    # No category-level exclusions are configured.
 })
 
 

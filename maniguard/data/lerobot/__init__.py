@@ -1,1 +1,1 @@
-"""Teleop HDF5 -> LeRobot v2.1 export (multitask_lerobot_export) + norm-stats."""
+"""Teleop HDF5 to multi-task LeRobot dataset export."""

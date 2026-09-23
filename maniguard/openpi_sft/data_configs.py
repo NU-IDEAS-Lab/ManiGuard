@@ -1,8 +1,9 @@
-"""ManiGuard-owned openpi ``DataConfig`` factories for SFT.
+"""DataConfig factories and observation/action transforms for ManiGuard openpi recipes.
 
-Kept in ManiGuard (not appended to openpi's vendored ``config.py``) so openpi
-stays a pristine, parallel clone. ``train_configs.register`` attaches the
-TrainConfigs that use these into openpi's registry at import time.
+Select an overview stream and wrist stream, map them to the policy input keys,
+and configure joint-position action conversion. SubsetDataConfig carries an
+optional episode_fraction marker; a compatible data loader must implement the
+selection because this factory does not select episodes itself.
 """
 
 from __future__ import annotations
@@ -20,29 +21,16 @@ from maniguard.openpi_sft.policies import sim_2cam_policy
 
 @dataclasses.dataclass(frozen=True)
 class Sim2CamLiberoDataConfig(DataConfigFactory):
-    """LeRobot config for sim datasets under the LIBERO 2-cam convention.
+    """Map one external view and the wrist view into the openpi two-camera layout.
 
-    The dataset is rendered with three image streams (image_left / image_right /
-    wrist_image), but only ``image_left`` (external overview) + ``wrist_image``
-    are fed to the policy; ``image_right`` is dropped and pi0.5's third image
-    slot is zero-filled and masked off (see :mod:`sim_2cam_policy`). This keeps
-    the policy input identical to openpi's stock ``LeRobotLiberoDataConfig`` for
-    any sim task — only the dataset (repo_id) and action semantics vary.
+    external_cam selects image_<name>; wrist_image supplies the wrist view. Extra
+    dataset cameras are not passed to the policy. For joint-position datasets,
+    use_delta_joint_actions enables DeltaActions for seven arm joints and leaves
+    the gripper absolute; AbsoluteActions reconstructs inference outputs. The
+    alternate branch returns seven action dimensions without this conversion.
 
-    ``use_delta_joint_actions`` selects the action representation:
-      * True (default) — JOINT datasets: 8-D joint state + 8-D absolute-joint
-        actions; the 7 arm joints are converted to per-step deltas (gripper kept
-        absolute) before the model, and reconstructed to absolute at inference.
-        Mirrors openpi's RLDSDroidDataConfig JOINT_POSITION handling so eval can
-        feed the reconstructed absolute joint target straight to a
-        JointController (no eef->joint IK).
-      * False           — EEF-delta datasets: 8-D eef state + 7-D EEF-delta
-        actions, no extra action transform.
-
-    ManiGuard runs a **JointController end-to-end** (collection -> render ->
-    SFT -> eval), so the default is ``True`` and every ManiGuard task config is
-    expected to keep it ``True``. The ``False`` (eef) branch is retained only so
-    the class stays general; do not use it for the joint-controller pipeline.
+    The episode_fraction field is propagated as metadata. Episode selection requires
+    a compatible loader; it is not performed by create.
     """
 
     # Convert absolute joint-position actions to per-step deltas for the 7 arm
@@ -61,19 +49,11 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
     # ``observation/image_left`` (a fixed contract); this only changes WHICH dataset
     # stream feeds that key: ``"<cam>" -> image_<cam> -> observation/image_left`` for
     # cam in {opposite, left, right, left_shoulder}.
-    # NOTE: legacy datasets ship only image_left/image_right — use one of those there.
+    # For datasets with only left/right overviews, select one of those available streams.
     external_cam: str = "left"
 
-    # Data-scaling ablation knob. None (default) = train on the full dataset —
-    # identical behavior to before this field existed. A fraction in (0, 1) =
-    # per-BASE-TASK subset: the datagen datasets store exactly 40 consecutive
-    # episodes per base task (verified homogeneous blocks), and the subset takes
-    # the FIRST ceil(40 * fraction) episodes of every 40-block (e.g. 0.2 -> 8/40,
-    # 0.5 -> 20/40, 0.8 -> 32/40). Task coverage is unchanged; only demos-per-task
-    # shrink. Applied at load time via _episode_subset_patch (LeRobotDataset's
-    # native `episodes=` filter) — the source dataset stays read-only, and the
-    # norm-stats pass goes through the same path, so each fraction config computes
-    # stats on ITS OWN subset under its own config name.
+    # Optional fraction marker. A compatible data loader must implement episode
+    # selection; this factory only validates and propagates the value.
     episode_fraction: float | None = None
 
     @override
@@ -131,9 +111,7 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
         )
         if self.episode_fraction is None:
             return cfg
-        # Carry the fraction on a DataConfig subclass so the load-time patch
-        # (_episode_subset_patch) can see it via getattr — openpi's DataConfig
-        # itself is never modified.
+        # Preserve the marker on a DataConfig subclass for compatible loaders.
         return SubsetDataConfig(
             **{f.name: getattr(cfg, f.name) for f in dataclasses.fields(cfg)},
             episode_fraction=self.episode_fraction,
@@ -142,10 +120,9 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
 
 @dataclasses.dataclass(frozen=True)
 class SubsetDataConfig(DataConfig):
-    """openpi ``DataConfig`` + the per-base-task ``episode_fraction`` marker.
+    """DataConfig carrying an episode_fraction marker for a compatible subset-aware loader.
 
-    Read by ``_episode_subset_patch`` (duck-typed ``getattr``); plain
-    ``DataConfig`` instances (fraction-less configs) pass through untouched.
+    This dataclass stores the marker and does not filter episodes itself.
     """
 
     episode_fraction: float | None = None

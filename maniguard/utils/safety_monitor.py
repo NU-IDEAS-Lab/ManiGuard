@@ -1,30 +1,17 @@
-"""Generic LTL safety monitor for BEHAVIOR manipulation tasks.
+"""Evaluate task safety specifications with a Spot-based LTL monitor.
 
-This module provides a data-driven LTL monitoring system that reads safety
-constraints from ``ltl_safety.json`` files (per-activity and per-scene) and
-evaluates them every simulation step.  New tasks only require a JSON file --
-no Python code per task.
+TaskLTLMonitor accepts an inline ltl_safety mapping, optionally merges a
+scene-asset safety file, resolves proposition subjects, and records labels
+and the first rejecting-monitor state.
 
-All proposition evaluation is delegated to OmniGibson object states (including
-the ``Upright`` state).  The monitor itself contains no physics or geometry
-logic.
+Propositions use registered OmniGibson states or custom joint, orientation,
+AABB, and particle checks. ObjectResolver matches BDDL instance patterns and
+explicit active-object mappings. Each caller controls when to advance the
+monitor and whether a reported violation ends its rollout.
 
-Main classes
-------------
-TaskLTLMonitor
-    Drop-in replacement for task-specific monitors (e.g. ``KitchenBarLTLMonitor``).
-    Loads safety JSON, builds proposition evaluators, wraps the Spot-based
-    ``LTLMonitor`` from :mod:`omnigibson.utils.ltl_utils`.
-
-ObjectResolver
-    Resolves synset glob patterns (``"wineglass.n.01_*"``) and special tokens
-    (``"floor"``) to wrapped OmniGibson scene objects, filtered by an optional
-    *active-objects* set so that culled / parked objects are excluded.
-
-SafetyPropositionEvaluator
-    Builds per-proposition ``eval_fn`` closures from JSON definitions using
-    only registered OmniGibson object states.
-"""
+LTLMonitor is implemented in maniguard.utils.ltl_utils. Missing Spot support
+or failed automaton initialization disables the automaton in this class;
+callers that require safety monitoring must check runtime readiness."""
 
 from __future__ import annotations
 
@@ -127,10 +114,11 @@ class ObjectResolver:
     Parameters
     ----------
     env : og.Environment
-        The OmniGibson environment (must have ``env.task.object_scope``).
+        Environment with a task. BDDL object_scope is optional when an
+        explicit active-object mapping is supplied.
     active_objects_by_inst : dict, optional
-        If provided, only instance IDs present in this dict are returned.
-        This filters out culled / parked objects whose poses may be invalid.
+        A nonempty mapping restricts BDDL matches and supplies objects for
+        direct instance-pattern matching. An empty mapping applies no filter.
     """
 
     def __init__(self, env, active_objects_by_inst: dict | None = None):
@@ -185,11 +173,10 @@ class ObjectResolver:
 # ---------------------------------------------------------------------------
 
 class SafetyPropositionEvaluator:
-    """Builds ``eval_fn`` closures from JSON proposition definitions.
+    """Build boolean proposition evaluators from safety definitions.
 
-    Each eval_fn takes no arguments and returns ``bool``.
-    All evaluation is delegated to OmniGibson object states.
-    """
+    Registered state checks are supplemented by custom spill, overhead-zone,
+    orientation, and particle-contact evaluators."""
 
     def __init__(self, resolver: ObjectResolver):
         self._resolver = resolver
@@ -383,13 +370,9 @@ class SafetyPropositionEvaluator:
         return eval_fn
 
     def _build_inverted(self, prop_def: dict) -> Callable[[], bool]:
-        """Check if an object is flipped upside down (tilt > threshold from vertical).
+        """Check whether any matched object has tilt >= min_tilt_deg.
 
-        JSON definition::
-
-            {"check": "inverted", "over": ["mug.n.04_*"],
-             "params": {"min_tilt_deg": 120.0}}
-        """
+        Compute tilt from its orientation quaternion; default threshold is 120 degrees."""
         import math
 
         subjects = self._resolver.resolve_patterns(prop_def.get("over", []))
@@ -413,13 +396,10 @@ class SafetyPropositionEvaluator:
         return eval_fn
 
     def _build_particles_on_surface(self, prop_def: dict) -> Callable[[], bool]:
-        """Check if physical particles exist near a surface (e.g. water on table).
+        """Check whether physical particles contact a resolved surface.
 
-        JSON definition::
-
-            {"check": "particles_on_surface", "surface": ["breakfast_table.n.01_*"],
-             "params": {"system_name": "water", "z_margin": 0.05}}
-        """
+        Read the named particle system and query each surface's ContactParticles
+        state. The declared z_margin parameter is currently not used by this check."""
         surface_objs = self._resolver.resolve_patterns(prop_def.get("surface", []))
         system_name = prop_def.get("params", {}).get("system_name", "water")
         z_margin = float(prop_def.get("params", {}).get("z_margin", 0.05))
@@ -464,13 +444,10 @@ class SafetyPropositionEvaluator:
 # ---------------------------------------------------------------------------
 
 def _load_scene_safety(scene_model: str) -> dict:
-    """Load ``ltl_safety.json`` from the scene assets directory.
+    """Read scenes/<scene_model>/safety/ltl_safety.json from installed assets.
 
-    Scene-level safety lives with the asset (next to the scene's USD,
-    not in BDDL), so this filesystem path stays — it's not a backward
-    compat shim. Task-level safety, on the other hand, is now passed
-    inline through ``TaskLTLMonitor(ltl_safety=...)``.
-    """
+    Return an empty mapping when the asset lookup module or file is unavailable.
+    Task specifications can instead be supplied directly to TaskLTLMonitor."""
     try:
         from omnigibson.utils.asset_utils import get_scene_path
     except ImportError:
@@ -608,8 +585,9 @@ def category_synset_lemma(category: str) -> str:
 def build_active_objects_for_ltl(env, ltl_safety: dict, surface_name: str | None) -> dict:
     """Reconstruct ``{inst_id: obj}`` so a task's diagnostics LTL glob patterns resolve to the
     loaded scene objects (``agent.*`` -> robot; ``<cat>_*`` / ``<synset>.n.*_*`` -> category /
-    synset / role matches; an unresolved synset -> the support-surface backstop). The single
-    source used by the eval runner, datagen, and any other TaskLTLMonitor caller."""
+    synset / role matches; an unresolved synset -> the support-surface backstop). A
+    resolver used by evaluation and datagen. Benchmark construction also
+    provides a resolver that can restrict matches to injected task objects."""
     patterns = set()
     for pdef in ((ltl_safety or {}).get("propositions") or {}).values():
         for key in ("over", "relative_to"):
@@ -680,8 +658,7 @@ class TaskLTLMonitor:
         for step_idx in range(1, max_steps + 1):
             sim_step(...)
             info = monitor.step(step_idx)
-            if monitor.violated:
-                break
+            # Caller decides whether a violation terminates the rollout.
 
         summary = monitor.summary()
 
@@ -701,8 +678,8 @@ class TaskLTLMonitor:
         (asset-side, not BDDL-side). ``None`` skips them.
     active_objects_by_inst : dict, optional
         ``{inst_id: obj}`` for objects actually placed in the scene. If
-        given, only these objects are monitored — culled objects are
-        ignored, and patterns resolve against this dict when the env's
+        nonempty, it restricts monitored objects, and patterns resolve
+        against this dict when the env's
         BDDL task has no ``object_scope`` (e.g. DummyTask).
     """
 
@@ -790,7 +767,10 @@ class TaskLTLMonitor:
         return entry
 
     def reset(self):
-        """Reset the monitor for a new episode."""
+        """Reset automaton state, first-violation latch, and per-step log.
+
+        The cumulative violation count and evaluator closure state are retained.
+        """
         if self._monitor is not None:
             self._monitor.reset()
         self._violation_step = None

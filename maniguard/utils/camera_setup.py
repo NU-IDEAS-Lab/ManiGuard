@@ -1,15 +1,12 @@
-"""Canonical camera setup shared across task-generation, teleop, training, and eval.
+"""Shared camera configuration and placement utilities.
 
-Three external cameras (opposite / left / right of the robot) are the
-canonical layout. The pipeline computes their positions per episode; every
-downstream consumer (teleop, finetuning, evaluation) just loads the same
-sensor configs and optionally picks which view to feed the policy.
+Four external views are defined: opposite, left, right, and left shoulder.
+Construction computes robot-relative poses and records them in diagnostics.
+The load helper applies recorded poses when available and otherwise recomputes
+the robot-relative views. Consumers choose which sensors to create.
 
-Policy input composition: if `policy_external_cameras` selects one camera,
-its RGB is returned unchanged. If it selects multiple, they are horizontally
-concatenated along the width axis -- simplest scheme that keeps a single
-(H, W, 3) tensor for downstream models.
-"""
+compose_main_image returns a selected RGB image or concatenates multiple
+views horizontally in the supplied order."""
 
 from __future__ import annotations
 
@@ -147,26 +144,14 @@ def compute_robot_frame_views(env) -> list:
 
 
 def place_recorded_task_cameras(env, diagnostics=None, *, set_viewer=False) -> int:
-    """THE load-side external-camera placement: put a LOADED task's third-person
-    cameras at that task's PRESET poses.
+    """Apply recorded external-camera poses to sensors in a loaded environment.
 
-    Every consumer that loads a recorded task into the sim — datagen, eval,
-    teleop, playback re-render — uses this same rule, so all of them see the
-    SAME per-task views the task was built with:
+    When diagnostics contains cameras, delegate to position_diagnostics_cameras;
+    sensors absent from the environment are skipped. Without recorded poses, warn
+    and recompute the four robot-relative views. Imports are deferred to avoid a
+    circular dependency with task_generation.utils.video.
 
-      1. ``diagnostics["cameras"]`` present -> apply the recorded poses
-         (``frozen_task_runtime.position_diagnostics_cameras``, matched by
-         ``sensor_name``; sensors absent from the env are skipped, so this works
-         unchanged for 1-cam eval and 4-cam datagen setups alike).
-      2. no recorded poses (legacy snapshots) -> canonical robot-frame recompute
-         (``compute_robot_frame_views``), with a WARNING.
-
-    Camera poses are only ever COMPUTED at task-generation/bench-build time (the
-    code that stamps ``diagnostics["cameras"]``); loading a task must never
-    re-derive them. Returns the number of cameras positioned. Heavy imports are
-    in-function (lazy) to avoid a circular import with
-    task_generation.utils.video (which imports this module).
-    """
+    Return the recorded-placement count, or four for the fallback view list."""
     import omnigibson as og
 
     if diagnostics and diagnostics.get("cameras"):

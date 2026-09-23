@@ -1,13 +1,11 @@
-"""SO-101 leader arm / Franka teleop.
+"""GELLO and SO-101 teleoperation of a simulated Franka.
 
-Moved out of ``OmniGibson/omnigibson/{teleop,examples/teleoperation}/``
-so OmniGibson stays closer to upstream. Entry points:
-
+Entry points:
+    python -m maniguard.data.teleop.gello_franka_teleop --snapshot <scene_ep1.json>
     python -m maniguard.data.teleop.so101_franka_teleop --snapshot <scene_ep1.json>
     python -m maniguard.data.teleop.so101_franka_playback --input <teleop.hdf5>
 
-The companion ZMQ server (for the real SO-101 leader arm) lives outside
-this package at ``teleop_bridge/so101_server.py`` -- it runs in the
-``lerobot`` Python 3.12 venv, distinct from the ``behavior`` conda env
-these entry points expect.
+The SO-101 leader bridge is ``teleop_bridge/so101_server.py``. Run it in
+an environment with the LeRobot hardware dependencies; the simulation
+entry points use the OmniGibson environment.
 """

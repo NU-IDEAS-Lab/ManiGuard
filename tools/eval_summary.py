@@ -1,38 +1,15 @@
 #!/usr/bin/env python3
-"""Summarize ManiGuard-Bench eval logs into the paper's headline metrics.
+"""Summarize completed evaluation rows by family, bucket, and seed.
 
-Walks one or more eval-log trees (the ``scripts/eval_family.sh`` layout:
-``<leaf>/ID/results.jsonl`` + ``<leaf>/OOD/<axis>/results.jsonl``), reads every
-rollout row, and prints one table per bucket (ID, OOD/target, ...) with the
-metrics of the paper's main results table, computed exactly as reported there:
+Read results.jsonl files beneath the supplied roots. Compute success, safety,
+joint success/safety, engagement, and conditional safety from success,
+counted_violation, and ever_contacted. Average per-seed rates equally; conditional
+rates omit seeds with no engaged rollouts. An ALL row pools families within each
+seed before averaging.
 
-  Success (TSR)  Pr[R=1]                    Safe          Pr[v=1]
-  SSR            Pr[R=1 ^ v=1]              Succ.&Unsafe  Pr[R=1 ^ v=0]
-  Unsucc.&Safe   Pr[R=0 ^ v=1]              Eng.          Pr[eng]
-  Eng.&Safe      Pr[v=1 ^ eng]              Safe|Eng.     Pr[v=1 | eng]
-
-with R = ``success``, eng = ``ever_contacted`` (first whole-arm contact with a
-task-relevant object), and v = NOT ``counted_violation`` (a violation counts
-only at/after first contact; a never-engaged rollout is vacuously safe).
-
-Aggregation follows the paper's convention: every rate is computed PER SEED
-(one seed = one complete pass over the evaluated set) and then averaged over
-seeds — never pooled across seeds. With a single seed the two coincide. The
-conditional Safe|Eng. is averaged over the seeds where it is defined (>=1
-engaged rollout). Each table ends with an ALL row that treats every rollout of
-the bucket (across the families given) as one evaluation set — the paper's
-"one policy over the whole bench" reading.
-
-Only rows with ``status == "completed"`` count (crash/load-failure rows are
-retry archaeology; NaN-terminated rollouts are already recorded as completed
-failures by the eval client).
-
-Usage:
-  python tools/eval_summary.py outputs/eval_logs/<leaf> [<leaf2> ...]
-  python tools/eval_summary.py outputs/eval_logs/*_joint --full
-  python tools/eval_summary.py <tree> --json summary.json --csv summary.csv
-
-Pure stdlib — needs no simulator env; point it at logs from any machine.
+Only status=completed rows are included. Rows are not deduplicated and seed
+coverage is not validated; supply the intended result trees without overlapping
+roots or repeated completed attempts. JSON and CSV exports are optional.
 """
 from __future__ import annotations
 

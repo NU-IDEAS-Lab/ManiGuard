@@ -1,22 +1,16 @@
-"""Batch driver to finalize 6fam-base tasks into ManiGuard-Bench (one fresh process per task).
+"""Finalize generated task snapshots using one simulator subprocess per task.
 
-OmniGibson cannot cleanly reload Kit within one process (and commonly segfaults during shutdown
-*after* a clean save), so each task is finalized in a FRESH subprocess and success is judged by
-output-file presence, not the worker's exit code — same proven pattern as
-``replay_empty_from_dataset._run_subprocess_per_task``.
+Workers write a result row before simulator shutdown. The driver reads the row,
+checks output completeness, runs offline validation, and writes
+<out-root>/<family>/base_manifest.jsonl. Worker exit codes alone are insufficient
+because simulator teardown can fail after files have been saved.
 
-Two modes (one module):
-  * WORKER  (``--worker``): finalize ONE task, write its manifest row to ``<out-base>/_finalize_row.json``
-    BEFORE the teardown segfault, exit. (No validation here — the driver validates offline.)
-  * DRIVER  (default): for the selected tasks, spawn workers (``--jobs`` in parallel), then run the
-    OFFLINE ``validate_base_task`` in this (clean, no-OmniGibson) process and write per-task rows to
-    ``<out-root>/<family>/base_manifest.jsonl``. Read-only on 6fam-base; writes only maniguard-bench.
+The source layout is <src-root>/<family>/task_NNNN/<src-subdir>/ containing
+diagnostics.jsonl and scene_ep{episode}.json (or scene_ep{episode}_replay.json).
+Use separate source and output directories. Review videos are generated outputs.
 
-Usage:
-  # finalize jar tasks 0 and 1 with 2 parallel workers (the P1.0 self-check)
-  python -m maniguard.data.bench_builder.run_finalize_base --family jar_transport --tasks 0-1 --jobs 2
-  # full family, resumable
-  python -m maniguard.data.bench_builder.run_finalize_base --family clutter_pickup --jobs 2 --skip-existing
+Example:
+  python -m maniguard.data.bench_builder.run_finalize_base --src-root /path/to/generated_tasks --out-root /path/to/finalized_tasks --family jar_transport --tasks 0-1 --jobs 2
 """
 from __future__ import annotations
 
@@ -215,11 +209,8 @@ def _driver(args: argparse.Namespace) -> int:
     counts = Counter(r["status"] for r in rows)
     print(f"=== {args.family}: {dict(counts)} ({len(rows)} tasks) -> {manifest}", flush=True)
 
-    # drop_list.json: written ONLY when there are fails — a CANDIDATE list for human review
-    # (NOT an auto-drop). The user reviews each against the manifest + videos: tool bugs get
-    # FIXED (then re-validate, not dropped); genuinely-unreasonable tasks get pruned via
-    # prune_reindex.py. Deleted clean once pruned (the deterministic checks re-flag bad tasks
-    # on any re-run, so the list never needs to persist). Not written when everything passes.
+    # Failed tasks are listed for manual review. This command does not delete
+    # task directories; prune_reindex applies an explicitly supplied drop list.
     drop_path = out_fam / "drop_list.json"
     fail_rows = [r for r in rows if r["status"] == "fail"]
     if fail_rows:

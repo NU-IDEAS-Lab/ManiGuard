@@ -1,16 +1,9 @@
-"""Bench surgery: move / re-yaw the hinged jar of a jar_transport base task (JSON-only edit).
+"""Translate or yaw-rotate a jar and its food objects in a saved base snapshot.
 
-Extreme-placement tail tasks (far / bad lid-flop direction) get their jar TRANSLATED toward the
-robot and/or YAW-rotated so the flopped lid faces a workable direction. The content item moves
-rigidly with the jar (same translation; positions rotate about the jar's vertical axis for yaw).
-The goal region, support, and robot are untouched. Re-finalize afterwards with
-``tools/bench_surgery/jar/rerender_base.py`` (behavior env python) to settle, re-monitor LTL and re-render.
-
-Usage:
-  python -m tools.bench_surgery.jar.move_task --task task_0011 --dxy 0.0 0.08        # translate (m, world XY)
-  python -m tools.bench_surgery.jar.move_task --task task_0015 --yaw-deg 90          # rotate about jar centre
-  (both flags may be combined; translation applies after the rotation)
-"""
+Apply yaw about the jar center followed by the requested world-XY translation,
+and zero affected velocities. Optional flags set robot base height or jar
+hinge angle. A .bak_move backup is created once. Diagnostics and videos are
+not updated here; use the jar re-finalization utility to refresh them."""
 import argparse
 import json
 import shutil

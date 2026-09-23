@@ -1,24 +1,8 @@
-"""Clutter family skeleton — the ONLY clutter-specific code.
+"""Grasp a target and transport it to the goal region.
 
-clutter = ``grasp(target) -> transport(target -> goal)`` via the boxy top-down waypoints
-(§4.1/§4.3). It implements ``FamilySkeleton`` and nothing else: where the grasps come from
-(the annotation DB) and how to turn a chosen grasp + goal into the ordered MotionSegment
-list. It never touches cuRobo / execution / the gate / the recorder — the generic
-``executor`` owns those.
-
-The "boxy" sequence (each line = one MotionSegment)::
-
-    pre_grasp   FREE,   open    standoff back along the grasp approach axis
-    descend     LINEAR, close   straight in to the annotated grasp pose, close on the object
-    lift        LINEAR, hold    straight up until the held object's lowest point clears the
-                                tallest clutter by >= min_clearance  (compute=lift_to_clearance)
-    transport   FREE,   hold    over the goal at the cleared height           (compute=over_goal)
-    to_goal     LINEAR, hold    drive the held object's CENTRE to the goal-sphere centre
-                                (compute=aim_to_goal_center; the §4.3 endpoint redundancy)
-
-The clearance lift, over-goal move and aim-to-centre target are RUNTIME-resolved by the
-engine from the live post-grasp state (``compute`` tags), so ``derive_segments`` stays a
-pure function of (grasp, params, goal) — no sim reads, trivially unit-testable.
+Build pre-grasp, descent, clearance lift, transport, and terminal-alignment
+segments from an annotated grasp and sampled variation parameters. The executor
+resolves lift clearance and goal alignment from the live post-grasp geometry.
 """
 from __future__ import annotations
 

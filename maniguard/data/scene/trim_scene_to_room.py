@@ -8,11 +8,11 @@ have empty in_rooms, and overwrites scene_ep1.json in place.
 Usage:
     # Single scene
     python -m maniguard.data.scene.trim_scene_to_room \
-        datasets/safety-benchmark/transfer_trial20_benchmark_safe/trial_0
+        /path/to/scene_directory
 
     # Batch: all scenes under a benchmark root
     python -m maniguard.data.scene.trim_scene_to_room \
-        datasets/safety-benchmark --batch
+        /path/to/scene_collection --batch
 """
 
 from __future__ import annotations

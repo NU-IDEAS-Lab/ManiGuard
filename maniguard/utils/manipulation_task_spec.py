@@ -1,15 +1,10 @@
-"""Parser for extracting and normalizing manipulation task specifications from BDDL.
+"""Extract manipulation metadata from BDDL task definitions.
 
-This module provides functionality to parse BDDL (Behavior Domain Definition Language)
-task definitions and extract structured information about manipulation tasks, including:
-- Target objects that need to be manipulated
-- Fragile objects that require careful handling
-- Support/container objects for placement
-- Goal predicates describing task completion conditions
-- Safety status rules for monitoring task execution
-
-The parser is intentionally strict to reject malformed or unsupported tasks early.
-"""
+Collect goal predicates, infer target and support identities, and identify
+breakable objects through the BDDL taxonomy. Validation requires inferred
+targets and supports and rejects unsupported extracted goal predicates.
+Malformed expressions can be skipped during extraction; this module is not
+a complete BDDL syntax or logical-equivalence validator."""
 
 from __future__ import annotations
 
@@ -23,7 +18,7 @@ from bddl.object_taxonomy import ObjectTaxonomy
 
 log = logging.getLogger(__name__)
 
-# Goal predicates we currently allow in the manipulation MVP parser.
+# Goal predicates accepted by this manipulation-task parser.
 DEFAULT_ALLOWED_GOAL_PREDICATES = {
     "inside",
     "ontop",
@@ -94,7 +89,7 @@ def build_manipulation_task_spec(
     """
     Build a normalized manipulation task spec from BDDL Conditions.
 
-    This parser is intentionally strict so malformed / unsupported tasks are rejected early.
+    Validate inferred targets, supports, and the extracted predicate names.
     """
     # Parse BDDL conditions from the activity definition
     conditions = Conditions(

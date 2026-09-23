@@ -1,43 +1,13 @@
-"""Re-finalize the `base/` of cabinet tasks whose spawn was edited in T1.
+"""Re-finalize cabinet base snapshots and refresh review outputs.
 
-T1 (both-front / near-edge / role-swap / target-mode / drawer-fix) rewrote the
-`base/scene_ep1.json` + `base/diagnostics.jsonl` of 17 cabinet tasks, but their
-4 `base/rollout_*.mp4` still show the OLD layout AND their diagnostics runtime
-stats (`gate_pass` / `ltl_violated` / `steps_executed` / `surface_info` / the
-`bench` stability block) are STALE — the spawn editor carried them verbatim
-from the pre-edit diagnostics instead of recomputing them on the new layout.
+Each worker runs finalize_base_task into a per-task temporary directory.
+The finalizer saves the initialized scene and records an idle rollout with
+updated cameras, safety results, and stability measurements. The parent
+copies the scene, diagnostics, and four videos back when expected files are
+present and the worker row does not report failure.
 
-This tool re-runs the EXACT bench-build pipeline on each edited task so the
-renewed instance is byte-for-byte how the dataset was originally produced:
-``finalize_base.finalize_base_task`` builds the env from the (edited) snapshot,
-bakes the canonical mounted robot + init pose, idle-steps under gravity with the
-arm held by the stiff Isaac drive, and in that SAME idle-step re-renders the 4
-review videos, re-stamps `cameras`, steps a fresh LTL monitor, and recomputes
-`gate_pass` / `surface_info` / the `bench` stats — while carrying every edited
-task-identity field (target_info / obstacle_info / blocker_mode / goal_conditions
-/ ltl_safety / prompt / selection) through its allowlist. So unlike a render-only
-pass it refreshes the videos AND the diagnostics together, consistently.
-
-Why not ``run_finalize_base``: that DRIVER points ``src`` at the READ-ONLY
-6fam-base source (which lacks the T1 edits) and would wipe them. We call the
-underlying ``finalize_base_task`` directly with ``src`` = the EDITED base dir, so
-it finalizes FROM the edits. ``finalize_base_task`` never writes to ``src`` — it
-writes only to ``out`` — so we point ``out`` at a per-task temp dir and the
-parent process (no OmniGibson, immune to the teardown segfault) copies the 6
-outputs back over ``base/`` only after verifying they are complete.
-
-Same fresh-subprocess-per-task pattern as the perturb drivers (OmniGibson can't
-cleanly reload Kit in-process and may segfault on teardown after a clean write;
-success is judged by output presence, not exit code).
-
-Usage:
-  # one task (validation)
-  python -m tools.bench_surgery.cabinet.rerender_base --tasks task_0034
-  # the 17 modified tasks (default), single GPU process
-  python -m tools.bench_surgery.cabinet.rerender_base
-  # explicit subset, modest parallel fan-out
-  python -m tools.bench_surgery.cabinet.rerender_base --tasks task_0001,task_0003 --jobs 2
-"""
+Use separate processes because simulator teardown can fail after saving. Without --tasks, cabinet uses the explicit MODIFIED_TASKS list.
+An optional --src-root supplies replacement source bases for finalization."""
 from __future__ import annotations
 
 import argparse
@@ -54,7 +24,7 @@ FAMILY = "cabinet_pickup"
 VIDEO_LABELS = ("opposite_side_front", "left_overview", "right_overview", "left_shoulder")
 ROW_FILE = "_rerender_row.json"
 
-# The 17 tasks T1 edited (each has a *.bak_bothfront / *.bak_roleswap backup).
+# Default task identifiers used when --tasks is omitted.
 MODIFIED_TASKS = [
     "task_0001", "task_0002", "task_0003", "task_0004", "task_0007", "task_0012",
     "task_0013", "task_0015", "task_0018", "task_0020", "task_0021", "task_0022",
@@ -89,10 +59,10 @@ def _worker_env() -> dict:
 # ---------------------------------------------------------------------------- worker
 
 def _run_worker(base_dir: Path, episode: int, src_base: Path | None = None) -> None:
-    """Re-finalize ONE base into a temp dir (the parent does the copy-back). ``src_base``
-    (a regenerated 6fam-style base/ in a scratch dir) overrides the finalize SOURCE — used
-    to swap a task's content (surface/target) by regenerating it and finalizing it INTO the
-    bench `base_dir`. Default (None) re-finalizes the bench base in place."""
+    """Finalize one source base into a temporary directory for parent copy-back.
+
+    Use src_base when supplied; otherwise read base_dir. The worker does not
+    replace the destination base files directly."""
     from maniguard.data.bench_builder.finalize_base import finalize_base_task
 
     src = src_base or base_dir

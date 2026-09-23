@@ -67,10 +67,8 @@ def swap_object(task_dir: str, role: str, donor_cat: str, donor_model: str) -> N
     donor_args, clearance = _find_donor_source(donor_cat, donor_model)
     new_z = round(float(diag["surface_info"]["top_z"]) + clearance, 5)
 
-    # --- scene: rename the role object EVERYWHERE (init key, registry key, args.name, any nested ref),
-    #     then set the donor's args + resting z on EVERY copy. NOTE scene_ep1.json nests whole-scene
-    #     copies under init_info/args/scene_file/... so a top-level-only edit leaves stale category/model
-    #     in the nested copies (a real bug the smoke test caught) -> walk recursively.
+    # Rename the role object throughout serialized scene references, then update
+    # its asset arguments and height in every nested scene copy.
     scene = json.loads(json.dumps(scene).replace(old_name, new_name))
 
     def _apply(node):
@@ -112,10 +110,8 @@ def swap_object(task_dir: str, role: str, donor_cat: str, donor_model: str) -> N
         diag["prompt"] = re.sub(r"put the .*? inside",
                                 f"put the {donor_cat.replace('_', ' ')} inside",
                                 diag["prompt"], count=1)
-    # ltl over-globs: derive the glob from the OLD/NEW object NAME stem (name with the _ep1_<n> suffix
-    # -> _*), NOT from f"{role}_{category}". A few tasks carry a CROSSED role/category naming (e.g.
-    # task_0012's target object is named obstacle_wine_bottle_*) where the role-based assumption misses;
-    # the name-stem derivation is robust to that. (old_cat retained for the message only.)
+    # Derive safety patterns from the old and new instance-name stems, allowing
+    # role metadata and name prefixes to differ.
     _ = old_cat
     old_glob = re.sub(r"_ep1_\d+$", "_*", old_name)
     new_glob = re.sub(r"_ep1_\d+$", "_*", new_name)

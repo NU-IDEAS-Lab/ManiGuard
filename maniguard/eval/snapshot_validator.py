@@ -1,4 +1,12 @@
-"""Validate frozen or perturbed task snapshots, with optional runtime QA video capture."""
+"""Validate task snapshots with optional simulator checks and review videos.
+
+Offline checks inspect target, support, goal, and manifest metadata. Runtime
+validation reconstructs a BehaviorTask and requires its BDDL problem and
+activity definitions. Family aliases are listed in FAMILY_ALIASES.
+
+The API can optionally materialize reconstructed perturbations, which writes
+the scene and diagnostics. This validator is distinct from the lightweight
+archive integrity checks and the policy-evaluation runner."""
 
 from __future__ import annotations
 
@@ -67,7 +75,7 @@ DEFAULT_VALIDATOR_ROBOT_CFG = {
     "exclude_sensor_names": None,
     "scale": 1.0,
     "self_collisions": True,
-    # Locked conventions across all maniguard pipelines:
+    # Fallback validator configuration; saved robot arguments can override it.
     "action_normalize": False,
     "grasping_mode": "assisted",
     "action_type": "continuous",

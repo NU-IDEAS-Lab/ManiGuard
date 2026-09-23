@@ -1,6 +1,6 @@
 """Camera + video helpers for task-generation rollouts.
 
-Builds support-relative camera views (opposite / left / right of the robot),
+Builds support-relative views (opposite / left / right / left shoulder),
 positions them in the scene, and drives a PyAV video writer that stitches
 viewer + wrist camera frames into per-episode MP4 files.
 """
@@ -43,7 +43,7 @@ def init_video_writer(base_path, episode, fps, robot=None, frame_hw=None):
         except Exception:
             vh, vw = 720, 1280
 
-    # Find wrist camera for picture-in-picture overlay.
+    # Find a wrist camera for side-by-side composition.
     wrist = None
     wrist_name = None
     sensor_names = []
@@ -244,7 +244,7 @@ def _support_relative_video_views(robot, target_obj, support_obj=None, active_ob
 
 def build_video_view_specs(args, robot, target_obj, support_obj=None,
                            active_objects_by_inst=None, camera_override=None):
-    """Build three camera views: opposite, left, right relative to robot and support surface."""
+    """Build four views: opposite, left, right, and left shoulder."""
     return _support_relative_video_views(
         robot=robot,
         target_obj=target_obj,

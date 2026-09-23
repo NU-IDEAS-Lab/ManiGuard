@@ -1,18 +1,9 @@
-"""Merge per-task LeRobot shard datasets into ONE, replicating the serial ``to_lerobot`` converter's
-global indexing / prompt-table / meta EXACTLY.
+"""Merge task-ordered LeRobot shards into one dataset.
 
-Each shard is a LeRobot dataset produced by the UNMODIFIED serial converter (``to_lerobot.convert``)
-run on a SINGLE task, so its per-episode parquet data columns + videos are already byte-identical to
-what a full serial run would emit for that task. Merging therefore only has to:
-
-  * concatenate episodes in task order (== ``reader.iter_traj_dirs`` order),
-  * re-offset the 3 global columns ``episode_index`` / ``index`` / ``task_index`` and recompute
-    THEIR per-episode stats (the image / state / action / timestamp / frame_index stats are
-    deterministic and carry over unchanged),
-  * rebuild the 4 meta files (``episodes`` / ``episodes_stats`` / ``tasks`` / ``info``).
-
-Proven byte-identical to a full serial ``to_lerobot`` run by field-level diff on a 2-task subset and
-on a shared-prompt task pair (dusty, 2026-07-11). See ``lerobot_diff.diff_datasets``.
+Copy episode videos, preserve per-frame feature values, offset episode_index,
+index, and task_index, recompute their statistics, and rebuild the metadata files.
+Input shards remain unchanged; an existing output directory is replaced.
+Use lerobot_diff.diff_datasets for a field-level comparison with a serial conversion.
 """
 
 from __future__ import annotations

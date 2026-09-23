@@ -1,15 +1,11 @@
-"""Export tableware-like object specs to sim_to_real.json.
+"""Export object dimensions and physical-property estimates to JSON.
 
-For each category in the tableware pool, reads:
-  - avg_category_specs.json (mass, volume, density)
-  - per-model metadata.json (bbox_size, base_link_offset)
-and writes a consolidated JSON that can be used to source real-world
-counterparts (IKEA, etc.).
+Combine category mass, volume, and density metadata with per-model bounding
+boxes. Include empty fields for manual notes about real-object counterparts.
+The exported records contain dimensions and volume, not base-link offsets.
 
-Usage:
-    python -m maniguard.task_generation.build_sim_to_real \
-        [--categories mug,plate,bowl] [--output sim_to_real.json]
-"""
+Example:
+    python -m maniguard.task_generation.utils.build_sim_to_real --categories mug,plate,bowl --output sim_to_real.json"""
 
 import argparse
 import json

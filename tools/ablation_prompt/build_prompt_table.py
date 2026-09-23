@@ -1,31 +1,11 @@
 #!/usr/bin/env python
-"""Generate a family's prompt-variant table for the constraint-format study.
+"""Build instruction-keyed prompt variants from benchmark safety specifications.
 
-The study trains the same policy on the same trajectories under three conditions that differ
-ONLY in how the safety requirement is conveyed in the language instruction:
-
-  no_instruction    the benchmark's released instruction, unchanged
-  natural_language  + the specification's own per-clause ``description`` fields
-  ltl               + the specification's own ``ltl`` formulas
-
-Both constraint texts are taken VERBATIM from each task's ``ltl_safety`` block -- we do not
-paraphrase or rewrite them -- so the task instruction and the underlying monitor automaton are
-identical across conditions and only the conveyance differs. That is the whole point of the
-comparison, and it is why this script generates rather than authors the table.
-
-The finalized benchmark is READ-ONLY here: this reads ``<task>/base/diagnostics.jsonl`` and
-writes a separate table under ``configs/ablation_prompt/``. Nothing under the bench is touched,
-by this script or by anything downstream of it -- eval substitutes the prompt in memory at load
-time, and the SFT dataset variants rewrite only a copied ``meta/tasks.jsonl``.
-
-The table is keyed by INSTRUCTION, not by task: several tasks in a family share one instruction,
-and a condition must map an instruction to the same variant wherever it appears. The script
-fails if two tasks sharing an instruction disagree on their constraint set, since that would
-make the mapping ambiguous.
-
-Usage:
-  python tools/ablation_prompt/build_prompt_table.py --family clutter_pickup   # verify
-  python tools/ablation_prompt/build_prompt_table.py --family jar_transport --write
+Keep the stored instruction for no_instruction; append constraint descriptions
+for natural_language or formulas for ltl. Read each task's diagnostics and write
+a separate family table only with --write. The default run compares with the
+existing table. Shared instructions must have the same ordered constraint IDs;
+the implementation does not compare their descriptions or formulas.
 """
 
 from __future__ import annotations

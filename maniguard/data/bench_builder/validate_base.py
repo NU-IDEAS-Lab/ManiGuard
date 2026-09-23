@@ -1,16 +1,12 @@
-"""Exhaustive OFFLINE QC for a finalized ManiGuard-Bench base task.
+"""Validate saved benchmark-construction artifacts without starting a simulator.
 
-``validate_base_task`` reads a finalized ``maniguard-bench/<fam>/task_NNNN/base/`` dir and checks
-every property the bench must guarantee — WITHOUT loading OmniGibson (reads the saved
-``scene_ep1.json`` + ``diagnostics.jsonl`` + the 4 mp4 files). "Loads cleanly into the sim" is
-already evidenced by finalize having rendered the 4 videos; this pass is the independent
-artifact-level gate the user reviews (alongside the videos) before locking the base set.
+Check robot identity and initial joints, recorded mount metadata, object inventory,
+goal-marker presence, camera names, safety-pattern resolution, diagnostics fields,
+and four decodable review videos. Some inconsistencies produce warnings rather
+than failures. Safety verdicts are read from diagnostics, not recomputed here.
 
-Checks (design doc §8 P1.2): robot identity (FrankaPanda), init pose A, mount (base_z =
-support_top + offset, from the finalize provenance block), task objects present + none fallen,
-goal-region marker present (5 families) / absent (dusty), 4 cameras = canonical poses, LTL Tier-A
-(every proposition pattern resolves to a real object via the benchmark-equivalent matcher), 4
-non-empty 256² videos, diagnostics family fields preserved.
+This validator expects generated review videos. The compact benchmark archive
+can contain scene snapshots and diagnostics without those construction videos.
 """
 from __future__ import annotations
 
@@ -35,7 +31,7 @@ FAMILY_DIAG_FIELDS = {
     "clutter_pickup": ["clutter_info"],   # derived in finalize
     "lid_transport": ["lid_info"],        # derived in finalize
 }
-# Owned-schema fields the finalizer always writes (task-def carried + fresh in-sim). The goal spec
+# Required task-definition and computed diagnostics fields. The goal spec
 # is goal_conditions (universal); goal_region (the sphere marker) is conditional — cabinet has none
 # (goal = inside-cabinet + closed) so it is NOT required here (the data-driven marker check handles it).
 UNIVERSAL_DIAG_FIELDS = ["surface", "prompt", "selection", "ltl_safety", "cameras", "goal_conditions",
@@ -148,13 +144,13 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     init = header.get("objects_info", {}).get("init_info", {})
     bench = diag.get("bench", {})
 
-    # 1. robot identity (invariant #1): FrankaPanda (longfinger is guaranteed by the import patch on load)
+    # 1. Serialized robot class; long-finger geometry is configured at load time.
     rname, rinfo, rstate = _robot_entry(header)
     checks["robot_FrankaPanda"] = rinfo is not None and rinfo.get("class_name") == "FrankaPanda"
     if not checks["robot_FrankaPanda"]:
         fails.append(f"robot class != FrankaPanda ({rinfo and rinfo.get('class_name')})")
 
-    # 2. init pose A (invariant #5)
+    # 2. Initial joint positions equal BENCH_INIT_QPOS.
     jp = rstate.get("joint_pos") if rstate else None
     checks["pose_A"] = jp is not None and len(jp) == len(BENCH_INIT_QPOS) and max(
         abs(float(a) - b) for a, b in zip(jp, BENCH_INIT_QPOS)) < POSE_TOL
@@ -215,7 +211,7 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
         if not checks["object_count"]:
             warnings.append(f"non-robot objs {len(non_robot)} != source {n_src_objects} "
                             f"(finalize dropped/added objects)")
-    else:  # legacy fallback (pre-inventory finalize, e.g. jar/cabinet not yet re-run)
+    else:  # Estimate the inventory from spawn_specs when a source count is absent.
         spawn = diag.get("selection", {}).get("spawn_specs", []) or []
         n_task = sum(int(s.get("count", 1)) for s in spawn)
         expected_non_robot = 1 + n_task + (1 if marker_expected else 0)
@@ -270,7 +266,7 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     else:
         checks["goal_marker"] = True  # no marker declared (cabinet/dusty) -> nothing to check
 
-    # 7. cameras (invariant #4): 4 canonical poses, correct sensor names, lookat above the surface
+    # 7. Four expected camera names, with a height check when lookat is present.
     cams = diag.get("cameras", []) or []
     cam_names = {c.get("sensor_name") for c in cams}
     checks["cameras"] = len(cams) == 4 and cam_names == set(EXTERNAL_CAMERA_NAMES)
@@ -282,7 +278,7 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
         if low:
             warnings.append(f"camera lookat below surface: {low}")
 
-    # 8. LTL Tier-A: every proposition's `over` resolves to >=1 real object (proposition-level)
+    # 8. Resolve each proposition's subject patterns against the serialized objects.
     ltl_problems = _resolve_ltl(diag.get("ltl_safety") or {}, init, surface)
     checks["ltl_resolves"] = not any(is_fail for is_fail, _ in ltl_problems)
     for is_fail, msg in ltl_problems:

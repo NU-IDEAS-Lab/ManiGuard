@@ -1,32 +1,20 @@
-"""Single source of truth for the ManiGuard datagen dataset schema.
+"""Shared schema constants for RAW and LeRobot demonstration data.
 
-The cuRobo-collected SFT data is **joint-native** (the env's cuRobo emits a joint
-trajectory → JointController execution → record joints directly; no eef↔joint
-conversion, no sim-state reverse-engineering).
+Each state contains seven achieved arm joints and the mean finger position.
+actions contains the next recorded arm joints and the current recorded binary
+gripper command; the final arm action repeats the last achieved joints.
+actions_commanded retains the joint targets submitted for the recorded step.
 
-Per timestep we record:
-  - ``state``             (8,) = ``[arm_q(7), gripper(1, mean finger)]``
-  - ``actions``           (8,) = ``[arm_q[t+1](7), gripper_cmd(1, binary)]``
-        DEFAULT action = (b) next-achieved absolute joint (DROID-style; robust to
-        the rough cuRobo solver, self-consistent with the recorded images).
-  - ``actions_commanded`` (8,) = ``[curobo_target_q(7), gripper_cmd(1)]``
-        EXTRA = (a) the cuRobo COMMANDED joint target (free to record live; kept for
-        comparison / future switch). Not consumed by the default SFT config.
-  - five 256² image streams: 4 third-person (from the SHARED bench ``camera_setup``)
-    + the injected wrist.
-
-Plus a per-episode MimicGen sidecar (NOT in the LeRobot parquet): serialized sim
-states + object-centric ``datagen_info`` — kept now so the future MimicGen
-amplification layer needs no re-collection. See ``MIMICGEN_SIDECAR`` below.
+Five video streams contain four external views and one wrist view at 256 by 256
+pixels and 30 Hz. RAW HDF5 can additionally contain serialized simulation states
+and datagen_info/gripper_action; these are not copied into LeRobot Parquet.
 """
 from __future__ import annotations
 
 RESOLUTION = 256
 FPS = 30
-# Keyframe interval for the recorded trajectory MP4s. Datasets are consumed by
-# random-frame access in the SFT dataloader, so a keyframe every VIDEO_GOP frames
-# keeps that decode cheap (a large GOP forces decoding ~GOP/2 frames per sample,
-# which starves the GPU). 10 kills the decode tail at ~2.6x the file size.
+# Keyframe interval for trajectory MP4s. Frequent keyframes reduce the number
+# of frames decoded for random-frame access during SFT, at the cost of larger files.
 VIDEO_GOP = 10
 ROBOT_TYPE = "FrankaPanda"
 
@@ -58,8 +46,7 @@ STATE_NAMES = [f"arm_q{i}" for i in range(ARM_DOF)] + ["gripper"]
 ACTION_NAMES = [f"arm_q{i}_next" for i in range(ARM_DOF)] + ["gripper_cmd"]
 ACTION_COMMANDED_NAMES = [f"arm_q{i}_cmd" for i in range(ARM_DOF)] + ["gripper_cmd"]
 
-# Per-episode MimicGen sidecar (HDF5 group layout; written alongside the LeRobot
-# dataset, consumed by the future MimicGen engine — see doc §8).
+# Auxiliary HDF5 datasets written by the recorder.
 MIMICGEN_SIDECAR = {
     "states": "serialized og.sim.dump_state(serialized=True) per step (replay)",
     "datagen_info/eef_pose": "(N,4,4) world eef pose per step",

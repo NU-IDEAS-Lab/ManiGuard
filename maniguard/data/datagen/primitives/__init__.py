@@ -1,15 +1,14 @@
-"""Layer-1 family-agnostic reusable primitives (the reusable "skeleton template").
+"""Shared primitives for scripted demonstration collection.
 
-Modules (see doc §3; status as of Step 1):
-  - ``task_io``   : [DONE] parse a base-task dump (diagnostics/scene + task objects)
-  - ``scene``     : [DONE] scene_from_task_dir (build the empty-scene env from a task)
-  - ``curobo_seg``: [DONE] solve_segment (one cuRobo segment + salvage + attach)
-  - ``grasp``     : grasp_primitive (OBB sample + 2-stage standoff/servo + close + AG)
-  - ``move``      : move_holding (carry a grasped object through waypoints)
-  - ``contact``   : push_drawer / close_hinge / wipe_surface / extract_lateral
-  - ``execute``   : [DONE] execute_trajectory (JointController replay) + actuate_gripper
-  - ``obstacles`` : [DONE] CuroboWorld (motion_gen + obstacle world + constraint levers)
-  - ``cameras``   : [DONE] bench camera_setup (4 third-person) + injected wrist
-  - ``record``    : [DONE] Recorder (joint-native, 5 images, both actions, sim-state
-                    dump, LeRobot v2.1 write)
+Modules:
+  task_io: parse diagnostics and scene snapshots.
+  scene: reconstruct the task environment.
+  curobo_seg: solve motion segments and inverse kinematics.
+  grasp_obb: sample grasp poses from object geometry.
+  execute: replay joint trajectories and actuate the gripper.
+  obstacles: configure the planner's collision world and constraints.
+  cameras: configure the four external views and wrist camera.
+  record: write RAW videos, joint trajectories, simulation states, and metadata.
+
+LeRobot conversion is provided separately by datagen.to_lerobot.
 """

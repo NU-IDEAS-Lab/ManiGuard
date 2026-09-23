@@ -1,11 +1,11 @@
 """Build the `target` (appearance) perturbation level for ManiGuard-Bench.
 
-For each locked base task, the `target/` variant is the SAME scene as `base/`
+For each finalized base task, the `target/` variant is the SAME scene as `base/`
 with the family's target object recolored by a strong ``diffuse_tint`` — a
 large, deterministic, out-of-distribution appearance shift.
 
 ``diffuse_tint`` is an asset/USD material property that OmniGibson does NOT
-serialize into ``scene_ep1.json`` (verified), so the recolor cannot be baked
+serialize into ``scene_ep1.json``, so the recolor cannot be baked
 into the snapshot. Instead each `target/` instance is fully self-describing:
 
   * ``scene_ep1.json``  — a byte copy of ``base/`` (objects/poses identical).
@@ -23,7 +23,7 @@ can't cleanly reload Kit in-process and may segfault on teardown after a clean
 write; success is judged by output presence, not exit code).
 
 Usage:
-  # a few sample tasks (smoke)
+  # build selected tasks
   python -m maniguard.data.bench_builder.perturb_target --family clutter_pickup --tasks 0,5 --jobs 2
   # full family, resumable
   python -m maniguard.data.bench_builder.perturb_target --family clutter_pickup --jobs 2 --skip-existing
@@ -66,7 +66,7 @@ def _is_complete(out_dir: Path, episode: int) -> bool:
 
 
 def _select_tasks(out_fam: Path, spec: str | None, episode: int) -> list[str]:
-    """Locked base tasks of this family (those with a complete base/ snapshot)."""
+    """Select family tasks that contain the requested base scene snapshot."""
     available = sorted(
         d.name for d in out_fam.glob("task_*")
         if (d / "base" / f"scene_ep{episode}.json").is_file()
@@ -212,7 +212,7 @@ def _spawn_worker(base_dir: Path, out_dir: Path, family: str, episode: int, env:
 
 def _row_for_task(task: str, out_fam: Path, family: str, episode: int) -> dict:
     """Worker row + offline structural QC (reuse validate_base_task — target's
-    scene/robot/pose/cameras/videos are identical to base) + recolor sanity."""
+    snapshot and camera schema match the base contract) + recolor sanity."""
     from maniguard.data.bench_builder.validate_base import validate_base_task
 
     out_dir = out_fam / task / LEVEL

@@ -6,16 +6,10 @@ angles directly from a GELLO leader (no IK on the follower side; the
 leader's kinematics are 1:1 with the Franka). Loads a pipeline-generated
 scene snapshot and optionally records a trajectory via DataCollectionWrapper.
 
-Differs from so101_franka_teleop.py in three ways:
-  - Follower uses `JointController` (mode=position, absolute) — actions
-    are 7 raw joint radians, no IK solver in the loop.
-  - Leader is the bundled joylo `DynamixelRobot`; we read calibrated
-    joints directly via `get_joint_state()` and skip the higher-level
-    GelloAgent wrapper (which adds force-feedback / cooldown machinery
-    we don't need for sim-only data collection).
-  - Gripper has no physical leader yet — bind to SPACE key (toggle
-    open/close) so a single operator can drive both the arm via GELLO
-    and the gripper via keyboard.
+The follower uses absolute joint-position control. Each action contains
+seven arm angles in radians and one binary gripper command. The leader's
+calibrated joints come from joylo's ``DynamixelRobot.get_joint_state()``;
+the SPACE key controls the gripper.
 
 Usage:
     python -m maniguard.data.teleop.gello_franka_teleop \
@@ -24,7 +18,9 @@ Usage:
 
 Hotkeys (need GUI focus on the OmniGibson viewport):
     SPACE = toggle gripper open/close
-    S     = toggle success flag (recording is saved iff success when --only-successes)
+    B     = begin recording and discard the idle lead-in
+    S     = force success and finish the episode
+            (automatic goal checks can also finish successfully)
     C     = save checkpoint
     R     = rollback to last checkpoint
     Q     = clean exit (writes HDF5)
@@ -53,8 +49,7 @@ from omnigibson.utils.constants import LightingMode
 from omnigibson.utils.ui_utils import KeyboardEventHandler
 
 # ---------------------------------------------------------------------------
-# joylo on sys.path (we don't pip install it because its setup.py pulls in
-# telemoma / pyglm / joycon / pybullet / etc which we don't need)
+# Load the joylo checkout's GELLO driver without installing unrelated extras.
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _JOYLO = _REPO_ROOT / "behavior-1k" / "joylo"
@@ -63,35 +58,29 @@ if str(_JOYLO) not in sys.path:
 
 from gello.robots.dynamixel import DynamixelRobot
 
-# Long-finger Franka assets are now eagerly patched in via
-# maniguard/_omnigibson_patches.py:_patch_franka_longfinger() at OmniGibson
-# init time, so this entry no longer needs to install anything.
+# ManiGuard's import hook selects the installed long-finger Franka asset.
 # Reuse so101's diagnostics-jsonl reader for goal_checker auto-success.
 from maniguard.data.teleop.so101_franka_teleop import _read_first_jsonl
 
 # ---------------------------------------------------------------------------
-# GELLO calibration constants (from `gello_get_offset.py`, 2026-04-27)
+# GELLO calibration constants for the configured seven-servo leader.
 # Re-run gello_get_offset.py and update these if you re-flash IDs / replace
 # servos / change finger geometry.
 # ---------------------------------------------------------------------------
 GELLO_PORT = "/dev/ttyUSB0"  # override per machine with --gello-port (see `ls /dev/serial/by-id/`)
 GELLO_JOINT_IDS = (1, 2, 3, 4, 5, 6, 7)
 GELLO_JOINT_OFFSETS = [
-    # 2026-05-10 recal: ran gello_get_offset.py with --start-joints 0 0 0 0 0 0 0.
-    # Same calibration target as the 2026-05-05 run — only the raw multiples
-    # of π/2 changed because three servos (J3, J5, J7) wrapped to different
-    # turn counts on this power-up. Trims (J2, J4, J6) are unchanged.
-    # Per-joint: delta_offset = -CALIB_POSE[i] * sign[i].
+    # Per-joint calibration trim: delta_offset = -CALIB_POSE[i] * sign[i].
     3 * np.pi / 2,                                    # J1: no trim (CALIB=0)
     2 * np.pi / 2 - np.pi / 4,                        # J2: sign=-1, want -π/4 → δ=-π/4
-    4 * np.pi / 2,                                    # J3: no trim (CALIB=0; was 8π/2 last recal — wrapped back 4π)
+    4 * np.pi / 2,                                    # J3: no trim (CALIB=0)
     1 * np.pi / 2 + np.pi / 4 + np.pi / 9,            # J4: sign=+1, want -π/4-π/9 → δ=+π/4+π/9
-    -4 * np.pi / 2,                                   # J5: no trim (CALIB=0; servo wrapped to negative this time)
+    -4 * np.pi / 2,                                   # J5: no trim (CALIB=0)
     1 * np.pi / 2 + 0.0175,                           # J6: sign=+1, want -0.0175 → δ=+0.0175
-    4 * np.pi / 2,                                    # J7: no trim (CALIB=0; was 0π/2 — wrapped 4π more)
+    4 * np.pi / 2,                                    # J7: no trim (CALIB=0)
 ]
 GELLO_JOINT_SIGNS = (1, -1, 1, 1, 1, 1, 1)
-GELLO_GRIPPER_CONFIG = None  # no physical gripper attached yet — keyboard takes over
+GELLO_GRIPPER_CONFIG = None  # keyboard-controlled gripper
 
 # Franka joint pose that corresponds to GELLO held at the calibration
 # reference pose (the physical pose used during gello_get_offset.py),
@@ -134,11 +123,10 @@ def _build_from_snapshot(
     grasping_mode selects OmniGibson's grasping semantics — same options as
     so101_franka_teleop: 'physical' / 'assisted' / 'sticky'.
 
-    initial_joint_pos (None or 7-element sequence): if given, overwrite the
-    snapshot's saved arm joint_pos[0:7] with these values. Used to seed the
-    follower at the operator's current GELLO pose so env.reset() doesn't
-    snap the arm to the snapshot's saved pose (which can be 100° off from
-    where GELLO currently is). Gripper joints (7:9) are left untouched.
+    initial_joint_pos (None or seven-element sequence): overwrite the
+    saved arm joint positions and zero their velocities when supplied.
+    The entry point supplies GELLO_CALIBRATION_FRANKA_POSE, then ramps
+    toward the live leader readings. Gripper joints remain unchanged.
     """
     with open(snapshot_path, "r", encoding="utf-8") as f:
         snap = json.load(f)
@@ -237,14 +225,14 @@ def _build_from_snapshot(
 
 
 # ---------------------------------------------------------------------------
-# Camera placement (copied from so101_franka_teleop.main; same logic)
+# Apply the recorded task cameras through the shared camera helper.
 # ---------------------------------------------------------------------------
 def _setup_cameras_for_scene(env, robot, args):
     """Place the external cameras at the task's PRESET poses (the shared
     load-side rule, camera_setup.place_recorded_task_cameras): the
     diagnostics.jsonl next to --snapshot carries the recorded ``cameras``
     poses — the same views datagen/eval/playback use — with the canonical
-    robot-frame recompute as the (warned) fallback for legacy snapshots."""
+    robot-frame recompute as the (warned) fallback for snapshots without recorded camera poses."""
     from maniguard.utils.camera_setup import place_recorded_task_cameras
 
     diagnostics = None
@@ -304,15 +292,9 @@ def main():
         gm.USE_GPU_DYNAMICS = True
         print("[Gello] gm.USE_GPU_DYNAMICS = True (fluids/particles/cloth enabled)")
 
-    # ----- Connect GELLO before building the env so DynamixelRobot
-    #       failures (port busy, no power, …) surface fast — before the
-    #       30-90 s OmniGibson startup. We don't seed the snapshot from
-    #       the leader's current reading anymore: GELLO is passive when
-    #       not actively held, so a "startup snapshot of the leader" is
-    #       non-deterministic. Instead we seed Franka at a fixed pose
-    #       (GELLO_CALIBRATION_FRANKA_POSE) below, then ramp toward
-    #       leader.get_joint_state() over GELLO_RAMP_STEPS steps in the
-    #       main loop.
+    # Connect the leader before environment construction to surface hardware
+    # errors early. Initialize the follower at the calibration pose, then
+    # interpolate toward live leader readings over GELLO_RAMP_STEPS.
     print(f"[Gello] Connecting to leader at {args.gello_port}")
     leader = DynamixelRobot(
         joint_ids=GELLO_JOINT_IDS,
@@ -340,7 +322,7 @@ def main():
     env = og.Environment(configs=cfg)
     env.reset()
 
-    # ----- Lighting (mirrors so101) -----
+    # ----- Viewer lighting -----
     og.sim.add_skybox()
     try:
         og.sim._skybox.intensity = 12000

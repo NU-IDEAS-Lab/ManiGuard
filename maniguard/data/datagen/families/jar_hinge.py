@@ -1,7 +1,9 @@
-"""Hinged-jar geometry: read the lid's revolute joint from a live OmniGibson object and turn it
-into the world hinge pivot + axis + lid pose, then the arc-close waypoints. The pure math (rotation
-about a world axis, extension direction, insert pose, close angle) is numpy/scipy so it unit-tests
-without a sim; ``read_hinge`` is the only sim-dependent function (validated by the Phase-A smoke)."""
+"""Geometry helpers for hinged-jar manipulation.
+
+Read live hinge frames and lid geometry, and compute lid-support paths or arc
+waypoints. Rotation and path helpers use NumPy/SciPy; live object readers require
+OmniGibson.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,20 +20,16 @@ ARC_STEP_DEG = 2.0           # max angular step per SERVO arc segment (orientati
 #                              the light jar off the table)
 RETREAT_M = 0.10             # retreat along the hinge axis so the fingers fully clear the disc rim
 LID_STANDOFF_M = 0.10        # pre-engage standoff back along the hinge axis (robot side)
-CLOSE_DIR = -1.0             # orbit sign about +axis that CLOSES (decreases the joint; PhysX convention, smoke-verified)
+CLOSE_DIR = -1.0             # Orbit sign about +axis that decreases the joint angle (closing).
 FINGERTIP_M = 0.104          # eef_link -> closed fingertip along eef +Z (from gripper_longfinger.glb)
-RIM_INSET_M = 0.04           # contact radial station = measured hull rim MINUS this (deep enough that
-#                              the pad-vs-lip contact can migrate rimward during the arc without walking
-#                              off the disc — 2cm walked off and wedged on the rim edge;
-#                              max torque arm; the disc plane geometry is MEASURED from the lid link's
-#                              collision hull, never assumed — the kijnrj lid slab floats +25..41mm off
-#                              the plane through the joint anchor (hinge-knuckle offset), so any
-#                              anchor-plane assumption straddles empty air)
+RIM_INSET_M = 0.04           # Contact station inward from the measured lid rim, leaving room for
+# contact to migrate during the arc. Use the collision hull because
+# the lid face can be offset from the hinge-anchor plane.
 PAD_HALF_GAP_M = 0.040       # OPEN half-gap of the pad INNER FACES from the centreline (per-z-slice
 #                              measured from the longfinger glb: faces at +-4.0cm at every finger section)
 STRADDLE_CLEAR_M = 0.012     # pushing pad face starts this far off the slab's +f face (clears the lip
 #                              during the slide-in; consumed as ~6deg of free-wheel at the arc start)
-# --- lid-ride (the user's teleop maneuver): one finger bar under the lid, single straight ride ---
+# --- Lid support path: finger bar under the lid, one straight translation ---
 RIDE_OPEN_DEG = 12.0         # finger bar lies this far BELOW the lid's underside line (into the wedge)
 RIDE_D0_FRAC = 0.55          # initial contact station along the lid (fraction of measured reach)
 RIDE_TIP_EXTRA_M = 0.025     # fingertip goes this much deeper than the contact station (contact mid-bar)
@@ -101,7 +99,7 @@ def lid_extension_dir(anchor, axis, lid_tip) -> np.ndarray:
 def face_normal(axis, e) -> np.ndarray:
     """Disc-face normal ``f = axis x e`` (perpendicular to the lid plane, which contains the hinge
     axis and the lid extension). Pushing the lid along ``-f`` torques it about the hinge in the
-    CLOSING (-axis) direction: ``tau = e x (-f) = -axis`` (matches the smoke-verified CLOSE_DIR)."""
+    CLOSING (-axis) direction: ``tau = e x (-f) = -axis`` (matches CLOSE_DIR)."""
     return _u(np.cross(_u(axis), _u(e)))
 
 
@@ -146,7 +144,7 @@ def straddle_pose_from_hull(anchor, axis, ext_dir, hull_pts, side_sign: float,
 def drive_angle(e, axis, extra_rad: float = 0.0, close_dir: float = CLOSE_DIR,
                 clear_rad: float = np.radians(END_CLEAR_DEG),
                 min_margin_rad: float = np.radians(MIN_PAST_VERT_DEG), eps: float = 1e-3) -> float:
-    """Signed close-arc drive (the user's 2α rule, capped): drive ``2α (+extra)`` about ``+axis`` in
+    """Signed close-arc drive with a capped double-angle rule: drive ``2α (+extra)`` about ``+axis`` in
     the closing direction — ending the mirror ``α`` past vertical on the CLOSED side — but never
     closer than ``clear_rad`` to the mouth plane (finger-pinch clearance; gravity finishes from
     there) and always at least ``min_margin_rad`` past the vertical tipping point."""
@@ -163,8 +161,7 @@ def drive_angle(e, axis, extra_rad: float = 0.0, close_dir: float = CLOSE_DIR,
 
 
 def arc_close_angle(e, axis, margin_rad, close_dir: float = CLOSE_DIR, eps: float = 1e-3) -> float:
-    """Signed rotation about ``+axis`` to drive the lid past the vertical tipping point by
-    ``margin_rad`` in the closing direction (0-drive if the lid already sits past vertical)."""
+    """Return the signed closing rotation. On the open side, add margin_rad beyond the rotation to vertical; on the closed side, return a margin-only rotation."""
     axis = _u(axis)
     phi = angle_between(unit_perp(e, axis), unit_perp(WORLD_UP, axis))     # e -> vertical, unsigned
     e_test = rotate_vec_about_axis(e, axis, close_dir * eps)               # nudge in the closing dir
@@ -186,7 +183,7 @@ def arc_waypoints(insert_p, insert_q, anchor, axis, total_angle, step_deg: float
 
 
 # ---------------------------------------------------------------------------
-#  sim read (OmniGibson) — NOT unit-tested; validated by the Phase-A smoke
+# Live OmniGibson geometry readers
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -220,7 +217,7 @@ def _link_by_body(obj, body_path_attr):
 def ride_plan(anchor, axis, ext_dir, hull_pts, side_sign: float, close_dir: float = CLOSE_DIR,
               open_deg: float = RIDE_OPEN_DEG, roll_flip: bool = False, bar_flip: bool = False,
               skew_deg: float = 0.0):
-    """The user's teleop close maneuver, parameterized from the lid link's MEASURED hull: a finger
+    """Lid-closing support path parameterized from the measured lid-link hull: a finger
     BAR (finger plane ⊥ lid plane: x̂ = hinge axis) laid in the free wedge UNDER the flopped lid,
     then ONE straight-line translation (fixed orientation) that lifts the lid — the lid rests on the
     bar's upper edge under gravity and pivots about its own hinge, the contact sliding freely
@@ -255,8 +252,8 @@ def ride_plan(anchor, axis, ext_dir, hull_pts, side_sign: float, close_dir: floa
         g = np.radians(float(skew_deg))
         z = _u(np.cos(g) * z - np.sin(g) * w_rob)
     x = _u(np.cross(f, z))                                 # frame: y ~ disc normal, x ~ hinge axis
-    if float(np.dot(x, float(side_sign) * ax)) < 0.0:      # anchor the default branch to the ORIGINAL
-        x = -x                                             # orientation (x along side_sign*axis)
+    if float(np.dot(x, float(side_sign) * ax)) < 0.0:      # Default orientation: x along side_sign * axis.
+        x = -x
     y = _u(np.cross(z, x))
     if roll_flip:                                          # 180deg wrist-roll branch (same support
         x, y = -x, -y                                      # mechanics, the other IK branch)

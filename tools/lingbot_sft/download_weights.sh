@@ -15,9 +15,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 
-# ~38 GB lands here. On clusters the repo usually sits on a small home volume, so either
-# point PRETRAIN_DIR at the big filesystem, or make assets/pretrained a symlink to it (the
-# same thing we do for outputs/). Left alone it writes inside the repo.
+# PRETRAIN_DIR overrides the download destination; otherwise files go to
+# assets/pretrained under the source tree containing this script.
+
 DEST="${PRETRAIN_DIR:-$REPO_ROOT/assets/pretrained}"
 mkdir -p "$DEST"
 echo "[download] destination: $DEST"

@@ -1,27 +1,15 @@
-"""Regenerate transfer_compatibility.json from food + container geometry.
+"""Build food/container compatibility candidates from geometry catalogs.
 
-Geometric filter: a food fits in a container iff
+Retain candidates satisfying
     max(food.bbox_dims_m) <= container.opening_square_side_m
+where the opening dimension is derived from a top-down cavity scan. This
+is a bounding-box admission heuristic; it does not guarantee successful
+physical insertion at arbitrary food orientations.
 
-That is, the food's longest 3D dimension (any of x/y/z) must fit inside
-the largest axis-aligned square that fits in the cavity opening (from
-the top-down raycast in derive_container_openings). 3D-rotation
-independent — the food drops in regardless of how it's tumbled.
-
-Asset-readiness filter (from docs/graspability_classified.csv):
-  * food: status=graspable AND food_transfer_target in {perfect, possible}
-  * container: status=graspable AND wide_opening_container in {perfect, possible}
-
-Models flagged ``too_large``, ``not_ready``, ``no_grasp``, or
-``degenerate_bbox`` are excluded — these have unresolved asset complaints.
-
-Reads:
-    maniguard/task_generation/utils/food_transfer_pipeline/food_cross_sections.json
-    maniguard/task_generation/utils/food_transfer_pipeline/container_openings.json
-    docs/graspability_classified.csv
-Writes:
-    maniguard/task_generation/utils/food_transfer_pipeline/transfer_compatibility.json
-"""
+Filter foods by graspable status and food_transfer_target suitability, and
+containers by graspable status and wide_opening_container suitability in
+docs/graspability_classified.csv. Read food_cross_sections.json and
+container_openings.json from this directory and write transfer_compatibility.json."""
 from __future__ import annotations
 
 import csv

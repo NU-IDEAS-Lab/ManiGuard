@@ -1,19 +1,9 @@
-"""One-boot probe: per (container, lid) pair of the lid_transport bench, record the
-attachment geometry needed for (a) auditing container grasp annotations against the
-lid-on envelope and (b) the family skeleton's release-pose math.
+"""Measure attachment geometry for unique container/lid pairs in the benchmark.
 
-Spawns each unique pair in an empty scene on a grid (visual placement, no physics
-needed beyond load), then records per pair:
-  - container root -> F meta-link offset, in the CONTAINER's local frame
-  - lid root -> M meta-link offset, in the LID's local frame
-  - lid AABB extents (world-aligned at identity orientation)
-  - container AABB extents + category/model, lid category/model
-
-Output: outputs/grasp_annotation/lid_flink_db.json
-
-Usage:
-  OMNIGIBSON_HEADLESS=1 python -m tools.bench_surgery.lid.flink_probe
-"""
+Spawn pairs in an empty scene, advance three physics steps, and record local
+F-link and M-link poses plus current world-axis AABB extents. Write the result
+to lid_flink_db.json, keyed by container category/model. The geometry supports
+composite annotation meshes and attachment-pose calculations."""
 from __future__ import annotations
 
 import json

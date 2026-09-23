@@ -1,24 +1,10 @@
-"""Solve one cuRobo motion segment — Layer-1 primitive (family-agnostic).
+"""Plan one motion segment or solve a single end-effector IK target.
 
-Given a configured motion generator + a world-frame eef goal pose + the current
-full joint state, return a collision-free joint trajectory to that goal.
-
-Replicated clean from ``pick_and_place_from_dataset._solve_one_segment`` (the
-reusable solver the old code already cross-imported into other scripts — its
-family-agnostic core). KEPT: the salvage logic that recovers trajectories cuRobo's
-trajopt flags ``success=False`` but which actually converged within tol
-(5 mm / 0.03 rad). DROPPED: the ``eef_traj`` (OSC-replay leftover — datagen executes
-joints directly), the ``[PnP transport]`` labels, and the always-on failure re-probe
-(now opt-in via ``diagnose_on_fail``). ADDED seams: ``attach_obj`` (carry a held
-object so the planner avoids collisions with its geometry too) + ``motion_constraint``
-(the partial-pose / linear-servo safety levers P3/P7 drive).
-
-This function ONLY solves: the motion generator, its obstacle world, and any
-constraint state must already be configured by the caller (P7). It does not toggle
-gripper collisions, choose waypoints, or update obstacles — those are the Layer-2
-high-level motion + Layer-1 obstacle/constraint concerns, kept out on purpose (the
-old ``_plan_transport`` tangled them in, which is the orchestration we are NOT
-inheriting).
+The caller configures the motion generator, collision world, and constraints.
+solve_segment returns joint waypoints and can attach carried-object geometry.
+When endpoint-tolerance salvage is enabled, a trajectory may be accepted despite
+a false planner success flag; this does not certify path collision clearance.
+solve_ik provides the waypoint solver used by Cartesian SERVO segments.
 """
 from __future__ import annotations
 
@@ -96,9 +82,7 @@ def _salvage(full, pos_tol: float, rot_tol: float, label: str, *, allow_salvage:
 
 def _diagnose(motion_gen, target_pos, target_quat, initial_joint_pos, bs,
               timeout, attached_obj, attached_obj_scale) -> None:
-    """Opt-in failure probe: re-run with full results to print the per-batch
-    MotionGenStatus + pos/rot errors (IK Fail vs Trajopt Fail vs Start-In-Collision).
-    Cheap on warmed kernels; no behaviour change (caller already has None)."""
+    """Run an additional unconstrained planner query and print its status and pose errors. The result is diagnostic only; the extra solve can advance the planner random-number state."""
     from omnigibson.action_primitives.curobo import CuRoboEmbodimentSelection
 
     def _fmt(e):
@@ -161,16 +145,11 @@ def solve_segment(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_
     attached_obj = {eef_link: attach_obj.root_link} if attach_obj is not None else None
     attached_obj_scale = {eef_link: 1.0} if attach_obj is not None else None
 
-    # ik_rot_relax / ik_pos_relax: temporarily widen cuRobo's IK convergence rotation_threshold (rad) /
-    # position_threshold (m) just for THIS plan, restored in finally below. cuRobo bakes
-    # rotation_threshold=0.05 + position_threshold=0.005 at MotionGen construction; the IK success gate
-    # reads them at call time (ik_solver._get_success -> self.rotation_threshold / self.position_threshold),
-    # so mutating the live solver attributes is the per-call lever (there is NO MotionGenPlanConfig field
-    # for them). Needed for a far-reach handle grasp at the arm's reach ENVELOPE, where the best IK solution
-    # sits a hair past the strict gate on BOTH axes (measured: pos 0.0052-0.0058 m, rot 0.043-0.057 rad) —
-    # whichever binds first IK_FAILs (no solution -> no trajectory). At a STANDOFF pre-grasp the sub-cm /
-    # few-degree residual is harmless (the next SERVO re-aims from the LIVE handle pose). We widen the
-    # salvage tols to match so the trajopt path (which still optimises to ~that residual) is kept.
+    # Temporarily widen the live IK rotation/position thresholds for this plan,
+    # restoring them in finally. These thresholds are solver attributes, not
+    # MotionGenPlanConfig fields. A standoff pre-grasp near the reach boundary
+    # can tolerate a small residual because the following SERVO re-aims from
+    # the live handle pose. Match the endpoint-salvage tolerances to the override.
     ik_solver = motion_gen.mg[CuRoboEmbodimentSelection.DEFAULT].ik_solver
     _saved_rot_thresh = _saved_pos_thresh = None
     salvage_rot_tol, salvage_pos_tol = rot_tol, pos_tol
@@ -278,10 +257,9 @@ def solve_ik(motion_gen, robot, eef_goal_pos, eef_goal_quat, initial_joint_pos, 
             js, get_full_js=False, emb_sel=CuRoboEmbodimentSelection.DEFAULT)
         return (jp[manip_idx] if jp.dim() == 1 else jp[:, manip_idx]).detach().cpu().reshape(-1)
 
-    # Pick the valid IK branch CLOSEST to the seed (the previous servo waypoint), NOT cuRobo's
-    # "first valid" — for a redundant 7-DoF arm the first-valid solution can jump to a far branch
-    # (wrist/elbow skew) for nearly the same eef pose, which is the unnatural sideways twist seen on
-    # a straight servo lift. Nearest-to-seed keeps the per-waypoint configs continuous.
+    # Choose the valid IK branch closest to the previous waypoint seed. For a
+    # redundant arm, the first valid solution can jump to a distant wrist/elbow
+    # configuration for nearly the same end-effector pose.
     best_arm, best_d = None, None
     for i in range(len(joint_states)):
         try:

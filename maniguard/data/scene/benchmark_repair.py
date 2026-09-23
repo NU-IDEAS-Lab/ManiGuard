@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""
-Repair/rebuild diagnostics.jsonl files in a benchmark directory
-to match the current scene-registry format.
+"""Rebuild BDDL instance-to-scene mappings in task diagnostics.
 
-Reads scene_ep1.json + existing diagnostics + BDDL problem files,
-then rebuilds active_object_summary with correct inst_id → scene_object_name mappings.
+Reads each immediate scene directory's ``scene_ep1.json`` and first
+compact JSONL diagnostics record, plus its activity's ``problem0.bddl``.
+Preserves existing mappings and adds category-matched entries to
+``active_object_summary``. ``--dry-run`` reports changes without writing.
 
 Usage:
-    python tools/repair_benchmark_diagnostics.py \
-        --benchmark-root outputs/local_eval_benchmark/clutter_all_scene_20260319 \
-        --activity-root bddl3/bddl/activity_definitions
+    python -m maniguard.data.scene.benchmark_repair \
+        --benchmark-root /path/to/scene_collection \
+        --activity-root /path/to/activity_definitions
 """
 from __future__ import annotations
 

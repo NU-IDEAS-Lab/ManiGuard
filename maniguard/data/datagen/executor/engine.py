@@ -1,13 +1,10 @@
-"""DemoEngine — the family-agnostic executor loop (doc §4.3).
+"""Execute and evaluate a family's ordered motion segments.
 
-Runs an ordered ``MotionSegment`` list end-to-end for ANY family:
-
-  resolve runtime target (compute tags) -> cuRobo plan (``solve_segment``) -> JointController
-  execute (``execute_trajectory`` / ``actuate_gripper``) with the real-time ``SafetyGate``
-  ticking EVERY env step -> verify clearance -> record.
-
-A demo is success ONLY if it ends held-in-goal AND was never LTL-violated (doc §0.1: never
-collect "success but not safe"). The engine never knows which family produced the segments.
+Resolve runtime targets, plan or replay joint trajectories, execute arm and
+gripper commands, record observations, and perform segment checks. Execution
+callbacks advance the SafetyGate. Acceptance requires the configured goal,
+family-specific success checks, and no recorded LTL violation, including the
+monitored final settling period.
 """
 from __future__ import annotations
 
@@ -36,9 +33,8 @@ from maniguard.data.datagen.primitives.execute import (
     execute_trajectory,
 )
 
-FLARE_TOL = 0.5          # rad: max |panda_joint3| (j2 = arm index 2) before a config is "elbow-flared".
-#                          PROVISIONAL — locked in S1 from the flip(>=1 rad)-vs-clean(<=0.3 rad) j2 gap.
-PIN_L2_PERTURB = (0.3, -0.3, 0.6, -0.6, 0.9, -0.9)   # rad j2 seed perturbations for the dormant L2 ladder.
+FLARE_TOL = 0.5          # rad: maximum |panda_joint3| (arm index 2) for a low-flare diagnostic reference.
+PIN_L2_PERTURB = (0.3, -0.3, 0.6, -0.6, 0.9, -0.9)   # Joint-3 seed perturbations for the diagnostic reference search.
 
 
 def _np(x) -> np.ndarray:
@@ -69,9 +65,7 @@ class DemoEngine:
         self.servo_step_m = float(servo_step_m)  # SERVO eef-interpolation resolution (straight-push waypoint spacing)
         self.servo_spw = int(servo_spw)          # sim steps per SERVO waypoint: SLOW so a pushed drawer slides
         #                                          with the gripper (a fast push outruns it -> no contact)
-        self.max_steps = int(max_steps)          # backstop: abort + fail "timeout" if a rollout exceeds this many
-        #                                          recorded steps (30 fps → 3600 ≈ 2 min). A healthy cabinet demo is
-        #                                          ~2400; this only catches a pathological runaway, never a normal run.
+        self.max_steps = int(max_steps)          # Abort a rollout after this many recorded steps (30 fps: 3600 steps = 2 min).
         self.plan_tries = max(1, int(plan_tries))  # cuRobo FREE/LINEAR plan attempts per segment: trajopt samples
         #                                          seed trajectories from the (advancing) torch RNG, so a retry
         #                                          explores NEW seeds → clears the vendored cuRobo's intermittent plan_fail
@@ -168,8 +162,7 @@ class DemoEngine:
         and accept the first placement that is IK-reachable AND still leaves the object in the sphere.
 
         That placement IS the terminal (object in sphere => success), so the caller skips ``to_goal``.
-        Returns a :class:`SegmentResult`, or ``None`` if no reachable in-sphere placement exists.
-        (Phase 2 — add an upright-preserving world-Z yaw to grow the pull-back budget — is deferred.)"""
+        Returns a :class:`SegmentResult`, or ``None`` if no reachable in-sphere placement exists."""
         import torch as th
 
         arm = self.robot.default_arm
@@ -210,13 +203,12 @@ class DemoEngine:
 
     # ---- straight-line Cartesian IK servo (deliberate push into contact) ----
     def _servo_line(self, tpos, tquat, ctx, seg):
-        """Interpolate the eef from its CURRENT pose straight to ``(tpos, tquat)`` (orientation
-        held), solving per-waypoint IK with COLLISION OFF and chaining each solve's seed for a
-        smooth joint path. Returns the joint trajectory (T,7) or ``None`` if any IK fails. Used
-        for a deliberate push the collision-avoiding planner would refuse (shoving a drawer shut).
+        """Interpolate an end-effector path and solve each waypoint with collision checks disabled.
 
-        DATAGEN_LOG_SERVO: per-waypoint flare/Delta trace + (for place_across) the candidate no-flare
-        ``q_pin`` flare. Phase A only logs (the chained seed still drives); the pin is wired in Phase B."""
+        Use the target orientation throughout unless orient_slerp requests interpolation
+        from the live orientation. Chain each IK seed from the previous solution.
+        Return an arm trajectory or None on failure. DATAGEN_LOG_SERVO enables waypoint
+        diagnostics and an endpoint reference-configuration probe for place_across."""
         import torch as th
         arm = self.robot.default_arm
         sp = _np(self.robot.eef_links[arm].get_position_orientation()[0])
@@ -236,7 +228,7 @@ class DemoEngine:
         manip_idx = self.robot.arm_control_idx[self.robot.default_arm]
 
         log_servo = bool(os.environ.get("DATAGEN_LOG_SERVO"))
-        if log_servo and seg.name == "place_across":            # S1 endpoint no-flare probe (no pin)
+        if log_servo and seg.name == "place_across":            # Optional endpoint low-flare reference probe; does not seed the path.
             ai = self.robot.arm_control_idx[arm]
             cand = self._build_pin_seed(tpos, tquat)
             print("[servo] place_across PROBE: " + ("no no-flare endpoint config (L3)" if cand is None
@@ -265,10 +257,7 @@ class DemoEngine:
         return th.stack(out)
 
     def _build_pin_seed(self, tpos, tquat):
-        """No-flare reference arm config (full-DoF tensor) at the segment endpoint (tpos, held tquat),
-        or None (=> servo_ik_fail). L1: tailored no-flare seed (geometry.noflare_seed) -> solve_ik,
-        accept iff arm_flare < FLARE_TOL. L2 (dormant, only when L1 flares): perturb j2, re-solve, pick
-        min flare. L3: None. Adds +1 solve_ik (L1) over the carry's ~20-40; bounded by self.timeout."""
+        """Compute a low-flare reference configuration for optional diagnostics. Try a tailored endpoint seed, then bounded joint-3 perturbations if needed. Return the lowest-flare candidate below FLARE_TOL, or None; this reference does not seed the executed servo path."""
         import torch as th
         arm = self.robot.default_arm
         ai = self.robot.arm_control_idx[arm]
@@ -290,10 +279,10 @@ class DemoEngine:
             return out
 
         seed = geometry.noflare_seed(_np(q_full[ai]), _np(bp), base_yaw, np.asarray(tpos, float)[:2])
-        q_pin = _solve(seed)                                   # L1
+        q_pin = _solve(seed)                                   # Try the tailored endpoint seed first.
         if q_pin is not None and geometry.arm_flare(_np(q_pin[ai])) < FLARE_TOL:
             return q_pin
-        best, best_flare = None, FLARE_TOL                     # L2 (dormant)
+        best, best_flare = None, FLARE_TOL                     # Then try bounded joint-3 perturbations.
         for dj2 in PIN_L2_PERTURB:
             s = seed.copy(); s[2] = float(dj2)
             cand = _solve(s)
@@ -302,7 +291,7 @@ class DemoEngine:
             f = geometry.arm_flare(_np(cand[ai]))
             if f < best_flare:
                 best, best_flare = cand, f
-        return best                                            # None => L3
+        return best                                            # None if no reference qualifies; execution still uses chained seeds.
 
     # ---- debug instrumentation: per-segment joint diagnostics (DATAGEN_LOG_JOINTS) ----
     def _arm_limits(self):
@@ -371,7 +360,7 @@ class DemoEngine:
             hit[key] = hit.get(key, 0) + 1
         print(f"[contacts] {seg.name}: {dict(sorted(hit.items())) or 'NONE'}", flush=True)
 
-    # ---- place_across pinned-seed diagnostics (DATAGEN_LOG_SERVO) -----------
+    # ---- Cartesian-servo diagnostics (DATAGEN_LOG_SERVO) -------------------
     def _log_flare(self, tag):
         """live Cartesian out-of-plane elbow flare from FK link reads (panda_link2 shoulder ->
         panda_link4 elbow vs the shoulder->eef reach plane)."""
@@ -665,13 +654,9 @@ class DemoEngine:
             recorder.finalize(success=False)      # gripper has no next-iteration check -- fail cleanly here
             return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
 
-        # Monitored settle-to-rest: step the env (arm + gripper held at their final command) with the
-        # gate ticking EVERY step, so post-release physics the segment loop never covered -- an object
-        # toppling once the gripper's masked-upright AG hold ends, or the drawer/object settling -- is SEEN
-        # by the LTL gate (45deg upright + dropped) BEFORE the success+safety verdict is locked. Without
-        # this, a topple completing in the unmonitored gap after the last segment was mislabeled a clean
-        # success. Not recorded (the demo still ends on the last segment's frame); only the gate advances,
-        # and success() is re-checked below on the SETTLED state (also catches a drawer springing back open).
+        # Advance the safety gate during final settling before evaluating success.
+        # These steps are not recorded, so the acceptance state can occur after
+        # the final video/HDF5 frame.
         if self.rest_settle_steps > 0:
             self._cur_seg = "rest_settle"
             actuate_gripper(self.env, self.robot, close=(carry == CLOSE),

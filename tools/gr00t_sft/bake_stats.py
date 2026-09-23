@@ -1,13 +1,10 @@
 #!/usr/bin/env python
-"""Compute GR00T stats for each family ONCE, offline (CPU-only, no model/GPU), from the
-finalized LeRobot datasets, and copy them into the fork's gr00t_stats/<fam>/. Idempotent.
+"""Compute simulation GR00T statistics for selected ManiGuard families.
 
-    python tools/gr00t_sft/bake_stats.py --data-root <root> [--family jar]
-
-<root> may be either a HF-cache-style root (containing
-``IDEAS-Lab-Northwestern/datagen-<fam>-v1-joint-5cam``) or the local master layout
-(containing ``<fam>_pickup`` / ``<fam>_transport`` etc.). Only the parquet state/action
-columns are read (identical across GOP versions), so any local copy of the data works.
+Resolve a local dataset, copy metadata into a temporary directory, link its
+numeric data, and invoke gr00t.data.stats with the simulation embodiment.
+Copy stats.json and required relative_stats.json into gr00t_stats/<family>/.
+The source dataset metadata is not modified.
 """
 import argparse
 import importlib.util

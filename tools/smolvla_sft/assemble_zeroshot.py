@@ -1,29 +1,14 @@
 #!/usr/bin/env python
-"""Assemble a zero-shot SmolVLA serving directory: base weights, our normalisation.
+"""Assemble base SmolVLA weights with a family's SFT serving metadata.
 
-The zero-shot baseline must answer "what does the off-the-shelf policy do on this benchmark",
-which means the **weights** are `lerobot/smolvla_base` while everything describing our robot --
-the feature spec, the camera renaming, the dataset statistics baked into the pre/post-processor
-pipelines -- comes from the family's own SFT run. Serving base weights with base statistics would
-instead measure the policy on someone else's action scale; serving our weights with anything is
-not zero-shot at all.
+Copy top-level metadata files from the family checkpoint and model.safetensors
+from the selected base checkpoint. Then compare base/SFT tensor names and
+shapes and check a projection-weight example. These checks occur after files
+are copied. Refuse an already populated destination.
 
-This mirrors how the pi0.5 and pi0 zero-shot rows are served (base `params/` paired with the SFT
-run's `assets/`), so all three baseline rows consume target-domain STATISTICS and nothing else.
-That is a caveat to disclose, not to hide: the baseline sees no target-domain weights and no
-gradients.
-
-Mechanically it is a file swap, which is safe here because the two checkpoints are structurally
-identical -- verified before writing this: 500 tensors each, identical key sets, zero shape
-mismatches. SmolVLA's projections (`state_proj`, `action_in_proj`, `action_out_proj`) are single
-generic layers over a padded 32-dim space, so no weight depends on which robot was trained on.
-(GR00T is the counter-example: its per-embodiment weight table has no trained slot for an unseen
-robot, which is why it has no zero-shot row.)
-
-Usage:
-    python tools/smolvla_sft/assemble_zeroshot.py \
-        --family clutter --out outputs/eval_ckpts-zeroshot/smolvla/clutter
-"""
+This baseline uses target-family preprocessing and normalization statistics
+with base-model weights. It is not a data-free zero-shot setup. Structural
+compatibility does not establish successful closed-loop behavior."""
 
 from __future__ import annotations
 

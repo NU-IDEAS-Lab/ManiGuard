@@ -71,7 +71,7 @@ MIN_PLATEAU_SIDE_M = 0.05     # plateau must be ≥ 5cm × 5cm
 # closed containers, narrow-necked vessels, etc. Add categories here
 # only after confirming the failure mode visually.
 TARGET_EXCLUDE_CATS = frozenset({
-    # No-op for now; populate from real-world inspection later.
+    # No category-level exclusions are configured.
 })
 
 

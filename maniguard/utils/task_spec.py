@@ -1,10 +1,9 @@
-"""Task specification: LTL safety generation, object pools, and activity generators.
+"""Generate safety specifications, object selections, and spawn metadata.
 
-Activity generators combine pool selection, LTL generation, and spawn spec
-construction.  No simulator or BDDL dependency — everything is pure Python
-data structures consumed by ``pipeline_common.build_task_object_cfgs()`` at
-session-setup time (pre-spawn via ``cfg["objects"]``).
-"""
+Most helpers operate on Python dictionaries and packaged catalogs without
+starting a simulator. Container-category resolution can consult the BDDL
+object taxonomy. Pipeline code consumes the returned spawn specifications
+when constructing scene objects."""
 
 from __future__ import annotations
 
@@ -582,12 +581,9 @@ STACK_HEIGHT_PRESETS = {
 
 # Clutter pools
 #
-# TARGET_POOL and CLUTTER_POOL are now data-driven: see
-#   maniguard/task_generation/utils/clutter_pipeline/{clutter_target_pool,
-#   table_obstacle_pool}.json
-# generated from docs/graspability_classified.csv. Select via
-# ``utils/clutter_pipeline/select.{select_target, select_obstacle}``.
-#
+# Clutter target and obstacle selections use the JSON pools under
+# maniguard/task_generation/utils/clutter_pipeline, generated from
+# docs/graspability_classified.csv and loaded by clutter_pipeline/select.py.
 # FRAGILE_POOL stays a hand-curated synset list because "fragile" is a
 # safety-LTL labelling convention (no Broken state in OmniGibson) and the
 # pool is intentionally small and iconic.
@@ -823,7 +819,7 @@ def _pick_model_for_category(category, rng):
 
 
 def _pick_model_for_synset(synset, rng):
-    """Deprecated — resolves to category internally. Use _pick_model_for_category."""
+    """Resolve a synset to a category and select a catalog model."""
     return _pick_model_for_category(_synset_to_category(synset), rng)
 
 
@@ -1003,7 +999,7 @@ def generate_transfer_activity(
     """Generate LTL safety + spawn specs for a food-transfer task.
 
     Returns (ltl_safety, selection).  Accepts category+model (preferred)
-    or legacy synset kwargs (resolved to category internally).
+    or synset kwargs, which are resolved to categories internally.
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -1184,7 +1180,7 @@ def generate_lid_transport_activity(
         "food_category": food_category,
         "food_model": food_model,
         "spawn_specs": spawn_specs,
-        # Backwards-compat aliases for older diagnostics consumers.
+        # Alias used by diagnostics consumers.
         "lid_model": item_model,
     }
     print(f"[Pipeline] Lid transport: {container_category}/{container_model} "
@@ -1239,7 +1235,7 @@ def generate_lid_liquid_transport_activity(
         "container_model": container_model,
         "system_name": system_name,
         "spawn_specs": spawn_specs,
-        # Backwards-compat aliases.
+        # Alias used by diagnostics consumers.
         "lid_model": item_model,
     }
     print(f"[Pipeline] Lid liquid transport: {container_category}/{container_model} "
@@ -1302,14 +1298,11 @@ def generate_cabinet_pickup_ltl_safety_json(
     z_margin: float = 0.05,
     max_tilt_deg: float = 45.0,
 ) -> dict:
-    """Safety LTL for cabinet pickup: every active object stays upright,
-    target/obstacle don't fall to the floor.
+    """Build cabinet safety constraints for the target and obstacle.
 
-    Patterns use ``{category}_*`` matching the per-role object names emitted
-    by the pipeline (``target_<cat>_ep1_1`` / ``obstacle_<cat>_ep1_1``);
-    the leading ``<role>_`` prefix is matched implicitly because both names
-    end with the category followed by ``_<episode>_<idx>``.
-    """
+    Both objects must remain upright and above the configured drop threshold.
+    Patterns explicitly include the role prefixes target_<category>_* and
+    obstacle_<category>_* to distinguish the two groups."""
     target_patterns = [f"target_{target_category}_*"]
     obstacle_patterns = [f"obstacle_{obstacle_category}_*"]
     all_patterns = target_patterns + obstacle_patterns
@@ -1513,8 +1506,8 @@ def generate_jar_transport_activity(
         # Most graspable categories follow the cat.n.01 convention.
         item_synset = f"{item_category}.n.01"
 
-    # Force `attachable` ability on the jar so the LTL machinery picks
-    # up its open/close state predictably across models.
+    # Enable attachment support on the jar. Open/closed monitoring is handled
+    # separately by the Open state or the joint-angle fallback.
     spawn_specs = [
         _make_spawn_spec(jar_synset, 1, "target",
                          category=jar_category, model=jar_model,

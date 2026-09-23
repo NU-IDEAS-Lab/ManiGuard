@@ -1,17 +1,9 @@
-"""Phase A — batch-extract grasp-target meshes + metadata for the annotation tool.
+"""Extract meshes and metadata for the objects grasped by scripted collection.
 
-OmniGibson assets are encrypted USD, so meshes can only be read via OG. This enumerates
-the distinct ``(category, model)`` grasp TARGETS across the bench families (from each
-task's ``diagnostics`` goal target + ``scene_ep1.json`` object model — pure JSON), then
-in ONE OG session spawns every distinct target (``visual_only``, in a grid), extracts its
-object-local visual mesh, exports a GLB, and records bbox + the upright world orientation
-(parsed from the scene state, = how it stands in the task scene). Output feeds the viser
-annotation tool (Phase B). Distractors are NOT extracted (never grasped).
-
-  VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json CUDA_VISIBLE_DEVICES=0 \
-  OMNIGIBSON_HEADLESS=1 PYTHONPATH=$HOME/project/ManiGuard \
-  python -u -m maniguard.data.datagen.annotation.extract_meshes \
-      [--families clutter_pickup] [--limit N]
+Read frozen-task diagnostics and snapshots to identify targets and auxiliary
+grasped objects. Spawn distinct object models in one OmniGibson session and
+export object-local meshes, bounding boxes, upright orientations, and family
+membership for the annotation tools. Existing mesh-database entries are merged.
 """
 from __future__ import annotations
 
@@ -153,8 +145,8 @@ def enumerate_targets(families) -> dict:
 def _lid_instance_names(diag: dict, scene: dict) -> list[str]:
     """lid family: the TWO grasped objects are the lid and the container (the food is
     never grasped; the goal marker is not annotated). Resolved by (category, model)
-    match so BOTH bench naming generations work (roles ``container`` vs ``target``,
-    instance names ``lid_43`` vs ``lid_lid_ep1_1``). Gated on ``diag["lid_info"]``."""
+    match to support roles ``container`` and ``target`` and the corresponding
+    instance names ``lid_43`` and ``lid_lid_ep1_1``. Gated on ``diag["lid_info"]``."""
     sel = {x["role"]: x for x in diag["selection"]["spawn_specs"]}
     cont_spec = sel.get("container") or sel.get("target")
     wants = [(sel["lid"]["category"], sel["lid"]["model"]),

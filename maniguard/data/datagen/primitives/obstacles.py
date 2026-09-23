@@ -1,26 +1,10 @@
-"""cuRobo world + constraint/safety levers — Layer-1 primitive (family-agnostic).
+"""Configure the cuRobo collision world and segment constraints.
 
-Sets up the motion generator (the planner :func:`curobo_seg.solve_segment` uses) and
-owns the obstacle world + the control levers the high-level motion drives:
-
-  - :meth:`CuroboWorld.update_obstacles` — (re)load the scene into cuRobo's collision
-    world, optionally ignoring objects (e.g. a just-grasped target).
-  - :meth:`CuroboWorld.gripper_collision_disabled` — context manager that toggles the
-    Franka gripper links OUT of the collision world (so the fingers can clamp around a
-    target / clear the support surface) and ALWAYS restores them on exit. NOTE: the
-    cbaf7d32 cuRobo build has NO ``toggle_link_collision`` (it was an older-curobo API),
-    so this is a warn-once NO-OP on the current build — the working collision levers
-    here are :meth:`update_obstacles` (drop specific objects, e.g. the target during a
-    grasp approach) + ``solve_segment(attach_obj=...)`` (attach a held object).
-  - :data:`LINEAR_SERVO` — partial-pose-hold weights for ``solve_segment``'s
-    ``motion_constraint``: hold the relative orientation + the position perpendicular
-    to the approach axis, free along the approach axis only (a pure linear servo). The
-    OG wrapper turns the 6-weight list into a ``PoseCostMetric(hold_partial_pose=True)``.
-
-Formalizes the inline cuRobo setup the P2 smoke used. ``_install_mimic_patch`` +
-``GRIPPER_COLLISION_LINKS`` are replicated clean from ``rl/grasps/collector``; the
-toggle/constraint pattern from ``pick_and_place_from_dataset`` — datagen does not
-import those reference trees.
+CuroboWorld creates the motion generator and updates obstacles with optional
+object exclusions. The gripper-collision context manager disables selected links
+when the planner exposes that API; otherwise it warns once and changes nothing.
+LINEAR_SERVO and UPRIGHT_HOLD provide partial-pose weights for motion planning.
+The mimic-joint patch fills missing finger positions when reindexing joint state.
 """
 from __future__ import annotations
 
@@ -57,7 +41,7 @@ def _install_mimic_patch() -> None:
     ``ValueError: 'panda_finger_joint1' is not in list`` and the whole plan errors.
     Fill missing finger joints with 0.04 m (fully open — open-gripper collision
     spheres are the correct geometry; a closed gripper's are too thin) instead of
-    raising. Idempotent. Replicated clean from ``collector._patch_curobo_mimic_lookup``.
+    raising. Idempotent.
     """
     global _MIMIC_PATCHED
     if _MIMIC_PATCHED:
@@ -129,12 +113,7 @@ class CuroboWorld:
 
     @contextmanager
     def gripper_collision_disabled(self):
-        """Toggle the Franka gripper links out of the collision world for the
-        duration of the block, then restore them (always, even on exception).
-
-        WARN-ONCE NO-OP on the cbaf7d32 build (no ``toggle_link_collision``): use
-        :meth:`update_obstacles(ignore_objects=...)` to drop colliding objects, or
-        ``solve_segment(attach_obj=...)`` for a held object, instead."""
+        """Temporarily disable gripper-link collision checks when the planner exposes toggle_link_collision, restoring them on exit. If the API is unavailable, warn once and leave collision settings unchanged."""
         global _TOGGLE_WARNED
         raw = self._raw_mg
         toggleable = hasattr(raw, "toggle_link_collision")

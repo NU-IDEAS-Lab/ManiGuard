@@ -1,18 +1,9 @@
-"""Generic Layer-2 contracts that decouple the family-agnostic executor from the
-per-family manip skeletons.
+"""Data contracts for family motion sequences and shared execution.
 
-The whole datagen executor is built around ONE idea: a family only answers "which
-motion segments make up this task" (``FamilySkeleton.derive_segments``), and the
-generic engine plans / executes / gates / records / scales them identically for every
-family. Nothing here imports OmniGibson or cuRobo — these are plain data contracts so
-they stay cheap to import and trivial to unit-test.
-
-Layer map::
-
-    primitives/ (L1)         scene, curobo_seg.solve_segment, execute, obstacles, record, cameras
-    executor/   (L2 generic) contracts (this file) + engine + variation + grasp_select + gate + geometry
-    families/   (L2 specific) clutter.py ...: ONLY implement FamilySkeleton
-    driver.py   (L3)         orchestrate: task -> variants -> engine -> collect success+safe demos
+MotionSegment describes a movement and its planning, grasp, and verification
+options. FamilySkeleton supplies grasp candidates, segment lists, runtime target
+resolution, and optional setup and acceptance hooks. The driver initializes these
+objects and passes attempts to DemoEngine. This module imports no simulator.
 """
 from __future__ import annotations
 
@@ -109,23 +100,18 @@ class MotionSegment:
     #                                        PHYSICALLY SYMMETRIC axis (e.g. the roll-symmetric cabinet handle bar), so
     #                                        the few-degree miss is harmless: cuRobo would otherwise IK_FAIL at the
     #                                        far-reach open handle and never produce a trajectory to grasp it.
-    pos_relax: float | None = None         # FREE/LINEAR only: same lever for cuRobo's IK position_threshold (m). At a
-    #                                        STANDOFF pre-grasp the arm at its reach envelope lands a few mm short
-    #                                        (measured 5.2-5.8 mm > the 5 mm gate); that residual is absorbed by the
-    #                                        following SERVO which re-aims from the LIVE target pose. Pair with rot_relax
-    #                                        — at the far reach EITHER axis can bind first (whichever does => IK_FAIL).
+    pos_relax: float | None = None         # FREE/LINEAR only: temporarily widen the IK position threshold (m).
+    # A standoff pre-grasp can tolerate a small residual because the following
+    # SERVO re-aims from the live target pose. Pair with rot_relax when needed.
     clearance_exclude: tuple[str, ...] = ()  # object NAMES to ALSO exclude from the clearance
     #                                        computations (lift_to_clearance aim + the post-segment
     #                                        min_clearance verify). Default empty => behavior
     #                                        unchanged. lid: the WELDED lid rides the held container
     #                                        — counting it as "other clutter" makes the container's
     #                                        bottom-vs-lid-top clearance permanently negative.
-    reach_fallback: bool = False            # transport only: if the precise (eef→goal / object-centre→goal-centre)
-    #                                        plan fails on a FAR goal, the engine may relax to the closest-to-goal
-    #                                        placement that is IK-reachable AND still leaves the held object
-    #                                        intersecting the goal sphere (pull the eef back toward the robot;
-    #                                        optionally add an upright-preserving world-Z yaw). See engine
-    #                                        ._reach_fallback_transport. The precise plan stays the normal path.
+    reach_fallback: bool = False            # Transport only: if precise placement fails, search closer-to-robot
+    # placements that remain IK-reachable and keep the held object intersecting
+    # the goal sphere. See engine._reach_fallback_transport.
     free_fallback: bool = False             # SERVO only: if the straight-line IK servo can't reach the target
     #                                        (servo_ik_fail), fall back to a collision-aware cuRobo FREE solve with
     #                                        an orientation-hold constraint (obstacles.UPRIGHT_HOLD). Lets a
@@ -139,10 +125,8 @@ class MotionSegment:
     #                                        skip the endpoint-tol salvage (which can keep a colliding path).
     #                                        The stack target transport sets this so a winding salvaged path
     #                                        never knocks the just-built re-stack pile.
-    orient_slerp: bool = False             # SERVO only: ALSO slerp the eef orientation from its live start
-    #                                        to eef_quat across the waypoints (uniform controlled tilt, e.g.
-    #                                        dusty's pour). False (default) = the original fixed-quat servo
-    #                                        path, byte-identical for every existing family.
+    orient_slerp: bool = False             # SERVO only: slerp from the live orientation to eef_quat across waypoints
+    # (e.g. dusty pour). False keeps the target quaternion fixed throughout.
 
 
 @dataclass
@@ -210,18 +194,11 @@ class DemoResult:
 
 
 class SegmentSkip(Exception):
-    """Raised by a family's ``resolve_compute`` to SKIP the current segment entirely —
-    no plan, no execution, no recorded frames. For budget-padded dynamic chains (dusty's
-    wipe_step/pour_step) whose objective is already met: executing them as zero-motion
-    no-ops froze the demo for seconds per leftover segment. No existing family raises
-    it, so engine behavior for them is unchanged."""
+    """Skip a segment whose runtime objective is already satisfied. The engine performs no planning, execution, or recording for the skipped segment."""
 
 
 class FamilyAbort(Exception):
-    """Raised by a family's ``on_segment``/``resolve_compute`` to FAIL the current attempt
-    cleanly (the engine converts it to ``DemoResult.fail(stage)`` and the driver retries the
-    next variant) — e.g. dusty's hard ``wipe_incomplete`` gate. No existing family raises it,
-    so engine behavior for them is unchanged."""
+    """Abort the current attempt with a family-specific failure stage and details. The engine returns a failed DemoResult so the driver can try another variant."""
 
     def __init__(self, stage: str, **detail: Any):
         super().__init__(stage)
@@ -230,8 +207,7 @@ class FamilyAbort(Exception):
 
 
 class FamilySkeleton(ABC):
-    """The ONLY thing each family implements. Pure planning logic — no cuRobo, no
-    execution, no recording (the engine owns all of those)."""
+    """Interface for family-specific grasp selection, motion generation, runtime hooks, and acceptance criteria."""
 
     name: str = "base"
 
@@ -253,8 +229,7 @@ class FamilySkeleton(ABC):
 
     def demo_attrs(self, ctx: TaskContext) -> dict:
         """Extra family-specific fields to record in the demo's ``meta.json``, read from the
-        LIVE end-of-demo state. Default: none, so a family that does not override this records
-        exactly the fields it always has.
+        LIVE end-of-demo state. Default: no additional fields.
 
         Used where a downstream consumer needs a physical quantity the generic recorder does
         not capture: cabinet_firsthalf records the achieved drawer-joint position, which
@@ -276,7 +251,7 @@ class FamilySkeleton(ABC):
         return
 
     def variation_knobs(self, ctx: TaskContext) -> dict[str, Any]:
-        """Which waypoints / ranges may jitter for diversity. Default: engine defaults."""
+        """Optional family parameter-description hook. The current driver constructs VariationSampler directly and does not consume this return value."""
         return {}
 
     def score_drop_extra(self, ctx: TaskContext) -> list:
@@ -289,9 +264,8 @@ class FamilySkeleton(ABC):
 
     def score_margin_floor(self) -> float | None:
         """Family override for ``score_grasps``' joint-limit margin floor (rad). Default ``None`` =
-        the shared ``MARGIN_FLOOR`` — other families are untouched. A family whose few viable side
-        grasps land just under the shared floor on edge placements (jar: best grasp ~0.17 after a
-        yaw surgery) may relax it slightly rather than yield 0 attempts."""
+        the shared ``MARGIN_FLOOR``. A family with few viable side grasps near the workspace
+        edge may use a smaller floor to retain candidates for execution checks."""
         return None
 
     def relocate_prefer_top_down(self) -> bool:

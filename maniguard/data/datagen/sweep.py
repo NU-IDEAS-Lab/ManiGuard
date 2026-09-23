@@ -1,19 +1,10 @@
-"""Sweep driver — collect demos across many base tasks of a family.
+"""Collect demonstrations across a family's frozen tasks.
 
-Parallelism unit = the task (og.clear() can't switch tasks in one OG process, so each task
-runs in a FRESH ``driver.run_task`` subprocess). This sweep runs its assigned tasks
-SEQUENTIALLY, one subprocess each, on one GPU, logging each task to its own file. For multi-GPU
-parallelism, launch one sweep per shard (``--shard i --num-shards N --gpu G``) in separate tmux
-sessions — shards own disjoint tasks (round-robin), so output dirs / logs never collide.
-
-Save isolation (no two processes ever write the same file):
-  - demos    outputs/datagen/<dataset>/<bench_family>/<task>/traj_NNN/  (task owned by 1 shard)
-  - per task outputs/datagen/<dataset>/<bench_family>/<task>/_summary.json
-  - log      outputs/datagen/<dataset>/_logs/<task>.log
-
-  conda activate behavior
-  PYTHONPATH=$HOME/project/ManiGuard python -m maniguard.data.datagen.sweep \
-      --family clutter --dataset v1 --limit-tasks 5 --target 50 --gpu 0
+Run each task in a separate simulator process, sequentially on the selected GPU.
+For multiple GPUs, assign disjoint round-robin shards to separate sweep processes.
+Write demonstrations and summaries beneath
+outputs/datagen/<dataset>/<bench_family>/<task>/ and task logs beneath
+outputs/datagen/<dataset>/<bench_family>/_logs/.
 """
 from __future__ import annotations
 

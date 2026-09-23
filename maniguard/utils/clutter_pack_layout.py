@@ -46,9 +46,9 @@ def check_packing_feasibility(
     """Area-based feasibility pre-check for circle packing.
 
     Returns ``(feasible, utilization)`` where *utilization* is the ratio of
-    total padded-circle area to zone area.  A utilization above ~0.85
-    (conservative hexagonal-packing limit for mixed radii in a rectangle)
-    is flagged as infeasible.
+    total padded-circle area to zone area. A utilization above 0.85
+    or a circle wider than the region is rejected by this heuristic;
+    passing does not guarantee that the placement search will succeed.
     """
     if placement_bounds_local is None:
         placement_bounds_local = ((-0.45, -0.45), (0.45, 0.45))
@@ -83,7 +83,7 @@ def build_clutter_pack(
     placement_bounds_local: tuple[tuple[float, float], tuple[float, float]] | None = None,
     frontier_noise_margin_m: float = 0.02,
     shuffle_non_target: bool = True,
-    # Deprecated: kept for backward compatibility, ignored.
+    # Accepted argument; it does not affect placement.
     grid_step_m: float = 0.005,
 ) -> ClutterPackSpec:
     if not descriptors:
@@ -319,9 +319,8 @@ def validate_pack_integrity(
 
 
 def _effective_radius(d: ClutterObjectDescriptor) -> float:
-    # Use AABB diagonal so that circle-circle clearance guarantees no
-    # axis-aligned bounding-box overlap — matches the 3D AABB interpenetration
-    # check used during post-placement validation.
+    # Radius of the circle enclosing the XY AABB. Used by area and boundary
+    # heuristics; pairwise candidate rejection uses the larger half-extent.
     return math.hypot(d.half_extent_xy[0], d.half_extent_xy[1])
 
 

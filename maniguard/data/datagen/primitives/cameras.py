@@ -1,28 +1,9 @@
-"""Camera rig for datagen — Layer-1 primitive (family-agnostic).
+"""Camera configuration and placement helpers for demonstration collection.
 
-The dataset records FIVE image streams (see ``data_format``): the four bench
-third-person views (``cam_opposite`` / ``cam_left`` / ``cam_right`` /
-``cam_left_shoulder``) + a wrist camera injected under ``panda_hand``. This module
-owns that rig and plugs into the two seams ``scene_from_task_dir`` (P1) exposes:
-
-  * :func:`external_camera_configs` → the ``external_sensors`` config list (the four
-    third-person VisionSensors) to pass as ``scene_from_task_dir(external_sensors=)``.
-  * :func:`install_wrist_camera`     → the FrankaPanda ``_load_sensors`` monkeypatch
-    that injects the wrist Camera; pass it in ``pre_build_hooks=`` so it patches the
-    robot class BEFORE the env is built.
-
-After the env is built, call :func:`place_and_resize_cameras` once: it positions the
-four third-person cameras at the poses RECORDED in the task's
-``diagnostics["cameras"]`` (the bench task's designed views — READ, not recomputed,
-so the datagen views match the bench render + eval exactly, with zero recompute
-drift) and forces every VisionSensor (externals + wrist) to the dataset resolution.
-
-The third-person configs reuse the bench ``maniguard.utils.camera_setup`` verbatim;
-placement reads the recorded poses via ``frozen_task_runtime.position_diagnostics_cameras``.
-The wrist patch + sensor lookup are replicated clean from the reference
-``maniguard/data/curobo/_sft_recorder.py`` (datagen does not import that tree). The
-wrist is the only camera NOT in the recorded state (we inject it); it rides
-``panda_hand`` so it tracks the eef.
+Provide four benchmark external-camera configurations, optional wrist-camera
+installation, wrist-sensor lookup, and post-construction resolution setup.
+External views use the camera poses stored in task diagnostics. The wrist-camera
+installer must be invoked before robot sensor discovery when its patch is needed.
 """
 from __future__ import annotations
 
@@ -64,8 +45,6 @@ def install_wrist_camera() -> None:
     ``+0.05`` so the camera sits between wrist and fingertips, looking out at the
     grasp zone. If the USD shipped no wrist Camera, create one. Pose copied verbatim
     from ``franka_mounted.usda`` so the wrist view matches task-generation.
-
-    Replicated clean from ``_sft_recorder.install_wrist_camera_patch``.
     """
     global _WRIST_CAM_PATCHED
     if _WRIST_CAM_PATCHED:
@@ -119,8 +98,7 @@ def install_wrist_camera() -> None:
 
 
 def find_wrist_sensor(robot) -> Any | None:
-    """The robot's wrist VisionSensor (a 'hand' sensor), or any VisionSensor as a
-    fallback, or None. Replicated clean from ``_sft_recorder.find_wrist_sensor``."""
+    """Return the hand-mounted VisionSensor, another robot VisionSensor as a fallback, or None."""
     from omnigibson.sensors import VisionSensor
 
     if not getattr(robot, "sensors", None):

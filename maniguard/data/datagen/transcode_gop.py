@@ -1,26 +1,15 @@
 #!/usr/bin/env python
-"""Re-encode a LeRobot dataset's videos to a small GOP (dense keyframes) so the
-SFT dataloader's random-frame decode is cheap. Pure pyav -- no system ffmpeg.
+"""Re-encode dataset videos with a configurable keyframe interval using PyAV.
 
-The datagen MP4s were written with libx264's default keyint (~250), so random
-single-frame access decodes ~GOP/2 frames per sample and starves the GPU. This
-re-encodes to GOP=10 (verified: kills the decode tail at ~2.6x file size).
+The default GOP is 10. In-place mode writes and verifies a temporary video tree,
+then keeps the original videos as videos.gop-orig. --out writes a new dataset and
+copies data/ and meta/ unchanged. Each video must retain its frame count.
 
-Two modes:
-  in-place (default): transcode videos/ -> temp mirror, verify EVERY file's
-      frame count (in==out), swap, keep originals as videos.gop-orig/.
-  --out <dst>: read videos from <dataset>/videos, write GOP-fixed videos to
-      <dst>/videos, and copy <dataset>/{data,meta} verbatim to <dst>. Source is
-      left untouched. `images/` (an empty to_lerobot staging artifact, not on HF)
-      is skipped. Use for the local master: src=6fam-gop220-all/<fam>,
-      dst=v1_lerobot_format/<fam>.
+Only videos are re-encoded. Numeric arrays and metadata remain unchanged;
+image statistics are not recomputed after the lossy transcode.
 
-Only videos/ changes; data/ + meta/ (incl. episodes_stats.jsonl) are preserved
-byte-for-byte, which is correct for openpi/GR00T/SmolVLA SFT (none normalize with
-dataset image stats; state/action stats derive from the untouched parquet).
-
-usage:
-  python transcode_gop.py <dataset_dir> [--out <dst>] [--gop 10] [--crf 18] [--nproc N]
+Usage:
+    python -m maniguard.data.datagen.transcode_gop <dataset_dir> [--out <dst>] [--gop 10] [--crf 18] [--nproc N]
 """
 import argparse
 import glob

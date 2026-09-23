@@ -1,21 +1,13 @@
-"""Method-2 surgical edit: close the drawer in every cabinet_pickup BASE scene.
+"""Set all cabinet articulation joints to zero in selected base snapshots.
 
-The bench spawns the target drawer 0.2-open (joint_pos[target] = 0.2*stroke), which made the
-both-mode datagen do a redundant Phase-1 "close first" reach that a tall in-path obstacle blocks
-(see docs/superpowers/plans/2026-06-24-cabinet-closed-drawer-method2.md). We instead spawn ALL
-drawers fully CLOSED, so the demo flow is the natural open -> place -> close.
+Read task_*/base/scene_ep1.json under --bench, find the cabinet registry entry,
+and zero its joint positions and velocities when a nonzero joint is present.
+Before writing, preserve a one-time .bak_method2 backup. --dry-run reports
+changes without writing. The command does not update diagnostics or videos;
+run the cabinet re-finalization utility when those outputs must be refreshed.
 
-This is an OFFLINE, point-by-point edit of the saved scene_ep1.json (NOT the task-generation
-pipeline): set the cabinet articulation's joint_pos / joint_vel to zero (all drawers shut). A
-gravity idle-step at re-finalize (cabinet_rerender_base.py) settles the rest.
-
-Idempotent: backs up each scene to scene_ep1.json.bak_method2 ONCE (the original open state), then
-zeroes the joints. Re-runs skip the backup so the open-state backup is never clobbered.
-
-Usage:
-    python tools/bench_surgery/cabinet/close_base_scenes.py            # apply to all 35 base scenes
-    python tools/bench_surgery/cabinet/close_base_scenes.py --dry-run  # report only, no writes
-"""
+Example:
+    python -m tools.bench_surgery.cabinet.close_base_scenes --dry-run"""
 from __future__ import annotations
 
 import argparse

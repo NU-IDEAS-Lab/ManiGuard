@@ -1,17 +1,9 @@
-"""Runtime geometry for the cabinet family — pure numpy, no OmniGibson / cuRobo.
+"""NumPy geometry helpers for cabinet manipulation.
 
-Resolves a task's cabinet layout (slide direction, the drawer's opening corridor, the table
-bounds, which perpendicular side faces the robot) and derives the placement decisions the
-skeleton needs: where to move a path-blocking object, how far to open the drawer, and where
-inside the drawer to place the target.
-
-All inputs are explicit (poses / bboxes / bounds derivable from a task's ``diagnostics`` +
-``scene_ep1``), so every function here is unit-testable offline with no sim. The skeleton/engine
-feed live sim reads (the current drawer joint, object poses) into the same functions at runtime.
-
-Coordinates: work in the world xy plane via an orthonormal basis ``(d, p)`` where ``d`` =
-slide/opening direction and ``p`` = perpendicular oriented toward the robot (``+p`` = near side).
-A world point at projections ``(dc, pc)`` is ``dc*d + pc*p``.
+Resolve drawer slide direction, projected drawer bounds, support limits, and
+the robot-facing side. Compute opening distances, cavity positions, and blocker
+placements from explicit geometry. The slide/perpendicular basis is (d, p), with
+positive p directed toward the robot.
 """
 from __future__ import annotations
 
@@ -28,9 +20,8 @@ TARGET_D_SHIFT = 0.22     # slide the relocated TARGET this far along +opening, 
 OBSTACLE_D_NUDGE = 0.08   # nudge the relocated OBSTACLE this far off the base's perpendicular foot (the
 #                           straight-ahead, most-folded pose) toward the cabinet face — a diagonal place
 #                           solves more reliably (clamped so it never crosses behind the cabinet face)
-OBSTACLE_BACK_OFFSET = 0.05  # park the relocated OBSTACLE this far BEHIND the closed cabinet face (the
-#                              -d dead zone the opening drawer never sweeps); 0.05-0.10, sim-tuned. The
-#                              old in-front foot put a tall obstacle in the next pick's reach corridor.
+OBSTACLE_BACK_OFFSET = 0.05  # Park the obstacle behind the closed cabinet face, outside the drawer
+# sweep and the later target-pick corridor.
 
 
 def slide_axes(slide_dir, toward_xy=None, origin_xy=None):
@@ -146,9 +137,9 @@ def drawer_interior_center(L: CabinetLayout, open_dist: float, obj_half_h: float
     """World (xyz) of the EXPOSED-cavity GEOMETRIC centre of the OPEN drawer — the centre of the span
     that slid out past the cabinet front (reachable from above, +open side; NOT the deep geometric
     centre inside the body). The drawer ends up open by ``open_dist`` from closed, and its closed
-    leading face = ``d_front - j_current``. NOTE: the runtime PLACE no longer drops here — it drops at
-    ``cabinet.CabinetSkeleton._carry_target_xy`` (this centre biased toward the robot near edge for
-    top-down reach). This stays the unbiased geometric centre, used by the smoke test's gate check."""
+    leading face = ``d_front - j_current``. Runtime placement uses
+    ``cabinet.CabinetSkeleton._carry_target_xy`` to bias this center toward the robot
+    for top-down reach; this helper returns the unbiased geometric center."""
     leading_closed = L.d_front - L.j_current        # drawer leading face once (re-)closed ≈ cabinet front
     dc = leading_closed + 0.5 * float(open_dist)    # centre of the exposed open span
     xy = L.to_world(dc, L.p_center)
@@ -180,14 +171,13 @@ def blocker_placement(L: CabinetLayout, obj_xy, obj_half: float, role: str,
       * OBSTACLE → parked ``OBSTACLE_BACK_OFFSET`` BEHIND the closed cabinet face (the ``-d`` dead zone
         the opening drawer never sweeps), hugging the same ``+p`` near-robot edge. A pure distractor,
         never re-grasped; behind the face it stays out of every later pick / open / place corridor.
-        Falls back to the old in-front foot only when the table has no room behind the face.
+        Falls back to a front-of-cabinet position when the table has no room behind the face.
     Everything is clamped so the bbox stays on the table (a narrow table → falls back to its widest).
     """
     obj_xy = np.asarray(obj_xy, float)[:2]
-    # ``p_half`` / ``d_half`` = the object's half-extent toward the corridor (p) and along the edge (d)
-    # AFTER its relocate orientation. An elongated object parked long-axis ∥ the edge faces the corridor
-    # with only its SHORT half (p_half = short/2) → it sits flush to the edge, well clear of the sweep
-    # (using the square obj_half over-pulled it inboard, leaving a long object hugging the corridor).
+    # p_half/d_half describe the footprint across/along the table edge after
+    # relocation. An elongated object aligned with the edge presents its shorter
+    # half-extent toward the drawer corridor.
     ph = obj_half if p_half is None else float(p_half)
     dh = obj_half if d_half is None else float(d_half)
     tcorners = np.array([[x, y] for x in (L.table_lo[0], L.table_hi[0])
@@ -202,7 +192,7 @@ def blocker_placement(L: CabinetLayout, obj_xy, obj_half: float, role: str,
         face = L.d_front - L.j_current                          # the -d dead zone the drawer never sweeps
         dc = face - dh - OBSTACLE_BACK_OFFSET                   # bbox near (+d) edge clears the face
         back_lim = float(d_proj.min()) + dh + EDGE_MARGIN       # table's back (-d) edge, half-in
-        if dc < back_lim:                                       # no room behind the face -> old in-front foot
+        if dc < back_lim:                                       # No room behind the face: use the front-of-cabinet position.
             min_front = face + dh + EDGE_MARGIN
             dc = max(float(L.robot_xy @ L.d) - OBSTACLE_D_NUDGE, min_front)
             if avoid_dc is not None:                            # keep the two parked bboxes from overlapping

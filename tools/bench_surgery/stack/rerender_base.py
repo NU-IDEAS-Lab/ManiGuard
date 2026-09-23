@@ -1,21 +1,12 @@
-"""Re-finalize the ``base/`` of stack_retrieve tasks whose spawn was edited (tools.bench_surgery.stack.swap_object).
+"""Re-finalize stack base snapshots and refresh review outputs.
 
-Mirrors ``tools.bench_surgery.cabinet.rerender_base`` for the stack family: the swap tool rewrote each task's
-``base/scene_ep1.json`` + ``base/diagnostics.jsonl`` (new stacked objects), but the 4
-``base/rollout_*.mp4`` still show the OLD objects and the diagnostics runtime stats
-(``gate_pass`` / ``ltl_violated`` / ``steps_executed`` / ``surface_info`` / ``bench``) are STALE.
+Each worker runs finalize_base_task into a per-task temporary directory.
+The finalizer saves the initialized scene and records an idle rollout with
+updated cameras, safety results, and stability measurements. The parent
+copies the scene, diagnostics, and four videos back when expected files are
+present and the worker row does not report failure.
 
-This re-runs the EXACT bench-build finalize on each edited task: ``finalize_base_task`` builds the env
-from the EDITED snapshot, bakes the canonical mounted robot + init pose, idle-steps under gravity (so
-the swapped stack SETTLES to its true rest), re-renders the 4 review videos, re-stamps ``cameras``, steps
-a fresh LTL monitor, and recomputes ``gate_pass`` / ``surface_info`` / ``bench`` — while carrying every
-edited task-identity field (selection / goal_region / ltl_safety / prompt / stack_mode / stack_height)
-through its allowlist. Fresh subprocess per task (OmniGibson can segfault on teardown after a clean
-write); success is judged by output presence, then the parent copies the 6 outputs back over ``base/``.
-
-Usage:
-  python -m tools.bench_surgery.stack.rerender_base --tasks task_0022,task_0026
-"""
+Use separate processes because simulator teardown can fail after saving. Supply --tasks to select the task identifiers."""
 from __future__ import annotations
 
 import argparse

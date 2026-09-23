@@ -1,21 +1,9 @@
-"""Fast mesh-only grasp review — NO sim load.
+"""Render mesh-only previews of annotated grasp poses.
 
-For each annotated object, renders the object (shown UPRIGHT, its scene orientation) + the
-longfinger gripper at each annotated grasp, from a few fixed viewpoints, as ONE per-object
-PNG. Pure trimesh + matplotlib — the SAME geometry the viser tool shows — so it skips the
-~1-2 min OmniGibson load entirely (seconds per object).
-
-Workflow: run this for the quick per-family check right after annotating; run
-``validate_grasps.py`` LATER (when you have a big time block) for the heavier real
-bench-camera sim summary.
-
-The grasp's true approach direction is DERIVED from the stored eef pose (gripper +Z =
-fingertips/approach) and shown in each column title — independent of the hand-typed
-``approach_hint`` field (which is often left at the default).
-
-  conda activate behavior          # needs trimesh/scipy/matplotlib, NOT sim
-  PYTHONPATH=$HOME/project/ManiGuard \
-  python -m maniguard.data.datagen.annotation.mesh_review [--family clutter] [--object cat/model]
+Combine upright object and gripper meshes into per-object image grids from fixed
+viewpoints. Labels report the approach direction derived from the stored pose.
+Use validate_grasps for simulator-camera visualization. These previews assess
+geometry; they do not execute a grasp or establish manipulation success.
 """
 from __future__ import annotations
 
@@ -60,7 +48,7 @@ def classify_approach(a):
     given the approach vector in the UPRIGHT/world frame. Returns (label, theta_deg,
     confident) where theta is the angle from straight-down (0=top_down, 90=side, 180=up).
 
-    Hard thresholds (user-set top_down cutoff = 60deg, mirrored): top_down 0-60, side
+    Hard thresholds (top_down cutoff = 60deg, mirrored): top_down 0-60, side
     60-120, bottom_up 120-180 — a tilted top grasp up to 60deg still counts as top_down.
     Always confident (no ambiguous band). Shared by mesh_review + fix_approach_tags."""
     a = np.asarray(a, float)
