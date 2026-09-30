@@ -248,4 +248,9 @@ def config_from_cli() -> EvalConfig:
             f"(got condition={cfg.prompt_condition!r}, map={cfg.prompt_map!r})"
         )
 
+    for field_name in ("action_dim", "execute_horizon", "max_steps", "success_hold_steps"):
+        value = getattr(cfg, field_name)
+        if type(value) is not int or value <= 0:
+            raise ValueError(f"{field_name} must be a positive integer, got {value!r}")
+
     return cfg

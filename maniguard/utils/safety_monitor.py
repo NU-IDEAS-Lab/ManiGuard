@@ -9,9 +9,10 @@ AABB, and particle checks. ObjectResolver matches BDDL instance patterns and
 explicit active-object mappings. Each caller controls when to advance the
 monitor and whether a reported violation ends its rollout.
 
-LTLMonitor is implemented in maniguard.utils.ltl_utils. Missing Spot support
-or failed automaton initialization disables the automaton in this class;
-callers that require safety monitoring must check runtime readiness."""
+LTLMonitor is implemented in maniguard.utils.ltl_utils. A configured formula
+requires a working Spot runtime and evaluators for every atomic proposition;
+initialization errors propagate to the caller. With no task or scene safety
+specification, the automaton remains disabled."""
 
 from __future__ import annotations
 
@@ -95,10 +96,7 @@ def _is_open_via_joints(obj, frac: float = 0.05) -> bool:
         lo, hi = float(joint.lower_limit), float(joint.upper_limit)
         if hi <= lo:  # continuous / unlimited joint -> open/closed undefined
             continue
-        try:
-            pos = float(joint.get_state()[0])
-        except Exception:
-            continue
+        pos = float(joint.get_state()[0])
         if pos > (1.0 - frac) * lo + frac * hi:  # closed=lo, open=hi
             return True
     return False
@@ -109,7 +107,7 @@ def _is_open_via_joints(obj, frac: float = 0.05) -> bool:
 # ---------------------------------------------------------------------------
 
 class ObjectResolver:
-    """Resolves synset glob patterns to wrapped OmniGibson scene objects.
+    """Resolves scene instance names and synset patterns to OmniGibson objects.
 
     Parameters
     ----------
@@ -135,8 +133,12 @@ class ObjectResolver:
         if isinstance(patterns, str):
             patterns = [patterns]
         merged: dict[str, Any] = {}
+        seen = set()
         for pat in patterns:
-            merged.update(self._resolve_one(pat))
+            for inst, obj in self._resolve_one(pat).items():
+                if id(obj) not in seen:
+                    merged[inst] = obj
+                    seen.add(id(obj))
         return merged
 
     def _resolve_one(self, pattern: str) -> dict[str, Any]:
@@ -155,16 +157,21 @@ class ObjectResolver:
         if result:
             return result
 
-        # Fallback for non-BDDL tasks (e.g. DummyTask used by every
-        # empty-Scene pipeline): the task carries no ``object_scope``,
-        # so the BDDL loop above is a no-op. Match patterns directly
-        # against active_objects_by_inst — those are real DatasetObjects
-        # the pipeline already resolved by name.
+        # Exact scene names take precedence over generated instance aliases.
+        # Restrict this lookup to the supplied active-object pool.
         for inst, obj in self._active_objs.items():
-            if obj is None:
+            if obj is not None and getattr(obj, "name", None) == pattern:
+                return {inst: obj}
+
+        # Non-BDDL tasks use scene names; synset patterns can use aliases.
+        # An object may have several aliases but should be evaluated once.
+        seen = set()
+        for inst, obj in self._active_objs.items():
+            if obj is None or id(obj) in seen:
                 continue
-            if fnmatch.fnmatch(inst, pattern):
+            if fnmatch.fnmatch(inst, pattern) or fnmatch.fnmatch(getattr(obj, "name", ""), pattern):
                 result[inst] = obj
+                seen.add(id(obj))
         return result
 
 
@@ -226,16 +233,17 @@ class SafetyPropositionEvaluator:
             results = []
             for name, obj in _subj.items():
                 try:
-                    val = bool(obj.states[_cls].get_value())
-                except Exception as exc:
-                    if _cls is Open:
+                    if _cls is Open and _cls not in obj.states:
                         # Object has no `openable` ability (e.g. hinged_jar with
                         # abilities={}) so its Open state is never attached —
                         # read the hinge angle directly instead of failing.
                         val = _is_open_via_joints(obj)
                     else:
-                        log.warning("unary %s check failed for %s: %s", _cls.__name__, name, exc)
-                        val = False
+                        val = bool(obj.states[_cls].get_value())
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"unary {_cls.__name__} check failed for {name}: {exc}"
+                    ) from exc
                 if _neg:
                     val = not val
                 results.append(val)
@@ -261,11 +269,9 @@ class SafetyPropositionEvaluator:
                     try:
                         results.append(bool(s_obj.states[_cls].get_value(r_obj)))
                     except Exception as exc:
-                        log.warning(
-                            "binary %s check failed for (%s, %s): %s",
-                            _cls.__name__, s_name, r_name, exc,
-                        )
-                        results.append(False)
+                        raise RuntimeError(
+                            f"binary {_cls.__name__} check failed for ({s_name}, {r_name}): {exc}"
+                        ) from exc
             if not results:
                 return False if _chk == "any" else True
             return any(results) if _chk == "any" else all(results)
@@ -305,8 +311,7 @@ class SafetyPropositionEvaluator:
                     data = obj.states[_cp].get_value(system)
                     current[inst] = data.n_in_volume
                 except Exception as exc:
-                    log.warning("particle count read failed for %s: %s", inst, exc)
-                    current[inst] = 0
+                    raise RuntimeError(f"particle count read failed for {inst}: {exc}") from exc
 
             # Record baseline on first call.
             if _state["initial_counts"] is None:
@@ -350,8 +355,7 @@ class SafetyPropositionEvaluator:
                     c_pos = c_obj.get_position_orientation()[0]
                     cx, cy, cz = float(c_pos[0]), float(c_pos[1]), float(c_pos[2])
                 except Exception as exc:
-                    log.warning("carried object %s pose lookup failed: %s", c_name, exc)
-                    continue
+                    raise RuntimeError(f"carried object {c_name} pose lookup failed: {exc}") from exc
                 for z_name, z_obj in _zones.items():
                     try:
                         z_min, z_max = z_obj.aabb
@@ -361,8 +365,7 @@ class SafetyPropositionEvaluator:
                         zy1 = float(z_max[1]) + _margin
                         z_top = float(z_max[2])
                     except Exception as exc:
-                        log.warning("zone %s aabb lookup failed: %s", z_name, exc)
-                        continue
+                        raise RuntimeError(f"zone {z_name} aabb lookup failed: {exc}") from exc
                     if zx0 <= cx <= zx1 and zy0 <= cy <= zy1 and cz > z_top:
                         return True
             return False
@@ -389,8 +392,7 @@ class SafetyPropositionEvaluator:
                     if tilt_deg >= _min:
                         return True
                 except Exception as exc:
-                    log.warning("inverted check failed for %s: %s", name, exc)
-                    continue
+                    raise RuntimeError(f"inverted check failed for {name}: {exc}") from exc
             return False
 
         return eval_fn
@@ -418,8 +420,7 @@ class SafetyPropositionEvaluator:
                     if n > 0:
                         return True
                 except Exception as exc:
-                    log.warning("contact-particles check failed for %s: %s", name, exc)
-                    continue
+                    raise RuntimeError(f"contact-particles check failed for {name}: {exc}") from exc
             return False
 
         return eval_fn
@@ -671,7 +672,7 @@ class TaskLTLMonitor:
         generators and embedded in each task's ``diagnostics.jsonl``.
         Required — pass ``{}`` to disable task-level monitoring.
     activity_name : str, optional
-        Logged for diagnostics; no filesystem lookup happens.
+        Activity label included in object-binding error messages.
     scene_model : str or None
         Scene model identifier. When set, scene-level safety constraints
         are still loaded from ``scenes/<scene_model>/safety/ltl_safety.json``
@@ -698,6 +699,7 @@ class TaskLTLMonitor:
         self._violation_count = 0
         self._violation_step: int | None = None
         self._ltl_log: list[dict] = []
+        self._error: dict | None = None
 
         task_data = dict(ltl_safety) if ltl_safety else {}
         scene_data = _load_scene_safety(scene_model) if scene_model else {}
@@ -706,48 +708,90 @@ class TaskLTLMonitor:
 
         self._formula_str: str = merged.get("combined_ltl", "")
         self._constraints: list = merged.get("constraints", [])
+        task_name = activity_name or task_data.get("activity_name", "<unnamed task>")
+        if not self._formula_str and (self._constraints or merged.get("propositions")):
+            raise ValueError(
+                f"[LTL] Task {task_name!r}: safety specification declares constraints "
+                "or propositions but has no combined formula"
+            )
 
         # Build eval functions for each declared proposition.
         self._prop_fns: dict[str, Callable[[], bool]] = {}
         for prop_name, prop_def in merged.get("propositions", {}).items():
+            for field in ("over", "relative_to"):
+                patterns = prop_def.get(field) or []
+                patterns = [patterns] if isinstance(patterns, str) else patterns
+                for pattern in patterns:
+                    if not self._resolver.resolve_patterns([pattern]):
+                        raise ValueError(
+                            f"[LTL] Task {task_name!r}, proposition {prop_name!r}: "
+                            f"{field} pattern {pattern!r} matched no active objects"
+                        )
             try:
                 self._prop_fns[prop_name] = self._evaluator.build(prop_name, prop_def)
             except Exception as exc:
-                log.warning("[TaskLTLMonitor] Skipping proposition '%s': %s", prop_name, exc)
+                raise ValueError(
+                    f"[LTL] Task {task_name!r}: failed to build proposition {prop_name!r}: {exc}"
+                ) from exc
 
         print(f"[LTL] Propositions: {sorted(self._prop_fns.keys())}")
 
         # Initialise the Spot automaton.
-        if spot_runtime_available(require_buddy=True) and self._formula_str:
+        self._monitor = None
+        if self._formula_str:
+            if not spot_runtime_available(require_buddy=True):
+                status = get_spot_runtime_status(require_buddy=True)
+                raise RuntimeError(
+                    f"[LTL] Task {task_name!r}: Spot runtime required for safety monitoring: "
+                    f"{status['error']}"
+                )
             try:
                 self._monitor = LTLMonitor(self._formula_str)
                 self._monitor.reset()
-                print(f"[LTL] Monitor initialised: {self._formula_str}")
-                print(f"[LTL]   APs: {self._monitor.ap_list}")
             except Exception as exc:
-                log.warning("[TaskLTLMonitor] LTLMonitor init failed: %s", exc)
-                self._monitor = None
+                raise RuntimeError(
+                    f"[LTL] Task {task_name!r}: failed to initialize safety monitor "
+                    f"for {self._formula_str!r}: {exc}"
+                ) from exc
+            missing = set(self._monitor.ap_list) - self._prop_fns.keys()
+            if missing:
+                raise ValueError(
+                    f"[LTL] Task {task_name!r}: formula propositions have no evaluator: "
+                    f"{sorted(missing)}"
+                )
+            print(f"[LTL] Monitor initialised: {self._formula_str}")
+            print(f"[LTL]   APs: {self._monitor.ap_list}")
         else:
-            self._monitor = None
-            if not spot_runtime_available(require_buddy=True):
-                status = get_spot_runtime_status(require_buddy=True)
-                print(f"[LTL] WARNING: Spot runtime invalid — monitoring disabled. {status['error']}")
-            elif not self._formula_str:
-                print("[LTL] WARNING: No LTL formula found — monitoring disabled.")
+            print("[LTL] No safety specification configured — monitoring disabled.")
 
     # -- per-step interface -------------------------------------------------
 
     def _label_dict(self) -> dict[str, bool]:
-        return {name: fn() for name, fn in self._prop_fns.items()}
+        labels = {}
+        for name, fn in self._prop_fns.items():
+            try:
+                labels[name] = fn()
+            except Exception as exc:
+                raise RuntimeError(f"Safety proposition {name!r} evaluation failed: {exc}") from exc
+        return labels
 
     def step(self, step_idx: int) -> dict:
-        """Advance the monitor by one simulation step."""
-        labels = self._label_dict()
-
-        if self._monitor is None:
-            info = {"state": None, "accepting": False, "doomed": False, "ap": labels}
-        else:
-            info = self._monitor.step(labels)
+        """Advance the monitor; a failed observation invalidates the trace until reset."""
+        if self._error is not None:
+            raise RuntimeError(
+                f"Safety monitor failed at step {self._error['step']}; reset before starting a new trace"
+            )
+        try:
+            if self._formula_str and self._monitor is None:
+                raise RuntimeError("Configured safety monitor is inactive")
+            labels = self._label_dict()
+            if self._monitor is None:
+                info = {"state": None, "accepting": False, "doomed": False, "ap": labels}
+            else:
+                info = self._monitor.step(labels)
+        except Exception as exc:
+            self._error = {"step": step_idx, "type": type(exc).__name__, "message": str(exc)}
+            raise
 
         doomed = bool(info.get("doomed", False))
         if doomed and self._violation_step is None:
@@ -767,7 +811,7 @@ class TaskLTLMonitor:
         return entry
 
     def reset(self):
-        """Reset automaton state, first-violation latch, and per-step log.
+        """Reset automaton state, first-violation latch, error, and per-step log.
 
         The cumulative violation count and evaluator closure state are retained.
         """
@@ -775,6 +819,7 @@ class TaskLTLMonitor:
             self._monitor.reset()
         self._violation_step = None
         self._ltl_log.clear()
+        self._error = None
 
     # -- accessors ----------------------------------------------------------
 
@@ -791,7 +836,7 @@ class TaskLTLMonitor:
         return self._violation_count
 
     def summary(self) -> dict:
-        """Return a serialisable summary for JSONL logging."""
+        """Return the observed prefix and any error; an errored trace is incomplete."""
         return {
             "formula": self._formula_str,
             "constraints": self._constraints,
@@ -799,5 +844,6 @@ class TaskLTLMonitor:
             "violation_step": self._violation_step,
             "violation_count": self._violation_count,
             "total_steps_monitored": len(self._ltl_log),
+            "error": self._error,
             "log": self._ltl_log,
         }

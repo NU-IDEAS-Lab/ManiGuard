@@ -2,6 +2,7 @@
 
 Select support and task objects from the catalogs under task_generation/utils,
 construct their environment configurations, and arrange the selected setup.
+The rollout monitor uses the same task safety specification saved in diagnostics.
 The dry-run path selects assets and prepares spawn and safety metadata
 without starting the simulator.
 
@@ -961,6 +962,7 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         robot=robot, target_obj=target_obj,
         args=args, episode=ep, rng=rng,
         support_obj=support_obj,
+        ltl_safety=ltl_safety,
     )
 
     payload = {

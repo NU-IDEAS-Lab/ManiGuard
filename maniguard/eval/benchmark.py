@@ -280,7 +280,27 @@ def query_policy(policy, obs, client_type, cfg):
         chunk = action.detach().cpu().numpy().astype(np.float32)
     if chunk.ndim == 1:
         chunk = chunk[np.newaxis, :]
+    if chunk.ndim != 2 or chunk.shape[0] == 0 or chunk.shape[1] != cfg.action_dim:
+        raise ValueError(
+            f"Invalid policy action shape {chunk.shape}; expected a nonempty "
+            f"(T, {cfg.action_dim}) chunk or a ({cfg.action_dim},) action"
+        )
     return chunk
+
+
+def _record_action_finiteness(diagnostics: dict, action: np.ndarray, boundary: str) -> None:
+    """Record and reject non-finite commands before conversion or execution."""
+    finite = np.isfinite(action)
+    diagnostics["last_action_finite"][boundary] = bool(np.all(finite))
+    if not np.all(finite) and diagnostics["first_nonfinite_action"] is None:
+        diagnostics["first_nonfinite_action"] = {
+            "boundary": boundary,
+            "action_attempt": diagnostics["action_attempts"],
+            "indices": np.flatnonzero(~finite).tolist(),
+        }
+    if not np.all(finite):
+        diagnostics["termination_reason"] = "nonfinite_action"
+        raise FloatingPointError(f"Non-finite {boundary} action at indices {np.flatnonzero(~finite).tolist()}")
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +321,54 @@ def _build_active_objects_for_ltl(env, ltl_safety, surface_name):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
+def _validate_initial_safety(monitor, scene_name: str) -> None:
+    """Require an active monitor and a valid initial prefix before policy actions."""
+    initial = monitor.step(0)
+    if initial.get("state") is None:
+        raise RuntimeError(f"Scene {scene_name!r}: safety monitor is inactive")
+    if initial.get("doomed", False):
+        raise ValueError(
+            f"Scene {scene_name!r}: invalid initial safety state before policy execution; "
+            f"AP={initial['ap']}. Check scene initialization and specification bindings."
+        )
+
+
+def _initialization_failure(scene_info, cfg, episode_seed, metrics, phase, error):
+    """Describe an attempt that failed before policy execution, without a verdict."""
+    import traceback
+
+    status = "load_failed" if phase == "scene_load" else "initialization_failed"
+    return {
+        "scene_name": scene_info["name"],
+        "prompt": scene_info.get("prompt", ""),
+        "target": scene_info.get("target_name"),
+        "pipeline": scene_info.get("pipeline", ""),
+        "rooms": scene_info.get("target_rooms", []),
+        "seed": cfg.seed,
+        "episode_seed": episode_seed,
+        "status": status,
+        "outcome": status,
+        "steps": 0,
+        "metrics": metrics,
+        "success": None,
+        "ltl_monitored": False,
+        "ltl_violated": None,
+        "counted_violation": None,
+        "ever_contacted": None,
+        "safety_evaluated": False,
+        "error": str(error),
+        "rollout_diagnostics": {
+            "phase": phase,
+            "termination_reason": "initialization_error",
+            "exception": {
+                "type": type(error).__name__,
+                "message": str(error),
+                "traceback": traceback.format_exc(),
+            },
+        },
+    }
+
 
 def main():
     cfg = config_from_cli()
@@ -415,54 +483,56 @@ def main():
     all_results = []
 
     for scene_idx, scene_info in enumerate(scenes):
-        # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal_conditions +
-        # prompt from the SAME table datagen collected the variant's demos with, so success
-        # means the same thing here as it did at collection. Applied FIRST, before the prompt
-        # hooks below and well before build_goal_checker reads scene_info. Raises if this
-        # scene has no entry -- falling back would evaluate the full-horizon task while every
-        # artifact claims otherwise. Unset (the default) = the shipped task, unchanged.
-        if cfg.horizon_override:
-            from maniguard.eval.horizon_override import apply_horizon_override
-            # The table is keyed the way datagen names a task, family included
-            # ("cabinet_pickup/task_0019/base"), but a scene's `name` here is relative to the
-            # family root ("task_0019/base") because benchmark_root already points at the
-            # family. Re-attach the family, or every lookup misses and the run aborts.
-            scene_info = apply_horizon_override(
-                scene_info, cfg.horizon_override,
-                f"{Path(resolved_root).name}/{scene_info['name']}",
-            )
-        if cfg.prompt_template:
-            from maniguard.eval.prompt_utils import episode_prompt
-            scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
-        # Prompt-ablation (Q2): swap in the variant that conveys the safety constraint
-        # per cfg.prompt_condition. Read from the same table the ablation's SFT datasets
-        # were rewritten from, so eval and training prompts are byte-identical; the
-        # benchmark on disk is untouched. Raises if this scene is not in the table.
-        if cfg.prompt_condition:
-            from maniguard.eval.prompt_utils import ablation_prompt
-            scene_info["prompt"] = ablation_prompt(
-                scene_info["prompt"], cfg.prompt_map, cfg.prompt_condition
-            )
-        # Per-rollout seed for the policy's sampling noise: derived from the base
-        # seed + scene name (stable across scene ordering), sent with every
-        # request; the server re-seeds its sampler when the value changes.
-        # None (no --seed) leaves sampling unseeded.
         episode_seed = None
-        if cfg.seed is not None:
-            import zlib
-            episode_seed = zlib.crc32(f"{cfg.seed}:{scene_info['name']}".encode()) & 0x7FFFFFFF
-            np.random.seed(episode_seed)  # client-side RNG (random-policy baseline)
-        print(f"\n{'='*60}")
-        print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}"
-              + (f"  (episode_seed={episode_seed})" if episode_seed is not None else ""))
-        print(f"Prompt: {scene_info['prompt']}")
-        print(f"Target: {scene_info['target_name']}")
-        print(f"Rooms: {scene_info['target_rooms']}")
-        print(f"{'='*60}")
-
-        og_cfg = build_og_config(scene_info, cfg)
-
+        initialization_phase = "scene_configuration"
         try:
+            # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal_conditions +
+            # prompt from the SAME table datagen collected the variant's demos with, so success
+            # means the same thing here as it did at collection. Applied FIRST, before the prompt
+            # hooks below and well before build_goal_checker reads scene_info. Raises if this
+            # scene has no entry -- falling back would evaluate the full-horizon task while every
+            # artifact claims otherwise. Unset (the default) = the shipped task, unchanged.
+            if cfg.horizon_override:
+                from maniguard.eval.horizon_override import apply_horizon_override
+                # The table is keyed the way datagen names a task, family included
+                # ("cabinet_pickup/task_0019/base"), but a scene's `name` here is relative to the
+                # family root ("task_0019/base") because benchmark_root already points at the
+                # family. Re-attach the family, or every lookup misses and the run aborts.
+                scene_info = apply_horizon_override(
+                    scene_info, cfg.horizon_override,
+                    f"{Path(resolved_root).name}/{scene_info['name']}",
+                )
+            if cfg.prompt_template:
+                from maniguard.eval.prompt_utils import episode_prompt
+                scene_info["prompt"] = episode_prompt(scene_info["target_name"], cfg.prompt_template)
+            # Prompt-ablation (Q2): swap in the variant that conveys the safety constraint
+            # per cfg.prompt_condition. Read from the same table the ablation's SFT datasets
+            # were rewritten from, so eval and training prompts are byte-identical; the
+            # benchmark on disk is untouched. Raises if this scene is not in the table.
+            if cfg.prompt_condition:
+                from maniguard.eval.prompt_utils import ablation_prompt
+                scene_info["prompt"] = ablation_prompt(
+                    scene_info["prompt"], cfg.prompt_map, cfg.prompt_condition
+                )
+            # Per-rollout seed for the policy's sampling noise: derived from the base
+            # seed + scene name (stable across scene ordering), sent with every
+            # request; the server re-seeds its sampler when the value changes.
+            # None (no --seed) leaves sampling unseeded.
+            if cfg.seed is not None:
+                import zlib
+                episode_seed = zlib.crc32(f"{cfg.seed}:{scene_info['name']}".encode()) & 0x7FFFFFFF
+                np.random.seed(episode_seed)  # client-side RNG (random-policy baseline)
+            print(f"\n{'='*60}")
+            print(f"Scene {scene_idx+1}/{len(scenes)}: {scene_info['name']}"
+                  + (f"  (episode_seed={episode_seed})" if episode_seed is not None else ""))
+            print(f"Prompt: {scene_info['prompt']}")
+            print(f"Target: {scene_info['target_name']}")
+            print(f"Rooms: {scene_info['target_rooms']}")
+            print(f"{'='*60}")
+
+            og_cfg = build_og_config(scene_info, cfg)
+
+            initialization_phase = "scene_load"
             if og.sim is not None:
                 og.sim.stop()
                 og.clear()
@@ -559,136 +629,168 @@ def main():
             if robot.grasping_mode != cfg.grasping_mode:
                 print(f"  Grasping mode: {robot.grasping_mode} -> {cfg.grasping_mode}", flush=True)
                 robot._grasping_mode = cfg.grasping_mode
+
+            initialization_phase = "action_space"
+            action_space = robot.action_space
+            expected_action_dim = 7 if cfg.ik_eef_to_joint else action_space.shape[0]
+            if cfg.action_dim != expected_action_dim:
+                raise ValueError(
+                    f"action_dim={cfg.action_dim} does not match the configured control path: "
+                    f"expected {expected_action_dim} (ik_eef_to_joint={cfg.ik_eef_to_joint})"
+                )
+            print(f"  Action space dim: {action_space.shape[0]}", flush=True)
+            print(f"  Action space low:  {np.array2string(np.asarray(action_space.low), precision=3)}", flush=True)
+            print(f"  Action space high: {np.array2string(np.asarray(action_space.high), precision=3)}", flush=True)
+
+            initialization_phase = "goal_checker"
+            from maniguard.eval.goal_checker import build_goal_checker
+            goal_checker = build_goal_checker(scene_info) if run_success else None
+            if goal_checker is not None:
+                goal_checker.resolve(env)
+                if hasattr(goal_checker, "raw_region"):
+                    print(f"  Goal region: {goal_checker.raw_region.to_json()}")
+                else:
+                    print(f"  Goals: {goal_checker.raw_conditions}")
+            else:
+                print("  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
+
+            # Warm up by stepping a HOLD command, initializing the freshly-reloaded
+            # controller's goal from the current pose and settling physics. The hold
+            # must keep the arm where it is: for an absolute JointController
+            # (ik_eef_to_joint=False) a ZERO action would command every joint to 0
+            # and FLING the arm, so hold the CURRENT arm joints (action layout is
+            # [arm_q(n), ..., gripper(last)]); the ik path maps a zero eef-delta to
+            # the current joints. Gripper open throughout.
+            initialization_phase = "warmup"
+            _hold_eef = np.zeros(7, dtype=np.float32)
+            _hold_eef[-1] = 1.0  # gripper open during warmup
+            _hold_arm = robot.get_joint_positions()[
+                robot.arm_control_idx[robot.default_arm]
+            ].cpu().numpy().astype(np.float32)
+            for _ in range(10):
+                if cfg.ik_eef_to_joint:
+                    wa = eef_delta_to_joint_action(robot, _hold_eef, action_space)
+                else:
+                    wa = np.zeros(action_space.shape[0], dtype=np.float32)
+                    wa[:_hold_arm.shape[0]] = _hold_arm
+                    wa[-1] = 1.0  # gripper open
+                if not np.all(np.isfinite(wa)):
+                    raise FloatingPointError("Non-finite warmup command before clipping")
+                wa = np.clip(wa, action_space.low, action_space.high)
+                if not np.all(np.isfinite(wa)):
+                    raise FloatingPointError("Non-finite warmup command after clipping")
+                env.step(torch.from_numpy(wa).unsqueeze(0))
+            for _ in range(2):
+                og.sim.render()
+
+            initialization_phase = "initial_observation"
+            obs = extract_obs(env, robot, scene_info["prompt"], cfg)
+            if not np.all(np.isfinite(obs["states"])):
+                raise FloatingPointError("Non-finite initial robot state")
+            obs["episode_seed"] = episode_seed
+            # Two separate streams recorded as two mp4s: the policy's overview
+            # (cam_left/right) and the wrist — same resolution the policy sees.
+            main_frames = [obs["overview_image"]] if cfg.save_video else []
+            wrist_frames = [obs["wrist_images"]] if cfg.save_video and cfg.save_wrist_video else []
+
+            # LTL safety monitor — records throughout the rollout but NEVER ends it
+            # (success / max_steps govern termination). scene_model=None: evaluate
+            # exactly the task-level spec embedded in this scene's diagnostics.
+            initialization_phase = "monitor_initialization"
+            ltl_safety = scene_info.get("ltl_safety") or {}
+            monitor = None
+            if run_safety and ltl_safety:
+                from maniguard.utils.safety_monitor import TaskLTLMonitor
+                monitor = TaskLTLMonitor(
+                    env,
+                    ltl_safety=ltl_safety,
+                    activity_name=scene_info.get("activity_name", ""),
+                    scene_model=None,
+                    active_objects_by_inst=_build_active_objects_for_ltl(
+                        env, ltl_safety, scene_info.get("surface_name"),
+                    ),
+                )
+                monitor.reset()
+                initialization_phase = "initial_safety"
+                _validate_initial_safety(monitor, scene_info["name"])
+
+            step_idx = 0
+            done = False
+            success = False
+            consec_success = 0          # consecutive instantaneous-goal steps
+            success_step = None         # step the goal was CONFIRMED (held K steps)
+            success_first_step = None   # step the goal first held instantaneously
+            total_reward = 0.0
+            goal_detail = {}
+            status = "completed"
+            nan_terminated = False       # directly observed NaN/Inf action or robot state
+            nan_terminated_step = None
+            # Counters start after warmup. A returned env.step does not imply that
+            # observation extraction or safety monitoring completed for that step.
+            rollout_diagnostics = {
+                "phase": "ready",
+                "action_attempts": 0,
+                "env_steps_returned": 0,
+                "observations_returned": 0,
+                "last_finite_observation_step": 0 if np.all(np.isfinite(obs["states"])) else None,
+                "last_action_finite": {"raw": None, "controller": None, "clipped": None},
+                "first_nonfinite_action": None,
+                "termination_reason": None,
+                "exception": None,
+            }
+
+            # --- engagement / contact-gated-safety instrumentation
+            #     (raw contact and target-motion measurements) ---
+            initialization_phase = "engagement_initialization"
+            from omnigibson.object_states import ContactBodies as _ContactBodies
+            _robot_links = set(robot.links.values())
+            _STRUCTURAL = {"walls", "floors", "ceilings", "door", "window"}
+            _surface_nm = scene_info.get("surface_name")
+            # task objects = the spawned manipulables (target + fragile + clutter):
+            # movable, non-robot, non-structural, not the goal marker or support surface.
+            _task_objs = [
+                o for o in env.scene.objects
+                if o is not robot
+                and not getattr(o, "fixed_base", False)
+                and getattr(o, "category", "") not in _STRUCTURAL
+                and not getattr(o, "name", "").startswith("goal_region")
+                and getattr(o, "name", "") != _surface_nm
+            ]
+            _target_obj = (
+                env.scene.object_registry("name", scene_info.get("target_name"))
+                if scene_info.get("target_name") else None
+            )
+            _target_spawn = (
+                _target_obj.get_position_orientation()[0].cpu().numpy()
+                if _target_obj is not None else None
+            )
+            print(f"  [engage] {len(_task_objs)} task objs for contact: "
+                  f"{[getattr(o, 'name', '?') for o in _task_objs]}", flush=True)
+            ever_contacted = False
+            first_contact_step = None
+            ever_grasped = False
+            grasp_steps = 0
+            target2spawn_max_dist = 0.0
+            eef2target_min_dist = float("inf")
+
         except Exception as e:
-            print(f"  FAILED to load scene: {e}")
-            all_results.append({
-                "scene_name": scene_info["name"],
-                "prompt": scene_info["prompt"],
-                "status": "load_failed",
-                "error": str(e),
-            })
+            result = _initialization_failure(
+                scene_info, cfg, episode_seed, metrics, initialization_phase, e,
+            )
+            with results_path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(result, ensure_ascii=True) + "\n")
+            all_results.append(result)
+            print(f"  INITIALIZATION FAILED during {initialization_phase}: {e}", flush=True)
+            print(result["rollout_diagnostics"]["exception"]["traceback"], flush=True)
             continue
 
-        action_space = robot.action_space
-        print(f"  Action space dim: {action_space.shape[0]}", flush=True)
-        print(f"  Action space low:  {np.array2string(np.asarray(action_space.low), precision=3)}", flush=True)
-        print(f"  Action space high: {np.array2string(np.asarray(action_space.high), precision=3)}", flush=True)
-
-        from maniguard.eval.goal_checker import build_goal_checker
-        goal_checker = build_goal_checker(scene_info) if run_success else None
-        if goal_checker is not None:
-            goal_checker.resolve(env)
-            if hasattr(goal_checker, "raw_region"):
-                print(f"  Goal region: {goal_checker.raw_region.to_json()}")
-            else:
-                print(f"  Goals: {goal_checker.raw_conditions}")
-        else:
-            print("  Warning: no goal_region or goal_conditions in diagnostics — success will always be False")
-
-        # Warm up by stepping a HOLD command, initializing the freshly-reloaded
-        # controller's goal from the current pose and settling physics. The hold
-        # must keep the arm where it is: for an absolute JointController
-        # (ik_eef_to_joint=False) a ZERO action would command every joint to 0
-        # and FLING the arm, so hold the CURRENT arm joints (action layout is
-        # [arm_q(n), ..., gripper(last)]); the ik path maps a zero eef-delta to
-        # the current joints. Gripper open throughout.
-        _hold_eef = np.zeros(7, dtype=np.float32)
-        _hold_eef[-1] = 1.0  # gripper open during warmup
-        _hold_arm = robot.get_joint_positions()[
-            robot.arm_control_idx[robot.default_arm]
-        ].cpu().numpy().astype(np.float32)
-        for _ in range(10):
-            if cfg.ik_eef_to_joint:
-                wa = eef_delta_to_joint_action(robot, _hold_eef, action_space)
-            else:
-                wa = np.zeros(action_space.shape[0], dtype=np.float32)
-                wa[:_hold_arm.shape[0]] = _hold_arm
-                wa[-1] = 1.0  # gripper open
-            wa = np.clip(wa, action_space.low, action_space.high)
-            env.step(torch.from_numpy(wa).unsqueeze(0))
-        for _ in range(2):
-            og.sim.render()
-
-        obs = extract_obs(env, robot, scene_info["prompt"], cfg)
-        obs["episode_seed"] = episode_seed
-        # Two separate streams recorded as two mp4s: the policy's overview
-        # (cam_left/right) and the wrist — same resolution the policy sees.
-        main_frames = [obs["overview_image"]] if cfg.save_video else []
-        wrist_frames = [obs["wrist_images"]] if cfg.save_video and cfg.save_wrist_video else []
-
-        # LTL safety monitor — records throughout the rollout but NEVER ends it
-        # (success / max_steps govern termination). scene_model=None: evaluate
-        # exactly the task-level spec embedded in this scene's diagnostics.
-        ltl_safety = scene_info.get("ltl_safety") or {}
-        monitor = None
-        if run_safety and ltl_safety:
-            from maniguard.utils.safety_monitor import TaskLTLMonitor
-            monitor = TaskLTLMonitor(
-                env,
-                ltl_safety=ltl_safety,
-                activity_name=scene_info.get("activity_name", ""),
-                scene_model=None,
-                active_objects_by_inst=_build_active_objects_for_ltl(
-                    env, ltl_safety, scene_info.get("surface_name"),
-                ),
-            )
-            monitor.reset()
-            monitor.step(0)
-
-        step_idx = 0
-        done = False
-        success = False
-        consec_success = 0          # consecutive instantaneous-goal steps
-        success_step = None         # step the goal was CONFIRMED (held K steps)
-        success_first_step = None   # step the goal first held instantaneously
-        total_reward = 0.0
-        goal_detail = {}
-        status = "completed"
-        nan_terminated = False       # robot state went non-finite mid-rollout
-        nan_terminated_step = None
-
-        # --- engagement / contact-gated-safety instrumentation
-        #     (raw contact and target-motion measurements) ---
-        from omnigibson.object_states import ContactBodies as _ContactBodies
-        _robot_links = set(robot.links.values())
-        _STRUCTURAL = {"walls", "floors", "ceilings", "door", "window"}
-        _surface_nm = scene_info.get("surface_name")
-        # task objects = the spawned manipulables (target + fragile + clutter):
-        # movable, non-robot, non-structural, not the goal marker or support surface.
-        _task_objs = [
-            o for o in env.scene.objects
-            if o is not robot
-            and not getattr(o, "fixed_base", False)
-            and getattr(o, "category", "") not in _STRUCTURAL
-            and not getattr(o, "name", "").startswith("goal_region")
-            and getattr(o, "name", "") != _surface_nm
-        ]
-        _target_obj = (
-            env.scene.object_registry("name", scene_info.get("target_name"))
-            if scene_info.get("target_name") else None
-        )
-        _target_spawn = (
-            _target_obj.get_position_orientation()[0].cpu().numpy()
-            if _target_obj is not None else None
-        )
-        print(f"  [engage] {len(_task_objs)} task objs for contact: "
-              f"{[getattr(o, 'name', '?') for o in _task_objs]}", flush=True)
-        ever_contacted = False
-        first_contact_step = None
-        ever_grasped = False
-        grasp_steps = 0
-        target2spawn_max_dist = 0.0
-        eef2target_min_dist = float("inf")
-
-        # A flailing policy can drive the arm into a PhysX blowup that
-        # invalidates the articulation mid-rollout (get_joint_positions ->
-        # None). The NaN guard below ends such a rollout cleanly as a failure
-        # at the non-finite onset; this try/except remains a backstop for any
-        # other uncaught crash, so the partial video + result are still saved
-        # and the batch moves on to the next scene instead of dying.
+        # Preserve partial results and videos on rollout errors. Record the
+        # failing operation and traceback without inferring the root cause.
         try:
             while step_idx < cfg.max_steps and not done:
+                rollout_diagnostics["phase"] = "query_policy"
                 chunk = query_policy(policy, obs, client_type, cfg)
+                rollout_diagnostics["phase"] = "debug_io"
                 if os.environ.get("EVAL_DEBUG_IMG") and step_idx == 0:
                     imageio.imwrite("outputs/dbg_overview.png", np.asarray(obs["overview_image"]))
                     imageio.imwrite("outputs/dbg_wrist.png", np.asarray(obs["wrist_images"]))
@@ -703,22 +805,44 @@ def main():
                 chunk_len = min(cfg.execute_horizon, len(chunk), cfg.max_steps - step_idx)
 
                 for ci in range(chunk_len):
+                    rollout_diagnostics["phase"] = "action_conversion"
+                    rollout_diagnostics["action_attempts"] += 1
+                    rollout_diagnostics["last_action_finite"] = {
+                        "raw": None, "controller": None, "clipped": None,
+                    }
                     action = chunk[ci].copy()  # policy action in the configured convention
+                    _record_action_finiteness(rollout_diagnostics, action, "raw")
                     if cfg.gripper_binarize:
                         action[-1] = np.sign(action[-1]) if abs(action[-1]) > 0.01 else -1.0
                     if cfg.ik_eef_to_joint:
                         # eef delta -> absolute joint targets for the JointController
                         ctrl_action = eef_delta_to_joint_action(robot, action, action_space)
                     else:
-                        ctrl_action = action[:action_space.shape[0]]
+                        ctrl_action = action
+                    if np.shape(ctrl_action) != action_space.shape:
+                        raise ValueError(
+                            f"Controller action shape {np.shape(ctrl_action)} does not match "
+                            f"robot action space {action_space.shape}"
+                        )
+                    _record_action_finiteness(rollout_diagnostics, ctrl_action, "controller")
                     action_clipped = np.clip(ctrl_action, action_space.low, action_space.high)
+                    _record_action_finiteness(rollout_diagnostics, action_clipped, "clipped")
 
                     _eef_before = np.asarray(obs["states"][:3], dtype=np.float32)
+                    rollout_diagnostics["phase"] = "env_step"
                     _, reward, _, _, _ = env.step(
                         torch.from_numpy(action_clipped).unsqueeze(0)
                     )
+                    rollout_diagnostics["env_steps_returned"] += 1
+                    rollout_diagnostics["phase"] = "extract_obs"
                     obs = extract_obs(env, robot, scene_info["prompt"], cfg)
+                    rollout_diagnostics["observations_returned"] += 1
+                    if np.all(np.isfinite(obs["states"])):
+                        rollout_diagnostics["last_finite_observation_step"] = (
+                            rollout_diagnostics["env_steps_returned"]
+                        )
                     obs["episode_seed"] = episode_seed
+                    rollout_diagnostics["phase"] = "record_step"
                     if os.environ.get("EVAL_DEBUG_STEP"):
                         _eef_after = np.asarray(obs["states"][:3], dtype=np.float32)
                         with open(os.environ["EVAL_DEBUG_STEP"], "a", encoding="utf-8") as _f:
@@ -736,22 +860,18 @@ def main():
                     step_idx += 1
                     total_reward += float(reward)
 
-                    # NaN guard: a failed/OOD rollout can drive the arm (raw
-                    # JointController, no impedance) into a degenerate pose ->
-                    # PhysX emits NaN -> the robot state goes non-finite. Left
-                    # alone, ~hundreds of steps later the GPU articulation tensor
-                    # read returns None and the rollout HARD-crashes (losing the
-                    # row). Detect the non-finite state at its onset and end the
-                    # episode cleanly as a FAILURE (success=False) -- the policy
-                    # did not succeed; the crash was only the symptom. Controller
-                    # and physics are untouched, so the eval condition is unchanged.
+                    # Stop on a non-finite observation; its cause requires the
+                    # action diagnostics and simulator logs.
+                    rollout_diagnostics["phase"] = "observation_validation"
                     if not np.all(np.isfinite(obs["states"])):
+                        status = "numerical_failed"
                         nan_terminated = True
                         nan_terminated_step = step_idx
                         done = True
+                        rollout_diagnostics["termination_reason"] = "nonfinite_observation"
                         print(
                             f"  ROLLOUT NaN-TERMINATED at step {step_idx}: robot state "
-                            f"non-finite (OOD failure cascade); recording success=False",
+                            f"non-finite; final verdicts unavailable",
                             flush=True,
                         )
                         break
@@ -759,6 +879,7 @@ def main():
                     # Engagement: contact = ANY
                     # robot link touching ANY task object (whole arm, not just the
                     # gripper). Stop checking once contacted (we only need ever/first).
+                    rollout_diagnostics["phase"] = "engagement"
                     if not ever_contacted:
                         for _o in _task_objs:
                             try:
@@ -782,14 +903,13 @@ def main():
                             pass
 
                     # Advance safety monitoring after each executed action.
-                    # Errors are logged here and the rollout continues.
+                    # A monitoring error invalidates the rollout rather than scoring it safe.
                     if monitor is not None:
-                        try:
-                            monitor.step(step_idx)
-                        except Exception as _ltl_e:  # noqa: BLE001
-                            print(f"  [LTL] monitor.step failed at {step_idx}: {_ltl_e}")
+                        rollout_diagnostics["phase"] = "safety_monitor"
+                        monitor.step(step_idx)
 
                     if goal_checker is not None:
+                        rollout_diagnostics["phase"] = "goal_check"
                         inst_success, goal_detail = goal_checker.check(env)
                         if goal_detail.get("held"):
                             ever_grasped = True
@@ -811,35 +931,40 @@ def main():
                             break
 
                 if step_idx % 50 == 0 or step_idx == 1:
+                    if not done:
+                        rollout_diagnostics["phase"] = "progress_logging"
                     print(f"  Step {step_idx}/{cfg.max_steps} | success={success} | goals={goal_detail}", flush=True)
         except Exception as e:  # noqa: BLE001 - want the partial video regardless of cause
             import traceback as _tb
-            # The OOD-failure cascade (a flailing policy drives the arm into a
-            # PhysX NaN -> the robot's GPU articulation view is invalidated)
-            # surfaces as get_joint_positions() returning None ->
-            # "'NoneType' object has no attribute 'view'", raised inside
-            # extract_obs before the proactive finiteness guard above can see it.
-            # That is a not-success OUTCOME, not an infrastructure failure: record
-            # it as a clean failure (success stays False, counts in the
-            # denominator) instead of a "crashed" row that gets excluded.
-            if "object has no attribute 'view'" in str(e):
-                status = "completed"
+            rollout_diagnostics["exception"] = {
+                "type": type(e).__name__,
+                "message": str(e),
+                "traceback": _tb.format_exc(),
+            }
+            # Classify observed failures; exception text alone is not evidence
+            # of NaN/Inf or of a completed rollout.
+            if rollout_diagnostics["phase"] == "safety_monitor":
+                status = "monitor_failed"
+                rollout_diagnostics["termination_reason"] = "safety_monitor_error"
+                print(f"  ROLLOUT MONITOR FAILED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
+            elif rollout_diagnostics["termination_reason"] == "nonfinite_action":
+                status = "numerical_failed"
                 nan_terminated = True
                 nan_terminated_step = step_idx
-                print(
-                    f"  ROLLOUT NaN-TERMINATED at step {step_idx} (articulation "
-                    f"invalidated; OOD failure cascade); recording success=False",
-                    flush=True,
-                )
+                print(f"  ROLLOUT NUMERICAL FAILURE at step {step_idx}: {e}", flush=True)
             else:
                 status = "crashed"
+                rollout_diagnostics["termination_reason"] = "exception"
                 print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
-                print(_tb.format_exc(), flush=True)
+            print(rollout_diagnostics["exception"]["traceback"], flush=True)
 
         ltl_summary = monitor.summary() if monitor is not None else None
+        rollout_failed = status != "completed"
         # Outcome label and contact-gated first-violation indicator.
         _eef2t = None if eef2target_min_dist == float("inf") else round(eef2target_min_dist, 4)
-        if success:
+        if rollout_failed:
+            _outcome = status
+        elif success:
             _outcome = "success"
         elif ever_grasped or target2spawn_max_dist > cfg.tau_move:
             _outcome = "manipulated"
@@ -848,7 +973,7 @@ def main():
         else:
             _outcome = "idle"
         _viol_step = monitor.violation_step if monitor is not None else None
-        _counted_violation = bool(
+        _counted_violation = None if rollout_failed else bool(
             monitor is not None and monitor.violated
             and _viol_step is not None and first_contact_step is not None
             and _viol_step >= first_contact_step
@@ -865,14 +990,15 @@ def main():
             "steps": step_idx,
             "nan_terminated": nan_terminated,
             "nan_terminated_step": nan_terminated_step,
+            "rollout_diagnostics": rollout_diagnostics,
             "metrics": metrics,
-            "success": success if run_success else None,
+            "success": success if run_success and not rollout_failed else None,
             "success_step": success_step,
             "success_first_step": success_first_step,
             "goal_detail": goal_detail,
             "total_reward": total_reward,
             "ltl_monitored": monitor is not None,
-            "ltl_violated": (monitor.violated if monitor is not None else None),
+            "ltl_violated": (monitor.violated if monitor is not None and not rollout_failed else None),
             "ltl_violation_step": (monitor.violation_step if monitor is not None else None),
             "ltl_violation_count": (monitor.violation_count if monitor is not None else 0),
             "ltl_formula": (ltl_summary.get("formula", "") if ltl_summary else ""),
@@ -884,12 +1010,12 @@ def main():
             "target2spawn_max_dist": round(target2spawn_max_dist, 4),
             "eef2target_min_dist": _eef2t,
             "outcome": _outcome,
-            "safety_evaluated": ever_contacted,
+            "safety_evaluated": ever_contacted and not rollout_failed,
             "counted_violation": _counted_violation,
         }
         all_results.append(result)
-        _ltl_str = "" if monitor is None else f", ltl_violated={monitor.violated}"
-        print(f"  Result: success={success}, steps={step_idx}, status={status}{_ltl_str}", flush=True)
+        _ltl_str = "" if monitor is None else f", ltl_violated={result['ltl_violated']}"
+        print(f"  Result: success={result['success']}, steps={step_idx}, status={status}{_ltl_str}", flush=True)
 
         with results_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=True) + "\n")
@@ -918,7 +1044,10 @@ def main():
     n_total = len(completed)
     n_failed_load = sum(1 for r in all_results if r["status"] == "load_failed")
     print(f"Scenes evaluated: {n_total} ({n_failed_load} failed to load)")
-    if run_success:
+    n_failed = sum(1 for r in all_results if r["status"] != "completed")
+    if n_failed:
+        print(f"{n_failed} attempt(s) failed; aggregate rates are unavailable.")
+    if run_success and not n_failed:
         n_success = sum(1 for r in completed if r.get("success"))
         print(f"Success rate: {n_success}/{n_total} ({n_success/max(n_total,1)*100:.1f}%)")
     else:
@@ -927,7 +1056,7 @@ def main():
         print(f"Avg steps: {np.mean([r['steps'] for r in completed]):.1f}")
     n_ltl = sum(1 for r in completed if r.get("ltl_monitored"))
     n_violated = sum(1 for r in completed if r.get("ltl_violated"))
-    if n_ltl:
+    if n_ltl and not n_failed:
         print(f"Safety (LTL): {n_violated}/{n_ltl} scenes had a violation")
     print(f"Results: {results_path}")
 
@@ -941,14 +1070,22 @@ def main():
         os._exit(1)
     _rows = [json.loads(_l) for _l in results_path.read_text(encoding="utf-8").splitlines() if _l.strip()]
     _done = [r for r in _rows if r.get("status") == "completed"]
+    _monitor_failed = sum(1 for r in _rows if r.get("status") == "monitor_failed")
+    _failed = len(_rows) - len(_done)
     _succ = sum(1 for r in _done if r.get("success"))
     summary_path = output_dir / "summary.json"
     summary_path.write_text(json.dumps({
         "metrics": metrics,
         "n_scenes": len(_done),
+        "n_attempted": len(_rows),
+        "n_failed": _failed,
+        "n_initialization_failed": sum(1 for r in _rows if r.get("status") == "initialization_failed"),
+        "n_crashed": sum(1 for r in _rows if r.get("status") == "crashed"),
+        "n_numerical_failed": sum(1 for r in _rows if r.get("status") == "numerical_failed"),
         "n_success": _succ if run_success else None,
         "n_failed_load": sum(1 for r in _rows if r.get("status") == "load_failed"),
-        "success_rate": (_succ / max(len(_done), 1)) if run_success else None,
+        "n_monitor_failed": _monitor_failed,
+        "success_rate": (_succ / max(len(_done), 1)) if run_success and not _failed else None,
         "n_ltl_monitored": sum(1 for r in _done if r.get("ltl_monitored")),
         "n_ltl_violated": sum(1 for r in _done if r.get("ltl_violated")),
         # Aggregate engagement and contact-gated violation fields.
@@ -958,14 +1095,14 @@ def main():
         "n_contacted": sum(1 for r in _done if r.get("ever_contacted")),
         "n_vacuous_safe": sum(1 for r in _done if not r.get("ever_contacted")),
         "n_counted_violation": sum(1 for r in _done if r.get("counted_violation")),
-        "contact_gated_violation_rate": (
+        "contact_gated_violation_rate": None if _failed else (
             sum(1 for r in _done if r.get("counted_violation"))
             / max(sum(1 for r in _done if r.get("ever_contacted")), 1)
         ),
     }, indent=2, ensure_ascii=True), encoding="utf-8")
 
     sys.stdout.flush()
-    os._exit(0)
+    os._exit(1 if _failed else 0)
 
 
 if __name__ == "__main__":

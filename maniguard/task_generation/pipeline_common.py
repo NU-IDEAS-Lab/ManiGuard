@@ -873,24 +873,22 @@ def validate_ltl_step0(env, activity_name, scene_model, active_objects_by_inst,
     ``ltl_safety`` is the task-level safety dict (from the pipeline's
     activity generator). Pass ``None`` / ``{}`` to disable task-level
     monitoring. The supplied dictionary defines the task-level constraints.
+    Configuration and monitoring errors propagate instead of being treated
+    as a clean initial state.
     """
     from maniguard.utils.safety_monitor import TaskLTLMonitor
 
-    try:
-        monitor = TaskLTLMonitor(
-            env=env, activity_name=activity_name,
-            scene_model=scene_model,
-            active_objects_by_inst=active_objects_by_inst,
-            ltl_safety=ltl_safety,
-        )
-        monitor.reset()
-        info = monitor.step(0)
-        labels = info.get("ap", {})
-        doomed = bool(info.get("doomed", False))
-        return not doomed, labels
-    except Exception as exc:
-        print(f"[Pipeline] WARNING: LTL step-0 validation failed: {exc}")
-        return True, {}
+    monitor = TaskLTLMonitor(
+        env=env, activity_name=activity_name,
+        scene_model=scene_model,
+        active_objects_by_inst=active_objects_by_inst,
+        ltl_safety=ltl_safety,
+    )
+    monitor.reset()
+    info = monitor.step(0)
+    labels = info.get("ap", {})
+    doomed = bool(info.get("doomed", False))
+    return not doomed, labels
 
 
 def stabilize_and_validate(
