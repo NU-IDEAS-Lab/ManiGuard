@@ -1,0 +1,100 @@
+/* Minimal click-through carousel (left/right + dots). Used on the
+   task-generation data-flow page for the offline-pool packages. */
+.mg-carousel {
+  margin: 1.2em 0;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.3rem;
+  padding: 0.4rem 0.8rem 0.8rem;
+}
+
+.mg-carousel__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mg-carousel__btn {
+  cursor: pointer;
+  border: none;
+  background: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+  flex: 0 0 auto;
+}
+.mg-carousel__btn:hover { opacity: 0.8; }
+
+.mg-carousel__dots {
+  display: inline-flex;
+  gap: 0.45rem;
+  flex: 1 1 auto;
+  justify-content: center;
+  align-items: center;
+}
+.mg-carousel__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: var(--md-default-fg-color--lighter);
+  transition: background 0.15s ease;
+}
+.mg-carousel__dot.mg-active { background: var(--md-primary-fg-color); }
+
+.mg-carousel__slide { display: none; }
+.mg-carousel__slide.mg-active { display: block; animation: mg-fade 0.2s ease; }
+.mg-carousel__slide > :first-child { margin-top: 0; }
+.mg-carousel__slide > :last-child { margin-bottom: 0; }
+
+@keyframes mg-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Triptych of example renders — one row, three equal columns.
+   md_in_html renders the three images as inline <img>s inside a single
+   <p>, so the <p> is the flex row and the images are its flex items. */
+.mg-shots {
+  margin: 0 0 1.2em;
+}
+.mg-shots p {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  margin: 0;
+  align-items: flex-start;
+}
+.mg-shots img {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* Home hero — the 10x10 task montage. */
+.mg-hero {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  margin: 1.2em auto 0.3em;
+  border-radius: 0.4rem;
+}
+.mg-gallery-cap {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--md-default-fg-color--light);
+  margin: 0 0 1.2em;
+}
