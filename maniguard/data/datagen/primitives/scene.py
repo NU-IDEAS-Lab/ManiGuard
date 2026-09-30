@@ -38,7 +38,13 @@ class SceneBundle:
 
 
 def _needs_gpu_dynamics(diag: dict) -> bool:
-    """Return whether diagnostics select GPU particle dynamics. A declared system_name enables it, except for lid_info tasks, whose stored liquid labels do not correspond to simulated particle systems."""
+    """Use GPU dynamics for declared spill systems or physical liquid selections.
+
+    Lid labels without a spill specification do not imply simulated particles.
+    """
+    from maniguard.data.scene.liquid_state import spill_systems
+    if spill_systems(diag):
+        return True
     if diag.get("lid_info"):
         return False
     return bool((diag.get("selection") or {}).get("system_name"))
@@ -156,6 +162,12 @@ def scene_from_task_dir(
         )
     if hasattr(robot, "keep_still"):
         robot.keep_still()
+    # Explicit-object reconstruction does not restore the snapshot's systems.
+    from maniguard.data.scene.liquid_state import restore_liquid_systems, spill_systems
+    restore_liquid_systems(
+        env, scene_info.get("state", {}).get("registry", {}).get("system_registry", {}),
+        spill_systems(diagnostics),
+    )
     og.sim.step()
 
     goal_spec = None
@@ -168,6 +180,9 @@ def scene_from_task_dir(
     for _ in range(max(0, int(settle_steps))):
         og.sim.step()
 
+    if spill_systems(diagnostics):
+        # Keep restored liquid in subsequent env.reset() calls as well.
+        env.scene.update_initial_file()
     surface = env.scene.object_registry("name", task_names[0])
     return SceneBundle(
         env=env,

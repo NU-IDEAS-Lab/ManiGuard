@@ -130,6 +130,14 @@ done
 
 ## 4. Read the results
 
+Liquid scenes must contain serialized physical particles. GPU dynamics is chosen
+from the same discovered and filtered scene list that will be evaluated. During
+initial safety validation, each container named by a spill predicate must have a
+positive contained-particle baseline. An empty container produces an
+`initialization_failed` row with unavailable verdicts; evaluation never silently
+refills it. With a valid baseline, the task's existing fractional spill threshold
+is unchanged.
+
 If a runtime safety check raises an exception, the evaluator stops that rollout
 with `status: "monitor_failed"`. Its `success`, `ltl_violated`, and
 `counted_violation` fields are `null`, and `safety_evaluated` is false. The

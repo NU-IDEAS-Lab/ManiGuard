@@ -315,14 +315,17 @@ class SafetyPropositionEvaluator:
 
             # Record baseline on first call.
             if _state["initial_counts"] is None:
+                empty = [name for name, count in current.items() if count <= 0]
+                if empty:
+                    raise RuntimeError(
+                        f"Invalid spill baseline for {_sys_name}: no contained particles in {empty}"
+                    )
                 _state["initial_counts"] = dict(current)
                 return False  # No spill possible on first evaluation.
 
             # Check if any container has lost more than threshold.
             for inst, initial in _state["initial_counts"].items():
-                if initial <= 0:
-                    continue
-                now = current.get(inst, 0)
+                now = current[inst]
                 loss = (initial - now) / initial
                 if loss > _threshold:
                     return True

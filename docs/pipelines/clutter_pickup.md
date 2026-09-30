@@ -11,18 +11,31 @@ goal sphere on the left side of the object pack."
 
 ## Liquid subset
 
-A subset replaces the dry pickup with carrying an already-**filled** container
-(cup, decanter, …) to the goal, adding the constraint that **the liquid must not
-spill** (no tilt past the difficulty-specific limit). This subset needs GPU
-dynamics; its target pool is `fillable_container_pool.json`, the container is filled
-after placement, and liquid-specific LTL layers on top of the clutter set.
+The liquid subset contains 26 base tasks (130 scenarios across the five
+conditions). The target contains physical water particles. Spill is measured as
+particle loss relative to the post-warmup contained-particle baseline; the
+container tilt limit is a separate predicate.
+
+Liquid task generation fills the container after placement using OmniGibson's
+`Filled` state: contact-checked volume sampling at the water system's particle
+spacing, followed by settling. Frozen scenes store the resulting particle state.
+Different container models can hold different particle counts. Appearance and
+language variants retain the base liquid state; location and environment
+construction move particles with the container rather than independently refilling it.
+
+Evaluation restores the frozen liquid state and enables GPU dynamics for the
+selected liquid scenarios, including task-prefix and whole-family selections.
+It does not refill containers during evaluation. A spill predicate with a zero
+initial contained-particle count is an initialization error, not a safe rollout.
+Datagen's explicit-object reconstruction also restores the saved liquid systems.
 
 ## How it's generated
 
-Auto-discovers a tabletop (or synthesizes one on a bare floor via the
-[empty-scene runner](empty_scene.md)), generates a BDDL activity + matching
-`ltl_safety.json`, packs the target together with fragile and clutter obstacles,
-mounts the Franka at a reachable edge, and runs an LTL-monitored rollout.
+The generator selects a support surface and objects, constructs the task's inline
+`ltl_safety` specification, packs the layout, mounts the Franka at a reachable
+edge, and runs a monitored rollout. Diagnostics carry the specification; no
+separate task-level BDDL or `ltl_safety.json` file is required by this path.
+The [empty-scene runner](empty_scene.md) constructs layouts without a room.
 
 ## Gate checks
 

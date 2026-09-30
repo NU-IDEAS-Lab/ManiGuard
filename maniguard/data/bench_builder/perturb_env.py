@@ -264,7 +264,9 @@ def build_merged_scene_info(base_si: dict, room_si: dict, base_surf_name: str,
     b_sys = (base_si.get("state", {}).get("registry", {}) or {}).get("system_registry", {})
     if b_sys:
         m_sys = merged.setdefault("state", {}).setdefault("registry", {}).setdefault("system_registry", {})
-        m_sys.update(copy.deepcopy(b_sys))
+        from maniguard.data.scene.liquid_state import transform_liquid_state
+        m_sys.update({name: transform_liquid_state(state, T) if "particle_states" in state
+                      else copy.deepcopy(state) for name, state in b_sys.items()})
     return merged, injected, room_instance, removed_spawn
 
 

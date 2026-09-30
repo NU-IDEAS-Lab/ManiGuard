@@ -429,31 +429,19 @@ def main():
         print(f"Resolved benchmark '{cfg.benchmark_root}' @ {cfg.benchmark_revision} "
               f"-> {resolved_root}")
 
-    # Per-task GPU-dynamics gate, decided BEFORE omnigibson is imported (gm
-    # macros only take effect pre-import). Pure file read of the requested
-    # scenes' diagnostics; any liquid/particle scene in the batch enables it.
+    # Discover once before simulator initialization so exact names, task prefixes,
+    # family scans and filters all use the same scene set for GPU dynamics.
     from maniguard.data.datagen.primitives.scene import task_needs_gpu_dynamics
-    _needs_gpu = False
-    for _s in (cfg.scenes or []):
-        _sdir = Path(str(resolved_root)) / _s
-        if (_sdir / "diagnostics.jsonl").is_file():
-            try:
-                _needs_gpu = _needs_gpu or task_needs_gpu_dynamics(_sdir)
-            except Exception as _exc:  # noqa: BLE001 - fall back to CPU pipeline
-                print(f"[Eval] WARNING: gpu-dynamics probe failed for {_s}: {_exc}")
-
-    _init_omnigibson(cfg, needs_gpu_dynamics=_needs_gpu)
-    import omnigibson as og
-
     scenes = discover_scenes(
-        str(resolved_root),
-        scene_names=cfg.scenes,
-        max_scenes=cfg.max_scenes,
+        str(resolved_root), scene_names=cfg.scenes, max_scenes=cfg.max_scenes,
     )
     if cfg.scene_filter:
         import fnmatch
         scenes = [s for s in scenes if fnmatch.fnmatch(s["name"], cfg.scene_filter)]
     print(f"Discovered {len(scenes)} valid scenes")
+    _needs_gpu = any(task_needs_gpu_dynamics(Path(s["scene_file"]).parent) for s in scenes)
+    _init_omnigibson(cfg, needs_gpu_dynamics=_needs_gpu)
+    import omnigibson as og
 
     # When evaluating safety, LTL monitoring is mandatory whenever the benchmark
     # carries a spec — fail fast if the Spot runtime is missing/broken rather

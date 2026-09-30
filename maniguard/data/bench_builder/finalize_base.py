@@ -410,9 +410,7 @@ def finalize_base_task(
     robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
     robot.keep_still()
 
-    # --- save the clean init snapshot to OUTPUT (canonical filename), BEFORE idle-stepping ---
     out_scene = out_base_dir / f"scene_ep{episode}.json"
-    env.scene.save(json_path=str(out_scene))
 
     # --- build a FRESH LTL monitor on the finalized scene; step(0) feeds the gate's init-doomed ---
     # patch the lid family's hardcoded lid synset to the actual spawned object (no-op otherwise), so
@@ -435,6 +433,9 @@ def finalize_base_task(
         )
         monitor.reset()
         init_doomed = bool(monitor.step(0).get("doomed", False))
+
+    # Save only after monitor initialization has verified the liquid baseline.
+    env.scene.save(json_path=str(out_scene))
 
     # --- fresh spawn-feasibility gate on the finalized scene ---
     gate_pass, gate_detail = _compute_gate(env, robot, diag, support_top, base_z_after,

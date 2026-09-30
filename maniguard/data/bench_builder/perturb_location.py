@@ -206,6 +206,9 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
         + ([sponge] if sponge is not None else [])
     base_poses = {o.name: tuple(t.clone() for t in o.get_position_orientation()) for o in restore_objs}
 
+    from maniguard.data.scene.liquid_state import capture_movable_liquids, restore_moved_liquids
+    liquid_state = capture_movable_liquids(env, diag)
+
     # Build the LTL monitor once — the active-object set is fixed across attempts
     # (same objects, only their positions change), so we reset() it per attempt.
     ltl_safety = _patch_lid_ltl(family, diag.get("ltl_safety") or {},
@@ -233,6 +236,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
             p, q = base_poses[o.name]
             o.set_position_orientation(position=p.clone(), orientation=q.clone())
             o.keep_still()
+        restore_moved_liquids(env, liquid_state)
         og.sim.step()
         moves = []
         goal_disp = None
@@ -257,6 +261,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
         sponge_info = _replace_sponge(sponge, units, bounds, diag, th, og) \
             if (sponge is not None and family == "dusty_transfer") else None
         settle_objs = list(movable) + ([sponge] if sponge is not None else [])
+        restore_moved_liquids(env, liquid_state)
         if monitor is not None:
             monitor.reset()
             init_doomed = bool(monitor.step(0).get("doomed", False))
