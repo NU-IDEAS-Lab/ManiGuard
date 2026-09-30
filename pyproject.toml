@@ -38,6 +38,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+annotation = [
+    "scipy>=1.10.1",
+    "trimesh>=4.0.8",
+    "viser==1.0.30",
+    "matplotlib>=3.0",
+]
+conversion = [
+    "lerobot==0.3.3",
+]
 serve = [
     "websockets>=11.0",
     "pyzmq>=25.0",

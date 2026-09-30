@@ -48,11 +48,9 @@ ACTION_COMMANDED_NAMES = [f"arm_q{i}_cmd" for i in range(ARM_DOF)] + ["gripper_c
 
 # Auxiliary HDF5 datasets written by the recorder.
 MIMICGEN_SIDECAR = {
-    "states": "serialized og.sim.dump_state(serialized=True) per step (replay)",
-    "datagen_info/eef_pose": "(N,4,4) world eef pose per step",
-    "datagen_info/object_poses/<obj>": "(N,4,4) world pose per tracked object",
-    "datagen_info/gripper_action": "(N,) binary gripper command",
-    "datagen_info/subtask_term_signals/<sig>": "(N,) bool subtask-termination flags",
+    "states": "optional serialized simulation states, padded when their lengths differ",
+    "states_len": "present only for padded states; original length of each recorded state",
+    "datagen_info/gripper_action": "binary gripper command per recorded step",
 }
 
 

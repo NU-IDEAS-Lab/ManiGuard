@@ -130,7 +130,17 @@ def convert(dataset: str, family: str, *, out_root: str, repo_id: str, limit=Non
     """Convert every traj of <family> in <dataset> into ONE LeRobot v2.1 dataset at
     <out_root>/<family>/ (all 5 cams passthrough; state + actions(b) + actions_commanded(a))."""
     from pathlib import Path
+    from importlib.metadata import PackageNotFoundError, version
 
+    try:
+        runtime_version = version("lerobot")
+    except PackageNotFoundError:
+        runtime_version = None
+    if runtime_version != "0.3.3":
+        raise RuntimeError(
+            f"RAW conversion to LeRobot v2.1 requires lerobot==0.3.3; found {runtime_version!r}. "
+            "Use the separate conversion environment with pip install -e '.[conversion]'."
+        )
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     from maniguard.data.datagen import data_format, reader
@@ -138,6 +148,8 @@ def convert(dataset: str, family: str, *, out_root: str, repo_id: str, limit=Non
     traj_dirs = list(reader.iter_traj_dirs(dataset, family))
     if limit:
         traj_dirs = traj_dirs[:limit]
+    if not traj_dirs:
+        raise ValueError(f"No RAW trajectories found for {family} in {dataset}")
     metas = [reader.load_meta(d) for d in traj_dirs]
     prompts, task_indices = build_prompt_table(metas)
     print(f"[to_lerobot] {family}: {len(traj_dirs)} trajs, {len(prompts)} unique prompts", flush=True)

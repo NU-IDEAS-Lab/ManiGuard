@@ -161,6 +161,11 @@ python -u -m maniguard.data.datagen.annotation.extract_meshes --gripper   # the 
 ```
 
 Output: `outputs/grasp_annotation/{meshes/*.glb, gripper_longfinger.glb, mesh_db.json}`.
+Re-extraction refreshes generated mesh geometry and bounds while retaining
+existing per-object metadata and grasp records in `mesh_db.json`. Family
+membership is merged across all selected tasks. The separate
+`grasp_annotations.json` file containing human-authored poses is not rewritten.
+Extraction errors produce a nonzero exit status.
 
 ??? note "▸ What it does in detail"
     Enumerates the distinct `(category, model)` grasp **targets** across the bench

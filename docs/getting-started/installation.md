@@ -64,6 +64,29 @@ pip install -e .                 # base
 pip install -e ".[serve]"        # with policy-server extras
 ```
 
+The pinned OmniGibson installation supplies SciPy, trimesh, OpenCV and
+`huggingface-hub`; upstream's `--eval` step installs PyAV. Command-line video
+tools also require FFmpeg. Installing
+ManiGuard alone does not install these simulator dependencies.
+
+For browser-based grasp annotation and mesh preview, install
+`pip install -e '.[annotation]'` (viser, SciPy, trimesh and matplotlib).
+Mesh extraction still requires the simulator and its installed assets.
+
+RAW demonstration conversion uses **LeRobot 0.3.3** to write the **v2.1 dataset
+format**. These are distinct version numbers. Use a separate Python 3.10
+environment so conversion dependencies do not replace the simulator or model
+training environment:
+
+```bash
+conda create -n maniguard-convert python=3.10 -y
+conda activate maniguard-convert
+pip install -e '.[conversion]'
+python -m maniguard.data.datagen.to_lerobot --help
+```
+
+Use the model-specific environments for training and policy serving.
+
 ## 4. ManiGuard-Bench + robot asset
 
 To **run the benchmark**, download two artifacts released with ManiGuard. Both are
