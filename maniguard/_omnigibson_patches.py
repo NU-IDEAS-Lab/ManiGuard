@@ -199,12 +199,35 @@ def _patch_grasp_reward() -> None:
 
 
 def _patch_sampling_utils() -> None:
+    from functools import wraps
+
     from omnigibson.utils import sampling_utils
 
     if getattr(sampling_utils, "_maniguard_patched", False):
         return
 
     import torch as th
+
+    original_raytest = sampling_utils.raytest
+
+    @wraps(original_raytest)
+    def raytest_safe(start_point, end_point, only_closest=True,
+                     ignore_bodies=None, ignore_collisions=None, callback=None):
+        start = th.as_tensor(start_point)
+        end = th.as_tensor(end_point)
+        if not bool(th.isfinite(start).all()) or not bool(th.isfinite(end).all()):
+            raise ValueError("Ray endpoints must contain only finite coordinates")
+        # A coincident segment has no direction. Do not normalize it or send it
+        # to PhysX; preserve short, nonzero rays without applying an epsilon.
+        if start.shape == end.shape == (3,) and th.equal(start, end):
+            return {"hit": False} if only_closest else []
+        return original_raytest(
+            start_point, end_point, only_closest=only_closest,
+            ignore_bodies=ignore_bodies, ignore_collisions=ignore_collisions,
+            callback=callback,
+        )
+
+    sampling_utils.raytest = raytest_safe
 
     def draw_debug_markers(hit_positions, radius=0.01):
         from omnigibson.utils.ui_utils import draw_line
