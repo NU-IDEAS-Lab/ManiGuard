@@ -231,6 +231,9 @@ def build_merged_scene_info(base_si: dict, room_si: dict, base_surf_name: str,
 
     b_init = base_si["objects_info"]["init_info"]
     b_reg = _scene_registry(base_si)
+    base_support_args = b_init[base_surf_name].get("args", {})
+    if "fixed_base" in base_support_args:
+        m_init[room_table_name].setdefault("args", {})["fixed_base"] = base_support_args["fixed_base"]
 
     injected: list[str] = []
     collisions: list[str] = []
@@ -352,6 +355,8 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
         _compute_gate,
         _fresh_surface_info,
         _patch_lid_ltl,
+        bind_lid_container_instance,
+        bind_support_instance,
     )
     from maniguard.data.bench_builder.perturbation import derive_seed
     from maniguard.data.bench_builder.render import render_views
@@ -499,6 +504,12 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
             if float(o.get_position_orientation()[0][2]) < spawn_z.get(o.name, float("-inf")) - SINK_TOL]
     spawn_specs = (diag.get("selection") or {}).get("spawn_specs") or []
     ltl_safety = _patch_lid_ltl(family, diag.get("ltl_safety") or {}, spawn_specs, anchor_name)
+    ltl_safety = bind_support_instance(family, ltl_safety, anchor_name)
+    ltl_safety = bind_lid_container_instance(
+        family, ltl_safety, (out_diag.get("goal_region") or {}).get("target_name"),
+        {obj.name for obj in env.scene.objects},
+    )
+    out_diag["ltl_safety"] = ltl_safety
     monitor = None
     init_doomed = False
     if ltl_safety:

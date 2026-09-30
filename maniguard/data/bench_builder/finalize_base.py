@@ -176,6 +176,34 @@ def _needs_gpu_dynamics(diag: dict) -> bool:
     return bool((diag.get("selection") or {}).get("system_name"))
 
 
+def bind_support_instance(family: str, ltl_safety: dict, surface_name: str | None) -> dict:
+    """Bind the Jar/Lid support relation to its selected scene object."""
+    prop_name = {
+        "jar_transport": "jar_on_support",
+        "lid_transport": "container_on_support",
+    }.get(family)
+    if prop_name not in (ltl_safety.get("propositions") or {}):
+        return ltl_safety
+    if not surface_name:
+        raise ValueError(f"{family}: support instance name is required")
+    import copy
+    bound = copy.deepcopy(ltl_safety)
+    bound["propositions"][prop_name]["relative_to"] = [surface_name]
+    return bound
+
+
+def bind_lid_container_instance(family: str, ltl_safety: dict, target_name: str | None, scene_names) -> dict:
+    """Bind the Lid cover relation to the current goal target in the scene inventory."""
+    if family != "lid_transport" or "lid_on_container" not in (ltl_safety.get("propositions") or {}):
+        return ltl_safety
+    if not target_name or target_name not in scene_names:
+        raise ValueError(f"{family}: goal target {target_name!r} is missing from the scene inventory")
+    import copy
+    bound = copy.deepcopy(ltl_safety)
+    bound["propositions"]["lid_on_container"]["relative_to"] = [target_name]
+    return bound
+
+
 def _patch_lid_ltl(family: str, ltl_safety: dict, spawn_specs: list, surface_name: str | None = None) -> dict:
     """Normalize lid-task proposition patterns to the spawned objects.
 
@@ -305,6 +333,11 @@ def finalize_base_task(
     resolution: int = DEFAULT_RESOLUTION,
 ) -> dict:
     """Finalize one base task into ``out_base_dir``; never writes to ``src_base_dir``."""
+    src_base_dir = Path(src_base_dir).resolve()
+    out_base_dir = Path(out_base_dir).resolve()
+    if src_base_dir == out_base_dir:
+        raise ValueError("Source and output task directories must be different")
+
     import omnigibson as og
     import torch as th
 
@@ -387,6 +420,11 @@ def finalize_base_task(
     ltl_safety = _patch_lid_ltl(family, diag.get("ltl_safety") or {},
                                 (diag.get("selection") or {}).get("spawn_specs") or [],
                                 diag.get("surface"))
+    ltl_safety = bind_support_instance(family, ltl_safety, getattr(surf, "name", None))
+    ltl_safety = bind_lid_container_instance(
+        family, ltl_safety, (diag.get("goal_region") or {}).get("target_name"),
+        {obj.name for obj in env.scene.objects},
+    )
     monitor = None
     init_doomed = False
     if ltl_safety:
@@ -491,7 +529,7 @@ def finalize_base_task(
     if ltl_violated:
         warnings.append("ltl_violated=True over the idle-step")
     if not pose_ok:
-        warnings.append("pose readback != A")
+        warnings.append("pose readback != BENCH_INIT_QPOS")
     if not basez_ok:
         warnings.append(f"base_z readback {base_z_rb} != {base_z_after:.4f}")
     if n_mp4 != 4:

@@ -87,31 +87,25 @@ def _resolve_pattern(pat: str, names, cat2lemma) -> tuple[list[str], bool]:
 
 
 def _resolve_ltl(ltl: dict, init: dict, surface_name: str | None) -> list[tuple[bool, str]]:
-    """Resolution check at the PROPOSITION level (eval semantics: a proposition is vacuous only if
-    its `over` subject set is empty across ALL its patterns — a multi-category `over` with one
-    absent category is fine). Returns (is_fail, message): over-empty = fail (vacuous safety);
-    a relative_to/surface pattern resolvable only via the surface fallback (or not at all) = warn.
+    """Require every declared over/relative_to pattern to resolve, as the monitor does.
+
+    A synset fallback is valid only when its surface exists in the scene inventory;
+    report such bindings as warnings. The custom evaluator's surface field remains
+    warning-only.
     """
     names = [(n, info.get("args", {}).get("category", "")) for n, info in init.items()]
     cat2lemma = {c: _category_lemma(c) for _, c in names if c}
     out: list[tuple[bool, str]] = []
     for prop_name, prop in (ltl.get("propositions") or {}).items():
-        over_pats = _as_list(prop.get("over"))
-        if over_pats:
-            over_hit: set[str] = set()
-            for p in over_pats:
-                over_hit.update(_resolve_pattern(p, names, cat2lemma)[0])
-            if not over_hit:
-                out.append((True, f"{prop_name}: over {over_pats} -> 0 objects (vacuous safety)"))
-        for key in ("relative_to", "surface"):
+        for key in ("over", "relative_to", "surface"):
             for p in _as_list(prop.get(key)):
                 matched, is_synset = _resolve_pattern(p, names, cat2lemma)
                 if matched:
                     continue
-                if is_synset and surface_name:
+                if is_synset and surface_name in init:
                     out.append((False, f"{prop_name}: {key} {p!r} resolves ONLY via surface fallback"))
                 else:
-                    out.append((False, f"{prop_name}: {key} {p!r} -> 0 objects"))
+                    out.append((key != "surface", f"{prop_name}: {key} {p!r} -> 0 objects"))
     return out
 
 

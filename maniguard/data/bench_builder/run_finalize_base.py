@@ -2,8 +2,12 @@
 
 Workers write a result row before simulator shutdown. The driver reads the row,
 checks output completeness, runs offline validation, and writes
-<out-root>/<family>/base_manifest.jsonl. Worker exit codes alone are insufficient
-because simulator teardown can fail after files have been saved.
+<out-root>/<family>/base_manifest.jsonl. Worker exit codes are recorded but do not alone determine validity: shutdown
+can fail after files have been saved. Only a fresh, valid worker row plus
+complete artifacts and passing offline checks can accept a new attempt.
+`--skip-existing` reuses only outputs that pass these checks; failed or
+malformed rows are retried. Source and output paths must be distinct, including
+when invoked directly in worker mode.
 
 The source layout is <src-root>/<family>/task_NNNN/<src-subdir>/ containing
 diagnostics.jsonl and scene_ep{episode}.json (or scene_ep{episode}_replay.json).
@@ -23,7 +27,6 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-SRC_ROOT_DEFAULT = "outputs/lerobot_datasets/6fam-base"
 OUT_ROOT_DEFAULT = "outputs/lerobot_datasets/maniguard-bench"
 ROW_FILE = "_finalize_row.json"
 VIDEO_LABELS = ("opposite_side_front", "left_overview", "right_overview", "left_shoulder")
@@ -93,17 +96,23 @@ def _worker_env() -> dict:
 
 def _combine_status(*statuses: str | None) -> str:
     s = set(statuses)
-    if "fail" in s:
+    if not s <= {"ok", "warn", "fail"} or "fail" in s:
         return "fail"
     if "warn" in s:
         return "warn"
     return "ok"
 
 
+def _check_distinct_paths(src_base: Path, out_base: Path) -> None:
+    if src_base.resolve() == out_base.resolve():
+        raise ValueError("Source and output task directories must be different")
+
+
 # ---------------------------------------------------------------------------- worker
 
 def _run_worker(src_base: Path, out_base: Path, family: str, episode: int) -> None:
     """Finalize ONE task; persist the manifest row before the (possibly segfaulting) teardown."""
+    _check_distinct_paths(src_base, out_base)
     from maniguard.data.bench_builder.finalize_base import finalize_base_task
 
     out_base.mkdir(parents=True, exist_ok=True)
@@ -121,6 +130,9 @@ def _run_worker(src_base: Path, out_base: Path, family: str, episode: int) -> No
 # ---------------------------------------------------------------------------- driver
 
 def _spawn_worker(src_base: Path, out_base: Path, family: str, episode: int, env: dict, timeout: int):
+    _check_distinct_paths(src_base, out_base)
+    # Only a row produced by this attempt can attest to completed output.
+    (out_base / ROW_FILE).unlink(missing_ok=True)
     cmd = [
         sys.executable, "-m", "maniguard.data.bench_builder.run_finalize_base",
         "--worker", "--src-base", str(src_base), "--out-base", str(out_base),
@@ -141,11 +153,28 @@ def _row_for_task(task: str, out_fam: Path, family: str, episode: int) -> dict:
     if not row_path.exists():
         return {"task": task, "family": family, "status": "fail",
                 "error": "worker produced no row (crashed before writing)"}
-    fin_row = json.loads(row_path.read_text(encoding="utf-8"))
+    try:
+        fin_row = json.loads(row_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {"task": task, "family": family, "status": "fail",
+                "error": f"invalid worker row: {type(exc).__name__}: {exc}"}
+    if (not isinstance(fin_row, dict) or fin_row.get("status") not in ("ok", "warn", "fail")
+            or fin_row.get("task") != task or fin_row.get("family") != family):
+        return {"task": task, "family": family, "status": "fail",
+                "error": "worker row has invalid status or mismatched task/family", "finalize": fin_row}
+    if fin_row["status"] == "fail":
+        return {"task": task, "family": family, "status": "fail",
+                "error": fin_row.get("error") or "worker finalization failed", "finalize": fin_row}
     if not _is_complete(out_base, episode):
         return {"task": task, "family": family, "status": "fail",
                 "error": "incomplete output (missing snapshot/videos)", "finalize": fin_row}
-    qc = validate_base_task(out_base, family=family, episode=episode)
+    try:
+        qc = validate_base_task(out_base, family=family, episode=episode)
+        if not isinstance(qc, dict) or qc.get("status") not in ("ok", "warn", "fail"):
+            raise ValueError("offline validator returned an invalid status")
+    except Exception as exc:  # Keep a failed validation in the per-task manifest.
+        return {"task": task, "family": family, "status": "fail", "finalize": fin_row,
+                "error": f"offline validation failed: {type(exc).__name__}: {exc}"}
     return {
         "task": task, "family": family,
         "status": _combine_status(fin_row.get("status"), qc.get("status")),
@@ -166,10 +195,11 @@ def _driver(args: argparse.Namespace) -> int:
     out_fam.mkdir(parents=True, exist_ok=True)
     env = _worker_env()
 
-    to_run = [t for t in tasks
-              if not (args.skip_existing and _is_complete(out_fam / t / "base", args.episode)
-                      and (out_fam / t / "base" / ROW_FILE).exists())]
-    skipped = [t for t in tasks if t not in set(to_run)]
+    existing = {
+        t: _row_for_task(t, out_fam, args.family, args.episode) for t in tasks
+    } if args.skip_existing else {}
+    skipped = [t for t in tasks if existing.get(t, {}).get("status") in {"ok", "warn"}]
+    to_run = [t for t in tasks if t not in set(skipped)]
     print(f"[finalize] {args.family}: {len(tasks)} tasks ({len(to_run)} to run, {len(skipped)} skip), "
           f"jobs={args.jobs} -> {out_fam}", flush=True)
 
@@ -177,8 +207,13 @@ def _driver(args: argparse.Namespace) -> int:
     manifest = out_fam / "base_manifest.jsonl"
     mf = manifest.open("w", encoding="utf-8")
 
-    def _record(task: str, tag: str, done: int, total: int) -> None:
-        row = _row_for_task(task, out_fam, args.family, args.episode)
+    def _record(task: str, tag: str, done: int, total: int, *, worker_exit=None, worker_error=None) -> None:
+        if worker_error is not None:
+            row = {"task": task, "family": args.family, "status": "fail", "error": worker_error}
+        else:
+            row = existing[task] if tag == "skip" else _row_for_task(task, out_fam, args.family, args.episode)
+        if tag == "run":
+            row["worker_exit"] = worker_exit
         rows.append(row)
         mf.write(json.dumps(row, default=float) + "\n")
         mf.flush()
@@ -201,9 +236,14 @@ def _driver(args: argparse.Namespace) -> int:
         done = 0
         for fut in as_completed(futs):
             t = futs[fut]
-            fut.result()  # worker exit code ignored (teardown segfault) — success judged by output
+            worker_exit = None
+            worker_error = None
+            try:
+                worker_exit = fut.result()
+            except Exception as exc:
+                worker_error = f"worker launch failed: {type(exc).__name__}: {exc}"
             done += 1
-            _record(t, "run", done, len(to_run))
+            _record(t, "run", done, len(to_run), worker_exit=worker_exit, worker_error=worker_error)
 
     mf.close()
     counts = Counter(r["status"] for r in rows)
@@ -216,8 +256,7 @@ def _driver(args: argparse.Namespace) -> int:
     if fail_rows:
         drop_path.write_text(json.dumps({
             "family": args.family,
-            "note": "CANDIDATES for review — not an auto-drop. Fix tool bugs (re-validate); "
-                    "prune only genuinely-unreasonable tasks via prune_reindex.py.",
+            "note": "Failed tasks require review. No task directories have been deleted.",
             "candidates": [{
                 "task": r["task"],
                 "fails": r.get("validate", {}).get("fails") or [],
@@ -234,12 +273,12 @@ def _driver(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------- cli
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Finalize 6fam-base tasks into ManiGuard-Bench.")
+    ap = argparse.ArgumentParser(description="Finalize generated task snapshots for ManiGuard-Bench.")
     ap.add_argument("--worker", action="store_true", help="internal: finalize ONE task in this process")
     ap.add_argument("--src-base", help="worker: source base dir")
     ap.add_argument("--out-base", help="worker: output base dir")
     ap.add_argument("--family", required=True)
-    ap.add_argument("--src-root", default=SRC_ROOT_DEFAULT)
+    ap.add_argument("--src-root", help="Root containing generated source task snapshots")
     ap.add_argument("--out-root", default=OUT_ROOT_DEFAULT)
     ap.add_argument("--src-subdir", default="base", help="subdir under each task holding the source snapshot")
     ap.add_argument("--tasks", default=None, help="'0-22' range, or 'task_0000,task_0005' / '0,5' list; default all")
@@ -254,6 +293,10 @@ def main() -> int:
             ap.error("--worker requires --src-base and --out-base")
         _run_worker(Path(args.src_base), Path(args.out_base), args.family, args.episode)
         return 0
+    if not args.src_root:
+        ap.error("--src-root is required")
+    if Path(args.src_root).resolve() == Path(args.out_root).resolve():
+        ap.error("--src-root and --out-root must be different directories")
     return _driver(args)
 
 
