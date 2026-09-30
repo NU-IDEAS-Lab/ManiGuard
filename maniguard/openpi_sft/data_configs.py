@@ -2,8 +2,8 @@
 
 Select an overview stream and wrist stream, map them to the policy input keys,
 and configure joint-position action conversion. SubsetDataConfig carries an
-optional episode_fraction marker; a compatible data loader must implement the
-selection because this factory does not select episodes itself.
+optional episode_fraction marker. Importing maniguard.openpi_sft installs the
+subset-aware loader used by the training and normalization launchers.
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
     the gripper absolute; AbsoluteActions reconstructs inference outputs. The
     alternate branch returns seven action dimensions without this conversion.
 
-    The episode_fraction field is propagated as metadata. Episode selection requires
-    a compatible loader; it is not performed by create.
+    The episode_fraction field is propagated to the subset-aware loader installed
+    by maniguard.openpi_sft; create does not read or filter dataset rows.
     """
 
     # Convert absolute joint-position actions to per-step deltas for the 7 arm
@@ -52,8 +52,8 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
     # For datasets with only left/right overviews, select one of those available streams.
     external_cam: str = "left"
 
-    # Optional fraction marker. A compatible data loader must implement episode
-    # selection; this factory only validates and propagates the value.
+    # Optional per-task fraction consumed by the ManiGuard subset-aware loader.
+    # None preserves the full dataset.
     episode_fraction: float | None = None
 
     @override
@@ -120,7 +120,7 @@ class Sim2CamLiberoDataConfig(DataConfigFactory):
 
 @dataclasses.dataclass(frozen=True)
 class SubsetDataConfig(DataConfig):
-    """DataConfig carrying an episode_fraction marker for a compatible subset-aware loader.
+    """DataConfig carrying episode_fraction for the ManiGuard subset-aware loader.
 
     This dataclass stores the marker and does not filter episodes itself.
     """
