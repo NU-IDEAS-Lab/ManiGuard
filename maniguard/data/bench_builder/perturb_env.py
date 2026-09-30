@@ -686,7 +686,7 @@ def _process_task(out_fam: Path, task: str, family: str, episode: int, env: dict
     settle_sig = (is_liquid and row.get("status") == "infeasible" and row.get("ltl_violated")
                   and not row.get("fallen") and float(row.get("arm_drift") or 0.0) < ARM_DRIFT_TOL)
     if settle_sig:
-        return {**row, "note": "liquid settle: deferred to settle-fix pass"}
+        return {**row, "note": "Liquid settling failed safety checks; substitution was not attempted."}
 
     base_si = json.loads((base_dir / f"scene_ep{episode}.json").read_text(encoding="utf-8"))
     pack = eg.compute_pack_footprint(base_si, diag)

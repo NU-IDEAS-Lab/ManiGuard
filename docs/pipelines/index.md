@@ -121,3 +121,13 @@ Two validation layers run sequentially:
 - **LTL safety rollout** (during execution, semantic): "Does the scene remain
   safe and semantically intact over time?" `combined_ltl` from
   `ltl_safety.json` is evaluated step by step by `TaskLTLMonitor`.
+
+## Donor assets for saved-task edits
+
+The Jar `tools/bench_surgery/jar/swap_content.py` and Stack
+`tools/bench_surgery/stack/swap_object.py` tools search the corresponding
+ManiGuard-Bench family directory for donor scale/hash metadata by default.
+Pass `--donor-root /path/to/family` to search another task collection; the option
+can be repeated. Stack thickness metadata follows `OMNIGIBSON_DATA_PATH`, with
+`behavior-1k/datasets` as the default. These commands edit saved task files;
+re-finalization and review are still required after a replacement.

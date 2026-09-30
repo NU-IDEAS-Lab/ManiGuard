@@ -281,7 +281,7 @@ def main():
     p.add_argument("--copies", type=int, default=2,
                    help="Number of identical copies stacked per column (>=2).")
     p.add_argument("--settle-steps", type=int, default=30,
-                   help="Physics steps for gravity settle (≥10 per spec).")
+                   help="Physics steps for gravity settling.")
     p.add_argument("--shake-velocity", type=float, default=0.3,
                    help="Random horizontal velocity (m/s) applied to every "
                         "copy after the gravity settle. 0.0 disables shake.")

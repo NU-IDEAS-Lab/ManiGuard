@@ -602,16 +602,12 @@ def main() -> int:
     ap.add_argument("--skip-existing", action="store_true")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--max-attempts", type=int, default=5,
-                    help="re-randomize the displacement up to N times until the moved scene passes "
-                         "the gate+LTL checks; if all fail the task is reported")
+                    help="Attempts per phase: up to N primary and N fallback attempts.")
     ap.add_argument("--reach-window", default=None,
-                    help="comfortable reach band 'LO,HI' (m) the manipuland(s) must land in, e.g. "
-                         "'0.40,0.80'; tighter than the gate's [0.20,1.10]. For surgical re-gen of "
-                         "tasks where the object landed too close to / far from the arm.")
+                    help="Optional target reach band LO,HI in meters for sampled moves.")
     ap.add_argument("--force-move", default=None,
-                    help="hard-tune: deterministically rigid-shift the whole layout by world 'DX,DY' "
-                         "(m), no random retry. For marginal tasks where the user dictates a safe "
-                         "direction. Use with a single --tasks <id>.")
+                    help="Translate each move unit by world DX,DY meters without random retries. "
+                         "Bypasses surface clamping, reach-window, and cabinet-overlap rejection.")
     args = ap.parse_args()
 
     rw = None

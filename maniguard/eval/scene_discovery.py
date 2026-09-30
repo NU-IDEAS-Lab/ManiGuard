@@ -114,7 +114,7 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             # before selecting an object category.
             food_synset = sel.get("food_synset", "")
             if not food_synset:
-                print(f"  Skipping {scene_key}: dusty degraded merge batch (no synset/prompt)")
+                print(f"  Skipping {scene_key}: missing selection.food_synset")
                 continue
             # Prefer the category declared by the food spawn specification,
             # then fall back to the synset stem.
@@ -159,8 +159,8 @@ def discover_scenes(benchmark_root: str, scene_names=None, max_scenes=None):
             target_name = _match_category(init_info, _category_from_synset(sel.get("target_synset", "")))
 
         else:
-            # Safety: a pipeline that belongs to no 6fam-base family.
-            print(f"  Skipping {scene_key}: unrecognized pipeline '{pipeline}' (not a 6fam-base family)")
+            # Unsupported pipeline identifier.
+            print(f"  Skipping {scene_key}: unsupported pipeline '{pipeline}'")
             continue
 
         if not target_name:

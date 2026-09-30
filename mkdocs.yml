@@ -76,6 +76,8 @@ extra_javascript:
 
 # Files / globs to ignore when building.
 exclude_docs: |
+  /superpowers/
+  /datagen/debug_logs/
   graspability_classified.csv
   graspability_classified.html
 

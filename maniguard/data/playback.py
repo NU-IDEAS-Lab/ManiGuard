@@ -345,7 +345,7 @@ def main():
     p.add_argument("--controller", choices=["eef", "joint"], default="joint",
                    help="State convention to record (default: joint). "
                         "'joint' = joint_8d [arm_q(7), gripper_pos(1)] for a "
-                        "JointController policy; 'eef' = eef_8d (legacy LIBERO "
+                        "JointController policy; 'eef' = eef_8d (LIBERO "
                         "path). Independent of --cams.")
     p.add_argument("--cams", type=int, choices=[2, 3], default=3,
                    help="Camera set (default: 3; see CAMERA_SETS). "
@@ -354,7 +354,7 @@ def main():
     p.add_argument("--diagnostics", type=str, default=None,
                    help="Path to the source task's diagnostics.jsonl; its recorded "
                         "cameras poses are applied (the shared load-side rule). "
-                        "Omit only for legacy scenes without recorded poses.")
+                        "Omit only for scenes without recorded camera poses.")
     args = p.parse_args()
 
     # DataPlaybackWrapper precondition.

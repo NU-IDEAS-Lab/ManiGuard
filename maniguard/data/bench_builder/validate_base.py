@@ -211,7 +211,7 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
         expected_non_robot = 1 + n_task + (1 if marker_expected else 0)
         checks["object_count"] = len(non_robot) == expected_non_robot
         if not checks["object_count"]:
-            warnings.append(f"non-robot objs {len(non_robot)} != expected {expected_non_robot} (legacy spawn_specs)")
+            warnings.append(f"non-robot objs {len(non_robot)} != expected {expected_non_robot} (estimated from spawn_specs)")
 
     # spawn shortfall: a minor 1-2 object drop at generation time is normal, but a SEVERE under-placement
     # (< SHORTFALL_FRAC of the designed task objects) FAILS the task so it surfaces in the manifest as a
