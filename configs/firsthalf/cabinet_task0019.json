@@ -1,36 +1,15 @@
 {
   "_doc": [
-    "Cabinet firsthalf horizon variant -- the sim counterpart of the real-robot",
-    "'higher-firsthalf' setup, which ends once the blocking object is moved aside and the",
-    "drawer is pulled open (the full-horizon real policy is 'higherZ').",
-    "",
-    "Applied at load time by maniguard.eval.horizon_override to the SAME dict that datagen",
-    "reads as `diagnostics` and eval reads as `scene_info`, so the success check and the",
-    "language instruction change together in both pipelines. The bench on disk is never",
-    "modified.",
-    "",
-    "LTL safety is inherited unchanged and is deliberately not listed here: cabinet's three",
-    "constraints are pure safety formulas (G ...), which stay meaningful on a truncated",
-    "horizon.",
-    "",
-    "min_position CALIBRATION: the drawer is pulled to `open_dist`, which the datagen",
-    "reachability search derives per task and then derates by OPEN_DIST_SAFETY=0.88, so it",
-    "is a fixed constant for this task but is not recorded in the bench. The value below is",
-    "set from the ACHIEVED end-of-demo joint positions measured over the collected demos",
-    "(see _calibration). It is a LOWER bound, not a band: the drawer has a hard stop, and a",
-    "policy that pulls it further than the demonstrations did has done better, not worse.",
-    "",
-    "OOD LEVELS: target/, env/ and location/ carry the SAME entry as base/. The threshold is a",
-    "property of the cabinet, and all four levels instantiate the identical asset (bottom_cabinet",
-    "model bamfsz, joint j_link_1, verified against each level's cabinet_info), so the stroke and",
-    "therefore the bound are unchanged. The perturbations move other things: target/ recolours the",
-    "manipulable, env/ swaps the room and raises the desk, location/ moves the object positions.",
-    "location/ was added 2026-08-09 for the position-OOD arm of the sim2real study, matching the",
-    "physical protocol, which perturbs position as well. language/ stays intentionally absent, and",
-    "a miss still raises rather than silently evaluating the full-horizon task."
+    "Cabinet drawer-opening variant used for the Q5 sim-to-real evaluation.",
+    "Success requires joint j_link_1 on cabinet_bottom_cabinet_ep1_1 to reach at least 0.2494 m.",
+    "The variant ends at drawer opening; placing an object inside and closing the drawer are not required.",
+    "Collection and evaluation apply this table at load time to replace the prompt and goal conditions.",
+    "Safety constraints are inherited from the benchmark task.",
+    "The opening threshold is calibrated from the achieved joint positions in five demonstrations (see _calibration).",
+    "The base, target, env and location conditions use the same bottom_cabinet model bamfsz and joint j_link_1, so the threshold is shared across these conditions."
   ],
   "_calibration": {
-    "status": "CALIBRATED from a 5-demo run (outputs/datagen/s2r_cab_fh_calib), 2026-08-01",
+    "status": "Calibrated from five demonstrations.",
     "stroke_m": 0.3603561818599701,
     "open_dist_gate": 0.289,
     "open_dist_commanded": 0.2546,
@@ -47,7 +26,7 @@
       ]
     },
     "rule": "min(achieved) * 0.95",
-    "note": "Servo overshoot is single-sided positive (every demo ended PAST the commanded 0.2546), so the bound needs no margin for undershoot. The threshold sits below the commanded distance: a policy need only pull to where the demos were told to pull, not reproduce the overshoot. Well clear of the historical half-open failure mode (~0.127). Used by BOTH the datagen gate and eval -- one number, one meaning."
+    "note": "The threshold is 95% of the minimum achieved joint position, rounded to four decimal places. It is a lower bound: larger openings also satisfy the goal. Collection and evaluation use the same threshold."
   },
   "tasks": {
     "cabinet_pickup/task_0019/base": {

@@ -1491,7 +1491,7 @@ def _build_configs() -> list[TrainConfig]:
             ema_decay=None,
         ),
         TrainConfig(
-            # cabinet task_0019, FULL horizon (open -> place -> close) <-> real `higherZ`.
+            # Cabinet task_0019: full task (open, place inside, and close).
             # 190,701 frames / batch 32 -> 8.4 epochs over 50,000 steps.
             name="pi05-base_sim2real_cabinet_task0019_sim_lora",
             project_name="maniguard-sft-sim2real-yanZ",
@@ -1539,7 +1539,7 @@ def _build_configs() -> list[TrainConfig]:
             ema_decay=None,
         ),
         TrainConfig(
-            # cabinet task_0019, FIRSTHALF (blocker aside + drawer open) <-> real `higher-firsthalf`.
+            # Cabinet task_0019: drawer-opening variant for Q5 sim-to-real evaluation.
             # 126,982 frames / batch 16 -> 6.3 epochs over 50,000 steps.
             name="pi05-base_sim2real_cabinet_task0019_firsthalf_sim_lora",
             project_name="maniguard-sft-sim2real-yanZ",
@@ -1680,7 +1680,7 @@ def _build_configs() -> list[TrainConfig]:
             ema_decay=None,
         ),
         TrainConfig(
-            # cabinet task_0019, FULL horizon (open -> place -> close) <-> real `higherZ`.
+            # Cabinet task_0019: full task (open, place inside, and close).
             # 190,701 frames / batch 32 -> 8.4 epochs over 50,000 steps.
             name="pi0-base_sim2real_cabinet_task0019_sim_lora",
             project_name="maniguard-sft-sim2real-yanZ",
@@ -1725,7 +1725,7 @@ def _build_configs() -> list[TrainConfig]:
             ema_decay=None,
         ),
         TrainConfig(
-            # cabinet task_0019, FIRSTHALF (blocker aside + drawer open) <-> real `higher-firsthalf`.
+            # Cabinet task_0019: drawer-opening variant for Q5 sim-to-real evaluation.
             # 126,982 frames / batch 16 -> 6.3 epochs over 50,000 steps.
             name="pi0-base_sim2real_cabinet_task0019_firsthalf_sim_lora",
             project_name="maniguard-sft-sim2real-yanZ",

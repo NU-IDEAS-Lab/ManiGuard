@@ -4,6 +4,11 @@ Combine category mass, volume, and density metadata with per-model bounding
 boxes. Include empty fields for manual notes about real-object counterparts.
 The exported records contain dimensions and volume, not base-link offsets.
 
+Category specifications come from the BEHAVIOR-1K submodule. Model metadata
+comes from OMNIGIBSON_DATA_PATH/behavior-1k-assets/objects when set, otherwise
+from behavior-1k/datasets/behavior-1k-assets/objects under the repository root.
+Unreadable model metadata is logged and skipped; other models remain eligible.
+
 Example:
     python -m maniguard.task_generation.utils.build_sim_to_real --categories mug,plate,bowl --output sim_to_real.json"""
 
@@ -12,8 +17,9 @@ import json
 import logging
 import os
 import sys
+from pathlib import Path
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Default tableware categories to export.
 DEFAULT_CATEGORIES = [
@@ -31,13 +37,10 @@ DEFAULT_CATEGORIES = [
     "gravy_boat", "watering_can", "lid", "chopping_board",
 ]
 
-REPO_ROOT = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..")
-)
-AVG_SPECS_PATH = os.path.join(
-    REPO_ROOT, "OmniGibson", "omnigibson", "configs", "avg_category_specs.json"
-)
-OBJECTS_ROOT = os.path.join(REPO_ROOT, "datasets", "behavior-1k-assets", "objects")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+AVG_SPECS_PATH = REPO_ROOT / "behavior-1k/OmniGibson/omnigibson/configs/avg_category_specs.json"
+DATA_ROOT = Path(os.environ.get("OMNIGIBSON_DATA_PATH", REPO_ROOT / "behavior-1k/datasets"))
+OBJECTS_ROOT = DATA_ROOT / "behavior-1k-assets/objects"
 
 
 def log(msg):
@@ -53,7 +56,7 @@ def read_model_metadata(category, model_id):
         with open(path) as f:
             return json.load(f)
     except Exception as exc:
-        log.warning("read_model_metadata(%s) failed: %s", path, exc)
+        logger.warning("read_model_metadata(%s) failed: %s", path, exc)
         return None
 
 
