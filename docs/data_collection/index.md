@@ -881,18 +881,43 @@ It assembles 8-D state `[joint_position(7), gripper]` + 8-D action
 `--push-to-hub`) creates the required v2.1 tag. fps 15; the DROID schema keeps the state
 columns separate rather than a single `state` column.
 
-**Via sim-compatible HDF5 — `real_teleop_to_hdf5`.** For the eef-convention path, first
-emit an HDF5 that matches the sim teleop Stage-2 input schema, then reuse the shared
-export above:
+**Via sim-compatible HDF5 — `real_teleop_to_hdf5`.** For the EEF-convention
+path, convert one task's NPZ directory at a time with an explicit task ID:
 
 ```bash
 python -m maniguard.data.real_teleop.real_teleop_to_hdf5 \
-  --input-dir outputs/real_teleop --output-dir outputs/real_rendered --img-size 256
+  --input-dir outputs/real_teleop/task_0000 \
+  --output-dir outputs/real_rendered --img-size 256 --task-id task_0000
 ```
 
-Each episode becomes `state` = `eef_pos(3) + axisangle(3) + gripper(2)` (8-D) and
-`action` = `dpos(3) + drot_axisangle(3) + gripper(1)` (7-D), with `image` +
-`wrist_image`. That HDF5 then goes through the same **Stage 2** export as sim teleop.
+All NPZs in that input directory must share the same task and instruction.
+Repeat for other task IDs using the same output directory. The output names
+are `task_0000_traj_000.hdf5`, etc.; without `--task-id`, the converter retains
+its default `traj_0.hdf5` names, which the multitask exporter does not discover.
+
+Each HDF5 has `controller_mode="eef"` and `n_cams=2` on its `data` group:
+`state` is `eef_pos(3) + axisangle(3) + gripper(2)` (8-D), and `action` is
+`dpos(3) + drot_axisangle(3) + gripper(1)` (7-D). `image` is capture `cam0`;
+`wrist_image` is capture `cam1`. An episode needs at least two observations,
+matching pose/gripper/camera frame counts, and finite pose/gripper values.
+Invalid inputs are rejected before the episode's HDF5 is written.
+
+For each task, put its instruction in
+`outputs/real_prompts/task_0000/diagnostics.jsonl`, for example:
+
+```json
+{"prompt": "Put the cup on the tray."}
+```
+
+Then export with the actual capture frequency and the conversion resolution
+(the command below uses 30 Hz as an example):
+
+```bash
+python -m maniguard.data.lerobot.multitask_lerobot_export \
+  --input-root outputs/real_rendered --diag-root outputs/real_prompts \
+  --repo-id local/real-teleop --root outputs/real_teleop_lerobot \
+  --fps 30 --resolution 256
+```
 
 The resulting datasets use the same LeRobot v2.1 conventions as the sim sources — see
 [SFT dataset & data-source configs](../fine_tuning/dataset_and_config.md).

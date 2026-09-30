@@ -55,6 +55,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 
 import cv2
@@ -115,12 +116,27 @@ def _delta_axisangle_wxyz(q_prev: np.ndarray, q_next: np.ndarray) -> np.ndarray:
 
 
 def convert_episode(npz_path: Path, hdf5_out: Path, img_size: int) -> None:
-    d = np.load(npz_path, allow_pickle=True)
+    if img_size <= 0:
+        raise ValueError("img_size must be positive")
+    with np.load(npz_path, allow_pickle=True) as d:
+        cart = d["observation/cartesian_position"].astype(np.float32)
+        grip = d["observation/gripper_position"].astype(np.float32)
+        base_jpegs = d["observation/image/cam0"]
+        wrist_jpegs = d["observation/image/cam1"]
 
-    cart = d["observation/cartesian_position"].astype(np.float32)  # (N+1, 7) wxyz at [3:7]
+    if cart.ndim != 2 or cart.shape[1] != 7 or len(cart) < 2:
+        raise ValueError(f"{npz_path}: cartesian_position must have shape (T, 7) with T >= 2; got {cart.shape}")
+    if grip.shape != (len(cart),):
+        raise ValueError(f"{npz_path}: gripper_position must have shape ({len(cart)},); got {grip.shape}")
+    if len(base_jpegs) != len(cart) or len(wrist_jpegs) != len(cart):
+        raise ValueError(
+            f"{npz_path}: camera/pose frame counts differ: "
+            f"cam0={len(base_jpegs)}, cam1={len(wrist_jpegs)}, pose={len(cart)}"
+        )
+    if not np.all(np.isfinite(cart)) or not np.all(np.isfinite(grip)):
+        raise ValueError(f"{npz_path}: pose and gripper values must be finite")
     pos = cart[:, :3]
     quat_wxyz = _quat_continuous_wxyz(cart[:, 3:7])
-    grip = d["observation/gripper_position"].astype(np.float32)    # (N+1,)
 
     # ---- state (N+1, 8): eef_pos(3) + axisangle(3) + gripper_{L,R}_m (x2) ----
     # gripper_position is normalized [0, 1] (0 = open, 1 = closed). Map to
@@ -139,8 +155,6 @@ def convert_episode(npz_path: Path, hdf5_out: Path, img_size: int) -> None:
     action = np.concatenate([dpos, drot, grip_next_sign], axis=1).astype(np.float32)
 
     # ---- images (N+1, S, S, 3) uint8 ----
-    base_jpegs = d["observation/image/cam0"]
-    wrist_jpegs = d["observation/image/cam1"]
     n = len(base_jpegs)
     image = np.empty((n, img_size, img_size, 3), dtype=np.uint8)
     wrist_image = np.empty((n, img_size, img_size, 3), dtype=np.uint8)
@@ -151,6 +165,8 @@ def convert_episode(npz_path: Path, hdf5_out: Path, img_size: int) -> None:
     hdf5_out.parent.mkdir(parents=True, exist_ok=True)
     with h5py.File(hdf5_out, "w") as f:
         demo = f.create_group("data/demo_0")
+        f["data"].attrs["controller_mode"] = "eef"
+        f["data"].attrs["n_cams"] = 2
         demo.create_dataset("obs/image", data=image, compression="gzip", compression_opts=4)
         demo.create_dataset("obs/wrist_image", data=wrist_image, compression="gzip", compression_opts=4)
         demo.create_dataset("obs/state", data=state)
@@ -162,9 +178,17 @@ def convert_episode(npz_path: Path, hdf5_out: Path, img_size: int) -> None:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", type=Path, required=True, help="Directory with <id>.npz real teleop files")
-    parser.add_argument("--output-dir", type=Path, required=True, help="Output directory for traj_*.hdf5")
+    parser.add_argument("--output-dir", type=Path, required=True, help="Output directory for episode HDF5s")
     parser.add_argument("--img-size", type=int, default=256, help="Square image resize target (default 256)")
+    parser.add_argument(
+        "--task-id", help="Task ID (e.g. task_0000) shared by all input NPZs; emits task_*_traj_*.hdf5. "
+        "Without this option, uses traj_*.hdf5 filenames.",
+    )
     args = parser.parse_args()
+    if args.img_size <= 0:
+        parser.error("--img-size must be positive")
+    if args.task_id is not None and re.fullmatch(r"task_[0-9]+", args.task_id) is None:
+        parser.error("--task-id must have the form task_<digits>, e.g. task_0000")
 
     npz_files = sorted(args.input_dir.glob("*.npz"))
     if not npz_files:
@@ -172,7 +196,8 @@ def main():
 
     print(f"[Real->HDF5] Converting {len(npz_files)} episodes from {args.input_dir}")
     for i, npz_path in enumerate(npz_files):
-        hdf5_out = args.output_dir / f"traj_{i}.hdf5"
+        filename = f"{args.task_id}_traj_{i:03d}.hdf5" if args.task_id is not None else f"traj_{i}.hdf5"
+        hdf5_out = args.output_dir / filename
         convert_episode(npz_path, hdf5_out, args.img_size)
     print(f"[Real->HDF5] Done. {len(npz_files)} HDF5 files in {args.output_dir}")
 
