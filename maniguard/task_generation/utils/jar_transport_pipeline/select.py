@@ -8,6 +8,7 @@ Item models are read from table_obstacle_pool.json."""
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -24,10 +25,9 @@ _OBSTACLE_POOL_PATH = (
     / "maniguard" / "task_generation" / "utils" / "clutter_pipeline"
     / "table_obstacle_pool.json"
 )
-_JAR_ASSETS_DIR = (
-    _PROJECT_ROOT
-    / "behavior-1k" / "datasets" / "behavior-1k-assets" / "objects"
-)
+_JAR_ASSETS_DIR = Path(os.environ.get(
+    "OMNIGIBSON_DATA_PATH", _PROJECT_ROOT / "behavior-1k" / "datasets",
+)) / "behavior-1k-assets" / "objects"
 
 JAR_CATEGORY = "hinged_jar"
 JAR_SYNSET = "hinged_jar.n.01"

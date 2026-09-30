@@ -59,27 +59,55 @@ python -m maniguard.task_generation.run_benchmark \
 Pipeline choices for `--pipeline` (keys of `_PIPELINE_SCRIPTS`): `table`
 (clutter), `transfer`, `dusty_transfer`, `stack` (+ `stack_same` / `stack_flat`
 / `stack_receptacle`), `lid_transport`, `liquid_transport`, `wet_transport`,
-`jar_transport`, `cabinet_pickup`. The empty-scene families (`cabinet_pickup`,
-`jar_transport`) are usually run via their own CLI with `--task-id` rather than
-the per-scene benchmark loop.
+`jar_transport`, `cabinet_pickup`. Cabinet and Jar construct their own scene;
+use trials rather than `--scenes` for those generators:
 
-## Dry-run (BDDL + LTL only, no simulator)
+```bash
+python -m maniguard.task_generation.run_benchmark \
+  --pipeline jar_transport --num-trials 3 --episodes 1 --seed 0 \
+  --output-dir outputs/benchmark_runs/jar_trial
+```
+
+Resume with the same pipeline, scene/trial list and generation settings, replacing
+`--output-dir` with `--resume`. Completed outputs are checked again before being
+skipped. Remaining trials keep their original indices and seeds, and the summary
+retains already-completed trials. A failed prior attempt is retried even if older
+files remain in its directory. Reusing a run with different recorded settings is
+rejected before launching workers.
+
+## Dry-run (asset selection, safety specification and offline layout)
 
 ```bash
 python -m maniguard.task_generation.clutter_scene_pipeline \
   --scene-model Benevolence_1_int --dry-run
 ```
 
+Dry-run selects assets, prepares the task specification, and runs the pipeline's
+offline layout planner without starting simulation. Its `event: "dry_run"`
+diagnostics describe the plan. Clutter, Liquid and Wet omit the runtime-only
+active-object, removed-object and camera fields; these remain available after
+normal simulated placement. A dry-run does not establish physical stability or
+runtime safety.
+
 ## Artifact contract
 
-A successful scene run is expected to produce, at minimum:
+The batch runner checks `diagnostics.jsonl`, each `scene_ep<N>.json`, and the
+four `rollout_<view>_ep<N>.mp4` files (opposite, left, right and shoulder).
+Single-video `rollout_ep<N>.mp4` outputs are also recognized. Scene-oriented
+pipelines place these files in the run directory; standalone Cabinet and Jar
+place snapshots and videos under `snapshots/epNNN/` and also write aggregate
+diagnostics in the run directory. `stdout.log` captures each subprocess.
 
-| File | Purpose |
-|---|---|
-| `diagnostics.jsonl` | Outcome signals: gate results, LTL status, density, active-object summary |
-| `scene_ep1.json` | Frozen scene snapshot for replay, rerendering, later evaluation |
-| `stdout.log` | Runtime trace for debugging |
-| `rollout_ep1.mp4` | Canonical human-reviewable video |
+Diagnostics must contain a Boolean gate and safety verdict for every requested
+episode. Empty/missing files, incomplete diagnostics and unchanged files left by
+an earlier attempt prevent a new attempt from being accepted. A worker exiting
+with `-11` may be accepted only after these output checks pass; the exit error
+remains in the summary. The command returns nonzero if any attempt fails.
+
+Summary `status: success` means generation completed with the expected outputs;
+it is separate from task success and safety. For multi-episode runs, `gate_pass`
+requires all episodes to pass and `ltl_violated` reports whether any episode
+violated its specification. These file/record checks do not replay the physics.
 
 ## Gate vs LTL — what's the difference?
 

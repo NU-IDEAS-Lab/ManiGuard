@@ -118,7 +118,7 @@ def parse_args():
     # Output
     p.add_argument("--task-id", type=int, default=None,
                    help="When set, write outputs under "
-                        "<tasks-out-dir>/task_<task_id:04d>/base/ (6fam).")
+                        "<tasks-out-dir>/task_<task_id:04d>/base/.")
     p.add_argument("--tasks-out-dir", default=None,
                    help="Defaults to datasets/jar_transport-base-<date>/")
     p.add_argument("--run-dir", default=None)

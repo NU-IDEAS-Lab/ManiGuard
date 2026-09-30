@@ -1375,7 +1375,7 @@ class BasePipeline(ABC):
                           for _ in range(args.episodes)]
         required_areas = [s["required_area_m2"] for s in pre_selections]
         required = max(required_areas)
-        print(f"[Pipeline] Pre-selected {len(pre_selections)} episode triples; "
+        print(f"[Pipeline] Pre-selected {len(pre_selections)} episode object sets; "
               f"required_area max={required:.3f} m² "
               f"(min={min(required_areas):.3f}, "
               f"mean={sum(required_areas)/len(required_areas):.3f})")

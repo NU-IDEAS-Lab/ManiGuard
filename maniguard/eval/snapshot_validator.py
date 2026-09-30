@@ -1620,8 +1620,8 @@ def _ltl_checks(
     horizon_steps: int,
     video_recorder: ReviewVideoRecorder | None = None,
 ) -> list[ValidationCheck]:
-    from omnigibson.task_generation.pipeline_common import stabilize_and_validate
-    from omnigibson.utils.safety_monitor import TaskLTLMonitor
+    from maniguard.task_generation.pipeline_common import stabilize_and_validate
+    from maniguard.utils.safety_monitor import TaskLTLMonitor
 
     checks: list[ValidationCheck] = []
     if bundle.problem_file is None or not bundle.problem_file.is_file():
@@ -2021,6 +2021,7 @@ def validate_root(
     video_fps: int = 10,
     video_cameras: Sequence[str] | None = None,
     max_tasks: int | None = None,
+    video_output_exact_dir: bool = False,
 ) -> dict[str, Any]:
     task_dirs = list(iter_task_dirs(Path(root).resolve()))
     if max_tasks is not None:
@@ -2034,6 +2035,9 @@ def validate_root(
         session = RuntimeValidationSession(activity_root=resolved_activity_root, headless=headless).__enter__()
     try:
         for task_dir in task_dirs:
+            task_save_video = save_video
+            if video_output_exact_dir and save_video not in {None, "auto"}:
+                task_save_video = Path(save_video) / task_dir.relative_to(Path(root).resolve())
             reports.append(
                 validate_task(
                     family=family,
@@ -2044,10 +2048,11 @@ def validate_root(
                     headless=headless,
                     runtime_steps=runtime_steps,
                     ltl_horizon_steps=ltl_horizon_steps,
-                    save_video=save_video,
+                    save_video=task_save_video,
                     video_fps=video_fps,
                     video_cameras=video_cameras,
                     session=session,
+                    video_output_exact_dir=video_output_exact_dir,
                 ).to_dict()
             )
     finally:

@@ -335,11 +335,14 @@ class ClutterPipeline(BasePipeline):
             "pipeline": "table",
             "density": ctx.args.clutter_density,
             "selection": ctx.selection,
-            "active_object_summary": ctx._active_object_summary,
-            "removed_area_objects": list(ctx.removed_area_objects),
-            "removed_robot_base_objects": list(ctx.removed_robot_base_objects),
-            "resolved_video_views": list(ctx.resolved_video_views),
         }
+        if not ctx.args.dry_run:
+            extra.update({
+                "active_object_summary": ctx._active_object_summary,
+                "removed_area_objects": list(ctx.removed_area_objects),
+                "removed_robot_base_objects": list(ctx.removed_robot_base_objects),
+                "resolved_video_views": list(ctx.resolved_video_views),
+            })
         return extra
 
 

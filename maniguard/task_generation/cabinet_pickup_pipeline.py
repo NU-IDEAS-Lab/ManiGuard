@@ -115,7 +115,7 @@ def parse_args():
                         "edge and the robot base.")
     p.add_argument("--surface-category", default=None,
                    help="Pin a specific surface category (random if "
-                        "omitted, picked area-weighted from "
+                        "omitted, selected uniformly from eligible regions in "
                         "placeable_surfaces_v1.json).")
     p.add_argument("--surface-model", default=None,
                    help="Pin a specific surface model id.")
@@ -178,8 +178,8 @@ def parse_args():
     p.add_argument("--task-id", type=int, default=None,
                    help="When set, write outputs under "
                         "<tasks-out-dir>/task_<task_id:04d>/base/ "
-                        "(the 6fam convention). When omitted, falls back "
-                        "to the original outputs/pipeline_runs/... layout.")
+                        "(the task-directory layout). When omitted, writes "
+                        "to outputs/pipeline_runs/... instead.")
     p.add_argument("--tasks-out-dir", default=None,
                    help="Parent directory for --task-id layout. Defaults "
                         "to datasets/cabinet_pickup-base-<date>/.")
@@ -313,7 +313,7 @@ def _pick_from_obstacle_pool(rng, obstacle_pool, override_cat=None,
         if models is None:
             raise RuntimeError(
                 f"obstacle override category {override_cat!r} not in "
-                "the filtered obstacle pool (raise --min-object-extent-m "
+                "the filtered obstacle pool (lower --min-object-extent-m "
                 "if the category was filtered out for being too small)."
             )
         if override_model is not None:
