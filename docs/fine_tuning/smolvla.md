@@ -6,12 +6,10 @@ model-agnostic; SmolVLA only differs in how the shared cameras/state/action are
 presented to it.
 
 SmolVLA is **LeRobot-native**: it is fine-tuned with the upstream `lerobot-train`
-CLI and has **no config registry and no embodiment registration**. `lerobot-train`
-derives the policy's input/output features straight from the dataset's *standard*
-key prefixes (`observation.images.*` → visual, `observation.state` → state,
-`action` → action), and the architecture is agnostic to camera count and pads the
-state/action vectors to its internal width. So the ManiGuard side is the thinnest
-of the three tracks: a small embodiment *contract* plus CLI-wrapping tools.
+CLI. The dataset uses standard observation/action keys; the training launcher
+maps its two camera names to the pretrained policy's expected keys. Saved
+processors carry this mapping and the dataset normalization statistics into
+evaluation. The model pads state/action vectors to its internal width.
 
 ## Why SmolVLA needs a data-prep (rename) step
 
@@ -20,7 +18,7 @@ The ManiGuard datagen export uses **flat, non-standard keys** (`image_left`,
 GR00T consume those flat keys through an indirection layer (openpi's
 `RepackTransform`, GR00T's `modality.json` `original_key`). `lerobot-train` has no
 such indirection — it classifies features purely by standard key prefix. So a
-one-time prep step rebuilds a **2-camera, standard-keyed** copy of the dataset:
+one-time prep step creates a **2-camera, standard-keyed v3.0** copy of the dataset:
 
 | datagen (source) | → SmolVLA (standard) | note |
 |---|---|---|
@@ -31,11 +29,11 @@ one-time prep step rebuilds a **2-camera, standard-keyed** copy of the dataset:
 | `image_opposite` / `image_right` / `image_left_shoulder` | — | dropped |
 | `actions_commanded` | — | dropped |
 
-Two cameras (overview + wrist) keep parity with the pi0.5 and GR00T tracks
-(identical visual input → a fair benchmark). Videos are passthrough (H.264 copied
-as-is; AV1 transcoded to H.264 so LeRobot's decoder works everywhere). The mapping
-is defined once in `maniguard/smolvla_sft/embodiment.py` (the single source of
-truth) and applied by `prepare_dataset.py`.
+The preparation script copies the selected videos without re-encoding, renames
+Parquet columns and statistics without changing state/action values, and converts
+the copy from v2.1 to v3.0 with one episode per video file. The five-camera release
+remains v2.1. Choose a fresh output directory; existing output and converter
+intermediate directories are not overwritten.
 
 ## Embodiment & schema
 
@@ -54,34 +52,51 @@ truth) and applied by `prepare_dataset.py`.
 | Push checkpoint + card to HF | `tools/smolvla_sft/push_to_hf.py` |
 | End-to-end 6-family driver | `tools/smolvla_sft/run_all.sh` |
 
-Training runs against a **`huggingface/lerobot` clone** (pinned tag, installed with
-the `smolvla` extra) in the same environment that produces the prepared dataset.
-Model repos follow
-`<org>/smolvla-base-datagen-v1-<fam>-joint-2cam` (e.g.
-`IDEAS-Lab-Northwestern/smolvla-base-datagen-v1-clutter-joint-2cam`); run/experiment
-names follow `smolvla-base_datagen_v1_<fam>_joint_2cam` (no `_lora` suffix — SmolVLA
-does not use LoRA).
+## Runtime setup
+
+Use Python 3.12 and the pinned upstream LeRobot source (package version 0.5.1):
+[`1396b9fab7aecddd10006c33c47a487ffdcb54b4`](https://github.com/huggingface/lerobot/commit/1396b9fab7aecddd10006c33c47a487ffdcb54b4).
+The supplied runtime patch bounds video-decoder caching and applies the configured
+tokenizer length when loading pretrained processors.
+
+From the ManiGuard repository root, in a dedicated training environment:
+
+```bash
+MANIGUARD_ROOT="$(pwd)"
+git clone https://github.com/huggingface/lerobot.git /path/to/lerobot
+git -C /path/to/lerobot checkout 1396b9fab7aecddd10006c33c47a487ffdcb54b4
+git -C /path/to/lerobot apply "$MANIGUARD_ROOT/tools/smolvla_sft/lerobot-runtime.patch"
+python -m pip install -e '/path/to/lerobot[smolvla]'
+```
+
+FFmpeg must be available for dataset conversion. The default training video
+backend is `torchcodec`; set `VIDEO_BACKEND=pyav` to use the PyAV backend.
 
 ## Running
 
-One family, or all six serially (download → prepare → train → push):
+Prepare a training copy in the LeRobot environment:
 
 ```bash
-export HF_TOKEN=...  WANDB_API_KEY=...          # both required (pre-flight checked)
-bash tools/smolvla_sft/run_all.sh --family clutter
-bash tools/smolvla_sft/run_all.sh --all
+python tools/smolvla_sft/prepare_dataset.py \
+  --src /path/to/datagen-clutter-v1-joint-5cam \
+  --out /path/to/clutter-smolvla-v3 \
+  --repo-id maniguard/clutter --external-cam left
 ```
 
-Each family downloads its `datagen-<fam>-v1-joint-5cam` dataset once into the shared
-cache (`MANIGUARD_SFT_DATA_ROOT`, default `outputs/sft_datasets/`, shared with the
-openpi and GR00T tracks), prepares the 2-cam copy, trains ~2 epochs, and pushes.
-Steps derive from each dataset's frame count as `ceil(frames × 2 / batch)`.
+Then launch training with the chosen schedule:
 
-## Notes
+```bash
+bash tools/smolvla_sft/run_sft.sh \
+  --dataset /path/to/clutter-smolvla-v3 --repo-id maniguard/clutter \
+  --output /path/to/checkpoints --steps 20000 --batch 64 --gpus 1 --exp-name clutter
+```
 
-- **LeRobot version pin.** The `lerobot-train` flag surface has changed across
-  releases (e.g. `--policy.path` vs the older `--policy.type`). Clone
-  `huggingface/lerobot` at a pinned tag, `pip install -e .[smolvla]`, and verify the
-  flags in `run_sft.sh` against `lerobot-train --help` for that tag.
-- **Compute knobs** (batch size, num_workers, save frequency, LR schedule): the
-  defaults in `run_all.sh` / `run_sft.sh` are starting points; tune for your hardware.
+`--batch` is per GPU. `--gpus` defaults to 1; larger values launch Accelerate DDP.
+The launcher maps `observation.images.top` and `observation.images.wrist` to the
+base model's `camera1` and `camera2` keys and saves that mapping with the processors.
+State/action vectors remain eight-dimensional; state padding occurs inside the
+model. `BASE_MODEL` can name a Hub model or a local checkpoint directory.
+
+The public launcher uses `HF_TOKEN` for base-model access and `WANDB_API_KEY` for
+its online training logs. Training saves locally with automatic Hub publication
+disabled; publishing checkpoints is a separate operation.

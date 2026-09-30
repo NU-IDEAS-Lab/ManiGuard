@@ -9,12 +9,9 @@
 # vision encoder + trains the action expert (SmolVLA's built-in `train_expert_only`,
 # no LoRA — same "freeze VLM" strategy as the GR00T N1.6 path).
 #
-# ⚠️ LeRobot version pin: the `lerobot-train` CLI flag surface has changed across
-# releases (e.g. `--policy.path` vs the older `--policy.type` / `--policy.pretrained_path`,
-# and `--steps` vs `--offline.steps`). This script targets the current `lerobot-train`
-# syntax. Clone huggingface/lerobot at a PINNED release tag and `pip install -e` it
-# in this env; verify the flags below against `lerobot-train --help` for that tag and
-# adjust if a flag was renamed. (Confirm at SFT time — see docs/sft/smolvla.md.)
+# Use the pinned LeRobot runtime and compatibility patch documented in
+# docs/fine_tuning/smolvla.md. Dataset preparation produces a v3.0 copy.
+# --batch is per GPU; --gpus selects the number of training processes.
 #
 # Prereqs (once per shell, in the lerobot env):
 #   pip install -e <lerobot_clone>[smolvla]     # provides the `lerobot-train` entry point
@@ -22,7 +19,7 @@
 #
 # Usage:
 #   bash tools/smolvla_sft/run_sft.sh --dataset <prepared_lerobot_dir> --repo-id <id> \
-#        --output <ckpt_dir> [--steps 20000] [--batch 64] [--workers 16] \
+#        --output <ckpt_dir> [--steps 20000] [--batch 64] [--gpus 1] [--workers 16] \
 #        [--exp-name clutter] [--save-freq 5000] [-- <extra lerobot-train args>...]
 #
 # Pushing the trained policy to HF is a separate step (tools/smolvla_sft/push_to_hf.py,
@@ -32,12 +29,20 @@ set -euo pipefail
 MANIGUARD_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BASE_MODEL="${BASE_MODEL:-lerobot/smolvla_base}"
 WANDB_PROJECT="${WANDB_PROJECT:-smolvla-base-joint-2cam}"
+# Saved base-model camera names; the prepared dataset uses top/wrist.
+RENAME_MAP="${RENAME_MAP:-}"
+if [ -z "$RENAME_MAP" ]; then
+    RENAME_MAP='{"observation.images.top":"observation.images.camera1","observation.images.wrist":"observation.images.camera2"}'
+fi
+VIDEO_BACKEND="${VIDEO_BACKEND:-torchcodec}"
+TOLERANCE_S="${TOLERANCE_S:-0.01}"
 
 DATASET=""
 REPO_ID=""
 OUTPUT=""
 STEPS=20000
 BATCH=64
+GPUS=1
 WORKERS=16
 SAVE_FREQ=5000
 EXP_NAME=""
@@ -50,6 +55,7 @@ while [ "$#" -gt 0 ]; do
         --output)     OUTPUT="$2"; shift 2 ;;
         --steps)      STEPS="$2"; shift 2 ;;
         --batch)      BATCH="$2"; shift 2 ;;
+        --gpus)       GPUS="$2"; shift 2 ;;
         --workers)    WORKERS="$2"; shift 2 ;;
         --save-freq)  SAVE_FREQ="$2"; shift 2 ;;
         --exp-name)   EXP_NAME="$2"; shift 2 ;;
@@ -79,7 +85,7 @@ EXP_NAME="${EXP_NAME:-$(basename "$OUTPUT")}"
 # HF_LEROBOT_HOME and gr00t's hf-download). We pass the prepared copy by explicit
 # path below, so this only keeps LeRobot's default resolution consistent.
 export HF_LEROBOT_HOME="${MANIGUARD_SFT_DATA_ROOT:-$MANIGUARD_HOME/outputs/sft_datasets}"
-mkdir -p "$HF_LEROBOT_HOME" "$OUTPUT"
+mkdir -p "$HF_LEROBOT_HOME"
 
 echo "[run_sft] family/exp=$EXP_NAME steps=$STEPS batch=$BATCH workers=$WORKERS save_freq=$SAVE_FREQ"
 echo "[run_sft] dataset=$DATASET (repo_id=$REPO_ID)"
@@ -88,11 +94,21 @@ echo "[run_sft] output=$OUTPUT  base=$BASE_MODEL  wandb_project=$WANDB_PROJECT"
 # wandb online by default for live visibility (aligned with the openpi + gr00t paths).
 # `--wandb.enable=true` with WANDB_API_KEY set logs online; set WANDB_MODE=offline for
 # a specific box that drops the online connection, then `wandb sync` after.
-lerobot-train \
+[[ "$GPUS" =~ ^[1-9][0-9]*$ ]] || { echo "--gpus must be a positive integer" >&2; exit 1; }
+LAUNCH=(lerobot-train)
+if [ "$GPUS" -gt 1 ]; then
+    LAUNCH=(accelerate launch --multi_gpu --num_processes "$GPUS"
+            --main_process_port "${MASTER_PORT:-29500}" --mixed_precision bf16 "$(command -v lerobot-train)")
+fi
+"${LAUNCH[@]}" \
     --policy.path="$BASE_MODEL" \
     --policy.device=cuda \
+    --policy.push_to_hub=false \
     --dataset.repo_id="$REPO_ID" \
     --dataset.root="$DATASET" \
+    --dataset.video_backend="$VIDEO_BACKEND" \
+    --rename_map="$RENAME_MAP" \
+    --tolerance_s="$TOLERANCE_S" \
     --batch_size="$BATCH" \
     --steps="$STEPS" \
     --num_workers="$WORKERS" \
