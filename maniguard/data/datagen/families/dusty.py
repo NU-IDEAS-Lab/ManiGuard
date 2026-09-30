@@ -1,35 +1,18 @@
-"""Dusty family skeleton — the ONLY dusty-specific code.
+"""Wipe the destination container, then pour food from a grasped source into it.
 
-dusty = ``pnp(sponge) -> wipe(dest dust) -> return(sponge) -> pnp(source, food riding) ->
-tilt-pour(food -> dest)``. It implements ``FamilySkeleton`` and nothing else: grasps come
-from the annotation DB (source rim grasps filtered by a food-distance margin; sponge
-top-down grasps loaded as a second DB read), and the ordered MotionSegment list encodes
-the five phases. Dynamic-length behaviors (the wipe tour, the tilt ramp) are fixed-budget
-segment chains whose ``compute`` tags resolve against LIVE sim state and become no-ops
-once their objective is met — the generic executor plans/executes/gates/records.
+The sequence grasps a sponge, removes destination dust, returns the sponge,
+grasps the source, and transports and tilts it to pour. Runtime compute tags
+adapt the bounded wipe and pour chains to the live scene; completed steps are
+skipped with SegmentSkip.
 
-Family-hard gates (user's laws): dust must be 100% removed before phase 3+
-(``wipe_incomplete``; checked as n_particles == 0, STRICTER than the bench's
-NOT-Covered which flips with residual particles), and the episode ends in the tilted
-pose once the food lands (teleop termination semantics — no untilt / place-back).
+Collection requires zero remaining dust particles before continuing beyond the
+wipe phase, which is stricter than the benchmark Covered predicate. The sequence
+ends after the food arrives, without returning the source to its initial pose.
 
-Spike-0 findings baked in (2026-07-07, task_0000): the datagen boot DROPS the saved dust
-group (attachment-uuid mismatch) -> ``_ensure_dust`` restores it from scene_ep1.json;
-particle removal clears only the sponge FOOTPRINT on contact (14 -> 8 then stuck at any
-hover height without lateral motion) -> the live wipe tour is load-bearing; the heavy
-dest barely moves under light touch (0.0 mm) but the displacement gate stays as a guard.
-
-Grasping mode = **sticky** (user decision). Sticky AG attaches whatever the closing
-gripper touches, so mis-grabbing the FOOD at the source grasp would silently ruin the
-pour ("food rides the gripper, never falls"). Guard chain (each layer independent):
-  1. candidate filter — grasp XY distance to food >= dynamic margin (food half-extent +
-     finger clearance, floored at FOOD_MARGIN_M);
-  2. the food stays a LIVE cuRobo obstacle through src_pre AND src_descend (dusty does
-     NOT use the blanket ignore_clutter there — only the target + support are dropped);
-  3. per-step LTL ``food_touched_by_agent`` fails any finger brush instantly;
-  4. after the close, ``require_attach`` verifies the SOURCE attached and an explicit
-     AG check at src_lift fails the attempt if the FOOD is grasped ("food_grabbed");
-  5. ``pour_no_drop`` backstops anything that still pins the food to the source.
+The family uses sticky grasping. Food clearance filters, collision-world
+selection, the task LTL monitor, source-attachment checks, and pour completion
+checks guard against grasping or retaining the food. Saved dust attachment groups
+are restored when scene reconstruction does not preserve them.
 """
 from __future__ import annotations
 
@@ -50,29 +33,24 @@ from maniguard.data.datagen.executor.contracts import (
 )
 from maniguard.data.datagen.grasp_db import load_db, target_grasps_world
 
-H_WIPE_M = 0.004          # press depth: sponge-bottom gap above the TARGET particle's z.
-#                           2mm presses hard (2cm nudge/press); 6mm under-removes (re-probe:
-#                           remaining 17-18 on bowls) — 4mm is the removal/nudge sweet spot
-WIPE_HOP_CLEAR_M = 0.03   # peck-wipe hop height above the particle plane: lateral moves happen
-#                           IN AIR at this clearance — any bottom-contact lateral glide (even a
-#                           4-5mm nominal gap, runs 6-7) friction-drags the pot ~1-3cm per hop,
-#                           while pure VERTICAL presses never moved it (descend + Spike 0)
+H_WIPE_M = 0.004          # Sponge-bottom gap above the target particle during a vertical press.
+# Balance particle removal against contact-induced destination motion.
+WIPE_HOP_CLEAR_M = 0.03   # Hop height above the particle plane. Move laterally in the air, then
+# press vertically to limit friction-driven destination motion.
 WIPE_OVER_TOL_M = 0.02    # "sponge is over the target particle" XY tolerance
 FOOD_MARGIN_M = 0.08      # FLOOR of the dynamic grasp->food XY margin (no-touch + mis-grab guard)
 FOOD_CLEAR_M = 0.05       # finger/palm clearance added to the food half-extent for that margin
 WIPE_BUDGET_K = 20        # wipe_step segment budget: peck-wipe spends ~3 segments per press
 #                           cycle (lift -> swing -> press); no-op segments are ~20 cheap sim steps
-DEST_STEP_DISP_MAX_M = 0.06   # ONE wipe step shoving the dest this far = a violent hit -> fail
-#                               (real rams measure 16-25cm; slick tables slide 4-5cm on a GENTLE press).
+DEST_STEP_DISP_MAX_M = 0.06   # Maximum destination displacement during one wipe step; reject larger hits.
 DEST_TOTAL_DISP_MAX_M = 0.15  # cumulative drift backstop. Gentle presses nudge a LIGHT bowl
 #                               ~1-2cm each and legitimately walk it 5-9cm over a full wipe;
 #                               every consumer (tour, pour stance, goal) tracks the dest LIVE,
 #                               so slow drift is harmless — only sudden shoves are real faults
 SPONGE_HALF_DIAG_M = 0.064  # worst-case sponge half-diagonal (10.5x7cm) + 1mm: mouth-clamp margin
-# Gripper width profile in the eef frame (+z toward the object), measured from
-# gripper_longfinger.glb: (z_lo, z_hi, xy half-diagonal). The wide finger-carriage block
-# (z <= CARRIAGE_Z, half-diag 0.109) may NEVER dip below a deep dest's rim — it barely
-# fits the widest mouth dead-centred, which is what dragged the pot through runs 2-9.
+# Gripper width profile (z_lo, z_hi, XY half-diagonal) in the eef frame,
+# measured from gripper_longfinger.glb (+z toward the object). Keep the wide
+# finger carriage above a deep destination's rim to avoid dragging it.
 GRIP_BANDS = (
     (0.06, 0.104, 0.050),   # fingertips closed on the sponge
     (0.01, 0.06, 0.075),    # finger bodies
@@ -85,8 +63,7 @@ NEED_BOOM_R_M = 0.07      # particles beyond this radius need the boom (centred 
 POUR_STEPS_K = 12         # tilt increments (~4 deg each: finer ramp = less angular kick
 #                           at release; the bounce-outs track the release energy)
 POUR_ALPHA_MAX_DEG = 95.0
-H_POUR_M = 0.02           # source bottom above dest top at the pour stance (sweep-1:
-#                           29/74 pour_missed + 5 landed-then-bounced-out => cut arrival energy)
+H_POUR_M = 0.02           # Source-bottom height above the destination rim; limits pour arrival energy.
 CROSSBAR_CLEAR_M = 0.06   # door-frame crossbar clearance above the tallest scene object
 
 
@@ -175,7 +152,7 @@ class DustySkeleton(FamilySkeleton):
 
     # ---- shared handles -------------------------------------------------------------
     def grasping_mode(self) -> str:
-        return "sticky"                   # user decision for this family (see mis-grab guard chain)
+        return "sticky"                   # Sticky grasping is paired with food-clearance and attachment checks.
 
     def _obj(self, ctx, name):
         return ctx.env.scene.object_registry("name", name)
@@ -199,10 +176,7 @@ class DustySkeleton(FamilySkeleton):
         return _np(pos).reshape(-1, 3)
 
     def _ensure_dust(self, ctx) -> None:
-        """Boot guard: the reloaded scene DROPS the saved dust group (attachment-uuid
-        mismatch — same failure replay_empty_from_dataset.py:352 documents; Spike 0
-        confirmed it on the datagen boot path). Restore the EXACT saved group from the
-        task's scene_ep1.json, repointing it at the live dest. No-op when dust survived."""
+        """Restore the saved dust attachment group from scene_ep1.json when it is absent after reconstruction, remapping its parent to the live destination object."""
         import copy
         import json
         import os
@@ -225,9 +199,8 @@ class DustySkeleton(FamilySkeleton):
         st = copy.deepcopy(dust_src)
         for g in (st.get("groups") or {}).values():    # repoint the group at the rebuilt dest
             g["particle_attached_obj_uuid"] = dest.uuid
-        # tensorize EVERY array field: OG's _load_state stores min/max_scale verbatim as
-        # system attrs, and a later og.sim.dump_state(serialized=True) th.cat()s them —
-        # a leftover json list crashes that dump (hit on the first driver run).
+        # Tensorize saved array fields: OmniGibson stores min/max_scale directly,
+        # and serialized state dumping concatenates them with torch.cat.
         for k in ("positions", "orientations", "scales", "min_scale", "max_scale"):
             if k in st:
                 st[k] = th.tensor(st[k], dtype=th.float32)
@@ -238,10 +211,7 @@ class DustySkeleton(FamilySkeleton):
               flush=True)
 
     def _sponge_xy_off(self, ctx, ep) -> np.ndarray:
-        """LIVE eef->sponge XY offset. The sticky grasp hangs the sponge several cm off the
-        eef axis (annotation offset + attach drift) — run 5 measured 5.7cm on task_0000, which
-        wedged an 'eef-centred' descend against the pot wall. All wipe targets command the
-        SPONGE CENTRE; add this offset to get the eef command (rigid hold => constant)."""
+        """Return the live end-effector-to-sponge XY offset. Wipe targets position the sponge center; this offset converts them into end-effector commands."""
         sc = geometry.object_center(self._obj(ctx, self._sponge_name))
         return ep[:2] - sc[:2]
 
@@ -275,9 +245,8 @@ class DustySkeleton(FamilySkeleton):
         r_t = float(np.linalg.norm(v))
         dhat = v / r_t if r_t > 1e-9 else np.array([1.0, 0.0])
         if o >= 0.02:
-            # SIGNED placement: a target inside the boom ring needs the eef pulled to the
-            # FAR side (e_r < 0) so the boom tip lands at r_t < o (run 12: the unsigned
-            # solve pointed the boom at a near-centre target and overshot to the far wall)
+            # Use signed placement: targets inside the boom radius require the eef
+            # on the far side so the hanging sponge reaches the requested point.
             e_r = float(np.clip(r_t - o, -budget, budget))
         else:
             e_r = float(np.clip(r_t, 0.0, budget))
@@ -389,10 +358,8 @@ class DustySkeleton(FamilySkeleton):
             np.array([c.eef_pos[:2] for c in cands]), fxy, margin)
         print(f"[dusty] food margin={margin:.3f}m -> {len(keep)}/{len(cands)} grasps kept",
               flush=True)
-        # lift-reach probe: rim grasps on the robot's FAR side pass the grasp-pose IK but
-        # hit the arm's kinematic ceiling on the vertical carry lift — every such attempt
-        # dies deterministically at clearance -0.085 (runs 17-19). Provably infeasible for
-        # the required lift -> drop (grasp-set law compliant).
+        # Probe the carry lift as well as the grasp pose. Far-side rim grasps can
+        # reach the object but exceed the arm's vertical reach during lifting.
         if getattr(self, "_world", None) is not None and keep:
             import torch as th
 
@@ -405,10 +372,8 @@ class DustySkeleton(FamilySkeleton):
             for i in keep:
                 c = cands[i]
                 quat = th.as_tensor(np.asarray(c.eef_quat, float), dtype=th.float32)
-                # CHAINED probe: solve the GRASP pose first, then the lifted pose seeded
-                # from that arm config — mirrors the real servo chain. An isolated lifted-
-                # pose IK can succeed in a different arm branch the servo can't reach
-                # (run 20: g5 passed the naive probe, then stalled at the same ceiling).
+                # Seed the lifted-pose probe from the solved grasp configuration to mirror
+                # the servo chain. An independent endpoint solve may use an inaccessible branch.
                 g_res = solve_ik(self._world.motion_gen, self._robot,
                                  th.as_tensor(np.asarray(c.eef_pos, float), dtype=th.float32),
                                  quat, q0, timeout=3.0, ik_collision=False,
@@ -424,11 +389,9 @@ class DustySkeleton(FamilySkeleton):
                                label=f"dusty:liftprobe:g{c.id}")
                 if res is None:
                     continue
-                # carry-STANCE probe: a COLLISION-AWARE plan attempt (sweep-1: solve_ik
-                # passed stances that the real carry's collision-aware fallback then
-                # refused 6/6 on task_0001 — plan_fail src_carry burned whole tasks).
-                # No attach model at select time (the board is still on the table), but
-                # the arm-vs-scene reachability is the deterministic killer being probed.
+                # Probe the carry stance with collision-aware planning, matching the
+                # carry fallback. The source is still on the table, so this probe checks
+                # arm-versus-scene reachability without an attached-object model.
                 e_xy, z_abs, _, _ = self._carry_solution(ctx, np.asarray(c.eef_pos, float))
                 q_seed2 = q0.clone()
                 q_seed2[manip_idx] = res.arm_traj[-1].to(q_seed2.device, q_seed2.dtype)
@@ -458,15 +421,13 @@ class DustySkeleton(FamilySkeleton):
     def derive_segments(self, ctx: TaskContext, grasp: GraspCand,
                         params: SampleParams) -> list[MotionSegment]:
         rng = np.random.default_rng((int(params.seed) & 0xFFFFFFFF) ^ 0xD057)
-        # attempt-alternating stance lift (jar's alternating-standoff pattern): odd draws
-        # carry +6cm higher — trades a little pour energy for carry-plan feasibility
-        # (re-sweep: plan_fail@src_carry x15 deterministic on big/awkward sources)
+        # Alternate stance height by draw: odd draws carry 6 cm higher, trading
+        # additional pour height for carry reachability.
         self._stance_lift = 0.06 * (params.draw_index % 2)
-        # sponge grasp pool by wipe mode: deep+wide dests take a BOOM grasp (3-6.5cm
-        # offset — the eef column stays on the mouth axis and yaw swings the hanging
-        # sponge out to the wall); deep+narrow take a CENTRED grasp (eef column and
-        # sponge coaxial — any off-axis hang parks the finger blade over the rim ring,
-        # runs 5-9); flat dests have no walls -> full pool for diversity.
+        # Deep, wide destinations use an offset boom grasp: the eef stays near
+        # the mouth axis while yaw moves the sponge toward the wall. Deep, narrow
+        # destinations use centered grasps to keep the finger blade away from the
+        # rim. Flat destinations use the full grasp pool.
         home_xy = self._sponge_home[0][:2]
         offs = [float(np.linalg.norm(np.asarray(g.eef_pos[:2]) - home_xy))
                 for g in self._sponge_grasps]
@@ -524,10 +485,8 @@ class DustySkeleton(FamilySkeleton):
             # ---- phase 3: return sponge ----
             MotionSegment("sponge_home_over", Z, sq, mode=Mode.FREE, attach=True,
                           compute="sponge_home_over", extra=dict(held_s)),
-            # ignore ONLY the support (it blocks the 3mm-above-table place target). Never
-            # ignore_clutter here, and never ignore the HELD sponge itself: cuRobo's
-            # attach pulls the attached object's mesh from the world config — dropping it
-            # crashes the merged-mesh build (runs 13-14).
+            # Exclude only the support for the near-table placement target. Keep the
+            # held sponge in the collision world so cuRobo can obtain its attached mesh.
             MotionSegment("sponge_home_place", Z, sq, mode=Mode.LINEAR, attach=True,
                           grip=Grip.OPEN, grip_steps=steps, compute="sponge_home_place",
                           ignore_objects=tuple(n for n in (
@@ -541,10 +500,8 @@ class DustySkeleton(FamilySkeleton):
                           ignore_objects=(ctx.target_name,)),
             # NO blanket ignore_clutter here: the FOOD must stay a live cuRobo obstacle
             # through the descend (sticky mis-grab guard #2) — only target + support drop.
-            # +4mm on the grasp z: fingertips pressing the rim see-saws the board on the
-            # table at close/lift-off — the transient starts the round food ROLLING and it
-            # exits mid-transport even after the board levels out (run 30 frames). Long
-            # settle lets any residual rock damp out before the lift.
+            # Raise the sticky grasp target 4 mm to limit rim pressure that can rock the
+            # source and start the food rolling. Settle before lifting.
             MotionSegment("src_descend",
                           np.asarray(grasp.eef_pos, float) + np.array([
                               0.0, 0.0,
@@ -557,18 +514,12 @@ class DustySkeleton(FamilySkeleton):
                               ctx.target_name, getattr(ctx.support, "name", None)) if n),
                           require_attach=True),
             # ---- phase 5: ONE-SEGMENT carry (lift+level+transport merged) + tilt-pour ----
-            # Every segment boundary brakes (re-command + settle) and the jolt kicks the
-            # round food into a roll on the smooth board (run 31: both drops came right
-            # AFTER a boundary, on a LEVEL board, in slow motion). One 3D straight-line
-            # UNIFORM glide (4mm/sim-step, spw=1 — the gentle drawer-close recipe) from
-            # the grasp to the pour stance, the AABB droop correction folded into the same
-            # segment's orient_slerp: ZERO internal stops. dest ignored: the stance
-            # intentionally hangs the far edge over the mouth (height/angle budget
-            # guarantees the physical clearance).
-            # 2mm/sim-step (~0.06 m/s): a free-ROLLING food keeps the carry velocity when
-            # the tray stops and coasts v^2/(2*rolling-resistance) past the arrival brake —
-            # 0.12 m/s coasts ~3.6cm (off a flat tray's edge, run 36-era telemetry on 0015),
-            # 0.06 m/s coasts <1cm and stays aboard even with no lip.
+            # Carry in one straight segment without intermediate braking/settling,
+            # which can start round food rolling. Interpolate the AABB-derived leveling
+            # correction through orient_slerp. Exclude the destination because the pour
+            # stance places the source edge over its mouth.
+            # Use 2 mm per simulation step (about 0.06 m/s) to reduce how far freely
+            # rolling food coasts when the source stops.
             MotionSegment("src_carry", Z, gq, mode=Mode.SERVO, attach=True,
                           compute="src_carry", orient_slerp=True,
                           servo_step_m=0.002, servo_spw=1,
@@ -586,7 +537,7 @@ class DustySkeleton(FamilySkeleton):
     # ---- end-of-rollout quality gate ------------------------------------------------------
     def success_extra(self, ctx: TaskContext) -> bool:
         """The dest must still stand upright at the end: a hard food impact can tip a light
-        bowl and 'inside a tipped-over bowl' must not count as success (user review). The
+        bowl, so arrival inside a tipped destination does not count as success. The
         dest is never AG-held, so its quaternion is reliable."""
         dest = self._obj(ctx, self._dest_name)
         dq = _np(dest.get_position_orientation()[1])
@@ -594,10 +545,9 @@ class DustySkeleton(FamilySkeleton):
         if up_z < np.cos(np.deg2rad(20.0)):
             print(f"[dusty] success_extra: dest tipped (up_z={up_z:.2f}) -> fail", flush=True)
             return False
-        # END-state dest displacement: the tight-mouth tupperware can get HOOKED by the
-        # rising gripper after the wipe (task_0006 kept demo: dest lifted 17cm + carried
-        # 30cm, episode still "succeeded" because every consumer tracks the dest live).
-        # Such polluted-but-lucky episodes must NOT enter the dataset.
+        # Reject excessive final destination displacement. The rising gripper can
+        # hook a narrow mouth, and live destination tracking alone would still
+        # allow the food-arrival check to pass after the container has been moved.
         dxy = _np(dest.get_position_orientation()[0])[:2] - self._dest_home_xy
         if float(np.linalg.norm(dxy)) > DEST_TOTAL_DISP_MAX_M:
             print(f"[dusty] success_extra: dest displaced {np.linalg.norm(dxy):.2f}m -> fail",
@@ -659,9 +609,8 @@ class DustySkeleton(FamilySkeleton):
         dlo, dhi = geometry.aabb_lo_hi(dest)
         dest_top, floor = float(dhi[2]), float(dlo[2]) + 0.005
         width = 2.0 * r_far
-        # FLAT-BOTTOMED foods (half garlic/berry) don't slide at ~50 deg — they need a
-        # ~65-deg budget (conf2: 0025 pour_no_drop x4 at its 51-deg cap). They are light
-        # and land dead, so the taller stance costs little bounce energy.
+        # Flat-bottomed food may require a larger tilt to release. Increase the
+        # stance height to leave room for the corresponding pour angle.
         food_cat = getattr(self._obj(ctx, self._food_name), "category", "")
         a_tilt = 65.0 if food_cat in ("garlic_clove", "half_blackberry") else 50.0
         want_bottom = max(dest_top + H_POUR_M,
@@ -708,10 +657,9 @@ class DustySkeleton(FamilySkeleton):
             return np.array([ep[0], ep[1], ep[2] + dz]), eq
 
         if tag == "wipe_over":
-            # deep dest: pre-align eef + boom yaw so the hanging sponge lands CORNER-SAFE
-            # over the dust centroid (a raw mouth-axis park leaves the boom sponge at its
-            # full offset ring — its corners overlap the wall and the first press stalls,
-            # run 11); flat dest: centre the SPONGE over the dust centroid.
+            # For deep destinations, align the eef and boom yaw so sponge corners clear
+            # the wall over the dust centroid. For flat destinations, center the sponge
+            # directly over the centroid.
             c = self._mouth_c(ctx)
             if self._dest_deep:
                 rem = self._dust_positions(ctx)
@@ -737,10 +685,9 @@ class DustySkeleton(FamilySkeleton):
             dest = self._obj(ctx, self._dest_name)
             plane = float(np.min(rem[:, 2])) if len(rem) else float(geometry.aabb_lo_hi(dest)[0][2]) + 0.01
             bottom = float(geometry.lowest_z(self._obj(ctx, self._sponge_name)))
-            # cache the eef->sponge-bottom offset while the sponge hangs FREE: the AG
-            # attach is compliant, so re-deriving it from a PRESSED state shrinks it and
-            # every subsequent press commands deeper — a positive-feedback ram that
-            # curling-drags light bowls across the table (task_0008 probe).
+            # Cache the eef-to-sponge-bottom offset while the sponge hangs freely.
+            # Recomputing it under press compression would progressively increase
+            # commanded depth and push the destination across the table.
             self._wipe_zoff = ep[2] - bottom
             z = ep[2] + (plane + H_WIPE_M) - bottom
             if self._dest_deep:
@@ -754,8 +701,7 @@ class DustySkeleton(FamilySkeleton):
             sponge_xy = geometry.object_center(sponge)[:2]
             nxt = wipe_next_xy(rem, sponge_xy)
             if nxt is None:
-                raise SegmentSkip                    # clean — drop the leftover budget segments
-                #                                      (executing them froze the demo for seconds)
+                raise SegmentSkip                    # The surface is clean: skip the remaining wipe segments.
             bottom = float(geometry.lowest_z(sponge))
             # free-hanging eef->bottom offset (cached at wipe_descend; live zoff shrinks
             # under press compression and runs the depth control into positive feedback)
@@ -765,16 +711,12 @@ class DustySkeleton(FamilySkeleton):
             hop_z = float(nxt[2]) + WIPE_HOP_CLEAR_M + zoff
             if self._dest_deep:
                 press_z = max(press_z, rim - (-CARRIAGE_Z) + RIM_MARGIN_M)  # carriage floor
-                # swings happen FULLY ABOVE the rim: a boom yaw below rim level sweeps the
-                # sponge corners through the wall ring no matter the endpoint clamps
-                # (swing radius ≈ boom length > corner-safe radius — run 12). Above the
-                # rim the whole gripper clears the pot and lateral/yaw motion is free.
+                # Lift fully above the rim before lateral motion or boom yaw. Endpoint
+                # clamps alone cannot prevent the swept sponge corners from crossing a wall.
                 hop_z = max(hop_z, rim + RIM_MARGIN_M + zoff)
-            # clamp the desired SPONGE landing spot CORNER-SAFE: the sponge yaws with the
-            # boom, so its worst-case half-DIAGONAL must clear the wall at every press AND
-            # every swing endpoint (a short-half-only cap let the corners sideswipe the
-            # wall ring and drag the pot — run 11). The swept band still reaches
-            # r_cap + half-diag ≈ the wall base.
+            # Clamp the sponge center using its half-diagonal so every corner clears
+            # the wall at press and swing endpoints. The footprint still reaches
+            # from this clamped center to the wall base.
             c = self._mouth_c(ctx)
             v = nxt[:2] - c
             r_t = float(np.linalg.norm(v))
@@ -799,7 +741,7 @@ class DustySkeleton(FamilySkeleton):
         if tag == "wipe_verify":
             self._check_dest_disp(ctx)
             n = len(self._dust_positions(ctx))
-            if n > 0:                                 # user's law: 100% removed, no tolerance
+            if n > 0:                                 # Require complete dust removal before proceeding.
                 raise FamilyAbort("wipe_incomplete", remaining=int(n))
             return ep, eq
 
@@ -852,7 +794,7 @@ class DustySkeleton(FamilySkeleton):
 
         if tag == "pour_verify":
             if not self._landed(ctx):
-                # distinguish "never slid off" from "slid but missed the dest" (run 16)
+                # Distinguish retained food from food released outside the destination.
                 food = self._obj(ctx, self._food_name)
                 slo, shi = geometry.aabb_lo_hi(ctx.target)
                 fc = geometry.object_center(food)

@@ -1,23 +1,11 @@
-"""Reusable target<->obstacle role swap for cabinet tasks (spec §13).
+"""Swap target and obstacle roles in cabinet-task diagnostics.
 
-A diagnostics-only edit (the scene object names + ``scene_ep1.json`` are left
-untouched — every consumer resolves roles through the diagnostics, not the scene
-name prefixes: ``GoalChecker`` by ``inside`` subject, ``build_active_objects_for_ltl``
-by the ``over`` name-glob, datagen by ``target_info.name``). Used to make the
-COMPACT, drawer-fitting object the target on the §15 NOFIT tasks.
+Update target_info/obstacle_info, selection and spawn roles, the inside-goal
+subject, dropped-proposition object globs, and prompt object phrases. Object
+names and the scene snapshot are unchanged. A newly assigned target outside the
+drawer path may also require scene relayout; this helper changes diagnostics only.
 
-Swaps the 6 role-bearing fields:
-  1. target_info <-> obstacle_info
-  2. selection target/obstacle category+model + spawn_specs roles
-  3. goal_conditions 'inside' subject -> new target scene name
-  4. ltl_safety.propositions target_dropped <-> obstacle_dropped 'over' globs
-  5. prompt object phrases ("Place the X ... knock over the Y")
-
-For a ``both``-mode task the swap is purely this. For a ``target``-mode task the
-NEW target (old off-side obstacle) must ALSO be re-laid-out in-path afterwards
-(run ``cabinet_bothfront --task ...``) — this module only does the diagnostics.
-
-  python -u -m maniguard.data.datagen.families.cabinet_roleswap --task task_0002 [--apply]
+Run with --apply to write; otherwise inspect the proposed diagnostics changes.
 """
 from __future__ import annotations
 

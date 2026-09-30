@@ -1,6 +1,9 @@
 """Derive per-container opening location + size from the existing
 top-down raycast scan (`stack_pipeline/scan_top_full.json`).
 
+Regeneration requires scan_top_full.json from scan_top_surface.py; the
+raw full scan is not bundled with the derived catalogs.
+
 Pure-Python (no OmniGibson). Mirrors `derive_top_features.py`'s cavity
 detection (lowest upward-facing surface + tolerance band, identical to
 what stack_recep_compat already filters against), and additionally
@@ -15,9 +18,9 @@ Per container model in the wide-opening universe, output:
     "spawn_error" if the underlying scan errored.
 
   opening_centroid_xy_relative_to_aabb_center_m: [dx, dy]
-      Offset of the cavity-floor centroid from the AABB XY center, in
-      container-local frame. Frame-agnostic: at runtime, recompute the
-      AABB center and add this offset.
+      Offset of the cavity-floor centroid from the scanned AABB XY center.
+      Direct addition at runtime assumes the scan orientation and scale;
+      this offset is not invariant to object rotation or rescaling.
 
   opening_floor_z_above_aabb_min_m: dz
       Cavity-floor world Z minus AABB min Z. Same as `z_min` in

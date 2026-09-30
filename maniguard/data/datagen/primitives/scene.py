@@ -1,26 +1,12 @@
-"""Build the empty-scene OmniGibson env from a base-task dump — Layer-1 primitive.
+"""Reconstruct an empty-scene OmniGibson environment from a frozen task.
 
-Replaces the monolithic ``_build_env`` of the reference pnp script
-(``maniguard/data/curobo/pick_and_place_from_dataset.py``): this builds ONLY the
-scene — floor + fixed support surface + every spawned task object at its dumped
-pose + the Franka at its dump pose + the ``goal_region`` marker — settled and
-ready to step. Cameras (4 bench third-person + injected wrist) and recording are
-layered on top by the cameras (P8) / record (P9) primitives through two seams:
+Load the support, task objects, robot pose, and goal marker from diagnostics and
+the scene snapshot. external_sensors supplies camera configurations and
+pre_build_hooks runs setup callbacks before environment construction.
 
-  * ``external_sensors``  — the external VisionSensor config list to drop into
-    ``env_cfg["env"]["external_sensors"]`` (P8 passes the bench 4-view config).
-  * ``pre_build_hooks``   — callables run just before ``og.Environment(...)`` (P8
-    passes the wrist-camera monkeypatch installer, which must patch the FrankaPanda
-    class before the robot is loaded).
-
-Env infra (``build_env_config``, ``extract_scene_robot_setup``, goal-region
-helpers) is imported from the shared ``maniguard.envs`` / ``maniguard.utils``
-trees — NOT the old curobo reference tree. Dump parsing is the local ``task_io``
-primitive. GPU dynamics is OFF for dry tasks (the curobo + JointController pipeline
-is CPU/obs-bound; GPU PhysX is slower and NaN-prone here — see
-project_gpu_physx_rl_not_faster), matching the reference pnp init; liquid/particle
-tasks (diagnostics ``selection.system_name``) auto-enable it — see
-:func:`task_needs_gpu_dynamics` / :func:`init_omnigibson`.
+Use the shared environment and task-runtime helpers. Dry tasks use CPU dynamics
+with flatcache; particle tasks selected by task_needs_gpu_dynamics use GPU
+dynamics with flatcache disabled.
 """
 from __future__ import annotations
 
@@ -52,14 +38,7 @@ class SceneBundle:
 
 
 def _needs_gpu_dynamics(diag: dict) -> bool:
-    """True if the task carries a PhysX particle/fluid system that only simulates under the GPU
-    dynamics pipeline. Clutter-liquid tasks declare ``selection.system_name`` (e.g. ``"water"``);
-    under the default CPU pipeline the fluid particles deterministically NaN-segfault at water-system
-    init. Mirrors ``bench_builder.finalize_base._needs_gpu_dynamics`` (the canonical bench gating).
-
-    lid_transport: liquid-mode tasks carry a LEGACY ``system_name="water"`` in the diag but the
-    bench scenes bake NO particles at all ("filled" is narrative) — GPU dynamics there is pure
-    risk (boot segfault seen on task_0023) with zero benefit. Gate them out on ``lid_info``."""
+    """Return whether diagnostics select GPU particle dynamics. A declared system_name enables it, except for lid_info tasks, whose stored liquid labels do not correspond to simulated particle systems."""
     if diag.get("lid_info"):
         return False
     return bool((diag.get("selection") or {}).get("system_name"))
@@ -73,15 +52,7 @@ def task_needs_gpu_dynamics(task_dir: str | Path, episode: int = 1) -> bool:
 
 
 def init_omnigibson(headless: bool = True, needs_gpu_dynamics: bool = False):
-    """Set datagen OmniGibson macros, then import + return ``omnigibson``.
-
-    MUST be called once before :func:`scene_from_task_dir` (gm macros take effect only before
-    ``import omnigibson``). Dry tasks run GPU-dynamics OFF + flatcache ON (the curobo + JointController
-    pipeline is CPU/obs-bound; GPU PhysX is slower and NaN-prone here — see project_gpu_physx_rl_not_faster),
-    mirroring the reference pnp init. Liquid/particle tasks (``needs_gpu_dynamics=True``, detected per
-    task via :func:`task_needs_gpu_dynamics`) REQUIRE GPU dynamics + flatcache OFF or the PhysX water
-    system NaN-segfaults at init — matching the bench_builder finalize + source liquid pipelines.
-    """
+    """Set OmniGibson macros before initialization and return the imported module. Use CPU dynamics with flatcache for dry tasks and GPU dynamics without flatcache for particle tasks."""
     from omnigibson.macros import gm
 
     gm.ENABLE_OBJECT_STATES = True
@@ -136,12 +107,8 @@ def scene_from_task_dir(
     if robot_setup is None:
         raise RuntimeError(f"No robot found in scene snapshot for {task_dir.name}")
 
-    # JointController, joint_position_raw preset = RIGID Isaac position drive (isaac_kp=1e7),
-    # MATCHING eval/teleop/bench (configs/eval/*_joint.yaml + robot_pose.BENCH_CONTROLLER_PRESET).
-    # The old joint_position_impedance preset (soft, pos_kp=50) drooped the held load ~0.07 m at arm
-    # extension and could not track the descent wrist-swing, failing the cabinet place; eval is rigid
-    # anyway, so datagen-rigid is ALSO more train/eval-consistent (recorded action = next-achieved q).
-    # action/render at 30 Hz; assisted grasp by default.
+    # Use joint_position_raw with 30 Hz action and rendering frequencies.
+    # Forward the family-selected grasping mode to the robot configuration.
     env_cfg = build_env_config(
         scene_info,
         diagnostics,
@@ -154,7 +121,7 @@ def scene_from_task_dir(
     # furnished InteractiveTraversableScene.
     env_cfg["scene"] = {"type": "Scene"}
     env_cfg["objects"] = object_cfgs
-    # Camera streams are owned by the cameras primitive (P8).
+    # Camera streams are configured by the cameras primitive.
     if external_sensors is not None:
         env_cfg["env"]["external_sensors"] = list(external_sensors)
 

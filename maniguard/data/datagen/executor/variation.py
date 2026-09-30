@@ -1,18 +1,9 @@
-"""VariationSampler — the scaling / diversity engine (§4.3).
+"""Generate grasp and motion variants from deterministic draw indices.
 
-Yields ``(GraspCand, SampleParams)`` variants = reachable grasps x per-grasp jittered draws,
-so ONE base task produces many DIFFERENT demos (data robustness). Generic across families.
-
-v1 diversity levers (all consumed by the skeleton's ``derive_segments`` — no engine change):
-  * **grasp**    — each reachable annotated grasp
-  * **standoff** — pre-grasp standoff distance along the approach axis
-  * **above_xy** — lateral offset of the pre-grasp approach point
-
-Draw ``k=0`` per grasp is canonical (no jitter); ``k>0`` are RNG-jittered (deterministic per
-``(grasp_id, k)`` — no wall-clock/global RNG). The same master seed also seeds the engine's
-cuRobo trajopt (``torch.manual_seed`` in ``engine.py``), so planner-solution diversity comes
-with every draw; in-goal-sphere placement variety remains a future lever (needs an engine
-goal offset).
+For each reachable grasp, sample standoff, lateral approach offset, and lift
+multiplier. Draw zero uses the nominal values. Later draws use a seed derived
+from grasp ID and draw index; the engine also receives that seed for planning.
+Family skeletons consume the parameters relevant to their motion sequence.
 """
 from __future__ import annotations
 
@@ -33,12 +24,7 @@ class VariationSampler:
         self.lift_mult_range = tuple(lift_mult_range)
 
     def _params(self, c, k: int) -> SampleParams:
-        """SampleParams for grasp ``c`` draw ``k``. UNIQUE master seed ``SeedSequence([grasp_id, k])``
-        (collision-free at any k; the old ``grasp_id*1000 + k`` aliased once k>=1000)
-        drives ALL randomness: jitter + lift-height here, and the engine's cuRobo trajopt
-        (``torch.manual_seed``) with the same value — one seed per variant, every variant
-        differs. draw 0 = canonical (no jitter, lift exactly 1.0× clearance); draw>0 jitters
-        waypoints + randomizes lift height in ``lift_mult_range`` × clearance."""
+        """Build SampleParams using a 32-bit seed derived from (grasp ID, draw index). Draw zero uses nominal values; later draws sample approach offsets and lift height. The seed derivation is deterministic but does not guarantee globally unique seed values."""
         vseed = int(np.random.SeedSequence([int(c.id), int(k)]).generate_state(1)[0])
         rng = np.random.default_rng(vseed)
         lo, hi = self.lift_mult_range

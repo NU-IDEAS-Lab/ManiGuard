@@ -1,9 +1,8 @@
-"""Shared infrastructure for task generation pipelines.
+"""Shared infrastructure for task-generation pipelines.
 
-Contains helpers for BDDL management, sim interaction, video recording,
-pack callbacks, and other utilities reused across different pipeline types
-(e.g., table clutter, cabinet clutter).
-"""
+Build object configurations, select and clear support regions, place robots
+and task objects, monitor inline safety specifications, and record rollout
+diagnostics, snapshots, and videos."""
 
 import argparse
 import copy
@@ -627,8 +626,8 @@ def make_base_collision_checker(env, robot_half_extent_xy, min_clearance_m=0.05)
     Snapshots walls / doors from the loaded scene at call time. Each frame:
     axis-aligned expansion of the robot footprint by robot half-extent +
     min_clearance_m, then rectangle-rectangle overlap against each blocker's
-    precomputed XY AABB. Pose yaw is ignored (conservative; safe upper bound
-    on footprint). No try/except: if .aabb fails on a blocker, the build
+    precomputed XY AABB. Pose yaw is ignored, so the footprint is an unrotated
+    axis-aligned approximation rather than a rotation-independent bound. No try/except: if .aabb fails on a blocker, the build
     crashes so the caller sees it immediately.
     """
     blockers = []
@@ -873,25 +872,23 @@ def validate_ltl_step0(env, activity_name, scene_model, active_objects_by_inst,
 
     ``ltl_safety`` is the task-level safety dict (from the pipeline's
     activity generator). Pass ``None`` / ``{}`` to disable task-level
-    monitoring — task-level safety is no longer loaded from BDDL.
+    monitoring. The supplied dictionary defines the task-level constraints.
+    Configuration and monitoring errors propagate instead of being treated
+    as a clean initial state.
     """
     from maniguard.utils.safety_monitor import TaskLTLMonitor
 
-    try:
-        monitor = TaskLTLMonitor(
-            env=env, activity_name=activity_name,
-            scene_model=scene_model,
-            active_objects_by_inst=active_objects_by_inst,
-            ltl_safety=ltl_safety,
-        )
-        monitor.reset()
-        info = monitor.step(0)
-        labels = info.get("ap", {})
-        doomed = bool(info.get("doomed", False))
-        return not doomed, labels
-    except Exception as exc:
-        print(f"[Pipeline] WARNING: LTL step-0 validation failed: {exc}")
-        return True, {}
+    monitor = TaskLTLMonitor(
+        env=env, activity_name=activity_name,
+        scene_model=scene_model,
+        active_objects_by_inst=active_objects_by_inst,
+        ltl_safety=ltl_safety,
+    )
+    monitor.reset()
+    info = monitor.step(0)
+    labels = info.get("ap", {})
+    doomed = bool(info.get("doomed", False))
+    return not doomed, labels
 
 
 def stabilize_and_validate(
@@ -941,8 +938,7 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
 
     Pass ``ltl_safety`` (the dict produced by the pipeline's activity
     generator and embedded in diagnostics.jsonl); the monitor uses it
-    directly. Task-level safety is no longer loaded from BDDL — pass
-    ``None`` / ``{}`` to disable task-level monitoring entirely.
+    directly. Pass ``None`` or ``{}`` to omit task-level constraints.
     Returns the LTL summary dict.
     """
     import omnigibson as og
@@ -1147,23 +1143,13 @@ class EpisodeContext:
 
 
 class BasePipeline(ABC):
-    """Base class for table-based task generation pipelines.
+    """Base class for tabletop task-generation pipelines.
 
-    Subclasses implement the pipeline-specific hooks:
-      - add_args()          — register CLI flags
-      - activity_prefix()   — default activity name prefix
-      - generate_activity() — produce LTL safety + selection with spawn_specs
-      - configure_env()     — tweak env/macros after load (e.g. GPU dynamics)
-      - offline_pack()      — pure-Python placement plan (after env + support
-                              resolution, before spawn). Optional; default
-                              no-op. Caches a ``PackSolution`` on each
-                              episode's selection dict.
-      - identify_objects()  — partition spawned objects into roles
-      - place_objects()     — arrange objects on the table
-      - make_edge_objects() — build EdgeAlignObject list for robot placement
-      - extra_gate_checks() — additional gate conditions (default: True)
-      - diagnostics_extra() — extra fields for the diagnostics JSONL
-    """
+    Subclasses register arguments, select objects, generate spawn and safety
+    metadata, and optionally plan layouts from catalog geometry. configure_env
+    and offline_pack run before environment construction. After loading, hooks
+    resolve object roles, place active objects, construct robot edge-alignment
+    inputs, perform additional checks, and contribute diagnostics."""
 
     # -- Subclass hooks (override these) ------------------------------------
 
@@ -1191,34 +1177,19 @@ class BasePipeline(ABC):
         """
 
     def offline_pack(self, episode_activities, picked, args, support_obj=None):
-        """Pre-compute pack placements once per session.
+        """Precompute catalog-based placements before constructing the environment.
 
-        Called from ``_run_sim`` BEFORE the env is built — the
-        placeable catalog carries the support's applied ``scale_xyz``
-        so world-frame region sizing needs no live env. The base class
-        then filters each episode's ``spawn_specs`` down to inst_ids
-        the solver actually placed (and renumbers the pack solution to
-        match the post-filter sequence) so pre-spawn only emits
-        objects that have a planned seat.
-
-        Overrides should cache a ``PackSolution`` on each episode's
-        selection dict (typically under ``_pack_solution``). They can
-        also read ``support_obj.scale`` /
-        ``.get_position_orientation()`` as a fallback when the catalog
-        entry lacks ``scale_xyz`` (older inventories). In dry-run mode
-        ``support_obj`` is ``None`` (no env was built); pipelines
-        should fall back to unit scale.
-
-        Default: no-op (pipelines without an offline planner skip this
-        hook and decide layout in ``place_objects``).
-        """
+        Overrides may cache a PackSolution in each episode's selection. The caller
+        filters spawn specifications to planned objects and remaps instance names.
+        Clutter planning requires the selected catalog region's scale_xyz metadata.
+        The current callers leave support_obj as None; no live support geometry is
+        available at this point. The default hook performs no planning."""
 
     @abstractmethod
     def identify_objects(self, ctx):
-        """Identify and group task objects from the BDDL scope.
+        """Resolve role groups from ctx.spawned_objects and ctx.obj_sets.
 
-        Must populate ``ctx.target_obj`` and ``ctx.active_objects``.
-        """
+        Populate ctx.target_obj and ctx.active_objects."""
 
     @abstractmethod
     def place_objects(self, ctx):
@@ -1397,17 +1368,14 @@ class BasePipeline(ABC):
         # / cooking recipes that would alter our spawned objects mid-run.
         gm.ENABLE_TRANSITION_RULES = False
 
-        # -- Object-first scene selection -----------------------------------
-        # Pre-select args.episodes triples so each episode uses a different
-        # (food, source, dest) combination. The surface must accommodate the
-        # LARGEST triple (max required_area_m2) — sum would be wrong since
-        # only one triple exists on the surface at a time.
+        # Select an object set for each episode. Size the support for the largest
+        # required area because only one episode's objects occupy it at a time.
         rng_pre = np.random.default_rng(args.seed)
         pre_selections = [self.select_objects(args, rng_pre)
                           for _ in range(args.episodes)]
         required_areas = [s["required_area_m2"] for s in pre_selections]
         required = max(required_areas)
-        print(f"[Pipeline] Pre-selected {len(pre_selections)} episode triples; "
+        print(f"[Pipeline] Pre-selected {len(pre_selections)} episode object sets; "
               f"required_area max={required:.3f} m² "
               f"(min={min(required_areas):.3f}, "
               f"mean={sum(required_areas)/len(required_areas):.3f})")
@@ -1547,13 +1515,8 @@ class BasePipeline(ABC):
         # with sim stopped.
         if task_object_cfgs:
             cfg["objects"] = task_object_cfgs
-        # Partial-room load is incompatible with GPU dynamics + spawning new
-        # articulated objects: PhysX pre-allocates a GPU articulation pool
-        # sized for the partially-loaded room, and the post-spawn sim.step()
-        # fires kernels that read past the pool with CUDA 700 (illegal
-        # address). Confirmed via /tmp/gpu_dynamics_full.py bisect — same
-        # config minus partial-room passes. For substance/liquid pipelines
-        # we accept the slower full-scene load.
+        # Use full-scene loading with GPU dynamics to avoid articulation-buffer
+        # errors associated with adding objects to partially loaded rooms.
         if room_instance and not gm.USE_GPU_DYNAMICS:
             cfg["scene"]["load_room_instances"] = [room_instance]
             print(f"[Pipeline] Partial load: room={room_instance}")
@@ -1561,7 +1524,7 @@ class BasePipeline(ABC):
             print(f"[Pipeline] Partial load skipped (GPU dynamics on): "
                   f"loading full scene {args.scene_model}")
 
-        # 3 external cameras (canonical names + resolution shared across
+        # Four external cameras (canonical names + resolution shared across
         # task-generation, teleop, training, eval). ``--camera-resolution``
         # (int) overrides the global default for this run.
         from maniguard.utils.camera_setup import (
@@ -1655,26 +1618,12 @@ class BasePipeline(ABC):
             pipeline_exit(exit_code)
 
     def _setup_session(self, ctx):
-        """Run one-time scene/robot setup before the episode loop.
+        """Resolve the loaded support, robot, and precreated episode objects.
 
-        Order matters: ``offline_pack`` + ``filter_specs_for_placed``
-        already ran in ``_run_sim`` (using the placeable catalog's
-        ``scale_xyz`` to size the world-frame region without a live
-        env), and ``build_task_object_cfgs`` already injected the
-        filtered, renumbered specs into ``cfg["objects"]`` — so by the
-        time we get here, OG has already loaded every episode's task
-        objects with sim stopped. This method just resolves them in the
-        scene registry.
-
-        After that, all episodes' task objects are spawned upfront with
-        episode-labelled inst_ids (e.g. ``bowl_ep1_1``, ``bowl_ep5_1``).
-        Episode-0's objects participate in the surface/mount setup;
-        later episodes' objects are parked far away. Per-episode work is
-        then just teleporting the current episode's objects onto the
-        surface and parking the previous episode's — no scene mutations
-        during the run, which sidesteps OmniGibson's registry-staleness
-        bug on objects added while the sim is playing.
-        """
+        Catalog-based packing and spawn-spec filtering occur before environment
+        construction. This method clears the workspace, establishes the mount, and
+        resolves the episode-labeled objects in the scene registry. Other episodes'
+        objects remain parked until selected."""
         env, og, args = ctx.env, ctx.og, ctx.args
         env.reset()
         og.sim.step()
@@ -1687,11 +1636,8 @@ class BasePipeline(ABC):
             print(f"[Pipeline] Hid {len(hidden)} structural objects "
                   f"(walls/ceiling) for camera clearance")
 
-        # -- Find support surface object (BEFORE spawn) ---------------------
-        # offline_pack needs the support's applied scale to size the pack
-        # region in world units; we also use the same lookup to filter
-        # spawn_specs down to only solver-placed objects, so support
-        # resolution happens before any task object is spawned.
+        # Resolve the selected support in the loaded scene registry.
+        # Packing and spawn-spec filtering have already run before construction.
         episode_activities = ctx._episode_activities
         picked = getattr(args, "_picked_surface", None)
         target_category = picked["category"] if picked else args._pre_selection["_surface_category"]
@@ -1779,7 +1725,7 @@ class BasePipeline(ABC):
         )
 
         clear_margin = args.perimeter_clear_margin_m if args.perimeter_clear_margin_m is not None else 0.60
-        # No task objects spawned yet, so nothing to protect from clearing.
+        # Task objects are parked outside the support-clearing region.
         ctx.removed_area_objects = clear_support_area(
             env, support_obj, ctx.surface_bounds_xy, margin_m=clear_margin,
             spawned_objects={},
@@ -1941,14 +1887,11 @@ class BasePipeline(ABC):
               f"failure_reason={ctx.edge_result.failure_reason}")
 
     def _run_episode(self, ctx):
-        """Run one episode: swap in this episode's task objects, gate, rollout.
+        """Activate one episode's objects, check the layout, and run the rollout.
 
-        All ``args.episodes`` triples were spawned upfront in
-        :meth:`_setup_session`. Each episode just teleports its 3 active
-        objects onto the support surface (via :meth:`place_objects`) and
-        parks the previous episode's 3 back to their far parking pose.
-        No scene mutation (add/remove) happens here.
-        """
+        All episode object sets are created during environment construction.
+        place_objects moves the current set onto the support, while objects from
+        other episodes remain parked away from the workspace."""
         env, og, args = ctx.env, ctx.og, ctx.args
 
         # -- Swap active objects for episodes > 0 ---------------------------

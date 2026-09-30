@@ -137,9 +137,16 @@ a target-engagement ladder that separates *inert* from *clumsy* failures — see
 
 ## Snapshot validation (`eval/snapshot_validator.py`)
 
-QA for frozen snapshots before they enter a benchmark: offline checks (exactly one
-target; target/support present; goal references the target; manifest prompt matches)
-plus optional runtime materialization with a review video.
+Offline checks inspect target/support references, goals and manifest metadata for
+the validator's supported family schemas. Its optional runtime mode reconstructs
+a `BehaviorTask` and requires the matching `problem0.bddl` and activity definitions;
+a frozen benchmark with only inline `ltl_safety` is not sufficient for that mode.
+Policy evaluation reads the frozen scene and inline specification directly through
+`maniguard.eval.benchmark`.
+
+The validator also supports batch `--root` checks. With a video output directory
+and `--video-output-exact-dir`, batch videos are separated by each task's path
+relative to the input root.
 
 ## Preparing benchmark scenes (`data/scene/`)
 

@@ -12,9 +12,8 @@ No geometric filter: the LTL safety predicate for wet_transport is
 "don't pass over zone" — purely spatial, independent of object shape.
 Any graspable book/laptop/etc. is a valid zone.
 
-Categories with NO graspable models in the CSV are skipped silently
-(monitor, tablet have only ``no_grasp`` / ``not_ready`` entries today;
-laptop has only ``not_ready``).
+Categories without eligible models are omitted and listed in output metadata
+and console reporting.
 
 Run:
     conda activate behavior
@@ -34,10 +33,8 @@ _REPO = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
 CSV_PATH = os.path.join(_REPO, "docs", "graspability_classified.csv")
 OUT_PATH = os.path.join(_HERE, "water_sensitive_pool.json")
 
-# The curated water-sensitive set. Same as the old WATER_SENSITIVE_POOL
-# constant in task_spec.py — papers and electronics that shouldn't get
-# wet. Build admits every graspable model under these categories; the
-# selector samples uniformly by category-then-by-model.
+# Curated water-sensitive categories. Admit graspable models from the CSV;
+# the runtime selector samples by category and then by model.
 WATER_SENSITIVE_CATEGORIES = (
     "hardback",
     "notebook",

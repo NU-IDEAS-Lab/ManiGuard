@@ -1,46 +1,17 @@
-"""Build ``jar_transport_food_compat.json`` — per hinged_jar model, the
-graspable food categories + models whose longest axis fits through the
-jar's shortest opening.
+"""Build jar_transport_food_compat.json from food and jar geometry.
 
-Inputs:
-  * ``docs/graspability_classified.csv`` — Franka graspability + food
-    suitability classification (same source the food_transfer and
-    lid_transport pipelines use). We keep rows where
-    ``status == "graspable"`` AND ``food_transfer_target ∈ {perfect,
-    possible}``.
-  * ``utils/object_footprints.json`` — unscaled bounding-box extents
-    for every (category, model) in BEHAVIOR-1K.
+Use graspable food models with food_transfer_target marked perfect or possible
+in docs/graspability_classified.csv. Read unscaled item extents from
+utils/object_footprints.json and estimate jar openings from body-link bounds
+with a wall inset. Retain items whose longest extent is strictly below
+jar_opening_min_dim_m - fit_margin_m.
 
-Fit rule (matching ``select.candidate_items``):
-    ``food.extent_xyz.max() < jar.extent_xyz.min() - fit_margin_m``
+Each jar record includes jar_extent_xyz, jar_full_min_dim_m,
+jar_opening_min_dim_m, fit margins, category/model counts, and foods grouped
+by category. The catalog is a candidate-selection heuristic.
 
-Schema:
-  {
-    "metadata": {
-      "source_graspability": ".../graspability_classified.csv",
-      "source_footprints": ".../object_footprints.json",
-      "fit_margin_m": 0.015,
-      "jar_models": ["gqtsam", "jnjtrl", "kijnrj", "vzwhbg"],
-      "n_food_models_eligible": int,
-      "n_food_categories_eligible": int
-    },
-    "hinged_jar": {
-      "<jar_model>": {
-        "jar_extent_xyz": [x, y, z],
-        "jar_min_dim_m": float,
-        "fit_margin_m": float,
-        "n_food_categories": int,
-        "n_food_models": int,
-        "foods": {"<food_cat>": ["<food_model>", ...], ...}
-      },
-      ...
-    }
-  }
-
-Regenerate with::
-
-    python -m maniguard.task_generation.utils.jar_transport_pipeline.build_jar_transport_food_compat
-"""
+Regenerate with:
+    python -m maniguard.task_generation.utils.jar_transport_pipeline.build_jar_transport_food_compat"""
 from __future__ import annotations
 
 import argparse

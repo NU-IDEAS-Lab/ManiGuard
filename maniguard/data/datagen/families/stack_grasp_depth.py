@@ -1,21 +1,13 @@
-"""Geometric shallow-grab depth for the stack-retrieve family (trimesh mesh proximity).
+"""Estimate a shallow grasp depth that separates an upper stack object from the object below.
 
-One responsibility: *how far to retract a stack pick along its own approach axis so the gripper
-grabs ONLY the top object and never the object below it.*
+Search along the negative approach axis for the smallest retraction whose sampled
+gripper vertices clear the lower object by margin and remain within contact_tol
+of the upper object. Return None if the bounded search finds no such depth.
+StackSkeleton then uses the annotated depth and retains its multiple-object
+movement acceptance check.
 
-A stack pick descends to the annotated (deep) grasp; with the sticky assisted-grasp + long fingers
-that descent can contact the object directly beneath the top one, so the pick lifts/drags two
-objects. We fix it purely geometrically (no sim iterations): for each instance, line-search along
-``-approach`` for the smallest retraction ``d`` at which the gripper mesh clears the BELOW object by
-``margin`` while still contacting the TOP object within ``contact_tol``. If no such ``d`` exists (the
-gripper is thicker than the stack gap) the caller clamps/fails the task.
-
-Proximity uses trimesh ``mesh.nearest.on_surface`` (unsigned point-to-surface distance) — no
-python-fcl (not installed) and no ``contains`` (the object meshes are non-watertight). The gripper
-always approaches/retracts from above, so a penetrating fingertip sits near the object's TOP face and
-the unsigned distance tracks the true clearance monotonically as it retracts upward.
-
-trimesh lives here (mesh work) to keep ``stack_geom.py`` pure numpy.
+Distances are unsigned mesh surface distances from trimesh; meshes need not be
+watertight. This is a geometric candidate filter, not a collision guarantee.
 """
 from __future__ import annotations
 

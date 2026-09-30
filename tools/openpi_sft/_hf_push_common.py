@@ -1,24 +1,12 @@
-"""Shared HF-push logic for the SFT checkpoint uploaders.
+"""Shared checkpoint discovery and upload helpers for openpi.
 
-Both ``hf_push_watcher.py`` (runs alongside training, uploads each checkpoint as
-soon as it finalizes) and ``hf_push.py`` (one-shot, run after training to backfill
-anything missing) import this module, so they share ONE notion of:
+Find numeric step directories with a populated params directory, postponing
+all candidates while any sibling Orbax staging directory is present. Relabel
+num_train_steps - 1 as num_train_steps for the final remote checkpoint.
 
-  * which local step dirs are finalized (safe to upload),
-  * how a local step maps to its HF directory name (relabel the 0-indexed final
-    step to a round integer),
-  * whether a step is ALREADY completely on HF (so it is skipped, never
-    re-uploaded).
-
-"Already pushed" is decided against HF itself (the authoritative source), not a
-local marker file, because the two uploaders are independent processes. A step
-counts as complete iff every file under the local ``<step>/params/`` exists under
-the remote ``<remote_label>/params/`` -- a filename-set fingerprint, so a half
--finished upload (interrupted mid-commit) is detected as incomplete and retried.
-
-``train_state/`` (optimizer state) is never uploaded; ``params/`` + ``assets/``
-(norm stats) are, which is what inference / further-LoRA needs.
-"""
+The remote-completeness heuristic checks presence of every local parameter
+filename. It does not compare contents or verify assets. Uploads exclude
+train_state and otherwise preserve the checkpoint directory contents."""
 
 from __future__ import annotations
 
@@ -43,14 +31,10 @@ def remote_label(step: int, num_train_steps: int) -> str:
 
 
 def finalized_steps(ckpt_dir: str) -> list[int]:
-    """Local step dirs that are fully written and safe to upload.
+    """Return numeric step directories with nonempty params directories.
 
-    A step dir qualifies iff it (a) is a plain integer dir, (b) has no sibling
-    ``*.orbax-checkpoint-tmp-*`` staging dir for that step, and (c) contains a
-    non-empty ``params/`` subdir. orbax writes to a tmp dir then renames to the
-    final ``<step>/``, so an integer dir with a populated ``params/`` and no tmp
-    sibling is finalized.
-    """
+    Return no steps while any entry in the checkpoint root has an Orbax
+    staging-directory marker. This is a filesystem readiness heuristic."""
     if not os.path.isdir(ckpt_dir):
         return []
     entries = os.listdir(ckpt_dir)

@@ -1,26 +1,12 @@
-"""Top-surface raycast scan for graspable objects.
+"""Scan object top surfaces with downward raycasts.
 
-Spawns N candidate objects in an empty scene at identity orientation,
-each in its own XY column, then for each one casts a GRID×GRID grid of
-rays from above downward over the object's world-frame XY AABB. The
-first hit per ray is the top-surface z. Cells are kept iff the surface
-normal is mostly upward (``normal_z > 0.85``) — the actual up-facing
-geometry where a stack item would land.
+Spawn selected object models at identity orientation in separate XY columns.
+Cast a grid over each world-frame AABB and retain upward-facing first hits.
+The resulting heightmaps support flat-top and cavity feature extraction.
 
-For ``stack_flat`` targets this is the resting surface; for
-``stack_receptacle`` targets it reveals the cavity outline + depth.
-
-Usage:
-    # 2-object smoke test
-    python maniguard/task_generation/utils/stack_pipeline/scan_top_surface.py \\
-        --n-objects 0 --grid 24
-
-    # 50-object batch with PNG grid visualization
-    python maniguard/task_generation/utils/stack_pipeline/scan_top_surface.py \\
-        --n-objects 50 --grid 24 \\
-        --output scan_top_50.json --plot scan_top_50.png \\
-        --plot-rows 10 --plot-cols 5
-"""
+Examples:
+    python -m maniguard.task_generation.utils.stack_pipeline.scan_top_surface --n-objects 2 --grid 24
+    python -m maniguard.task_generation.utils.stack_pipeline.scan_top_surface --n-objects 0 --grid 24 --output maniguard/task_generation/utils/stack_pipeline/scan_top_full.json"""
 from __future__ import annotations
 
 import argparse

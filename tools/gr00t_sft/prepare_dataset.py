@@ -1,15 +1,11 @@
 #!/usr/bin/env python
-"""Make a GR00T-ready view of a ManiGuard LeRobot dataset WITHOUT copying big files
-or mutating the source: symlink videos/ + data/, materialize a real meta/ (LeRobot
-meta + GR00T's modality.json + stats), idempotent. Videos are already H.264 (GOP10)
-so there is NO transcode. Run in the Isaac-GR00T venv.
+"""Prepare a GR00T dataset view with linked data and copied metadata.
 
-    python tools/gr00t_sft/prepare_dataset.py --src <lerobot_dir> --out <prepped_dir> \
-        [--stats-dir <fork>/gr00t_stats/<fam>]
-
-Stats resolution: if <stats-dir>/stats.json exists, copy it (+ relative_stats.json)
-into meta/ (baked, no compute); else compute via gr00t.data.stats (the embodiment must
-be registered first -- this module imports it, which registers NEW_EMBODIMENT).
+Link data/ and videos/ to the source and copy metadata into the output directory.
+Write the selected simulation or real MODALITY_JSON. Copy supplied baked stats
+when present; otherwise compute stats if output meta/stats.json is absent.
+Existing links and metadata files are retained. No video transcoding is performed.
+Run in the Isaac-GR00T environment with distinct source and output directories.
 """
 import argparse
 import importlib.util

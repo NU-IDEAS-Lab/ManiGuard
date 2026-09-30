@@ -5,13 +5,10 @@ DEFAULT_DROP_Z_MARGIN = 0.05
 
 
 class Dropped(AbsoluteObjectState, BooleanStateMixin):
-    """
-    State that checks whether an object has fallen to (or below) the floor.
+    """Check whether the object origin is below floor_z + z_margin.
 
-    Returns True if the object's z-position is below ``floor_z + z_margin``.
-    Both thresholds are configurable per instance so that the safety monitor
-    can set scene-specific values from ``ltl_safety.json`` params.
-    """
+    The thresholds are configurable per instance and can be set from the
+    safety specification's proposition parameters."""
 
     def __init__(self, obj, floor_z=None, z_margin=None):
         super().__init__(obj)

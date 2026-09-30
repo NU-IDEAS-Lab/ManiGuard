@@ -1,18 +1,12 @@
-"""Extract a per-task review frame for a ManiGuard-Bench family.
+"""Extract the last frame of each task's review video.
 
-For visual QC it is far faster to eyeball one still per task than to scrub 35 short
-videos. This tool walks the *currently-existing* tasks of a finalized family, grabs the
-LAST frame of each task's "opposite" review video (the wide front view that shows the whole
-scene layout), and writes it as ``<family>/snapshots/<task_id>.png`` — a ``snapshots/`` folder
-sibling to the ``task_*`` folders. The reviewer then flips through ``snapshots/`` instead of
-opening every video.
+Read the selected view and episode from existing task directories and write
+<family>/snapshots/<task_id>.png. The default view is opposite_side_front.
+Review videos must be generated or supplied before running this utility; the
+benchmark snapshots and diagnostics alone do not contain video frames.
 
-It is deliberately drop-agnostic: it simply processes the ``task_*`` folders that exist right now
-(run it whenever you want to review), writing one PNG per existing task, named one-to-one by task id.
-
-Usage:
+Example:
   python -m maniguard.data.bench_builder.review_snapshots --family cabinet_pickup
-  python -m maniguard.data.bench_builder.review_snapshots --family jar_transport --view opposite_side_front
 """
 
 from __future__ import annotations

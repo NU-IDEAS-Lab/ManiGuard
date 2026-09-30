@@ -1,10 +1,4 @@
-"""cuRobo grasp scoring — rank the annotated grasp candidates by reachability so the driver
-tries the reachable, high-quality ones first and skips hopeless ones (the §4.3 "use all
-USABLE grasps, prefer high score" pre-filter). Generic across families.
-
-Score = can cuRobo reach this grasp's PRE-GRASP standoff (a collision-checked plan from the
-current pose, target dropped), weighted by how cleanly it converged (low pos/rot error, not
-salvaged). Unreachable grasps get ``reachable=False`` and are skipped by the sampler.
+"""Rank annotated grasp candidates by planned pre-grasp reachability, joint-limit margin, and convergence score. Test the configured orientation variants and retry budget; the sampler skips candidates marked unreachable.
 """
 from __future__ import annotations
 
@@ -13,9 +7,8 @@ from scipy.spatial.transform import Rotation as Rot
 
 from maniguard.data.datagen.primitives.curobo_seg import solve_segment
 
-# Joint-limit margin (rad) the chosen grasp's wrist must keep at the pre-grasp standoff. Below this
-# the wrist starts too near a limit and the subsequent straight lift/carry stalls (singularity-
-# adjacent). Tuned from sim collection (see the grasp-singularity spec/plan); 0.2 rad ≈ 11.5°.
+# Minimum joint-limit margin (rad) at the pre-grasp standoff. A small margin
+# can leave insufficient range for the following lift or carry; 0.2 rad is about 11.5 degrees.
 MARGIN_FLOOR = 0.2
 
 # Approach-direction gate for the relocate grasp preference. A grasp whose world-frame approach axis
@@ -49,7 +42,7 @@ def is_wrist_open(eef_quat_xyzw, open_dir) -> bool:
 def rank_key(c, prefer_top_down: bool):
     """Descending sort key for a scored GraspCand (use with ``reverse=True``). The top-down tier only
     engages when ``prefer_top_down``; the wrist-open tier engages whenever the caller passed a
-    ``prefer_wrist_dir`` (else ``c.wrist_open`` is a constant False). Otherwise the order is the legacy
+    ``prefer_wrist_dir`` (else ``c.wrist_open`` is a constant False). Otherwise candidates are ordered by
     ``(reachable, margin, score)``."""
     return (c.reachable, (c.is_top_down if prefer_top_down else False), c.wrist_open, c.margin, c.score)
 
@@ -90,7 +83,7 @@ def score_grasps(world, robot, target, cands, *, standoff_m: float = 0.10,
     within ``margin_floor`` of a limit is dropped (``reachable=False``): the subsequent straight
     lift/carry would push that wrist past its limit and stall (the palm-flip side-grasp singularity).
     The winning roll is recorded so execution reaches it (cabinet threads ``chosen_roll`` to the grasp
-    segments). Set ``roll_disambig=False`` to keep the legacy single-quat, no-floor behaviour (used for
+    segments). Set ``roll_disambig=False`` to use one annotated quaternion without the margin floor (used for
     the drawer-handle grasps, which have their own contact gates)."""
     import torch as th
 

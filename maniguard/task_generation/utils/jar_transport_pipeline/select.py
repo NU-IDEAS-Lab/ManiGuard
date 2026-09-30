@@ -1,20 +1,14 @@
-"""Selection helpers for the jar_transport pipeline.
+"""Select hinged jars and candidate items using opening-size estimates.
 
-Picks one of the four ``hinged_jar`` models in BEHAVIOR-1K plus a
-graspable item that fits through the jar's opening.
-
-Fit rule (from the task spec): ``item.extent_xyz.max() < jar.extent_xyz.min()``
-— i.e. the longest axis of the item must be strictly shorter than the
-shortest axis of the jar's bbox. We also apply an additive margin so
-the item doesn't graze the rim.
-
-Item candidates come from ``table_obstacle_pool.json`` (~1946 graspable
-models). Items are *not* pre-filtered for fragility / dropability; LTL
-safety constraints catch those at rollout time.
-"""
+Estimate each jar opening from its body-link metadata bounds after subtracting
+twice wall_inset_m. Retain items satisfying
+    max(item.extent_xyz) < jar_opening_min_dim(jar_model, wall_inset_m) - fit_margin_m
+The estimate is a candidate filter rather than a guarantee of physical fit.
+Item models are read from table_obstacle_pool.json."""
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -31,10 +25,9 @@ _OBSTACLE_POOL_PATH = (
     / "maniguard" / "task_generation" / "utils" / "clutter_pipeline"
     / "table_obstacle_pool.json"
 )
-_JAR_ASSETS_DIR = (
-    _PROJECT_ROOT
-    / "behavior-1k" / "datasets" / "behavior-1k-assets" / "objects"
-)
+_JAR_ASSETS_DIR = Path(os.environ.get(
+    "OMNIGIBSON_DATA_PATH", _PROJECT_ROOT / "behavior-1k" / "datasets",
+)) / "behavior-1k-assets" / "objects"
 
 JAR_CATEGORY = "hinged_jar"
 JAR_SYNSET = "hinged_jar.n.01"

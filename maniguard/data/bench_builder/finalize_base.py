@@ -1,22 +1,14 @@
-"""Single-task base finalizer for ManiGuard-Bench.
+"""Finalize one generated task for ManiGuard-Bench.
 
-``finalize_base_task`` reads a 6fam-base task's ``base/`` snapshot (READ-ONLY), enforces the
-canonical mount + init pose + canonical robot config, and PRODUCES a clean finalized base task in
-the NEW maniguard-bench output dir. It does NOT copy the source diagnostics blob — it builds an
-OWNED diagnostics schema (design doc §2 + the diagnostics-curation decision):
+Load a source snapshot and diagnostics, replace its robot with the benchmark
+configuration, set the mount height and initial joint pose, and save the result
+as scene_ep{episode}.json in a separate output directory.
 
-  * 🆕 FRESH (computed in-sim from the finalized scene): ``cameras`` (live 4-view poses),
-    ``surface_info`` (uniform, from the resolved surface AABB), ``gate_pass`` / ``ltl_violated`` /
-    ``steps_executed`` / ``ltl_summary`` (recomputed over the bench's OWN idle-step — the analog of
-    the generation-time jitter rollout — NOT the source's), and the ``bench`` provenance block.
-  * 📋 CARRIED task identity (explicitly extracted, allowlist): prompt / ltl_safety spec / selection
-    / goal_region / family task-def / activity_name / scene_model / ...  — these DEFINE the task.
-  * 🗑 DROPPED: the source's ``ltl_summary`` (48 KB collection log) / ``snapshots`` / ``videos`` /
-    ``robot_base`` (stale) / and the source's runtime ``gate_pass`` / ``ltl_violated`` /
-    ``steps_executed`` / ``surface_info`` (all RE-computed fresh, never carried).
-
-Data isolation (design doc §1): 6fam-base is never modified; output uses the canonical filename
-``scene_ep{episode}.json``. The env strips the source robot and bakes ONE uniform canonical robot.
+Task identity, prompts, goals, safety specifications, and family metadata are
+selected explicitly from the source diagnostics. Camera poses, surface geometry,
+spawn-feasibility checks, and idle-rollout safety results are recomputed. The
+output diagnostics also record the robot configuration and stability statistics.
+Four review videos show the idle rollout.
 """
 from __future__ import annotations
 
@@ -32,8 +24,8 @@ BASE_Z_TOL = 1e-3        # m
 OBJ_DISP_WARN = 0.02     # m
 REACH_MIN, REACH_MAX = 0.20, 1.10   # target reachability band (mirrors the generation gate)
 
-# --- owned diagnostics schema -------------------------------------------------------------------
-# Task-IDENTITY fields carried verbatim from the source task definition (explicit allowlist).
+# --- diagnostics fields -------------------------------------------------------------------------
+# Task-definition fields copied from the source diagnostics.
 _CARRY_UNIVERSAL = ["episode", "activity_name", "scene_model", "surface", "prompt",
                     "selection", "ltl_safety", "goal_conditions", "goal_region", "pipeline"]
 _CARRY_FAMILY = {
@@ -45,12 +37,10 @@ _CARRY_FAMILY = {
     "clutter_pickup": [],
     "lid_transport": [],
 }
-# Source fields the bench NEVER carries verbatim: cameras/surface_info are recomputed fresh;
-# gate_pass/ltl_violated/steps_executed/ltl_summary are recomputed fresh in-sim; snapshots/
-# videos/robot_base are stale cruft. (Listing them keeps the "unexpected source field" warning
-# precise — anything in the source that is neither carried nor here is flagged for review.)
-# The lid pipeline additionally writes top-level *_category/*_model/n_objects_*/system_name dups of
-# its selection block (already carried via `selection` + derived `lid_info`) — drop them explicitly.
+# Fields omitted from direct copying: camera, surface, and rollout measurements
+# are recomputed; recording paths and robot-base metadata are not carried over.
+# Lid selection metadata is retained in selection and summarized in lid_info.
+# Other unrecognized source fields are reported in the output diagnostics.
 _DROP = {"cameras", "surface_info", "gate_pass", "ltl_violated", "steps_executed", "ltl_summary",
          "snapshots", "videos", "robot_base",
          "container_category", "container_model", "food_category", "food_model",
@@ -101,8 +91,8 @@ def _aabb_lo_hi(obj):
 # about the live AABB centre (so the same table at any world pose / scene gets the right region).
 # Add a model here if a new round-top surface enters the bench.
 _ROUND_SURFACE_HALF = {
-    # coffee_table/semdkc: round top, world AABB ~1.34 (rim r≈0.665). 0.43 => corner 0.608,
-    # ~5.7 cm inside the rim; offline-validated (datagen relocate parks target on-table + reach OK).
+    # coffee_table/semdkc: a 0.43 m half-side keeps square corners inside the
+    # approximately 0.665 m radius of the circular tabletop.
     "semdkc": 0.43,
 }
 
@@ -142,14 +132,11 @@ def _fresh_surface_info(surf, support_top: float, init: dict) -> dict:
 
 
 def _derive_family_info(family: str, diag: dict, n_task_objects: int | None = None) -> dict:
-    """Convenience family-info for families whose source pipeline never wrote one (clutter/lid),
-    summarised from ``selection``/``spawn_specs`` in the {name/category/model + family attrs} style
-    of jar_info/cabinet_info. Returns ``{}`` for families that already carry a source info field.
+    """Build clutter or lid metadata from selection and spawn_specs.
 
-    ``n_task_objects`` (target + clutter/fragile) is the ACTUAL count of task objects present in the
-    finalized scene; when given, clutter's ``n_clutter_objects`` is derived from it (minus the one
-    target) rather than from ``spawn_specs`` — the source pipeline drops objects it cannot place at
-    generation time, so ``spawn_specs`` over-counts the real layout.
+    If n_task_objects is provided, use the actual scene inventory for the
+    clutter count. Generation may place fewer objects than spawn_specs requests.
+    Other families retain their existing metadata and return an empty mapping.
     """
     sel = diag.get("selection") or {}
     specs = sel.get("spawn_specs") or []
@@ -180,31 +167,50 @@ def _derive_family_info(family: str, diag: dict, n_task_objects: int | None = No
 
 
 def _needs_gpu_dynamics(diag: dict) -> bool:
-    """True if the task carries a PhysX particle/fluid system that only simulates under the GPU
-    dynamics pipeline. Clutter-liquid tasks declare ``selection.system_name`` (e.g. ``"water"``);
-    under the default CPU pipeline the fluid particles deterministically NaN-segfault on the first
-    physics step. Mirrors the source pipeline's GPU-dynamics gating (``liquid_transport_pipeline``
-    always sets ``gm.USE_GPU_DYNAMICS=True``; ``pipeline_common.needs_gpu_dynamics_from_specs`` for
-    substance spawns). Dry tasks return False and run unchanged on the default CPU pipeline.
+    """Return whether selection.system_name requests a physical particle system.
+
+    These tasks require PhysX GPU dynamics, which must be enabled before
+    constructing the environment. Tasks without this field use the default
+    dynamics configuration.
     """
     return bool((diag.get("selection") or {}).get("system_name"))
 
 
-def _patch_lid_ltl(family: str, ltl_safety: dict, spawn_specs: list, surface_name: str | None = None) -> dict:
-    """Fix the lid family's two hardcoded-synset LTL bugs (both: source LTL spec doesn't match the
-    actual task object, but resolves only via a fallback / goes vacuous). No-op for non-lid families
-    and for tasks whose spec already matches. Applied BEFORE the monitor is built so the monitor + the
-    carried LTL spec stay consistent; both rewrites resolve to the SAME object, so the monitor outcome
-    (ltl_violated / gate) is unchanged — only the spec text + the validate warn/fail change.
+def bind_support_instance(family: str, ltl_safety: dict, surface_name: str | None) -> dict:
+    """Bind the Jar/Lid support relation to its selected scene object."""
+    prop_name = {
+        "jar_transport": "jar_on_support",
+        "lid_transport": "container_on_support",
+    }.get(family)
+    if prop_name not in (ltl_safety.get("propositions") or {}):
+        return ltl_safety
+    if not surface_name:
+        raise ValueError(f"{family}: support instance name is required")
+    import copy
+    bound = copy.deepcopy(ltl_safety)
+    bound["propositions"][prop_name]["relative_to"] = [surface_name]
+    return bound
 
-      1. ``lid_on_container.over``: hardcoded ``lid.n.02_*``, but some tasks use a ``cap.n.02``
-         (bottle/carton screw-cap) → resolves to 0 objects, the ``check: all`` AP goes vacuously TRUE
-         and ``lid_before_lift`` is silently unenforced. Rewrite to the spawned lid's synset
-         (``spawn_specs`` role=lid).
-      2. ``container_on_support.relative_to``: hardcoded ``breakfast_table.n.01_*`` on some tasks
-         regardless of the real surface (desk/countertop/...), resolving only via the surface fallback
-         (a validate warn, §9-5). Rewrite to the actual surface's category prefix ``<category>_*`` (the
-         form the correctly-generated tasks already use), derived from the ``surface`` object name.
+
+def bind_lid_container_instance(family: str, ltl_safety: dict, target_name: str | None, scene_names) -> dict:
+    """Bind the Lid cover relation to the current goal target in the scene inventory."""
+    if family != "lid_transport" or "lid_on_container" not in (ltl_safety.get("propositions") or {}):
+        return ltl_safety
+    if not target_name or target_name not in scene_names:
+        raise ValueError(f"{family}: goal target {target_name!r} is missing from the scene inventory")
+    import copy
+    bound = copy.deepcopy(ltl_safety)
+    bound["propositions"]["lid_on_container"]["relative_to"] = [target_name]
+    return bound
+
+
+def _patch_lid_ltl(family: str, ltl_safety: dict, spawn_specs: list, surface_name: str | None = None) -> dict:
+    """Normalize lid-task proposition patterns to the spawned objects.
+
+    Replace lid.n.02_* with the lid role's declared synset when needed, and
+    replace breakfast_table.n.01_* with the support object's category pattern.
+    Apply this before constructing the monitor and save the resulting specification
+    with the task. Return the original mapping when no replacement is needed.
     """
     if family != "lid_transport" or not ltl_safety:
         return ltl_safety
@@ -229,16 +235,12 @@ def _patch_lid_ltl(family: str, ltl_safety: dict, spawn_specs: list, surface_nam
 
 
 def _build_active_objects(env, ltl_safety: dict, surface_name: str | None, objects=None) -> dict:
-    """``{inst_id: obj}`` so the diagnostics LTL patterns resolve to live scene objects. Mirrors
-    eval's resolver (category / taxonomy-lemma / name fnmatch / ``.n.`` surface fallback) but is
-    kept self-contained in bench_builder so the bench never imports eval. (The duplicate lives in
-    ``benchmark._build_active_objects_for_ltl`` — unify into shared LTL infra later, design doc §9.)
+    """Resolve proposition patterns to live objects for safety monitoring.
 
-    ``objects`` optionally restricts the candidate set (default: the whole scene). The env
-    perturbation passes only the injected task objects + the anchor table, so a category pattern
-    (e.g. ``desk_*``) binds to the ONE anchor table and not to the room's other same-category
-    furniture (a real room can hold several desks, which would otherwise mis-bind the support
-    proposition and manufacture a false LTL violation).
+    Match categories, taxonomy lemmas, and object-name patterns, with a support
+    fallback for unresolved synset patterns. The optional objects argument
+    limits candidate objects. Environment variants pass injected task objects
+    and the anchor surface to avoid binding unrelated room furniture.
     """
     patterns: set[str] = set()
     for pdef in ((ltl_safety or {}).get("propositions") or {}).values():
@@ -331,6 +333,11 @@ def finalize_base_task(
     resolution: int = DEFAULT_RESOLUTION,
 ) -> dict:
     """Finalize one base task into ``out_base_dir``; never writes to ``src_base_dir``."""
+    src_base_dir = Path(src_base_dir).resolve()
+    out_base_dir = Path(out_base_dir).resolve()
+    if src_base_dir == out_base_dir:
+        raise ValueError("Source and output task directories must be different")
+
     import omnigibson as og
     import torch as th
 
@@ -385,9 +392,8 @@ def finalize_base_task(
     if surf is None:
         raise ValueError(f"cannot resolve support surface for {task_name} (surface={diag.get('surface')!r})")
     support_top = float(_aabb_lo_hi(surf)[1][2])
-    # a support with raised parts (e.g. task_0014's desk privacy divider) reports its AABB top far
-    # ABOVE the actual sitting plane, hanging the mount mid-air; the TARGET's bottom IS that plane —
-    # clamp to it (exact no-op on flat supports, where aabb top == the target's bottom).
+    # Raised panels can make the support AABB top exceed the placement plane.
+    # Use the lower of that top and the target AABB bottom as the mount reference.
     _tname = ((diag.get("goal_region") or {}).get("target_name")
               or (diag.get("target_info") or {}).get("name"))
     if _tname:
@@ -414,6 +420,11 @@ def finalize_base_task(
     ltl_safety = _patch_lid_ltl(family, diag.get("ltl_safety") or {},
                                 (diag.get("selection") or {}).get("spawn_specs") or [],
                                 diag.get("surface"))
+    ltl_safety = bind_support_instance(family, ltl_safety, getattr(surf, "name", None))
+    ltl_safety = bind_lid_container_instance(
+        family, ltl_safety, (diag.get("goal_region") or {}).get("target_name"),
+        {obj.name for obj in env.scene.objects},
+    )
     monitor = None
     init_doomed = False
     if ltl_safety:
@@ -462,13 +473,13 @@ def finalize_base_task(
     n_src_objects = len(src_init) - sum(  # source snapshot non-robot count (excludes the 1 source robot)
         1 for info in src_init.values() if "Franka" in (info.get("class_name") or ""))
 
-    # --- build the OWNED diagnostics (explicit; NOT dict(diag)) ---
+    # --- assemble diagnostics from selected fields and recomputed measurements ---
     carried = set(_CARRY_UNIVERSAL) | set(_CARRY_FAMILY.get(family, []))
     out_diag: dict = {f: diag[f] for f in (_CARRY_UNIVERSAL + _CARRY_FAMILY.get(family, []))
                       if f in diag}
     unexpected = sorted(f for f in diag if f not in carried and f not in _DROP)
     if "ltl_safety" in diag:
-        out_diag["ltl_safety"] = ltl_safety  # carry the PATCHED spec (no-op unless lid cap-fix applied)
+        out_diag["ltl_safety"] = ltl_safety  # save the specification used by the monitor
     # derived convenience family-info for clutter/lid (source pipeline never wrote one)
     out_diag.update(_derive_family_info(family, diag, n_task_objects))
     out_diag["cameras"] = cameras
@@ -518,7 +529,7 @@ def finalize_base_task(
     if ltl_violated:
         warnings.append("ltl_violated=True over the idle-step")
     if not pose_ok:
-        warnings.append("pose readback != A")
+        warnings.append("pose readback != BENCH_INIT_QPOS")
     if not basez_ok:
         warnings.append(f"base_z readback {base_z_rb} != {base_z_after:.4f}")
     if n_mp4 != 4:

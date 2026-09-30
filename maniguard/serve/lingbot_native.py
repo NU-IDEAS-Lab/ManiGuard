@@ -1,36 +1,16 @@
 #!/usr/bin/env python3
-"""Serve a ManiGuard LingBot-VLA 2.0 SFT checkpoint over the openpi-client websocket contract.
+"""Serve a LingBot-VLA 2.0 checkpoint through the openpi websocket protocol.
 
-Runs in the ``lingbotvla`` conda env (upstream's ``tools/create_train_env.sh`` recipe).
-Wraps LingBot's ``LingbotVlaV2Policy`` behind the SAME websocket / msgpack-numpy protocol as
-``maniguard.serve.openpi_native``, ``gr00t_native.py`` and ``smolvla_native.py`` -- so
-``maniguard.eval.benchmark`` connects with NO client change.
+Load checkpoint weights, processor files, robot mapping, and explicit family
+normalization statistics. The supplied Qwen configuration and selected
+training data block complete the model setup. Record resolved paths in logs.
 
-Why not upstream's ``deploy/lingbot_vla_v2_policy.py``: its loader assumes the checkpoint
-still sits inside a training output tree. It reads the training config from
-``<ckpt>/../../../lingbotvla_cli.yaml``, reads the robot config as ``configs/robot_configs/
-<name>.yaml`` *relative to CWD*, and resolves the VLM through ``QWEN3VL_PATH``. An HF snapshot
-has none of that layout. This shim resolves **everything from the checkpoint directory** plus
-the in-repo training config, and logs each resolved source so a run's provenance is auditable
-from the server log alone (the pattern the earlier eval waves rely on for unit-level checks --
-``eval_config.json``'s ``serve_config_name`` is a static annotation and proves nothing).
+Map overview/wrist images and joint state through FeatureTransform. Require
+absolute action features and return one actions array containing the predicted
+joint-target chunk without adding the current state.
 
-Action contract: the checkpoint was trained with ``subtract_state: False`` on both action
-features, i.e. it predicts **absolute** joint targets. ``FeatureTransform.unapply`` therefore
-only unnormalises -- it does not add the state back -- so the chunk is forwarded AS-IS to the
-JointController. Same contract as SmolVLA; pi0.5 / pi0 / GR00T all add state back instead.
-Getting this backwards produces plausible-looking garbage without raising.
-
-Norm stats: passed **explicitly** as ``<ckpt>/maniguard/norm_stats.json``. LingBot's
-``FeatureTransform`` pops ``robot_config['norm_stats']`` when an explicit path is given, so the
-per-family statistics always win over the yaml's default field (which is a stale pointer to the
-clutter file in both published repos).
-
-Usage (in the lingbotvla conda env):
-    python maniguard/serve/lingbot_native.py \
-        --checkpoint /path/to/lingbot-checkpoint --qwen-config /path/to/qwen3vl-config-dir \
-        --device cuda:0 --port 8000
-"""
+Example:
+    python maniguard/serve/lingbot_native.py --checkpoint /path/to/checkpoint --qwen-config /path/to/qwen-config --device cuda:0 --port 8000"""
 from __future__ import annotations
 
 import argparse
@@ -136,7 +116,7 @@ class LingBotServer:
 
         # Build the item in the FLAT datagen key space the checkpoint's robot_config maps
         # from, then let LingBot's own FeatureTransform do the unified-vector packing,
-        # normalisation and tokenisation -- byte-identical to the training path.
+        # normalization and tokenization using the selected feature configuration.
         item = {
             _ORIGIN_STATE: torch.as_tensor(
                 np.asarray(obs[_CLIENT_STATE], dtype=np.float32).reshape(-1)),
@@ -232,20 +212,16 @@ def _stage_vlm_assets(ckpt: Path, qwen_config_dir: Path, workdir: Path) -> Path:
 
 
 def _build_data_config(train_config_path: Path) -> SimpleNamespace:
-    """FeatureTransform needs the training `data` block (joints / cameras / norm_type /
-    img_size). Read it from the in-repo SFT config so eval sees exactly the feature space
-    training used."""
+    """Load the data block used to configure FeatureTransform.
+
+    Convert list entries to strings to match LingBot's argument-loader convention
+    for joints, norm_type, and camera entries."""
     import yaml
     with train_config_path.open() as f:
         cfg = yaml.safe_load(f)
     data = dict(cfg["data"])
-    # Reproduce the training path's own coercion exactly. LingBot's yaml->args layer
-    # (lingbotvla/utils/arguments.py: `cmd_args.extend([str(item) for item in arg_value])`)
-    # stringifies every element of a list field, and the consumers then parse them back with
-    # ast.literal_eval (FeatureInfo.update_info for `joints`, FeatureTransform for `norm_type`).
-    # Handing FeatureTransform the raw yaml dicts instead raises
-    # "malformed node or string: {'arm.position': 14}", so apply the same str() the trainer did
-    # -- eval must see the byte-identical feature space training used.
+    # LingBot consumers parse list entries after the argument loader converts
+    # each entry to a string. Apply the same conversion here.
     for key in ("joints", "norm_type", "cameras"):
         if isinstance(data.get(key), list):
             data[key] = [str(item) for item in data[key]]
@@ -288,7 +264,7 @@ def main() -> None:
     train_config = Path(args.train_config) if args.train_config else (
         Path(__file__).resolve().parents[1] / "lingbot_sft" / "train_config.yaml")
 
-    # Provenance, logged so a unit's server log alone proves what was served.
+    # Log resolved checkpoint, mapping, and normalization paths.
     logger.info(f"checkpoint    : {ckpt}")
     logger.info(f"robot_config  : {robot_config}")
     logger.info(f"norm_stats    : {norm_stats}   (explicit -> overrides the yaml's field)")
@@ -297,8 +273,8 @@ def main() -> None:
     import torch
     import yaml
 
-    # Both packages come from the LingBot-VLA clone, installed editable by
-    # tools/create_train_env.sh, so no sys.path surgery is needed in the lingbotvla env.
+    # These imports require the LingBot source tree and its dependencies
+    # to be installed or available on PYTHONPATH.
     from deploy.lingbot_vla_v2_policy import LingBotVlaV2InferencePolicy
     from lingbotvla.data.vla_data.utils import FeatureTransform
     from lingbotvla.models import build_processor

@@ -1,31 +1,13 @@
-"""Test self-stacking stability for graspable objects.
+"""Measure self-stacking stability for selected graspable object models.
 
-For each candidate (category, model) drawn from
-``docs/graspability_classified.csv`` (status=graspable):
+Spawn the requested number of copies at identity orientation, settle them,
+optionally apply horizontal velocities, and settle again. The XY test bounds
+each coordinate's distance from the column anchor by
+0.5 * bbox_tol * native_extent. Results record the configured test parameters.
 
-  1. Spawn N copies at the same XY in an empty scene, identity orientation.
-  2. Settle physics for K steps (gravity-only).
-  3. Shake test: apply a random horizontal velocity to every copy and
-     settle again, to discount stacks that look stable but actually fall
-     under any disturbance.
-  4. Stability check: every copy's XY centre must lie within
-     ``bbox_tol * native_xy_bbox`` of the column anchor — per-axis (x and
-     y both checked independently, NOT by area).
-
-Candidates are processed in batches that re-create the OG env each time
-to bound memory + per-stage Kit time. Results write incrementally so a
-crash mid-sweep doesn't lose the prior batches.
-
-Usage:
-    # Smoke test, 10 candidates with video
-    python tools/test_stack_self_stability.py --n-objects 10 --copies 2 \\
-        --save-video outputs/stack_self_smoke
-
-    # Full sweep, 5 copies, headless, batched
-    python tools/test_stack_self_stability.py --n-objects 0 --copies 5 \\
-        --batch-size 100 --headless \\
-        --output outputs/stack_self_full.json
-"""
+Examples:
+    python -m maniguard.task_generation.utils.stack_pipeline.test_stack_self_stability --n-objects 10 --copies 2 --save-video outputs/stack_self_smoke
+    python -m maniguard.task_generation.utils.stack_pipeline.test_stack_self_stability --n-objects 0 --copies 5 --batch-size 100 --headless --output maniguard/task_generation/utils/stack_pipeline/stack_self_full.json"""
 from __future__ import annotations
 
 import argparse
@@ -299,7 +281,7 @@ def main():
     p.add_argument("--copies", type=int, default=2,
                    help="Number of identical copies stacked per column (>=2).")
     p.add_argument("--settle-steps", type=int, default=30,
-                   help="Physics steps for gravity settle (≥10 per spec).")
+                   help="Physics steps for gravity settling.")
     p.add_argument("--shake-velocity", type=float, default=0.3,
                    help="Random horizontal velocity (m/s) applied to every "
                         "copy after the gravity settle. 0.0 disables shake.")

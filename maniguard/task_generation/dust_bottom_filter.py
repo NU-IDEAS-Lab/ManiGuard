@@ -1,38 +1,16 @@
 #!/usr/bin/env python3
-"""Refine a dusty_transfer scene so the dust sits only on the container
-bottom — the same distribution the reviewed 6fam-base dusty tasks use.
+"""Filter serialized dust particles to a container's lowest particle layer.
 
-``DustyTransferPipeline`` applies dust via OmniGibson's ``Covered`` state,
-which scatters visual particles over the *whole* dest container — bottom,
-side walls, and rim. For a clean wipe task we only want the bottom-plane
-particles: the rim / side-wall ones are visually distracting and the
-sponge can't intuitively reach them. This module drops every particle
-above ``z_min + tol`` and rebuilds the serialized particle state so the
-parallel arrays + counts stay consistent.
+For snapshots with one dust group, retain particles at z <= min(z) + tol
+and rebuild the associated arrays and counts. Leave sufficiently flat
+particle distributions unchanged. The operation reads saved scene JSON and
+does not simulate or revalidate the task.
 
-It is a pure **offline** refine: it edits the already-saved
-``scene_ep1.json`` in place (the snapshot ``og.sim.save`` writes after the
-spawn gate passes). Everything downstream — ``replay_empty`` dust-restore,
-``finalize_base``, ``validate_base``, and the re-rendered bench video —
-loads from this edited json, so they all see the filtered distribution.
-Nothing in the generation-time gates depends on which dust particles
-exist (gates check reachability + LTL, not dust), so filtering after the
-save is fully consistent with what the bench actually consumes.
+The CLI previews changes by default. --apply writes the filtered snapshot;
+use the backup option when retaining the input file is required.
 
-This is the module form of the throwaway ``_filter_dust_bottom.py`` tool
-that produced the 23 reviewed dusty bases — same z-keep logic, no
-hardcoded dataset path.
-
-Usage::
-
-    # refine every dusty task under a staging root (writes in place)
-    python -m maniguard.task_generation.dust_bottom_filter \\
-        --root /tmp/dusty_new_stage/dusty_transfer --apply
-
-    # dry-run a single scene file
-    python -m maniguard.task_generation.dust_bottom_filter \\
-        --scene /tmp/.../task_0000/base/scene_ep1.json
-"""
+Example:
+    python -m maniguard.task_generation.dust_bottom_filter --scene /path/to/task/base/scene_ep1.json"""
 from __future__ import annotations
 
 import argparse
@@ -43,7 +21,7 @@ import shutil
 
 _DUST_SYSTEM_NAME = "dust"
 # Keep particles within this many metres of the lowest particle (the
-# container bottom plane). 20 mm matches the reviewed 6fam-base bases.
+# container bottom plane). The default tolerance is 20 mm.
 DEFAULT_TOL_M = 0.020
 # Containers whose dust z-spread is below this are treated as flat — there
 # is no meaningful bottom-vs-wall split, so keep every particle.

@@ -1,27 +1,15 @@
-"""Geometry for the `location` perturbation level of ManiGuard-Bench.
+"""Geometry for object-location perturbations.
 
-The `location` axis shifts the task objects to a different in-plane position on
-the support surface while the **robot base and its init pose A stay fixed** — the
-mis-alignment between the moved objects and the stationary arm is exactly the
-out-of-distribution signal we want. So this module only ever computes object
-displacements; it never touches the robot.
+Move units group objects translated together: individual clutter objects,
+independent cabinet target and obstacle, one rigid group for jar/lid/stack, and
+separate source-plus-food and destination groups for dusty tasks. The sponge
+is placed separately. Robot, support, goal marker, and cabinet fixture are
+excluded from these groups.
 
-Three concerns, separated so the math is unit-testable without a simulator:
-
-* ``resolve_move_units(env, diag, family)`` — group the live scene's task objects
-  into the family's MOVE UNITS (per spec §4d): clutter = each object alone,
-  cabinet = target & obstacle independently, jar/lid/stack = the whole pack as one
-  rigid unit, dusty = (source+food) and (dest) as two units (sponge re-placed
-  separately). Structural entities (robot, surface, goal marker, cabinet fixture)
-  are excluded.
-* ``sample_displacement(...)`` — deterministic in-plane displacement for one unit
-  (seeded by task + unit index): random-plane / along-slide-dir / xy-independent.
-* ``clamp_to_surface(...)`` — clamp a displacement so the unit's XY footprint stays
-  inside ``surface_info.bounds_xy`` minus ``CLAMP_MARGIN_M`` (never falls off the
-  table). A direction retry picks the most feasible move when the first is starved.
-
-``plan_unit_move`` ties sampling + clamp + retry together and reports whether the
-clamp starved the move (for QC).
+Sampling and surface-bound clamping are deterministic from the supplied seed.
+plan_unit_move reports displacements reduced by clamping or infeasible bounds.
+The module also supplies lower-magnitude or perpendicular fallback rules.
+Robot poses are not modified here.
 """
 from __future__ import annotations
 
@@ -39,7 +27,7 @@ CLUTTER_CLEARANCE_M = 0.05     # clutter jitter basis (pack min clearance)
 _STARVED_FRAC = 0.5            # a move clamped below this fraction of intent -> retry / report
 _RETRY_ANGLES = 12             # evenly-spaced fallback directions for random-plane / slide
 
-# Per-family location rule (spec §4d). ``frac`` multiplies the magnitude basis:
+# Per-family displacement rule. ``frac`` multiplies the magnitude basis:
 # the unit's longest horizontal bbox edge (random_plane / slide_dir) or the fixed
 # clutter clearance (xy_independent).
 LOCATION_RULES: dict[str, dict[str, Any]] = {
@@ -185,9 +173,9 @@ def fallback_rule(family: str, slide_dir):
         perpendicular vector, so both signs are tried), giving the target a lateral
         escape when the drawer axis is blocked (edge on one side, out-of-reach on
         the other).
-      * omnidirectional families — a fresh random-plane sweep at the same gentler
-        band (their primary already covers all directions, so this just retries at
-        a different, usually smaller magnitude).
+      * other families — a fresh random-plane sweep at 0.5-0.8 times the
+        longest horizontal bounding-box edge. This can exceed a family's
+        primary displacement band.
     Returns (rule, slide_for_phase).
     """
     if family == "cabinet_pickup" and slide_dir is not None:

@@ -1,1 +1,1 @@
-"""ManiGuard utility modules extracted from the OmniGibson fork."""
+"""Shared utilities for ManiGuard task construction and evaluation."""

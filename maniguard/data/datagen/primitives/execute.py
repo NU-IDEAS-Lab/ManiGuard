@@ -1,15 +1,10 @@
-"""Execute a cuRobo joint trajectory via the JointController — Layer-1 primitive.
+"""Execute absolute joint waypoints and gripper commands.
 
-The datagen robot runs the ``joint_position_impedance`` preset (a JointController arm
-in absolute-position mode + a MultiFingerGripperController). To run a cuRobo segment
-we feed each ``(T, 7)`` arm waypoint straight into the arm action slot (raw radians,
-no clipping — the preset's ``command_input_limits=None``) and hold the gripper at a
-binary command; the impedance drive tracks the waypoints. Every stepped frame is
-handed to the recorder (``record_step(arm_q_cmd, gripper_cmd)``), which is the ONLY
-place the arm is commanded — exactly the contract the recorder assumes.
-
-Replicated clean from ``collector._build_action`` / ``_build_hold_action`` (the action
-assembly) — datagen does not import that tree.
+The datagen scene uses the joint_position_raw preset. Arm action slots receive
+seven joint targets in radians; the gripper receives +1 for open or -1 for closed.
+Each env.step can be followed by recording and an on_step callback that stops
+execution when requested. The recorder reads observations and does not command
+the robot.
 """
 from __future__ import annotations
 

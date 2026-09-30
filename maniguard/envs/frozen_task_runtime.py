@@ -228,7 +228,7 @@ def _build_runtime_robot_cfg(
         "exclude_sensor_names": None,
         "scale": 1.0,
         "self_collisions": True,
-        # Locked conventions (see feedback_env_config_conventions.md):
+        # Controller actions use native units without normalization:
         "action_normalize": False,
         "grasping_mode": grasping_mode,
         "action_type": "continuous",
@@ -334,8 +334,7 @@ def build_env_config(
 
     ``controller_preset`` selects the arm/gripper controller pair from
     :data:`CONTROLLER_PRESETS`. ``grasping_mode`` defaults to ``"assisted"``
-    (matches feedback_env_config_conventions.md) but can be overridden
-    to ``"sticky"`` for lid / thin-object pipelines where assisted's
+    and can be overridden to ``"sticky"`` for lid / thin-object pipelines where assisted's
     both-finger-contact requirement is too strict.
     """
     runtime_scene_info = strip_scene_robots_from_scene_info(scene_info)

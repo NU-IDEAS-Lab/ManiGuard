@@ -1,18 +1,8 @@
-"""Generic geometry helpers for the executor (family-agnostic).
+"""Geometry helpers for live demonstration execution.
 
-Three jobs, all from LIVE OmniGibson reads (``obj.aabb`` = world AABB recomputed from
-current collision points each call, so it is rotation-correct as the held object moves;
-``robot.eef_links[arm].get_position_orientation()``):
-
-  * **clearance over clutter** — held target's lowest world-z vs the tallest OTHER object
-    resting on the surface.
-  * **dynamic lift height (the 3 cm rule)** — how far the eef must rise so the held
-    target's lowest point clears the tallest clutter by ``min_clearance`` before translating.
-  * **terminal aim-to-centre** — the eef target that translates the held target so its
-    geometric CENTRE lands on the goal-sphere centre (the §4.3 redundancy: drive to centre,
-    not just to first surface contact).
-
-No cuRobo / no recording here — just geometry the engine + skeleton query.
+Compute world AABBs, object clearance, lift offsets, and goal-region alignment
+from simulator objects. Pure array helpers support reach fallbacks, orientation
+interpolation, and joint-configuration diagnostics.
 """
 from __future__ import annotations
 
@@ -105,7 +95,7 @@ def aim_to_center_eef(robot, target, goal_center, arm=None):
     return _np(ep) + delta, _np(eq)
 
 
-# --- place_across pinned-seed helpers (no-flare = elbow stays in the reach plane) ---
+# --- Elbow-flare diagnostics and endpoint-reference helpers ----------------
 
 def arm_flare(q_arm) -> float:
     """Out-of-plane elbow-flare proxy = |panda_joint3| (arm index 2, the upper-arm-roll DOF).

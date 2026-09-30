@@ -1,30 +1,17 @@
-"""Build the `env` (surrounding-room) perturbation level for ManiGuard-Bench.
+"""Build environment variants by placing task layouts in BEHAVIOR rooms.
 
-The `env` axis injects a finalized `base` task — canonical arm + one support table
-+ the task objects, NO room — rigidly into a real BEHAVIOR room, anchored on the
-support table (the SAME table model already present in that room). The policy sees
-the identical manipulation geometry against a totally different visual background
-(walls, furniture, clutter); that mismatch is the out-of-distribution signal. See
-``env_geom`` for the room matching + the rigid transform ``T = T_room · T_base⁻¹``.
+Merge a base snapshot with room objects and map the layout onto a matching
+table model. If the first placement fails, try geometrically selected substitute
+tables. Keep nearby furniture and floors as visual background; remove walls,
+ceilings, roofs, tabletop obstacles, and obstacles near the robot base.
 
-The injection is an OFFLINE scene-JSON MERGE (no live object injection): the room's
-``<scene>_best.json`` + the transformed base objects are merged into one scene_file
-dict, which ``build_env_config`` loads as an ``InteractiveTraversableScene`` in one
-shot (the loader instantiates every object in ``objects_info.init_info``, room +
-injected alike). The base table is dropped — the room already holds it.
+Each attempt runs in a fresh simulator process. After settling, save the scene,
+compute spawn and safety checks, and record four review videos. Acceptance also
+checks fallen objects, vertical sinking, and robot joint drift. The driver
+writes per-task results and two-view base/environment comparison images.
 
-STEP-1 (this version) is a de-risk SMOKE TEST: it proves the merged scene loads, the
-layout lands on the room table, and nothing grossly penetrates. It loads → mounts the
-arm on the room table → settles the injected objects → renders the 4 review videos →
-saves the merged snapshot, and writes a ``base | env`` opposite-view compare PNG for
-visual QC. The full finalize parity (fresh gate + LTL recompute + owned-diagnostics
-schema, mirroring ``finalize_base``) is Step 2.
-
-Same fresh-subprocess-per-task pattern as ``perturb_location``.
-
-Usage:
+Example:
   python -m maniguard.data.bench_builder.perturb_env --family lid_transport --tasks 0
-  python -m maniguard.data.bench_builder.perturb_env --family cabinet_pickup --tasks 0
 """
 from __future__ import annotations
 
@@ -54,16 +41,15 @@ SETTLE_HOLD = 20
 # Residual arm drift over the idle-step → the arm still collides with something the declutter
 # left (a wall it reaches, furniture beyond the clear margin). The env feasibility signal.
 ARM_DRIFT_TOL = 1e-2  # rad
-# An injected object whose in-sim AABB bottom sits more than this below the table top has SUNK into
-# / interpenetrates the surface (the fallen-0.3 check + the LTL "on support" predicate both miss a
-# shallow sink, e.g. a container settling halfway into a substitute table).
+# Maximum allowed downward change in an injected object's origin from its
+# recorded pre-settle height. This detects settling below the initial placement.
 SINK_TOL = 0.03  # m
 # Keep only the room background within this radius of the anchor table. The eval cameras see ~2-3 m
 # around the table, so objects beyond this are invisible — dropping them bounds the merged scene's
 # prebuild cost regardless of room size (some "rooms" are a whole 1300-object conference hall).
 ENV_BG_RADIUS_M = 4.0
 _STRUCT_KEEP_KEYWORDS = ("floor",)            # always kept (the visible ground)
-_STRUCT_DROP_KEYWORDS = ("wall", "ceiling", "roof")  # dropped here (Stage 1 removes them anyway)
+_STRUCT_DROP_KEYWORDS = ("wall", "ceiling", "roof")  # omitted from the environment background
 
 
 # ---------------------------------------------------------------------------- helpers
@@ -142,7 +128,7 @@ def _base_surface_name(base_si: dict, diag: dict) -> str | None:
 
 def _proximity_filter_room(scene_info: dict, table_name: str, radius: float) -> int:
     """In-place: keep the anchor table + floors + any object whose origin is within ``radius`` of
-    the table; drop walls/ceiling/roof (Stage 1 removes them anyway) and far objects. Bounds the
+    the table; drop walls, ceilings, roofs, and distant objects. Bounds the
     merged scene's object count so the per-task USD prebuild stays fast even when the room-instance
     is a 1300-object conference hall. Returns the number of objects dropped."""
     init = scene_info.get("objects_info", {}).get("init_info", {})
@@ -168,13 +154,9 @@ def _proximity_filter_room(scene_info: dict, table_name: str, radius: float) -> 
     return len(drop)
 
 
-# An injected object spawned OVERLAPPING a room object that already sits ON the anchor surface (a
-# laptop, potted plant, cash register the room keeps on that table) is violently ejected by PhysX on
-# the very first physics step — BEFORE the live ``clear_on_surface_obstacles`` removes that room
-# object. A flat object self-rights, but a tall fragile topples (→ all_fragiles_upright violated) or,
-# against a bulky fixture, blows up to a NaN pose (→ load crash). So we drop the room's on-surface
-# obstacles that fall within the injected pack's footprint OFFLINE — before the scene is ever built —
-# so the injected objects spawn onto a clean surface. The live pass still runs as a precise backstop.
+# Remove room objects in the anchor-table region before creating the simulator
+# scene, to reduce initial overlap with injected objects. A live AABB-based
+# clearing pass follows loading.
 SPAWN_CLEAR_EDGE_PAD_M = 0.10  # extend the anchor-surface footprint by this (catch edge-overhang obstacles)
 SPAWN_CLEAR_Z_BELOW = 0.05     # a room obj is "on the surface" iff surf_top - this <= origin_z ...
 SPAWN_CLEAR_Z_ABOVE = 0.60     # ... <= surf_top + this (sits on the table, not a ceiling fixture)
@@ -182,11 +164,12 @@ SPAWN_CLEAR_Z_ABOVE = 0.60     # ... <= surf_top + this (sits on the table, not 
 
 def _clear_room_spawn_obstacles(merged: dict, injected: list[str], anchor_name: str,
                                 surf_top: float | None, surf_box) -> list[str]:
-    """Drop room objects sitting ON the anchor surface (within its footprint ``surf_box`` =
-    ``(cx, cy, hx, hy)`` + at table height), so the injected objects never spawn interpenetrating
-    them — the cause of the first-step ejection that topples fragiles / NaN-crashes against bulky
-    fixtures. Matches the LIVE ``clear_on_surface_obstacles`` set but removes it OFFLINE, before the
-    scene is built. In-place on ``merged``; returns the dropped names. No-op when the box is unknown."""
+    """Remove room objects whose origins fall inside the supplied table region.
+
+    Use the XY box and configured height band; keep the anchor, injected objects,
+    and floors. This approximate preprocessing complements the live AABB check.
+    Mutate merged and return removed object names.
+    """
     if surf_top is None or surf_box is None:
         return []
     cx, cy, hx, hy = surf_box
@@ -248,6 +231,9 @@ def build_merged_scene_info(base_si: dict, room_si: dict, base_surf_name: str,
 
     b_init = base_si["objects_info"]["init_info"]
     b_reg = _scene_registry(base_si)
+    base_support_args = b_init[base_surf_name].get("args", {})
+    if "fixed_base" in base_support_args:
+        m_init[room_table_name].setdefault("args", {})["fixed_base"] = base_support_args["fixed_base"]
 
     injected: list[str] = []
     collisions: list[str] = []
@@ -274,7 +260,7 @@ def build_merged_scene_info(base_si: dict, room_si: dict, base_surf_name: str,
     removed_spawn = _clear_room_spawn_obstacles(merged, injected, room_table_name,
                                                 anchor_surf_top, anchor_surf_box)
 
-    # Carry any base particle systems (dusty's dust) — none for lid/cabinet/jar/stack/clutter.
+    # Copy base particle-system state into the merged snapshot.
     b_sys = (base_si.get("state", {}).get("registry", {}) or {}).get("system_registry", {})
     if b_sys:
         m_sys = merged.setdefault("state", {}).setdefault("registry", {}).setdefault("system_registry", {})
@@ -310,12 +296,10 @@ def remove_walls_and_ceiling(env) -> list[str]:
 
 
 def clear_on_surface_obstacles(env, surf, support_top: float, keep_names: set) -> list[str]:
-    """Remove ONLY the room objects sitting ON the table surface within its footprint — i.e. real
-    obstacles in the manipulation region. Under-table / beside / behind furniture (the cabinets,
-    shelves, display cases that give the room its character) is KEPT as background: that IS the env
-    OOD signal. This replaces the base-gen ``clear_support_area`` (a whole-table + 0.6 m ring sweep),
-    which strips every nearby furniture and leaves an almost-empty scene for tables that sit amid
-    built-in furniture (a cafe bar's cabinets, an office desk's shelving)."""
+    """Remove room objects above the support plane whose AABBs overlap the
+    support footprint. Keep injected objects, the anchor, robot, and structural
+    objects. Nearby furniture outside this region remains as visual background.
+    """
     import omnigibson as og
 
     from maniguard.task_generation.pipeline_common import is_structural_object
@@ -371,6 +355,8 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
         _compute_gate,
         _fresh_surface_info,
         _patch_lid_ltl,
+        bind_lid_container_instance,
+        bind_support_instance,
     )
     from maniguard.data.bench_builder.perturbation import derive_seed
     from maniguard.data.bench_builder.render import render_views
@@ -475,7 +461,7 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
     robot.keep_still()
     og.sim.step()
 
-    # Stage-1 declutter: walls/ceiling + on-table obstacles + robot-keepout furniture; keep the rest.
+    # Remove walls, tabletop obstacles, and furniture overlapping the robot base.
     spawned = {n: o for n in injected if (o := env.scene.object_registry("name", n)) is not None}
     removed_walls = remove_walls_and_ceiling(env)
     keep_names = set(spawned) | {anchor_name, getattr(robot, "name", "agent_0")}
@@ -518,6 +504,12 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
             if float(o.get_position_orientation()[0][2]) < spawn_z.get(o.name, float("-inf")) - SINK_TOL]
     spawn_specs = (diag.get("selection") or {}).get("spawn_specs") or []
     ltl_safety = _patch_lid_ltl(family, diag.get("ltl_safety") or {}, spawn_specs, anchor_name)
+    ltl_safety = bind_support_instance(family, ltl_safety, anchor_name)
+    ltl_safety = bind_lid_container_instance(
+        family, ltl_safety, (out_diag.get("goal_region") or {}).get("target_name"),
+        {obj.name for obj in env.scene.objects},
+    )
+    out_diag["ltl_safety"] = ltl_safety
     monitor = None
     init_doomed = False
     if ltl_safety:
@@ -652,10 +644,11 @@ def _row_for_task(task: str, out_fam: Path, family: str, episode: int) -> dict:
 
 
 def _reusable(out_dir: Path, episode: int) -> bool:
-    """Reuse (skip re-running) ONLY a previously-feasible NORMAL-mode task. Substitute-mode tasks are
-    re-verified (the sink check was added after they were produced), and infeasible/needs_review/fail
-    are always re-run. Normal-mode injection preserves the base resting geometry exactly, so those
-    are trusted (spot-checked separately)."""
+    """Return whether --skip-existing may reuse this task.
+
+    Require all output files and an ok worker row. Substitute-mode outputs
+    are regenerated; rows without a mode field are treated as normal mode.
+    """
     rp = out_dir / ROW_FILE
     if not rp.exists() or not _is_complete(out_dir, episode):
         return False
@@ -663,18 +656,18 @@ def _reusable(out_dir: Path, episode: int) -> bool:
         r = json.loads(rp.read_text(encoding="utf-8"))
     except Exception:
         return False
-    # Reuse a feasible task UNLESS it was produced by substitution (mode == "substitute"), which the
-    # sink check post-dates. Older rows predating the mode field have no "mode" → they are normal-mode
-    # (substitution did not exist then), so they reuse.
+    # Reuse successful non-substitute outputs; regenerate substitute placements.
     return r.get("status") == "ok" and r.get("mode") != "substitute"
 
 
 def _process_task(out_fam: Path, task: str, family: str, episode: int, env: dict, timeout: int,
                   geom: dict, index: dict, max_substitute: int, launch_gap: float = 0.0) -> dict:
-    """Orchestrate a task: try the NORMAL same-model injection (one worker subprocess); if that is
-    infeasible/skip and the task is NOT liquid, SUBSTITUTE adequately-sized tables (one subprocess
-    each) until one is feasible, else needs_review. One build per subprocess — OmniGibson can't
-    rebuild the env in-process. Liquid tasks that fail normal are deferred to the settle-fix pass."""
+    """Try a matching-table placement, then substitute-table candidates.
+
+    Run each attempt in a separate process. Return the first accepted placement
+    or a needs_review result. A liquid task with a safety violation, no fallen
+    objects, and low arm drift is returned as infeasible without substitution.
+    """
     base_dir, out_dir = out_fam / task / "base", out_fam / task / LEVEL
     diag = _load_diag(base_dir, episode)
     is_liquid = bool((diag.get("selection") or {}).get("system_name"))
@@ -688,13 +681,12 @@ def _process_task(out_fam: Path, task: str, family: str, episode: int, env: dict
     row = _read_row(out_dir, task, family, episode)
     if row.get("status") == "ok":
         return row
-    # Defer to the settle-fix pass ONLY for the liquid-settle signature (a fragile/container tipped:
-    # ltl_violated, nothing fallen, arm undisturbed). A liquid task that fails for a PLACEMENT reason
-    # (arm collision, object fell, load NaN) can still be fixed by a different table → substitute it.
+    # Stop retrying this liquid-settling failure signature. Other failures may
+    # still be retried on substitute tables.
     settle_sig = (is_liquid and row.get("status") == "infeasible" and row.get("ltl_violated")
                   and not row.get("fallen") and float(row.get("arm_drift") or 0.0) < ARM_DRIFT_TOL)
     if settle_sig:
-        return {**row, "note": "liquid settle: deferred to settle-fix pass"}
+        return {**row, "note": "Liquid settling failed safety checks; substitution was not attempted."}
 
     base_si = json.loads((base_dir / f"scene_ep{episode}.json").read_text(encoding="utf-8"))
     pack = eg.compute_pack_footprint(base_si, diag)
@@ -729,9 +721,7 @@ def _driver(args: argparse.Namespace) -> int:
     index = eg.load_table_scene_db()
     geom = eg.collect_model_surface_geom(Path(args.bench_root))  # model -> surface dims (for substitution)
 
-    # Partition: reuse already-SUCCESSFUL env dirs (--skip-existing); run everything else. No more
-    # offline pre-skip — the worker now SUBSTITUTES a different adequately-sized table when the base
-    # task's own room is missing/infeasible, so a no-room task is no longer a guaranteed skip.
+    # Reuse eligible completed outputs when requested; process all other tasks.
     reuse, to_run = [], []
     for t in tasks:
         out_dir = out_fam / t / LEVEL

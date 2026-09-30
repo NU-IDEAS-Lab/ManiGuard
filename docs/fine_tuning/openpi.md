@@ -83,6 +83,30 @@ quality; **eval must read the same `external_cam` back from the checkpoint's
 train config** to stay in distribution. See
 `maniguard/openpi_sft/policies/sim_2cam_policy.py`.
 
+### Demonstration subsets
+
+The demonstration-scaling configurations set `episode_fraction` to `0.2`, `0.5`
+or `0.8`, selecting the first 8, 20 or 32 episodes from **each** consecutive
+40-episode base-task block. They do not take a prefix of the entire dataset.
+`None` uses the full dataset; other fractions must be strictly between 0 and 1.
+
+Importing `maniguard.openpi_sft` installs the subset loader. Both
+`tools/openpi_sft/train.py` and `tools/openpi_sft/compute_norm_stats.py` import it
+before delegating to OpenPI, so they select the same episode IDs. Run norm-stats
+computation with the same subset configuration used for training.
+
+This path requires the LeRobot v2.1 dataset layout and the
+`lerobot.common.datasets` runtime used by the OpenPI environment. It validates
+consecutive episode IDs, positive episode lengths, complete 40-episode blocks
+and one consistent task label per block. Do not apply it to reordered or merged
+datasets unless that layout is preserved.
+
+For a filtered dataset, the loader maps original episode IDs to their local
+positions when looking up action-window boundaries. Padding stays within the
+selected episode; video filenames retain the original episode IDs. Dataset
+files, trained checkpoints and existing norm-stats files are not rewritten by
+the loader.
+
 ## 3. One-time setup on a compute box
 
 Clone ManiGuard and openpi **side by side** and export the env once in your rc:

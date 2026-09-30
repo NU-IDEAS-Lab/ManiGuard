@@ -229,7 +229,7 @@ def check_edge_reachability(
     Args:
         surface_aabb_xy: The table surface AABB.
         scene_object_aabbs: AABBs of all other scene objects (walls, furniture, etc.).
-        surface_name: Name of this surface (for logging only).
+        surface_name: Optional surface label; currently unused.
         robot_footprint_xy: (width_x, width_y) of the robot base.
         edge_gap_m: Gap between robot and table edge.
 

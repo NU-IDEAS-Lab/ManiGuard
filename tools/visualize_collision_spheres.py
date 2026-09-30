@@ -4,7 +4,7 @@
 Boots OmniGibson with an empty Scene and a single FrankaPanda (long-finger
 bundle when the maniguard patch is active), drives the fingers fully open, then
 spawns one translucent visual sphere per entry in ``collision_spheres`` of the
-robot's active cuRobo YAML. Saves PNGs from four canonical viewpoints.
+robot's active cuRobo YAML. Saves PNGs from five configured viewpoints and optional OBB comparisons.
 
 Usage:
     OMNI_KIT_ACCEPT_EULA=YES PRIVACY_CONSENT=Y \
@@ -107,7 +107,7 @@ def _build_obb_specs(
     palm_half_width: float = _OBB_PALM_HALF_WIDTH_DEFAULT,
     palm_half_bread: float = _OBB_PALM_HALF_BREAD_DEFAULT,
 ):
-    """Return dict of {name: (panda_hand_center, full_extents)} for the 5 OBBs.
+    """Return dict of {name: (panda_hand_center, full_extents)} for the four OBBs.
 
     Boxes live in the grasp frame (perp=X, closing=Y, approach=Z) which is
     co-aligned with panda_hand. The grasp-frame origin = eef_link, which sits
@@ -419,14 +419,9 @@ def main() -> None:
             "gripper":      ( 0.55,  0.25, 0.95),
             "side":         ( 0.10,  0.90, 0.55),
         }
-        # (max_opening, finger_len, eef_to_tip, finger_thick, finger_bread,
-        #  palm_half_width, palm_half_bread, tag-suffix)
-        # 1) original sampler defaults (short-Panda values).
-        # 2) opening corrected for cuRobo's 71 mm clear corridor.
-        # 3) opening AND finger length corrected (still placed behind eef_link).
-        # 4) aligned: also shift forward so boxes end at the fingertip.
-        # 5) FINAL: also fix finger thickness/breadth + palm width/bread to the
-        #    actual long-finger mesh extents.
+        # OBB comparison configurations vary opening width, finger length,
+        # approach offset, and finger/palm extents. They are visualization
+        # parameters and do not change the robot's active collision model.
         SHORT = (_OBB_FT_DEFAULT, _OBB_FB_DEFAULT,
                  _OBB_PALM_HALF_WIDTH_DEFAULT, _OBB_PALM_HALF_BREAD_DEFAULT)
         LONG  = (0.040, 0.038, 0.046, 0.032)

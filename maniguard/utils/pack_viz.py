@@ -1,13 +1,8 @@
-"""Render a per-episode offline-pack visualization to a PNG.
+"""Render a planned object layout to a PNG.
 
-Used by ``clutter_scene_pipeline.place_objects`` to save what the
-max-rectangles solver actually planned for the episode — for comparing
-against what the sim ends up with after settle.
-
-Coordinates are region-centred (the same frame the solver returns), so
-the figure can be read directly against any other region-centred
-diagnostic.
-"""
+Placement centers are supplied relative to the packing-region center and
+translated to world XY for plotting. The image compares object footprints,
+clearance padding, packing bounds, and support-surface bounds."""
 from __future__ import annotations
 
 import math

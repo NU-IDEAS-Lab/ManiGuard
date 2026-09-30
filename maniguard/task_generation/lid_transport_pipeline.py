@@ -145,18 +145,11 @@ class LidTransportPipeline(BasePipeline):
                 ctx.active_objects[inst] = obj
 
     def place_objects(self, ctx):
-        """Place container on table, lid/cap next to it (gap-aware), food
-        dropped into container's cavity (60-step settle).
+        """Place the container, lid or cap, and optional food on the support.
 
-        Uses the same three primitives as transfer_scene_pipeline:
-          * ``_upright_half_height`` → orientation-independent Z extent
-            from ``native_bbox * scale`` (world AABB shrinks when tilted).
-          * gap-aware X offset for the lid/cap so wide stockpot+lid don't
-            interpenetrate (the old hardcoded 20 cm broke for big pairs).
-          * ``place_food_on_source`` → teleport food just above the rim,
-            run 60 sim steps so gravity actually drops it in (the prior
-            10-step settle left food sitting on the rim).
-        """
+        Reset objects to upright poses using native bounding boxes and scales.
+        Separate the lid from the container using their sizes and a 5 cm gap.
+        Drop food above the cached opening centroid and allow 60 settling steps."""
         import omnigibson as og
         import torch as th
 
@@ -192,10 +185,8 @@ class LidTransportPipeline(BasePipeline):
 
         og.sim.step()
 
-        # Drop food into container with 60-step settle. For cap-style
-        # containers (jug, kettle, bottle) the cavity opening is offset
-        # from the AABB center — drop above the F-link instead so the
-        # food actually lands in the cavity, not on the closed body.
+        # Place food above the cached raycast opening centroid and settle for
+        # 60 steps. This handles openings offset from the container AABB center.
         if ctx._food_ids and container is not None:
             food_obj = ctx.active_objects.get(ctx._food_ids[0])
             if food_obj is not None:
@@ -249,11 +240,8 @@ class LidTransportPipeline(BasePipeline):
         except Exception:
             in_container_pred = False
 
-        # Geometric fallback: food center sits meaningfully below the
-        # container rim (AABB top). Trustworthy because we just dropped
-        # the food at the raycast opening centroid and it physically
-        # settled there — if its center is below the rim, it's in the
-        # cavity, regardless of the predicate's annotation.
+        # Height-based fallback: accept a food center sufficiently below the
+        # container's AABB top. This heuristic does not establish full 3D containment.
         food_z = float(food_obj.get_position_orientation()[0][2])
         rim_z = float(ctx.target_obj.aabb[1][2])
         food_half_h = 0.5 * float(food_obj.native_bbox[2] * food_obj.scale[2])

@@ -1,31 +1,16 @@
-"""Empty-scene task generation pipeline.
+"""Generate manipulation layouts in a bare scene with a support surface.
 
-Starts from a bare Scene (floor plane only), spawns a randomized support
-surface and task objects via the env config ``objects`` list (following the
-grasp_task_demo pattern), then runs the standard clutter / stack / transfer
-placement + LTL-monitored rollouts.
+Select support and task objects from the catalogs under task_generation/utils,
+construct their environment configurations, and arrange the selected setup.
+The rollout monitor uses the same task safety specification saved in diagnostics.
+The dry-run path selects assets and prepares spawn and safety metadata
+without starting the simulator.
 
-Domain randomization: surface category/model, target, fragile, and clutter
-types are all randomized per episode from the pools in pipeline_common.
-
-Usage:
-    # Clutter on empty scene (random surface + objects)
-    python -m maniguard.task_generation.empty_scene_pipeline \\
-        --setup clutter --episodes 1 --steps 300 --save-video
-
-    # Stack on a specific desk
-    python -m maniguard.task_generation.empty_scene_pipeline \\
-        --setup stack --surface-category desk --stack-height medium \\
-        --episodes 1 --steps 300 --save-video
-
-    # Food transfer
-    python -m maniguard.task_generation.empty_scene_pipeline \\
-        --setup transfer --episodes 1 --steps 300 --save-video
-
-    # Dry-run (generate BDDL only, no sim)
-    python -m maniguard.task_generation.empty_scene_pipeline \\
-        --setup clutter --dry-run
-"""
+Examples:
+    python -m maniguard.task_generation.empty_scene_pipeline --setup clutter --episodes 1 --steps 300 --save-video
+    python -m maniguard.task_generation.empty_scene_pipeline --setup stack --surface-category desk --stack-height medium --episodes 1
+    python -m maniguard.task_generation.empty_scene_pipeline --setup transfer --episodes 1
+    python -m maniguard.task_generation.empty_scene_pipeline --setup clutter --dry-run"""
 
 import argparse
 import copy
@@ -664,14 +649,8 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
 
     # -- Place objects on the surface --------------------------------------
     if args.setup in ("clutter", "transfer", "liquid", "dusty_transfer"):
-        # Switched from the ring-based ``build_clutter_pack`` to the
-        # offline maxrects solver. ``solve_pack`` supports 90° rotation
-        # of non-target rectangles, which is the differentiator: the
-        # ring packer keeps every object yaw-fixed and can run out of
-        # angular slots even with abundant surface area when one
-        # fragile's longer extent doesn't fit a free ring's chord.
-        # Maxrects accepts the rotated orientation and lays the object
-        # along the available free rect instead.
+        # Compute a rectangle-packing layout with optional 90-degree rotations
+        # of non-target objects, trying the configured clearance schedule.
         from maniguard.utils.maxrects_pack import PackInputDescriptor, solve_pack
 
         descriptors = []
@@ -800,13 +779,8 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
             print(f"[Pipeline] WARN: {dest_obj.name} is not dustyable "
                   f"(no Covered state)")
 
-    # -- Liquid: fill target container with the configured substance -------
-    # Mirrors ``liquid_transport_pipeline.place_objects``. The Filled
-    # state's set_value(system, True) call generates particles inside
-    # the container's fillable meta-link; no auto-init happens just
-    # from spawning since none of our fillable categories carry
-    # particleSource / particleApplier abilities (verified via
-    # build_fillable_pool's BEHAVIOR-ability filter).
+    # Fill the selected liquid target through Filled.set_value(system, True).
+    # The operation uses the container's fillable volume metadata.
     if args.setup == "liquid":
         from omnigibson.object_states import Filled
         role_to_name = {r: n for n, r in roles_by_inst.items()}
@@ -988,6 +962,7 @@ def _run_episode_inner(ep, ep_seed, args, env, og, th, robot, support_obj,
         robot=robot, target_obj=target_obj,
         args=args, episode=ep, rng=rng,
         support_obj=support_obj,
+        ltl_safety=ltl_safety,
     )
 
     payload = {

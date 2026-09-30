@@ -1,28 +1,11 @@
-"""Shrink a stack_retrieve task's retrieval GOAL toward the target's initial position.
+"""Move a saved goal sphere toward the target's initial XY position.
 
-WHY: every chopping-board stack task places the goal_region ~0.55-0.72 m sideways (+Y robot-local)
-from where the target sits, pushing the goal to 0.74-0.87 m radial reach — BEYOND the Franka
-comfortable planar reach (REACH_COMFORT 0.72). The re-stack DEST is comfort-clamped (stack.py Fix 4)
-but the retrieval GOAL never is, so ``t_transport`` hits IK_FAIL and every reach-fallback pullback
-fails on the far goal. Moving the goal ``frac`` of the way toward the target's initial position pulls
-the reach back inside comfort while keeping a genuine "retrieve it aside" motion.
-
-The goal_region is SHARED by datagen (executor ``ctx.goal_center``) AND eval (goal_checker success
-sphere), so the shrink MUST edit the bench task itself (not a datagen-only knob) for train/eval
-consistency. This patches, per task's ``base/``:
-  * ``diagnostics.jsonl``  goal_region.center_world  (executor + eval read this)
-                           goal_region.anchor_local_xy (kept consistent for provenance/reach prints)
-  * ``scene_ep1.json``     the goal marker's ``root_link.pos`` at its 2 stateful locations (so the
-                           rendered green sphere sits at the new goal; the 2 spawn-arg copies carry
-                           no position).
-
-Idempotent: writes ``*.bak_shrinkgoal`` once and always shrinks from that ORIGINAL, so re-running
-never double-shrinks. After this, run ``tools.bench_surgery.stack.rerender_base`` to re-render the base videos +
-re-finalize (its allowlist carries the edited goal_region through), then datagen-test.
-
-Usage:
-  python -m tools.bench_surgery.stack.shrink_goal --tasks task_0002,task_0004 --frac 0.30 [--dry-run]
-"""
+Interpolate the world goal center toward the target by --frac, preserving Z.
+Separately interpolate anchor_local_xy toward the recorded pack center.
+Update marker positions in both available scene copies. Applied reruns begin
+from one-time .bak_shrinkgoal backups; dry runs inspect current files.
+The reported reach threshold is a diagnostic heuristic. This command changes
+the task goal and does not revalidate policy outcomes or regenerate videos."""
 from __future__ import annotations
 
 import argparse

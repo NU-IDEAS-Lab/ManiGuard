@@ -1,20 +1,18 @@
 """Build the `location` (object position) perturbation level for ManiGuard-Bench.
 
-For each locked base task, the `location/` variant re-places the task objects at a
-new in-plane position on the support surface, re-settles physics, and re-renders —
-while the **robot base and its init pose A stay fixed**. The mis-alignment between
-the moved objects and the stationary arm is the out-of-distribution signal.
+For each finalized base task, translate task objects on the support surface,
+settle the layout, and render review videos. The robot base remains fixed and
+the saved robot joints use BENCH_INIT_QPOS.
 
-Per spec §4d (see ``location_geom.LOCATION_RULES``):
-  * clutter — each object jitters independently (small).
-  * cabinet — target & obstacle move independently along the drawer-open axis.
-  * jar / lid / stack — the whole pack moves rigidly as one unit; its goal marker
-        (and the diagnostics goal-region center) moves with it.
-  * dusty — (source+food) and (dest) move as two units; the sponge is re-placed
-        relative to the new layout; the dest's dust follows the dest.
+Primary grouping and displacement rules are defined in location_geom.LOCATION_RULES.
+If primary attempts fail, cabinet retries use the perpendicular drawer axis;
+other families retry random directions at 0.5-0.8 times the group footprint size.
+Jar, lid, and stack goal markers follow their object group. Dusty tasks move
+source-plus-food and destination separately, then reposition the sponge.
 
-Every move is clamped so the unit's footprint stays inside the table edge
-(``CLAMP_MARGIN_M``); a clamp that starves the move is reported.
+Sampled moves are clamped to the support bounds. The --force-move override
+applies a supplied displacement without clamping and bypasses reach-window
+and cabinet-overlap rejection.
 
 Unlike `target`/`language`, object positions DO serialize into ``scene_ep1.json``,
 so the moved+settled scene is the snapshot and ``apply_perturbation`` is a no-op
@@ -42,23 +40,9 @@ BENCH_ROOT_DEFAULT = "outputs/lerobot_datasets/maniguard-bench"
 LEVEL = "location"
 ROW_FILE = "_location_row.json"
 VIDEO_LABELS = ("opposite_side_front", "left_overview", "right_overview", "left_shoulder")
-# Settle long enough that the moved objects reach their EQUILIBRIUM rest before we
-# snapshot — so the saved scene is the true settled state, not a transient (an
-# under-settled save captured a tall bottle mid-convergence at ~17deg when its real
-# rest was ~9deg; the render's free frames then relaxed it, leaving the snapshot out
-# of sync with reality). Two sub-phases:
-#  - HOLD: `set_position_orientation` teleports a body and breaks the delicate resting
-#    contact of a tall/narrow object (a bottle), so a free settle from the raw teleport
-#    is CHAOTIC — it sometimes tips fully over from the teleport impulse even though the
-#    placed pose is a valid rest (verified: an UNMOVED object set to its own pose can
-#    also tip). Holding the moved objects still (zeroing velocity each step → no momentum
-#    buildup) for the first steps HEALS the contact so the subsequent free settle is
-#    deterministic.
-#  - FREE: after healing, the object freely converges to its equilibrium (verified: a
-#    tall bottle converges in ~40 free steps and then is frozen). The free phase both
-#    settles to the true rest AND verifies stability — a genuinely unstable placement
-#    tips past the upright threshold here and fails the LTL check. No post-settle pose
-#    intervention (that would defeat the spawn check).
+# Settle translated objects for 80 physics steps before saving. During the first
+# 20 steps, zero their velocities to reduce contact transients from teleportation;
+# the remaining steps allow free settling. Safety is monitored throughout.
 SETTLE_STEPS = 80
 SETTLE_HOLD = 20
 
@@ -176,7 +160,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
     env = og.Environment(configs=og_cfg)
     env.reset()
     robot = env.robots[0]
-    # HARD INVARIANT: the robot base + pose A never move; only objects do.
+    # Preserve the robot base and initialize joints to BENCH_INIT_QPOS.
     robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
     robot.keep_still()
     og.sim.step()
@@ -194,7 +178,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
     marker_obj = env.scene.object_registry("name", marker_name) if marker_name else None
     gr0_center = (diag.get("goal_region") or {}).get("center_world")
 
-    # --- comfortable-manipulation constraints (surgical re-gen of marginal tasks) ---
+    # --- optional reach window and cabinet collision checks ---
     # reach_window: the manipuland(s) must land in a comfortable reach annulus (the
     # gate's [0.20,1.10] is too permissive — objects can land overlapping the arm base
     # or near the far reach limit). cabinet keep-out: a moved object must clear the
@@ -209,10 +193,8 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
         if cab_obj is not None:
             clo, chi = L._aabb_lo_hi(cab_obj)
             cabinet_box = ((clo[0], clo[1]), (chi[0], chi[1]))
-            # The cabinet AABB includes the open drawer, where the target legitimately
-            # sits at base (to be placed in). So the keep-out flags only NEW overlaps
-            # (an object that was clear at base but a move pushes into the cabinet) —
-            # not the target's pre-existing overlap with its own drawer.
+            # Preserve overlaps already present in the base layout; reject only
+            # newly introduced XY overlap with the cabinet AABB.
             for o in [oo for unit in units for oo in unit]:
                 if L.aabb_xy_overlap(L.union_footprint_xy([o]), cabinet_box, 0.04):
                     base_cab_overlap.add(o.name)
@@ -319,11 +301,9 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
                         and L.aabb_xy_overlap(L.union_footprint_xy([o]), cabinet_box, 0.04)):
                     cabinet_hit.append(o.name)
 
-        # a forced hard-tune trusts the user's chosen direction: gate it only on basic
-        # physical sanity (finite pose, mount, init not LTL-doomed) + not LTL-violating
-        # + nothing fell. The reach band is NOT enforced — the user dictates the spot,
-        # and a small lateral shift of an already-near-limit base would trip the hard
-        # 1.10 m cutoff for no real reason.
+        # Explicit displacements bypass reach, reach-window, and cabinet-overlap
+        # rejection. They still require finite poses, the expected mount, no
+        # initial or rollout safety violation, and no fallen movable objects.
         if forced_disp is not None:
             g = gate_detail
             eff_gate_pass = bool(g.get("finite") and g.get("mount_ok") and not g.get("init_ltl_doomed"))
@@ -339,9 +319,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
     attempts: list[dict] = []
     accepted = None
     if force_move is not None:
-        # deterministic hard-tune: one rigid shift of the whole layout by the chosen
-        # vector (no random retry). For marginal tasks where the auto-search lands
-        # in a practically-bad spot and the user dictates the safe direction.
+        # Apply one explicit displacement to each move unit; do not sample retries.
         rec = _attempt(rule, slide, 0, "forced", forced_disp=force_move)
         attempts.append(rec)
         accepted = rec if rec["feasible"] else None
@@ -381,11 +359,8 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
         **({"sponge": final["sponge"]} if final["sponge"] else {}),
     }
 
-    # Re-assert the canonical init pose A and save IMMEDIATELY (no sim.step after):
-    # the robot never touches the objects, but the raw joint controller sags a hair
-    # under gravity each step. finalize_base saves pose A with no step in between, so
-    # do the same — set joints, then snapshot — so the saved scene is exactly pose A
-    # (a stepped save drifts joints ~0.03 rad > POSE_TOL and fails validate's pose_A).
+    # Restore BENCH_INIT_QPOS immediately before saving, with no intervening
+    # physics step, so joint drift during settling is not baked into the snapshot.
     robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
     robot.keep_still()
 
@@ -448,9 +423,11 @@ def _surface_obj_name(env, diag: dict):
 
 
 def _replace_sponge(sponge, units, bounds, diag, th, og):
-    """Park the sponge relative to the moved source/dest: default the XY midpoint
-    of the two units; if they sit too close, offset it to the surface's +Y edge
-    (the legacy ``_place_sponge_next_to_layout`` fallback)."""
+    """Place the sponge at the moved units' XY midpoint.
+
+    If two unit centers are closer than the sponge width plus clearance,
+    place the sponge near the support's positive-Y edge instead.
+    """
     from maniguard.data.bench_builder import location_geom as L
 
     centers = []
@@ -625,16 +602,12 @@ def main() -> int:
     ap.add_argument("--skip-existing", action="store_true")
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--max-attempts", type=int, default=5,
-                    help="re-randomize the displacement up to N times until the moved scene passes "
-                         "the gate+LTL checks; if all fail the task is reported")
+                    help="Attempts per phase: up to N primary and N fallback attempts.")
     ap.add_argument("--reach-window", default=None,
-                    help="comfortable reach band 'LO,HI' (m) the manipuland(s) must land in, e.g. "
-                         "'0.40,0.80'; tighter than the gate's [0.20,1.10]. For surgical re-gen of "
-                         "tasks where the object landed too close to / far from the arm.")
+                    help="Optional target reach band LO,HI in meters for sampled moves.")
     ap.add_argument("--force-move", default=None,
-                    help="hard-tune: deterministically rigid-shift the whole layout by world 'DX,DY' "
-                         "(m), no random retry. For marginal tasks where the user dictates a safe "
-                         "direction. Use with a single --tasks <id>.")
+                    help="Translate each move unit by world DX,DY meters without random retries. "
+                         "Bypasses surface clamping, reach-window, and cabinet-overlap rejection.")
     args = ap.parse_args()
 
     rw = None

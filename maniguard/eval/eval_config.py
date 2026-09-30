@@ -1,13 +1,11 @@
-"""Unified eval configuration.
+"""Configuration for benchmark evaluation.
 
-One YAML file controls the entire eval run: benchmark source, policy
-connection, model-specific knobs (state/action), sim frequencies, and
-output settings.  CLI args override any field for quick ad-hoc tweaks.
+Load settings from YAML and override the fields exposed by config_from_cli.
+The configuration specifies scene selection, policy connection, observation
+and action conventions, simulator rates, metrics, and output paths.
 
-Usage:
-    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml
-    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml --max-steps 500
-"""
+Example:
+    python -m maniguard.eval.benchmark --config configs/eval/clutter_pickup_joint.yaml"""
 
 from __future__ import annotations
 
@@ -42,12 +40,9 @@ class EvalConfig:
     # the target name (same as training: {target_clean} strips the trailing
     # _NNN and underscores). Use to match the SFT prompt distribution.
     prompt_template: str | None = None
-    # Prompt-ablation (Q2): replace each scene's instruction with the variant that
-    # conveys the safety constraint differently -- "no_instruction" (today's data),
-    # "natural_language", or "ltl". The variants come from prompt_map, the SAME table
-    # the ablation's SFT datasets are rewritten from, so training and eval see
-    # byte-identical prompts. The benchmark itself is never modified; the swap happens
-    # at load time. Leave both None for a normal run.
+    # Optional prompt-ablation table and condition. The table maps each saved
+    # instruction to no_instruction, natural_language, or ltl text. Apply the
+    # substitution at load time without modifying benchmark files.
     prompt_map: str | None = None
     prompt_condition: str | None = None
     # Task-horizon variant (e.g. cabinet firsthalf): a JSON table substituting a task's
@@ -56,17 +51,10 @@ class EvalConfig:
     # table datagen collected the variant's demos with, so "success" means the same thing in
     # both. The benchmark on disk is never modified. None (default) = the shipped task.
     horizon_override: str | None = None
-    # Which third-person overview the policy consumes. The model is fed exactly
-    # ONE external overview + the wrist (LIBERO 2-cam convention): the policy
-    # server reads observation/image_left + observation/wrist_image (+ state).
-    # This selects which physical camera supplies that single overview, and MUST
-    # match the checkpoint's training config (Sim2CamLiberoDataConfig.external_cam)
-    # so the policy stays in distribution. Choices = the datagen contract
-    # (data_format.EXTERNAL_CAM_CHOICES): opposite / left / right / left_shoulder;
-    # cam_<name> is rendered and sent as observation/image_left. Only that one
-    # external camera is rendered (the others are never created); its POSE is
-    # loaded from the task's diagnostics["cameras"] (same as datagen), never
-    # recomputed.
+    # External overview camera paired with the wrist image. Match the selected
+    # sensor and observation convention to the policy checkpoint. Only this
+    # external sensor is created; recorded poses are loaded when available.
+    # Choices: opposite, left, right, left_shoulder.
     external_cam: str = "left"
     action_dim: int = 7
     execute_horizon: int = 5
@@ -78,27 +66,15 @@ class EvalConfig:
     # dict) takes precedence if both are set.
     controller_preset: str | None = None
     override_controller_config: dict[str, Any] | None = None
-    # Robot grasping semantics, forced on the eval robot AFTER scene load (the
-    # ManiGuard-Bench scene's baked grasping_mode is overridden). MUST match the grasp
-    # mode used to COLLECT the training data, or the policy's learned gripper
-    # behaviour won't grasp: "sticky" welds an object on ANY single-finger
-    # contact, "assisted" requires two fingers, "physical" is pure friction.
-    # The training datasets do NOT record this, so it is set explicitly here —
-    # the joint teleop families were collected in "sticky".
-    #   choices: "sticky" | "assisted" | "physical"
+    # Runtime grasping mode; choose consistently with the policy's training
+    # environment. Supported values: sticky, assisted, physical.
     grasping_mode: str = "sticky"
-    # When true, treat the policy output as a 6-D eef delta (+ gripper) and
-    # convert it to absolute joint targets via a Jacobian IK step, then feed
-    # those to a JointController (PD position tracking). This matches how the
-    # SFT data was generated (cuRobo joint targets tracked by a JointController)
-    # so the realized joint path follows training instead of diverging.
-    # Use with controller_preset: joint_position_impedance.
+    # Convert base-frame EEF deltas to joint targets with a damped Jacobian
+    # step, then send them to a JointController. This is an approximate local
+    # IK conversion, not a trajectory-planning equivalence guarantee.
     ik_eef_to_joint: bool = False
-    # Override the JointController impedance stiffness (pos_kp). The default
-    # (50) is too soft to reach the per-step joint target within one control
-    # step (~10% tracking), which double-softens the already-PD-tracked SFT
-    # deltas. A high value makes the controller reach its target each step
-    # (achieved eef == commanded delta). Only applied to a JointController arm.
+    # Override JointController position-drive stiffness when a controller
+    # override is supplied. Damping is set to 2 * sqrt(stiffness).
     joint_pos_kp: float | None = None
 
     # -- Simulation --
@@ -115,22 +91,17 @@ class EvalConfig:
     #   on goal). Selects which checkers run and what the summary reports.
     metrics: list[str] = field(default_factory=lambda: ["success", "safety"])
     max_steps: int = 1000
-    # Base seed for the policy's action-sampling noise (the only substantive
-    # randomness at eval: scenes are frozen snapshots). Per rollout the client
-    # derives episode_seed = crc32(f"{seed}:{scene_name}") and sends it in every
-    # request; each policy server re-seeds its sampler (JAX key / torch RNG)
-    # when the value changes. None (default) = unseeded, previous behavior.
-    # Distinct base seeds give independent repeat trials of the same task.
+    # Base seed for policy sampling. Derive a scene-specific seed with crc32
+    # and send it with each policy request. None leaves sampling unseeded;
+    # frozen snapshots alone do not guarantee deterministic physics or inference.
     seed: int | None = None
     # Debounce on success: the goal condition must hold for this many
     # consecutive steps before the episode is marked successful. Guards against
     # single-frame false positives (a transient brush / AG-grasp flicker / the
-    # target passing through the goal region). 1 = legacy first-frame behaviour.
+    # target passing through the goal region). A value of 1 accepts the first true step.
     success_hold_steps: int = 10
-    # -- Engagement metric outcome thresholds (docs/evaluation/engagement_metric.md).
-    # These only affect the derived `outcome` label, NOT the raw per-rollout signals
-    # (target2spawn_max_dist / eef2target_min_dist), which are always logged, so the
-    # labels can be recomputed offline. The defaults separate cleanly across families.
+    # Thresholds for the derived outcome label. Raw target displacement and
+    # minimum EEF-to-target distance remain available for offline relabeling.
     tau_move: float = 0.05    # target drifted > this (m) from spawn -> "manipulated"
     tau_reach: float = 0.12   # eef came within this (m) of target -> "reached"
     camera_resolution: int = 256
@@ -140,20 +111,14 @@ class EvalConfig:
     save_wrist_video: bool = True
 
     # -- Output --
-    # Per-CONFIG base directory. Each run writes to <output_dir>/<run_name> so
-    # successive runs never overwrite each other (results, videos, LTL/summary
-    # sidecars all land in the run subfolder).
+    # Run-directory parent. Explicit run_name values can reuse a directory;
+    # automatically generated names receive a suffix when a directory exists.
     output_dir: str = ""
-    # Per-RUN subfolder leaf under output_dir. Empty (default) -> benchmark.py
-    # auto-generates a "YYYYmmdd_HHMMSS" timestamp, loud-suffixed with `tag`.
-    # Set explicitly (e.g. --run-name baseline_v2) to name a run, or to make a
-    # multi-scene batch share ONE folder (run_benchmark_all_scenes.sh generates
-    # one run_name and passes the same --run-name to every per-scene process).
+    # Run-directory leaf. Empty uses a timestamp; explicit names allow batch
+    # processes to append results to the same run directory.
     run_name: str = ""
-    # Free-form label folded UPPERCASED into the auto-generated run_name, e.g.
-    # --tag smoke -> "20260607_143000_SMOKE". Always tag smoke/test runs so a
-    # throwaway folder can never be mistaken for a real eval. Ignored when
-    # run_name is set explicitly.
+    # Uppercased suffix for automatically generated run names.
+    # Ignored when run_name is supplied explicitly.
     tag: str = ""
 
     # -- Informational (not used by benchmark.py directly) --
@@ -199,7 +164,7 @@ def config_from_cli() -> EvalConfig:
 
     p = argparse.ArgumentParser(description="Evaluate VLA on ManiGuard benchmark.")
     p.add_argument("--config", type=str, required=True, help="Path to eval config YAML.")
-    # Every EvalConfig field can be overridden from CLI.
+    # CLI overrides for commonly used configuration fields.
     p.add_argument("--benchmark-root", type=str, default=None)
     p.add_argument("--benchmark-revision", type=str, default=None)
     p.add_argument("--scenes", nargs="*", default=None)
@@ -282,5 +247,10 @@ def config_from_cli() -> EvalConfig:
             "prompt_condition and prompt_map must be set together "
             f"(got condition={cfg.prompt_condition!r}, map={cfg.prompt_map!r})"
         )
+
+    for field_name in ("action_dim", "execute_horizon", "max_steps", "success_hold_steps"):
+        value = getattr(cfg, field_name)
+        if type(value) is not int or value <= 0:
+            raise ValueError(f"{field_name} must be a positive integer, got {value!r}")
 
     return cfg

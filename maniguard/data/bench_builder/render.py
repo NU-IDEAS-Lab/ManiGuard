@@ -1,18 +1,13 @@
-"""Shared render step for the ManiGuard-Bench builder.
+"""Record review videos and camera metadata for benchmark construction.
 
-``render_views`` is the SINGLE shared render entry point: given a live env (robot already
-at the canonical pose), it positions the 4 canonical robot-frame external cameras via the
-shared ``camera_setup``, RE-STAMPS ``diagnostics['cameras']`` with the live-computed poses,
-records the 4 review MP4s (opposite_side_front / left_overview / right_overview /
-left_shoulder), and returns stability stats. Recording is **idle-step**: each frame advances
-physics (``og.sim.step()``) while the arm is held at the init pose by the stiff Isaac drive,
-so the clip shows whether the scene is physically stable after init (objects settle, nothing
-falls). ``render_task`` is a thin wrapper that loads a snapshot, sets the canonical pose, and
-calls ``render_views``.
+render_views accepts a configured live environment, positions four external
+cameras, records one video per view, and returns updated diagnostics and endpoint
+stability statistics. Idle-step mode advances physics for each recorded frame;
+frozen mode renders without advancing physics.
 
-This is the single place every base + perturbation task gets its videos + valid camera
-metadata, so the viewpoints are identical end-to-end (task-def -> collection -> SFT -> eval).
-Standalone: reuses only camera_setup + task_generation.utils.video; no legacy perturbation imports.
+render_task loads a snapshot and sets BENCH_INIT_QPOS before recording. It does
+not currently apply runtime appearance overrides; use a configured live
+environment when rendering those overrides.
 """
 from __future__ import annotations
 
@@ -108,18 +103,17 @@ def render_views(
         mode: ``"idle_step"`` advances physics each frame (``og.sim.step()``) while the arm is
             held at its set pose by the stiff Isaac position drive — so the clip shows physical
             stability. ``"frozen"`` only re-renders (no physics) — a static showcase.
-        ltl_monitor: optional already-``reset()``+``step(0)``'d ``TaskLTLMonitor``. When given,
-            it is stepped once per recorded frame so the bench can read its OWN fresh
-            ``ltl_violated`` over the same idle-step the video shows (the analog of the
-            generation-time jitter rollout). The caller reads the monitor afterwards.
+        ltl_monitor: optional reset TaskLTLMonitor. It receives one observation
+            per recorded frame, including repeated-state observations in frozen
+            mode. The caller reads its results after rendering.
         track_object_names: optional set of object names to restrict the ``obj_disp`` stat to —
             the env perturbation passes the injected task objects so a falling ROOM background
             object can't pollute it. ``None`` (base / location / target / standalone) tracks every
             non-robot object, which there IS the task set (those scenes hold no room furniture).
 
-    Returns ``(diagnostics, stats)`` where ``stats`` = ``{"arm_drift", "obj_disp",
-    "steps_executed"}``: the max joint drift, the max tracked-object displacement, and the
-    number of in-sim steps recorded (for the finalizer's fresh stability/LTL self-check).
+    Returns (diagnostics, stats). arm_drift is the largest absolute joint change
+    between the first and last frame; obj_disp is the largest object displacement
+    between those frames. steps_executed currently records the frame count.
     """
     import av
     import numpy as np

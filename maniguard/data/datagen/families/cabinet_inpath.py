@@ -1,21 +1,9 @@
-"""Phase 0b (cabinet) — independent OFFLINE recompute of which objects block the drawer's
-opening path, cross-checked against the bench's ``placement.in_path`` flag.
+"""Check cabinet-task drawer-path flags from saved geometry without simulation.
 
-No sim: uses the cached cabinet drawer geometry (``cabinet_geom.json``, root-local drawer-link
-AABB), each task's ``scene_ep1`` (cabinet root pose + object world poses) and ``diagnostics``
-(per-task world ``slide_dir`` + the flags to verify), and object footprints from ``mesh_db``.
-
-Method (all in the world xy plane):
-  * transform the drawer-link AABB to world by the cabinet root pose -> its leading face along
-    ``slide_dir`` (``d_front``) and its perpendicular span (``p_lo..p_hi``);
-  * the opening **corridor** = ``d ∈ [d_front, d_front + (stroke - j_extract)]`` (the drawer's
-    full further travel) × the perpendicular span;
-  * an object (square footprint = its position ± half its max horizontal bbox) is ``in_path`` if
-    its d-range AND p-range overlap the corridor.
-
-Any disagreement with the diagnostics flag is reported for the user to review.
-
-  PYTHONPATH=$HOME/project/ManiGuard python -m maniguard.data.datagen.families.cabinet_inpath
+Transform the drawer-link AABB into the world slide/perpendicular frame, extend
+the opening corridor through the remaining stroke, and compare it with each
+object's oriented footprint. Report disagreements with diagnostics placement.in_path.
+Inputs are cabinet_geom.json, mesh_db.json, scene snapshots, and diagnostics.
 """
 from __future__ import annotations
 
@@ -65,9 +53,9 @@ def recompute_in_path(diag, scene, geom, mesh_db, *, margin=0.0):
         op, oq = _obj_world(scene, nm)
         cat, model = _model_of(scene, nm)
         bb = mesh_db["objects"].get(f"{cat}/{model}", {}).get("bbox_size", [0.05, 0.05, 0.05])
-        # ORIENTED footprint: the object's bbox in its own frame, rotated into world, projected
-        # onto (d, p). A circular max-dim radius over-flags flat/wide objects lying off to the
-        # side (verified false positives on griddle_pan / stockpot), so use the real OBB.
+        # Project the oriented footprint into the slide/perpendicular frame. A
+        # max-dimension radius can incorrectly classify off-side flat or wide objects
+        # as path blockers.
         Ro = Rot.from_quat(oq).as_matrix()[:2, :2]
         hx, hy = bb[0] / 2 + margin, bb[1] / 2 + margin
         corners = np.array([[sx * hx, sy * hy] for sx in (-1, 1) for sy in (-1, 1)])

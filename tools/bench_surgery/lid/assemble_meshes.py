@@ -1,21 +1,9 @@
-"""Build LID-ON container meshes for annotation (lid_transport family).
+"""Build container-and-lid composite meshes for grasp annotation.
 
-Every lid_transport (container, lid) pair is 1:1, and the Phase-C grasp targets the
-ASSEMBLED object — so container grasps are annotated on a composite mesh with the lid
-placed at its attached pose. The composite is built **in the container's root frame**
-(the lid sub-mesh is transformed by T_lid_root_in_container_local = T_F ∘ T_M⁻¹, the
-exact frame-match `reposition_lid_onto_F` enforces at snap time), so grasps annotated
-on it are container-local — the grasp DB frame convention is UNCHANGED and existing
-annotations stay valid.
-
-For each pair (from lid_flink_db.json, produced by tools/bench_surgery/lid/flink_probe.py):
-  meshes/<cat>__<model>__lidon.glb  written
-  mesh_db objects[container].mesh   -> the lidon path ("mesh_bare" keeps the original)
-
-Lids themselves keep their bare meshes (they are grasped bare off the table).
-
-Usage:  python -m tools.bench_surgery.lid.assemble_meshes        # offline, no OmniGibson
-"""
+Read local attachment frames from lid_flink_db.json, transform the lid mesh
+into the container root frame with T_F @ inverse(T_M), and concatenate the
+meshes. Update mesh_db.json to use the composite; mesh_bare retains the
+previous container mesh path. Lid entries keep their existing meshes."""
 from __future__ import annotations
 
 import json

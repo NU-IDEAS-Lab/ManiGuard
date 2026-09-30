@@ -1,20 +1,13 @@
-"""Swap a dusty_transfer task's DEST container model (bench surgery, 2026-07-08 batch).
+"""Replace a dusty-transfer destination model and resample its dust positions.
 
-The 6-task batch replaces geometrically un-wipeable dests (hand-width/depth ceiling —
-see the family wipeability census) with probed-wipeable models, then RE-SCATTERS the
-dust group onto the new model's inner bottom (the old particle local positions were
-fitted to the old bottom). (food, source, dest) triple uniqueness was verified for the
-whole batch before running.
+Choose a same-category model from DOSSIER. Update its model/hash and height
+in the top-level and nested scene copies, scatter the retained particle count
+over the configured local bottom disk, and update the destination spawn spec.
+Preview by default; --apply writes files with one-time .bak_destswap backups.
+Re-finalize afterward to refresh runtime checks and review videos.
 
-Edits BOTH json trees (top-level + the nested ``init_info.args.scene_file`` copy):
-  - dest init_info args: model + expected_file_hash (category unchanged)
-  - registry root z: support_top - lo_local_z + 2mm (xy/ori kept; velocities zeroed)
-  - dust system: n kept, positions re-scattered in a disk on the NEW inner bottom
-  - diagnostics: selection.spawn_specs dest model
-
-Run with the behavior env python. Usage:
-  python -m tools.bench_surgery.dusty.swap_dest --task task_0011 --model bowl/pihjqa [--apply]
-"""
+Example:
+    python -m tools.bench_surgery.dusty.swap_dest --task task_0011 --model bowl/pihjqa"""
 from __future__ import annotations
 
 import argparse
@@ -26,9 +19,8 @@ import numpy as np
 
 BENCH = Path("outputs/lerobot_datasets/maniguard-bench/dusty_transfer")
 
-# model dossiers: file hash + geometry (spawn-probe 2026-07-08; azoiaq from task_0000 donor
-# + its dedicated probe). scatter_r <= 0.065 keeps every particle inside the simple
-# centred-peck footprint (no boom needed -> faster, gentler collection).
+# Per-model file hashes and local geometry used for height placement and
+# dust scattering. scatter_r is the radius of the local particle disk.
 DOSSIER = {
     "bowl/qzodht": {"hash": "da091e2cbce1158d69c740ea84c09e65", "lo_z": -0.0340,
                     "inner_bottom": -0.0333, "scatter_r": 0.055},

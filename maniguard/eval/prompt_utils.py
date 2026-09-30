@@ -27,19 +27,11 @@ _ABLATION_CACHE: dict[str, dict] = {}
 
 
 def ablation_prompt(base_prompt: str, map_path: str, condition: str) -> str:
-    """Swap a scene's instruction for its prompt-ablation variant.
+    """Return a configured prompt-ablation variant for the scene instruction.
 
-    The Q2 study varies ONLY how the safety constraint is conveyed
-    (``no_instruction`` / ``natural_language`` / ``ltl``) while the task instruction
-    and the underlying LTL automaton stay fixed. The variants are pre-generated per
-    instruction into a JSON map (``configs/ablation_prompt/*.json``) that the SFT
-    datasets are rewritten from as well, so training and eval see byte-identical
-    prompts — the whole point of the ablation.
-
-    The scene's own instruction is the lookup key. A miss raises: silently falling
-    back to the unmodified prompt would run the wrong condition while still
-    reporting the requested one, which is exactly the failure this study cannot afford.
-    """
+    Look up the stripped base prompt in instruction_map and select the requested
+    condition. Training-data rewriting and evaluation can use the same table.
+    Missing instructions or conditions raise an error."""
     if map_path not in _ABLATION_CACHE:
         with open(map_path, encoding="utf-8") as f:
             _ABLATION_CACHE[map_path] = json.load(f)["instruction_map"]

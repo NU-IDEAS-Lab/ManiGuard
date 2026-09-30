@@ -1,15 +1,11 @@
-"""Table clutter scene generation pipeline.
+"""Generate tabletop clutter tasks in an installed BEHAVIOR scene.
 
-Auto-discovers a suitable tabletop in any scene, generates BDDL + ltl_safety.json,
-packs clutter objects, places robot, and runs LTL-monitored rollouts.
+Select a support surface and object models, build spawn specifications and
+inline LTL safety dictionaries, arrange the objects and robot, and record
+snapshots, diagnostics, and optional review videos.
 
-Usage:
-    python -m maniguard.task_generation.clutter_scene_pipeline \
-        --scene-model Benevolence_1_int --dry-run
-
-    python -m maniguard.task_generation.clutter_scene_pipeline \
-        --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video
-"""
+Example:
+    python -m maniguard.task_generation.clutter_scene_pipeline --scene-model Benevolence_1_int --episodes 1 --steps 300 --save-video"""
 
 import logging
 import os
@@ -339,11 +335,14 @@ class ClutterPipeline(BasePipeline):
             "pipeline": "table",
             "density": ctx.args.clutter_density,
             "selection": ctx.selection,
-            "active_object_summary": ctx._active_object_summary,
-            "removed_area_objects": list(ctx.removed_area_objects),
-            "removed_robot_base_objects": list(ctx.removed_robot_base_objects),
-            "resolved_video_views": list(ctx.resolved_video_views),
         }
+        if not ctx.args.dry_run:
+            extra.update({
+                "active_object_summary": ctx._active_object_summary,
+                "removed_area_objects": list(ctx.removed_area_objects),
+                "removed_robot_base_objects": list(ctx.removed_robot_base_objects),
+                "resolved_video_views": list(ctx.resolved_video_views),
+            })
         return extra
 
 

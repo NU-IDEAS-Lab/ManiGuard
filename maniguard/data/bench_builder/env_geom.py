@@ -1,36 +1,14 @@
-"""Geometry + room-matching for the `env` perturbation level of ManiGuard-Bench.
+"""Simulator-free geometry and room selection for environment variants.
 
-The `env` axis takes a finalized `base` task — a canonical arm + one support
-surface + the task objects, with NO surrounding room — and **injects it,
-rigidly, into a real BEHAVIOR room** so the policy sees the same manipulation
-geometry against a totally different visual background (walls, furniture,
-clutter). That background mismatch is the out-of-distribution signal.
+Index table instances from installed BEHAVIOR room snapshots. For a matching
+table model, map the base layout using T_room_table @ inverse(T_base_table).
+Prefer a table in the task's recorded scene, choosing the nearest position
+when that scene has several candidates; otherwise choose a seeded candidate.
 
-The injection is anchored on the **support table**: we find the SAME table model
-already present in some room, then map the whole base layout onto it with one
-rigid transform::
-
-    T = T_room_table · T_base_table⁻¹           # SE(3), table -> table
-
-Because the room table and the base table are the *same model* (identical mesh),
-the table-top-relative offset is identical, so a single rigid ``T`` applied to
-every base object (task objects + cabinet fixture + goal marker + arm + review
-cameras) drops the layout onto the room table at exactly the right height and
-orientation — no per-object height fix-ups.
-
-This module is deliberately simulator-free so the math + the room matching are
-unit-testable offline:
-
-* :func:`build_table_scene_db` — scan the 51 room ``*_best.json`` files once and
-  index every instance of the table models the bench actually uses
-  (``{model: [{scene, name, pos, ori, category}]}``). Saved to
-  :data:`TABLE_SCENE_DB_PATH`.
-* :func:`select_room_instance` — pick which room + table instance a base task
-  injects into: the ORIGINAL room when the base carries a ``scene_model`` that
-  still holds the table (→ ``T`` is identity), else a seeded-random room among
-  those that contain the model.
-* :func:`compute_injection_transform` / :func:`apply_transform_to_pose` /
-  :func:`apply_transform_to_point` — the rigid-transform primitives.
+The module also estimates task footprints and ranks substitute tables.
+Substitution translates the layout to the substitute tabletop center and height.
+These geometric estimates support candidate selection; simulator checks decide
+whether an attempted placement is accepted.
 """
 from __future__ import annotations
 
@@ -47,11 +25,10 @@ import numpy as np
 # per-task seed mixes in family + task id (see select_room_instance).
 BENCH_ENV_SEED = 0xE0E0A11  # arbitrary fixed constant for this level
 
-# Generated table -> rooms index lives next to this module (Step 0 output).
+# Table-model-to-room index stored with the package.
 TABLE_SCENE_DB_PATH = Path(__file__).resolve().parent / "data" / "table_scene_db.json"
 
-# Two instances of the same model are treated as the "same" table (→ identity T)
-# when their world poses agree within this tolerance.
+# Position tolerance reserved for table-instance comparisons; currently unused.
 SAME_TABLE_TOL_M = 1e-3
 
 
@@ -210,17 +187,12 @@ def select_room_instance(
     base_table_pose: tuple[Any, Any] | None,
     seed: int,
 ) -> dict | None:
-    """Choose which room + table instance a base task injects into.
+    """Choose a room-table instance from the supplied candidates.
 
-    Decision order (spec §4a):
-      1. If the base carries a ``scene_model`` that still holds the table, use
-         the ORIGINAL room. Among that room's instances of the model, prefer the
-         one whose world pose matches the base table pose (→ ``T`` identity).
-      2. Otherwise pick a seeded-random instance among all rooms that hold the
-         model.
-
-    Returns the chosen ``{scene, name, pos, ori, ...}`` or ``None`` if the model
-    is in no room (the task is then skipped + recorded for case-by-case review).
+    Prefer candidates in scene_model, ordered by position distance to the
+    base table when its pose is available. Otherwise choose a seeded random
+    candidate. Return None when there are no candidates. Orientation is not
+    part of this selection; the injection transform handles pose differences.
     """
     if not candidates:
         return None
@@ -241,7 +213,7 @@ def select_room_instance(
 # --------------------------------------------------------------------------- table SUBSTITUTION
 # When a base task's ONLY room fails to spawn (objects fall / arm collides / room asset crashes)
 # even after decluttering, we re-spawn the base layout on a DIFFERENT, adequately-sized table in a
-# different room (spec fallback). The substitute table just provides a surface + the room provides
+# different room. The substitute table just provides a surface + the room provides
 # background. Selection is purely geometric: the substitute surface must fit the base task's object
 # pack (width / length / area), with a small margin.
 
@@ -321,11 +293,13 @@ def collect_model_surface_geom(bench_root: Path) -> dict[str, dict]:
 
 
 def compute_pack_footprint(base_si: dict, diag: dict) -> dict | None:
-    """The base task's object-pack footprint (everything resting on the table — task objects +
-    fixtures + goal marker, excluding the robot + the support surface). Returns ``{w, l, area,
-    center_xy, top_z}``. Object XY extents come from ``object_footprints`` (DatasetObjects) or the
-    primitive radius (the goal marker); object rotation is ignored (axis-aligned extent at the
-    origin) — a slight under-estimate that the +margin + the in-sim feasibility check absorb."""
+    """Estimate the XY footprint of base task objects, fixtures, and goal marker.
+
+    Exclude the robot and support surface. Use scaled model extents or primitive
+    radius, with a default half-extent when model geometry is unavailable.
+    Object rotation is ignored, so this is an approximate candidate-selection
+    bound rather than a verified containment test.
+    """
     fp = _load_object_footprints()
     init = base_si.get("objects_info", {}).get("init_info", {})
     reg = _scene_registry(base_si)
@@ -422,8 +396,10 @@ def find_substitute_candidates(pack: dict, model_geom: dict, index: dict, *,
 # --------------------------------------------------------------------------- db builder CLI
 
 def _default_scenes_root() -> Path:
-    """Resolve the BEHAVIOR ``behavior-1k-assets/scenes`` dir: ``$OMNIGIBSON_DATA_PATH`` first
-    (the standard override), else the repo-local ``datasets/`` (the default install layout)."""
+    """Find installed BEHAVIOR scene assets from OMNIGIBSON_DATA_PATH or
+    the package-root datasets directory. Raise FileNotFoundError if neither
+    location contains behavior-1k-assets/scenes.
+    """
     data = os.environ.get("OMNIGIBSON_DATA_PATH", "")
     roots = []
     if data:

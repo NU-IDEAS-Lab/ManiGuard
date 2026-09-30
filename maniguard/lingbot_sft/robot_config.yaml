@@ -1,35 +1,9 @@
-# ManiGuard datagen-v1 robot config -- single-arm Franka (7 arm joints + 1 gripper), 2 cameras.
-#
-# Maps the datagen LeRobot v2.1 features to LingBot's unified feature space. The datagen
-# datasets ship FLAT keys (state / actions / image_left / wrist_image) instead of the
-# observation.* names used by the RoboTwin sample. That is fine: `origin_keys` is a
-# free-form lookup into the LeRobot item (see lingbotvla/data/vla_data/utils.py --
-# `out_item[target_key] = item[convert_info['origin_keys']]`), and check_robot_config only
-# validates the TARGET side (the unified names must be declared in the training config's
-# data.joints / data.cameras). So no dataset conversion is required: the six datagen
-# datasets stay read-only and byte-identical to the ones the pi0.5 / pi0 / GR00T / SmolVLA
-# tracks train on -- the whole point of the ManiGuard benchmark's same-data guarantee.
-#
-# 8-D layout of both `state` and `actions`: [arm_q(7), gripper(1)]
-#   arm.position      <- [0:7)
-#   effector.position <- [7:8)
-# The unified vector is 55-D; the dims we do not fill are padded/masked by the loader
-# (data.joints keeps the pretraining-aligned sizes, incl. an unused end.position entry).
-#
-# subtract_state: False on BOTH features -- the model learns ABSOLUTE joint targets.
-# This follows LingBot's own simulation recipe (configs/robot_configs/robotwin.yaml, where
-# both features use False; state-relative arm actions are the recommendation for REAL-robot
-# data) and matches our datasets, whose `actions` are absolute joint positions.
-# => At eval the server's output is fed straight to the JointController with NO
-#    delta/un-relative step (same contract as SmolVLA; pi0.5/pi0/GR00T do add state back).
-#
-# Cameras: the policy consumes 2 views -- the `left` overview + wrist -- identical to the
-# other four base models (benchmark parity). The datagen datasets also ship three more
-# overviews (image_opposite / image_right / image_left_shoulder); they are simply not mapped.
-#
-# norm_stats below is a DEFAULT: every family has its own statistics, so run_sft.sh passes
-# `--data.norm_stats_file assets/norm_stats/maniguard_<family>.json` per run, which takes
-# precedence (FeatureTransform: an explicit norm_stats_path overrides the robot config's).
+# Feature mapping for a single-arm Franka with overview and wrist images.
+# State/action layout: seven arm joints followed by one gripper coordinate.
+# Map arm.position from [0:7) and effector.position from [7:8).
+# Actions are absolute because subtract_state is false.
+# The loader supplies unused unified-vector dimensions. Extra dataset views
+# are not mapped. run_sft.sh explicitly selects the family normalization file.
 
 states:
   - observation.state.arm.position:

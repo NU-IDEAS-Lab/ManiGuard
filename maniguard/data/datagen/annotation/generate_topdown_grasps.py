@@ -1,37 +1,13 @@
-"""Programmatic straight-down (top-down) grasp generator for the STICKY-grasp families.
+"""Generate centered top-down grasps for sticky-grasp collection.
 
-Why this exists
----------------
-The cabinet family grasps objects with ``grasping_mode="sticky"`` (the targets are slabs wider
-than the gripper in both horizontal axes, so force-closure is impossible — sticky magnetises on
-first finger contact). Hand-annotated EDGE grasps (tilted, palm-flipped) caused three coupled
-failures during the carry-into-drawer: a tilted approach makes the place ``fit_yaw`` reorient
-rotate the held object about a TILTED axis → it tips past the LTL ``upright`` gate; the slab
-hangs off-centre → the compliant wrist sags ~7 cm (place_lift / place_across reach-undershoot);
-and the palm-flip winds the wrist toward a limit (singularity-adjacent contortion).
+Place the grasp over the mesh center-of-mass projection and sample finger-closing
+yaws over [0, pi). Store the end-effector pose in the object-local frame with
+source=topdown_gen. The grasp scorer can test the complementary pi roll.
+Wide objects use shallow top-surface contact; narrow objects use an upper-body
+depth. Cabinet grasp selection prefers these generated records when present.
 
-A straight-down grasp CENTRED over the object's centre-of-mass removes all three at once: the
-reorient becomes a pure yaw about the vertical (object stays level → upright preserved), the load
-hangs straight below the wrist (no lateral torque → no sag), and the wrist sits in its natural
-down-pointing pose. Sticky makes this valid even for too-wide slabs: the fingers need only TOUCH
-the top, not close around it.
-
-What it generates
------------------
-For each object key, a fan of straight-down grasps at the top-surface point above the CoM:
-``approach = world -Z`` (eef +Z down, the convention from ``annotate_tool``), finger-separation
-(eef -Y) swept over ``n_yaw`` angles in ``[0, pi)`` (the +pi roll is covered at scoring time by
-``grasp_select.roll_disambig``, which IK's both rolls and keeps the wrist farthest from a limit).
-Grasps are stored in the object's LOCAL frame (the DB convention) tagged ``source="topdown_gen"``;
-the cabinet family prefers these over the legacy edge grasps.
-
-Usage
------
-  conda run -n behavior python -u -m maniguard.data.datagen.annotation.generate_topdown_grasps \
-      --objects fruitcake/nmxadm graduated_cylinder/egpkea          # specific objects
-  conda run -n behavior python -u -m maniguard.data.datagen.annotation.generate_topdown_grasps \
-      --cabinet-all                                                 # every cabinet_pickup object
-  ... add --apply to write into the DB (default is a dry-run preview).
+Use --objects category/model ... or --cabinet-all to select objects.
+The default is a preview; --apply writes the generated records to the database.
 """
 from __future__ import annotations
 
@@ -44,17 +20,16 @@ import numpy as np
 import trimesh
 from scipy.spatial.transform import Rotation as Rot
 
-# ---- robot / gripper geometry (measured on the longfinger Franka; see scratchpad/measure_eef_tip) ----
+# Franka longfinger gripper geometry (metres).
 FINGER_OFFSET = 0.114      # eef_link -> fingertip distance along the approach axis (m)
 GRIPPER_WIDTH = 0.08       # max finger separation (m); the fingers land ON the top face only if the
 #                            object's extent along the finger-separation axis exceeds this.
 STRADDLE_FRAC = 0.40       # narrow object: drop the fingertips this fraction of the object height below
 #                            the top so the fingers straddle the upper body and grip the sides on close.
 STRADDLE_MAX = 0.06        # ...but never deeper than this (keep clear of the table for a short object).
-GRASP_INSET = 0.015        # WIDE object: press the fingertips this far BELOW the top surface. The relocate
-#                            descend is collision-off for the grasp target, so the fingers penetrate the top
-#                            slightly and a contact registers -> sticky attaches. Fingertips resting EXACTLY at
-#                            the surface only graze (no contact force) and sticky never fires (the v6 miss).
+GRASP_INSET = 0.015        # Wide objects: press fingertips slightly below the top surface for sticky contact.
+# The grasp descent excludes the target from planner collision checks; resting
+# exactly on the surface may produce no contact force and fail to attach.
 
 ANN_PATH = Path("outputs/grasp_annotation/grasp_annotations.json")
 MESH_DB_PATH = Path("outputs/grasp_annotation/mesh_db.json")
@@ -184,7 +159,7 @@ def main() -> None:
             continue
         if a.apply:
             entry = ann["objects"].setdefault(key, {"grasps": []})
-            # keep legacy (non-generated) grasps so OTHER families are unaffected; replace only our own
+            # Preserve manual annotations and replace only generated top-down grasps.
             kept = [g for g in entry.get("grasps", []) if g.get("source") != "topdown_gen"]
             for j, g in enumerate(gen):
                 g["id"] = len(kept) + j                       # gap-free ids within the object

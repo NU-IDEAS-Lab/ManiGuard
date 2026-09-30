@@ -1,31 +1,13 @@
-"""Cabinet family skeleton — the only cabinet-specific code.
+"""Relocate path blockers, open the drawer, place the target inside, and close it.
 
-Task: a sliding-drawer cabinet on the table + a target (goes INSIDE the drawer) + an obstacle.
-Success (gate) = ``inside(target, cabinet) & closed(cabinet)``; temporal safety (clear the path
-before opening) is enforced implicitly by the LTL upright gate (opening into an un-moved object
-knocks it over → violation → demo voided).
+Goal and safety checks use the task diagnostics through the shared executor.
+FREE segments request cuRobo transit plans with the selected collision world;
+SERVO segments use Cartesian IK for controlled approach, contact, and drawer
+motions. Cabinet geometry helpers determine blocker placement and drawer access;
+annotated grasps are screened for the required pick, carry, and handle poses.
 
-Two motion building blocks (the engine owns both — see ``executor.contracts.Mode``):
-  * ``Mode.FREE``  — cuRobo collision-aware transit. ALL free-space moves (to a grasp, to a place,
-                     to the handle pre-grasp). Avoids the cabinet + every other object.
-  * ``Mode.SERVO`` — pure straight-line Cartesian IK (collision off, nearest-seed so a straight
-                     servo does NOT skew the wrist). EVERY deterministic straight contact: the pick /
-                     place descents + lifts, and the open/close drawer push-pull.
-Cabinet deliberately avoids ``Mode.LINEAR``: the vendored cuRobo's partial-pose (LINEAR_SERVO)
-constraint query always fails here and silently falls back to an UNCONSTRAINED salvage solve that
-drifts the eef off the straight line (e.g. carrying the relocated object forward off the table edge,
-or missing the grasp). SERVO's pure IK has no such dependency, so all straight moves use it.
-
-The 4-phase flow (the bench spawns the drawer CLOSED, Method 2 — no redundant initial close)::
-
-    1  relocate blockers        FREE pick → SERVO descend → SERVO lift → FREE transit → SERVO place
-    2  open drawer              FREE → handle pre-grasp / SERVO grasp / SERVO pull to MAX / open
-    3  place target in drawer    FREE → SERVO deep grasp / SERVO inverted-U (↑lift →over upright ↓lower)
-    4  close drawer (final)     FREE → handle pre-grasp / SERVO push shut / replay back
-
-Only segment generation lives here; the generic engine plans / executes / gates / records. Runtime
-targets (grasps at live poses, drawer pull/push, the place up-over-down) resolve through
-``resolve_compute``. Geometry comes from :mod:`cabinet_geom`; grasp poses from the annotation DB.
+Family hooks configure drawer resistance and resolve targets from live geometry.
+The executor handles segment planning, execution, recording, and acceptance.
 """
 from __future__ import annotations
 
@@ -56,61 +38,40 @@ OVER_HANDLE_FRAC = 0.55    # close approach: SERVO this fraction of the way from
 PLACE_Z_MARGIN = 0.01     # drop height above the table / drawer floor
 RETREAT_DZ = 0.12         # straight-up retreat after releasing a relocated blocker
 HANDLE_BACK_DIST = 0.10   # after opening, retreat the gripper this far along +open so fingers clear the handle
-CLOSE_PRE_ROT_RELAX = 0.10  # close_pre IK rotation_threshold relax (rad, ≈5.7°). The FINAL close re-grasps the
-#                            handle at its pulled-OUT (open) position = the far edge of reach; the only reachable
-#                            wrist there is a few degrees (obs. 0.043–0.057 rad) off the grasp orientation — a miss
-#                            on the ROLL-SYMMETRIC handle bar (HARMLESS).
-CLOSE_PRE_POS_RELAX = 0.015  # close_pre IK position_threshold relax (m, 1.5 cm). At that far open-handle pre-grasp
-#                            STANDOFF the arm bottoms out its reach ~5.2-5.8 mm short of the exact point (> the 5 mm
-#                            gate) — diagnosed as the BINDING constraint (pos, not rot, IK_FAILs first on the worst
-#                            tasks). Harmless at a standoff: close_grasp SERVOs onto the handle from its LIVE pose,
-#                            absorbing the offset. cuRobo's baked 0.005-m IK gate else rejects it (IK_FAIL, no traj).
-#                            Widen BOTH gates for THIS plan only; a genuinely-bad grasp is still caught by close_grasp
-#                            + the physical success gate. See [[project_maniguard_cabinet_family]] SESSION-5 Approach A.
+CLOSE_PRE_ROT_RELAX = 0.10  # close_pre IK rotation tolerance (rad). The open handle is near the reach
+# boundary; a small roll error is acceptable on its roll-symmetric bar.
+CLOSE_PRE_POS_RELAX = 0.015  # close_pre IK position tolerance (m). The following close_grasp SERVO
+# re-aims from the live handle pose, allowing a small standoff residual.
+# The position and rotation overrides apply only to this plan; physical
+# execution and success checks still evaluate the grasp and closure.
 CLOSE_FRACTION = 0.12     # close to this fraction of the spawn opening (≈88% shut; << Open threshold)
 DRAWER_OPEN_MARGIN = 0.02   # stop the open pull this far off the drawer's hard stop (full stroke)
 DRAWER_OPEN_FRACS = (1.0, 0.85, 0.72, 0.6)   # search the open distance from full-stroke DOWN; the widest
 #                            whose open-END the arm can still reach (handle grasp clear there) is the max
-OPEN_DIST_SAFETY = 0.88   # derate the GATE-selected open_dist by this factor (Approach B). The selection gate
-#                            scores 5 DISCRETE handle poses with cuRobo from the home pose, but the runtime
-#                            close sequence (close_grasp/close_push) runs a CONTINUOUS per-waypoint solve_ik
-#                            SERVO from the post-place config — so the gate is OPTIMISTIC and picks an open whose
-#                            far open-handle sits right at the reach envelope (close_grasp servo_ik_fail / push
-#                            undershoot-jam / object-tip = the task_0003 Approach-A residual failures). Backing the
-#                            open off ~12% pulls the handle ~2-3 cm nearer the base, giving the whole close
-#                            sequence reach margin. SMALL on purpose (handle stays clearly grasped, cavity stays
-#                            deep enough — the place reach gate still validates fit). See SESSION-5 Approach B.
-LIFT_CLEAR = 0.18         # relocate: lift the held blocker this HIGH above the table before the FREE transit
-#                           — a low (~5 cm) lift leaves the object hugging the table next to the tall cabinet,
-#                           so the cabinet-avoiding cuRobo transit plans a hard low path (~50% plan_fail on this
-#                           cuRobo version); lifting it well clear first gives the transit a roomy high lane = reliable plan
+OPEN_DIST_SAFETY = 0.88   # Derate the selected opening distance to leave reach margin for closure.
+# Selection probes discrete handle poses from home, while close_grasp and
+# close_push solve a continuous SERVO path from the post-place configuration.
+# The place-reach gate evaluates the resulting, reduced cavity opening.
+LIFT_CLEAR = 0.18         # Relocate: lift the held blocker above the table before FREE transit,
+# leaving space for a collision-aware path around the cabinet.
 RIM_CLEARANCE = 0.06      # place: lift the target's bottom this far above the drawer rim before going over
 # Per-demo diversity bands (sampled from the variant seed in derive_segments; small so the long-horizon
 # task still reliably completes). Dim 1: how far above the rim the target's bottom is carried (the lift
 # height). Dim 2: how far the relocated TARGET slides along +opening on the near edge (where it lands).
-RIM_CLEAR_BAND = (0.01, 0.02)   # COMMANDED carry clearance above the rim — kept SMALL. The old 0.10-0.13
-# compensated for the joint_position_impedance WRIST sag (~0.07 m droop); since the switch to the RIGID
-# joint_position_raw controller (903c0277) there is NO droop, so the commanded clearance is achieved directly.
-# A large clearance also OVERSHOOTS the arm's TOP-DOWN orientation-reachability ceiling at the cavity (IK-verified:
-# the rim-crossing eef must stay LOW enough that the wrist can still point straight down at the extended cavity
-# pose — 0.12 clearance -> eef 1.26 = FAIL; ~0.02 -> eef ~1.16 = REACH). So command only ~1-2 cm above the rim.
+RIM_CLEAR_BAND = (0.01, 0.02)   # Command a small carry clearance above the rim. The joint_position_raw
+# controller tracks the commanded height closely, and excessive lift can
+# put the extended over-cavity pose beyond top-down orientation reach.
 RIM_CLEAR_HARD = 0.005          # HARD floor: the held bottom MUST end at least this far above the rim ("clearly
 # lifted over the drawer wall" — verify_held_above_z checks THIS object height, not an exact eef pose). The rigid
 # controller tracks the small commanded clearance closely, so this 0.5 cm floor is comfortably met. Upright stays gated by LTL.
-PLACE_NEAR_EDGE_BIAS = 0.07     # place: bias the rim-crossing / drop point this far toward the robot (+p = the
-# near-robot edge of the open cavity) instead of the exact cavity centre. The FAR cavity centre is at the arm's
-# TOP-DOWN orientation-reachability ceiling for a TALL object (the eef must be HIGH to clear the rim AND extended
-# FORWARD to the centre, where the wrist can no longer point straight down). Pulling +p toward the robot cuts the
-# forward extension and recovers the reach (IK-verified on task_0007: cavity-centre z=1.15 is knife-edge; +0.03..+0.18
-# all REACH with margin). Clamped to keep the object fully inside the drawer interior (off the near wall). Harmless
-# for short objects (already reachable; the drop just shifts a few cm), rescues tall ones -> family-wide default.
+PLACE_NEAR_EDGE_BIAS = 0.07     # Bias the rim-crossing/drop point toward the robot (+p). For tall objects,
+# reducing forward extension helps keep the high, top-down carry pose in
+# reach. Clamp the bias so the object remains inside the drawer interior.
 PLACE_WALL_MARGIN = 0.02        # keep the placed object's near edge this far inside the open-drawer near wall
 #                                 (clamp in _carry_target_xy: pc <= p_hi - obj_half - PLACE_WALL_MARGIN).
 TARGET_D_SHIFT_BAND = (0.18, 0.30)
-LOWER_IN_MAX = 0.35       # place: cap the final straight descent into the OPEN drawer. This chest's drawer
-#                           is DEEP (rim 0.734, interior floor ~0.47), so the 0.21 m target needs a ~0.26 m
-#                           descent to sit fully below the rim (else it jams the close) — NOT the ~10 cm
-#                           first assumed. The descent stops physically on the interior floor; no free-fall.
+LOWER_IN_MAX = 0.35       # Maximum straight descent into the open drawer. Runtime geometry sets the
+# descent to place the held object's top just below the rim, within this cap.
 REACH_TOL = 0.05          # eef-reached-target tolerance for the place lift/over stuck check
 # Drawer prismatic-joint resistance. Default (damping 5.0 / friction 0.30) stalls a position-controlled
 # push; soften it for the whole demo so open + close both move. STIFFEN it only while the arm reaches
@@ -158,7 +119,7 @@ class CabinetSkeleton(FamilySkeleton):
     def relocate_open_dir(self, ctx: TaskContext):
         """Drawer-OPEN world xy (``layout.d``): relocate grasps trail the wrist toward +open so the
         approach leans toward the cabinet (-open) and the arm body stays on the open side, off the
-        closed cabinet — picking from the cabinet side jams the wrist/arm against it (the g6 failure)."""
+        closed cabinet — picking from the cabinet side can jam the wrist/arm against it."""
         return np.asarray(self._prepare(ctx)["layout"].d, float)
 
     # ---- per-task preparation (live env reads; cabinet/table/robot are fixed) ---------
@@ -170,22 +131,15 @@ class CabinetSkeleton(FamilySkeleton):
         cab = env.scene.object_registry("name", ci["name"])
         cp, cq = cab.get_position_orientation()
         rp, _ = ctx.robot.get_position_orientation()
-        # j_current is left at the diagnostics' open_fraction CALIBRATION CONSTANT (not the live joint):
-        # open_distance and the cavity-centre prediction were tuned around it, and the demo's open/place
-        # geometry stays identical to the long-stable 0.2-open pipeline. (Method 2 only spawns the drawer
-        # closed and drops the redundant Phase-1 close; it must NOT retune the open stroke.)
+        # Use the diagnostics opening fraction as the geometry calibration reference
+        # for open-distance and cavity predictions, rather than the live joint.
         layout = CG.build_layout(diag, self._geom, cab_pos=_np(cp), cab_quat=_np(cq),
                                  robot_xy=_np(rp)[:2])
 
         obstacle = env.scene.object_registry("name", diag["obstacle_info"]["name"])
-        # Phase-1 relocation list, in a role-FIXED order: the OBSTACLE is cleared FIRST (it parks at
-        # the base's perpendicular foot on the near-base edge), THEN the target (it parks +d-staggered
-        # along the SAME near-base edge, where Phase 3 re-picks it — both stay in front of the cabinet,
-        # in reach). Only objects actually in the drawer's opening sweep are moved — the
-        # ``in_path`` flag (bench diagnostics, §0b reliable) is the per-role "needs relocating" test —
-        # so an object already clear of the path is skipped. This covers all bench layouts: target-only
-        # blocks, obstacle-only blocks, or both. (e.g. task_0000: obstacle already clear → skipped, the
-        # list is just [target].)
+        # Relocate the obstacle before the target, only when diagnostics mark each
+        # object in_path. The target remains available for the placement phase;
+        # blocker_placement selects separated positions along the near-robot edge.
         blockers = []
         if diag["obstacle_info"]["placement"]["in_path"]:
             blockers.append(("obstacle", obstacle))
@@ -247,13 +201,9 @@ class CabinetSkeleton(FamilySkeleton):
         obstacle, and the Phase-3 PLACE grasp on the target."""
         P = self._prepare(ctx)
         hkey = f"{self._geom['category']}/{self._geom['model']}"
-        # A handle grasp must be COLLISION-FREE + reachable at the 3 binding poses. The handle is reached
-        # in Phase 2 (open) and Phase 4 (close) — AFTER the in-path blockers are relocated aside — so it is
-        # scored in that POST-relocate world (same principle as the place grasp): drop the cabinet (the
-        # handle rides it) AND the in-path blockers (`P["blockers"]`, gone by then). A genuinely wedged,
-        # NON-in-path obstacle is NOT in P["blockers"], so it stays present and correctly rejects a handle
-        # point that would ram it. (Scoring with the in-path blockers present made clear=[] on both-mode
-        # tasks like task_0002, where the tall obstacle straddles the drawer front at scoring time.)
+        # Score handle grasps in the post-relocation collision world: exclude the
+        # cabinet carrying the handle and the blockers that will have been moved.
+        # Keep non-blocking obstacles present so they can reject obstructed grasps.
         #   pre     = close PRE-pose  (live joint, 0.10 standoff, +Y-most reach)
         #   contact = handle CONTACT  (live joint, no standoff)  <- rejects wedged-obstacle-colliding points
         #   close   = push ENDPOINT   (target joint, no standoff, -Y-most reach)
@@ -264,34 +214,26 @@ class CabinetSkeleton(FamilySkeleton):
                                       on_handle=True, joint=None, standoff_m=0.0))
         close = set(self._score_aux(world, robot, ctx, obj=P["cab"], key=hkey, ignore=handle_ignore,
                                     on_handle=True, joint=self.close_target_joint(), standoff_m=0.0))
-        # WIDEST reliable open: the chosen handle grasp must ALSO be reachable at the open-END (the
-        # handle pulled out by d_open), not only at the closed pose — else the straight SERVO pull winds
-        # the wrist past a limit and the drawer half-opens (the 4/5 undershoot failures). Search the open
-        # distance from the full stroke DOWN; the widest d_open whose open-end keeps a clear handle grasp
-        # is THIS cabinet+robot geometry's max reliable open (auto-adapts to the base<->cabinet reach).
+        # Search opening distances from full stroke downward. Require the handle
+        # to remain reachable at the open endpoint so the pull stays within reach.
         L = P["layout"]
         clear, P["open_dist"] = [], 0.0
         for d_open in (max(0.0, L.stroke - DRAWER_OPEN_MARGIN) * f for f in DRAWER_OPEN_FRACS):
             open_end = set(self._score_aux(world, robot, ctx, obj=P["cab"], key=hkey, ignore=handle_ignore,
                                            on_handle=True, joint=float(d_open), standoff_m=0.0))
-            # the FINAL close must RE-GRASP the handle at the open-end (close_pre, standoff STANDOFF). A
-            # full-open handle gets pushed to the far +p reach edge where that re-grasp IK-fails on
-            # orientation (the close_pre_final plan_fail), so ALSO require the close PRE-grasp reachable at
-            # d_open. The widest d_open clearing BOTH the open pull (open_end, contact) AND the close
-            # re-grasp (open_pre, standoff) = the max open the demo can still close from — adapts per cabinet.
+            # Also require the close pre-grasp standoff to be reachable at the open
+            # endpoint, leaving an approach for re-grasping the handle after placement.
             open_pre = set(self._score_aux(world, robot, ctx, obj=P["cab"], key=hkey, ignore=handle_ignore,
                                            on_handle=True, joint=float(d_open), standoff_m=STANDOFF))
             cand = [g for g in pre if g in contact and g in close and g in open_end and g in open_pre]
             if cand:
                 clear, P["open_dist"] = cand, float(d_open)
                 break
-        if not clear:                                  # no open-end-reachable grasp -> legacy behaviour
+        if not clear:                                  # No open-end-reachable grasp: keep the configured opening distance.
             clear = [g for g in pre if g in contact and g in close]
             P["open_dist"] = CG.open_distance(0.0, L.remaining_travel, np.random.default_rng(0))
-        # Approach B: derate the gate-selected open by a safety factor. The gate validated the handle grasps
-        # at the LARGER open, so they stay reachable at this SMALLER one (handle nearer = strictly easier),
-        # while the runtime close sequence gains reach margin. Applied BEFORE the place gate so the cavity
-        # (computed from open_dist) and its reach filter see the actual, derated open.
+        # Reduce the selected opening before the place gate so its cavity geometry
+        # and reachability filter use the same opening requested during execution.
         gate_open = P["open_dist"]
         P["open_dist"] = float(gate_open * OPEN_DIST_SAFETY)
         print(f"[datagen.cab] open_dist gate={gate_open:.3f} -> derated={P['open_dist']:.3f} "
@@ -373,9 +315,8 @@ class CabinetSkeleton(FamilySkeleton):
             q = res.arm_traj[0].detach().cpu().numpy().reshape(-1)   # 1-waypoint IK config (7,)
             return joint_margin(q, lo, hi)
 
-        # Score each grasp on the WORST joint-margin across the two place-carry poses it must hold the
-        # eef-rigid object through: the straight lift OVER THE RIM (place_lift — where the palm-flip side
-        # grasp stalled) and the horizontal OVER THE CAVITY (place_over). Take the better roll variant.
+        # Score each grasp on its worst joint margin across the lift-over-rim and
+        # over-cavity poses. Keep the better roll variant.
         scored = []                                    # (worst place margin, lift_z, gid, rolled)
         for c in reach:
             eef_above_bottom = float(c.eef_pos[2]) - obj_bottom
@@ -402,10 +343,9 @@ class CabinetSkeleton(FamilySkeleton):
             print(f"[datagen.cab] place grasp: NONE clears MARGIN_FLOOR (rim={rim:.3f}, cav_xy="
                   f"{np.round(cav_xy, 3)}) -> best-effort g{gid} roll={roll}", flush=True)
             return
-        # Rule 1 — among the singularity-safe place grasps (the MARGIN_FLOOR gate above dropped the
-        # palm-flip ones), prefer the one nearest the object's CENTRE along its long axis: an end-grasp on
-        # an elongated object slips / swings (the observed below_z + tilt). Weight by aspect ratio so this
-        # only bites for long thin objects; lift_z (depth) breaks ties.
+        # Among grasps meeting the joint-margin floor, prefer a grasp near the
+        # object center along its long axis to reduce slipping and swinging.
+        # Weight by aspect ratio; lift height breaks ties.
         long_local, long_len, short_len = self._object_footprint(key)
         aspect = long_len / max(short_len, 1e-6)
         projs = [float(np.dot(g["position"], long_local)) for g in self._local_grasps(key)]
@@ -495,7 +435,7 @@ class CabinetSkeleton(FamilySkeleton):
             return cands
         return [c.id for c in cands if c.reachable]
 
-    # ---- the full 5-phase sequence ---------------------------------------------------
+    # ---- the full four-phase sequence ---------------------------------------------------
     def derive_segments(self, ctx: TaskContext, target_grasp: GraspCand,
                         params: SampleParams) -> list[MotionSegment]:
         P = self._prepare(ctx)
@@ -506,15 +446,14 @@ class CabinetSkeleton(FamilySkeleton):
         d_shift = float(rng.uniform(*TARGET_D_SHIFT_BAND))     # dim 2: target's landing point along the edge
         rim_clear = float(rng.uniform(*RIM_CLEAR_BAND))        # dim 1: carry height above the rim
         place_gids = P.get("place_gids") or []                 # dim 3: reachable place grasp, balance-then-deep
-        k_draw = int(params.seed) % 1000                       # canonical draw 0 -> the most robust (most central,
+        k_draw = int(params.seed) % 1000                       # seed-residue branch -> the first (most central,
         place_gid = (int(place_gids[0]) if k_draw == 0          # deepest) grasp; diversity draws sample the rest
                      else int(place_gids[int(rng.integers(len(place_gids)))])) if place_gids else None
         print(f"[datagen.cab] diversity: d_shift={d_shift:.3f} rim_clear={rim_clear:.3f} place_gid={place_gid}", flush=True)
 
         segs: list[MotionSegment] = []
-        # The bench spawns the drawer CLOSED (Method 2), so there is no redundant initial close — the
-        # demo is the natural relocate → open → place → close. (A tall in-path obstacle used to block the
-        # old Phase-1 handle reach; spawning closed removes that failure mode entirely.)
+        # The stored task starts with the drawer closed. Execute relocation,
+        # opening, placement, and closing in that order.
 
         # Phase 1 — move each path-blocking object aside (clean pick-and-place). Resolve the TARGET's
         # destination FIRST (deterministic) so the obstacle can park clear of its parked bbox.
@@ -538,7 +477,7 @@ class CabinetSkeleton(FamilySkeleton):
                 open_dist, d_shift=d_shift, p_half=ph, d_half=dh,
                 avoid_dc=(target_dc if role == "obstacle" else None),
                 avoid_half=(target_dh or 0.0 if role == "obstacle" else 0.0))
-            if place_xy is None:                       # no room → a "third-type" task to report
+            if place_xy is None:                       # No feasible relocation destination: stop building this attempt.
                 return []
             print(f"[datagen.cab] relocate[{role}] "
                   f"obj_xy={_np(obj.get_position_orientation()[0])[:2].round(3)} "
@@ -572,10 +511,9 @@ class CabinetSkeleton(FamilySkeleton):
         xy = {"xy": [float(place_xy[0]), float(place_xy[1])]}
         support_top = float(_np(ctx.support.aabb[1])[2]) if ctx.support is not None else 0.0
         segs = [
-            # FREE to the grasp standoff ABOVE the blocker. Ignore NOTHING — cuRobo must AVOID the blocker's
-            # body AND the cabinet (§4 Flaw-1: a FREE connector avoids the cabinet + the live drawer). Ignoring
-            # the blocker routed the approach straight through + knocked it; only the final straight descent
-            # ignores the blocker, once the gripper is poised to enclose it.
+            # Plan to the blocker standoff with all obstacles present, including the
+            # blocker and cabinet. Exclude the blocker only for the final descent,
+            # when the gripper is poised to enclose it.
             MotionSegment("pick_pre", q0[:3], q0, mode=Mode.FREE, grip=Grip.OPEN, grip_steps=6,
                           compute="grasp", extra={**e, "standoff": params.standoff_m}, path_begin=True),
             MotionSegment("pick_descend", q0[:3], q0, mode=Mode.SERVO, grip=Grip.CLOSE, grip_steps=8,
@@ -665,19 +603,15 @@ class CabinetSkeleton(FamilySkeleton):
         held = {"held_name": tname}
         q0 = np.array([0.0, 0.0, 0.0, 1.0])
         rim = float(P["drawer_top_z"])                 # open-drawer wall top — the target bottom must clear THIS
-        # ELONGATED target → roll its long axis ∥ the wider exposed cavity axis (fit_yaw); COMPACT target
-        # → its yaw is irrelevant to fit, so keep the finger-rail ⊥ the opening (rail_clear) to clear the
-        # upper drawer's handle on descent (preserves the task_0000 behaviour).
+        # Align elongated targets with the wider cavity axis. For compact objects,
+        # keep the finger rail perpendicular to opening to clear the upper handle.
         elongated = self._is_elongated(ctx.target_key)
         print(f"[datagen.cab] place_in_drawer: target grasp id={gid} rim={rim:.3f} "
               f"{'elongated->fit_yaw' if elongated else 'compact->rail_clear'}", flush=True)
         head = [
-            # FREE to the deep-grasp standoff ABOVE the target. Ignore NOTHING — cuRobo must AVOID the
-            # target's body AND the cabinet + the live OPEN drawer (§4 Flaw-1: this is the re-pick approach
-            # AFTER the drawer opened; ignoring the cabinet dropped the slid-out drawer link from the world,
-            # so cuRobo routed the approach straight THROUGH the open drawer). The standoff sits above the
-            # target so cuRobo still reaches it while avoiding the body; only the final straight descent
-            # (place_descend) ignores the target, once the gripper is poised to enclose it.
+            # Plan to the target standoff with the target, cabinet, and live open drawer
+            # present in the collision world. Exclude the target only for the final
+            # place_descend approach, when the gripper is poised to enclose it.
             MotionSegment("place_pre_grasp", q0[:3], q0, mode=Mode.FREE, grip=Grip.OPEN, grip_steps=6,
                           compute="grasp", extra={**e, "standoff": params.standoff_m}),
             MotionSegment("place_descend", q0[:3], q0, mode=Mode.SERVO, grip=Grip.CLOSE, grip_steps=8,
@@ -686,9 +620,8 @@ class CabinetSkeleton(FamilySkeleton):
         ]
         # ↑ lift the target bottom above the rim + clearance, HARD-VERIFY it cleared before ANY lateral
         # move (a lift that stays below the rim catches it + rams the drawer).
-        # Success = the held bottom CLEARED the rim by RIM_CLEAR_HARD (the functional "lifted over the wall"
-        # truth), NOT an exact eef pose: the asymmetric sticky slab sags the compliant wrist ~0.07 m, so a
-        # reach_tol on the eef would fail a lift that actually cleared. Upright is still gated by the LTL gate.
+        # Verify that the held object's bottom clears the rim by RIM_CLEAR_HARD.
+        # This checks object clearance directly; the LTL gate checks uprightness.
         place_lift = MotionSegment("place_lift", q0[:3], q0, mode=Mode.SERVO, attach=True, grip=Grip.HOLD,
                                    compute="lift_over_rim", extra={**held, "clearance": rim_clear},
                                    verify_held_above_z=rim + RIM_CLEAR_HARD, ignore_objects=(cab,))
@@ -702,8 +635,8 @@ class CabinetSkeleton(FamilySkeleton):
                 MotionSegment("place_clear_lift", q0[:3], q0, mode=Mode.SERVO, attach=True, grip=Grip.HOLD,
                               compute="lift_above_support", extra={**held, "clear": 0.12},
                               ignore_objects=(cab,)),
-                # FREE reorient (object attached) — AVOID the cabinet + open drawer (§4/§5: the held object
-                # rolls in free space just off the table; cuRobo plans the roll around the cabinet).
+                # Reorient with the held object attached and the cabinet/open drawer
+                # present so cuRobo plans the roll around them.
                 MotionSegment("place_reorient", q0[:3], q0, mode=Mode.FREE, attach=True, grip=Grip.HOLD,
                               compute="fit_yaw", extra={**e, **held}),
                 place_lift,
@@ -712,8 +645,8 @@ class CabinetSkeleton(FamilySkeleton):
                               reach_tol_m=REACH_TOL, reach_xy_only=True, verify_held_above_z=rim, ignore_objects=(cab,)),
             ]
         else:
-            # COMPACT: lift over the rim, over the cavity CENTRE, square to vertical, then finger-rail ⊥
-            # opening to clear the upper drawer's handle on descent (the original task_0000 placement).
+            # Compact objects: lift over the rim, cross to the carry point, square to
+            # vertical, and align the finger rail to clear the upper handle on descent.
             mid = [
                 place_lift,
                 MotionSegment("place_across", q0[:3], q0, mode=Mode.SERVO, attach=True, grip=Grip.HOLD,
@@ -725,26 +658,20 @@ class CabinetSkeleton(FamilySkeleton):
                               compute="rail_clear", extra={**held}, ignore_objects=(cab,)),
             ]
         tail = [
-            # ↓ DOWN ~10 cm to set the bottom near the drawer floor, upright the WHOLE way (no free-fall —
-            # a tall object dropped 0.3-0.5 m tumbles on impact).
+            # Descend while upright to the rim-relative placement height, then release.
             MotionSegment("place_lower", q0[:3], q0, mode=Mode.SERVO, attach=True, grip=Grip.HOLD,
                           compute="lower_to_floor", extra={**held, "max_dz": LOWER_IN_MAX},
                           ignore_objects=(cab,), path_begin=True),   # record the descent so the empty gripper
             #                                                          retraces it back out (reverse-replay below)
             MotionSegment("place_release", q0[:3], q0, mode=Mode.SERVO, grip=Grip.OPEN, grip_steps=10,
                           compute="hold", ignore_objects=(cab,)),
-            # RETRACE the recorded lower-in REVERSED — the empty (open) gripper rises back out along the
-            # exact entry lane to the descent-START config ABOVE the cavity centre. That start config was
-            # reached cleanly by the carry, so the following over_handle + close cuRobo plan from there is
-            # short + reliable — vs lifting straight up out of the deep place pose, which left a contorted
-            # config cuRobo had to route around in a 90+-waypoint winding path (then timed out at the push).
+            # Reverse the recorded descent to return the empty gripper along its entry
+            # path to the above-cavity configuration before approaching the handle.
             MotionSegment("place_lift_out", q0[:3], q0, replay_reverse_path=True, replay_frac=1.0,
                           grip=Grip.OPEN, ignore_objects=(cab,)),
-            # PARTIAL translate toward the close-handle pre-grasp XY (OVER_HANDLE_FRAC of the way, z held):
-            # gets the empty gripper out of the cavity centre into the open space toward the drawer front so
-            # the following COLLISION-AWARE close_pre has a short, door-clear reach. (Full=contorted config,
-            # none=long winding reach; the close approach itself avoids the cabinet — close_pre no longer
-            # ignores it — so the gripper no longer clips the drawer door on the way in.)
+            # Translate partway toward the close-handle pre-grasp XY at fixed height.
+            # This shortens the remaining collision-aware approach through the open
+            # space above the drawer without requiring a fully extended SERVO endpoint.
             MotionSegment("place_toward_handle", q0[:3], q0, mode=Mode.SERVO, grip=Grip.OPEN,
                           compute="over_handle", extra={"standoff": STANDOFF, "frac": OVER_HANDLE_FRAC},
                           ignore_objects=(cab,)),
@@ -758,22 +685,11 @@ class CabinetSkeleton(FamilySkeleton):
         return float(self._geom["j_extract"]) * CLOSE_FRACTION
 
     def _close_drawer(self, ctx, *, tag: str) -> list[MotionSegment]:
-        """Phase 4: close the drawer by GRASPING the handle and sliding it shut — the exact INVERSE of the
-        open pull (as in teleop), NOT an open-finger push. cuRobo-reach a collision-aware handle pre-pose
-        (gripper OPEN), SERVO straight onto the handle + CLOSE on it, then a straight pure-IK SERVO slides
-        the GRIPPED handle to the closed joint: the gripper is rigidly coupled to the handle, so the soft
-        drawer follows it continuously.
+        """Close the drawer by grasping its handle and sliding along the closing direction.
 
-        Why not the old open-finger push: a flat finger pushing the sliding drawer FRONT is an unstable
-        contact — under the rigid controller it stick-slips (stall→slip→jolt), and each jolt impacts the
-        drawer and topples the just-placed object inside (measured: close_push velocity stutters, object
-        tips). A grasp removes the contact entirely. Reachability holds: the close grasps the handle at its
-        OPEN (pulled-out, near-robot = easy) position and slides it back to the CLOSED position — which is
-        exactly where the OPEN sequence first grasped it, so both endpoints are known-reachable.
-
-        The handle is released in place; the drawer stays shut = the task success state (``inside &
-        closed``). Method-2 closes once (tag='final'); the engine's end-of-run settle + success check
-        then confirm it on the settled state."""
+        Approach the handle with collision-aware planning, grasp it, execute a fine-step
+        SERVO motion to the closed-joint target, and release. The end-of-rollout settling
+        and goal checks evaluate whether the target remains inside and the drawer closed."""
         cab = (self._prepare(ctx)["cab_name"],)         # gripping the handle = don't avoid the cabinet
         q0 = np.array([0.0, 0.0, 0.0, 1.0])
         h = {"obj": "handle"}
@@ -788,10 +704,9 @@ class CabinetSkeleton(FamilySkeleton):
             MotionSegment(f"close_grasp_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.CLOSE, grip_steps=8,
                           compute="grasp", extra={**h, "standoff": 0.0}, ignore_objects=cab,
                           servo_step_m=0.0025, servo_spw=1),
-            # SERVO slide the GRIPPED handle shut to tj (mirror of drawer_open, to=close): gripper HELD closed
-            # (carry_closed), the softened drawer follows the handle. FINE waypoints (2.5 mm) + servo_spw=1 =>
-            # a continuous UNIFORM-velocity glide (no slam-then-idle stutter) so the gripped handle / drawer
-            # doesn't jerk-tip the marginally-stable placed object. Duration-neutral vs the old 1 cm / spw=4.
+            # Slide the gripped handle to the closed-joint target with carry_closed.
+            # Fine waypoints and one simulation step per waypoint limit jerks that
+            # could tip the placed object while the softened drawer follows the handle.
             MotionSegment(f"close_push_{tag}", q0[:3], q0, mode=Mode.SERVO, grip=Grip.HOLD, carry_closed=True,
                           compute="drawer", extra={"to": "close", "joint": tj}, ignore_objects=cab,
                           servo_step_m=0.0025, servo_spw=1),
@@ -817,13 +732,10 @@ class CabinetSkeleton(FamilySkeleton):
             xy = np.asarray(x["xy"], float)
             z = float(x["z"]) if x.get("z") is not None else ep[2]
             return np.array([xy[0], xy[1], z]), eq
-        if tag == "over_cavity":                          # D_up_dst — drive the held object to the rim-crossing /
-            L = P["layout"]                               # drop XY = exposed-cavity centre along the slide, BIASED
-            # toward the robot (+p near edge) by PLACE_NEAR_EDGE_BIAS so the HIGH rim-crossing stays inside the
-            # arm's top-down reach. The FAR cavity centre is at the top-down orientation-reachability ceiling for
-            # a tall object (IK-verified: centre z=1.15 knife-edge, near-edge REACHES with margin), so we pull the
-            # carry/drop toward the robot. Clamped inside the drawer interior (off the near wall). SAME point the
-            # place-grasp selection checked (``_predicted_cavity_xy``), so selection and execution stay consistent.
+        if tag == "over_cavity":                          # Use the exposed-cavity carry point biased toward the robot and clamped
+            # inside the drawer. This reduces forward extension for tall objects and
+            # matches the point checked during place-grasp selection.
+            L = P["layout"]
             j = float(P["cab"].get_joint_positions()[self._drawer_jidx(P["cab"], ctx)])   # live open dist
             xy = self._carry_target_xy(L, j, self._obj_width(ctx.target_key) / 2.0)
             print(f"[datagen.cab] over_cavity/across: object -> near-edge-biased drop xy={np.round(xy, 3)} "
@@ -881,27 +793,23 @@ class CabinetSkeleton(FamilySkeleton):
             print(f"[datagen.cab] fit_yaw: exposed_slide={exposed_d:.3f} perp_width={perp_w:.3f} -> long axis ∥ "
                   f"{'opening' if exposed_d >= perp_w else 'width'}", flush=True)
             return ep, q
-        if tag == "lower_to_floor":                       # descend so the held object's TOP ends just under the
-            top = self._held_top(ctx, x["held_name"])     # drawer rim -> it rests on/near the true interior floor
-            bottom = self._held_bottom(ctx, x["held_name"])  # WITHOUT overshooting into it. NB: P["layout"].
-            rim = float(P["drawer_top_z"])                # drawer_floor_z is the drawer LINK's AABB underside
-            #                                               (skirt/front-face bottom), BELOW the real interior
-            #   floor panel -- so the old floor-relative descent aimed the bottom under the floor and the rigid
-            #   SERVO (no compliance) jammed the object through it, destabilising it + dragging the sliding
-            #   drawer. Rim-relative avoids that. (A short object keeps a small release gap; the end-of-rollout
-            #   settle gate now catches it if the gap-drop tips it. Measuring the true floor is a deferred follow-up.)
+        if tag == "lower_to_floor":                       # Place the held object's top just below the rim. drawer_floor_z is the
+            # drawer link AABB underside, which can lie below the interior floor.
+            # The rim-relative target avoids using that underside as the support plane.
+            # Short objects may retain a release gap; final settling checks acceptance.
+            top = self._held_top(ctx, x["held_name"])
+            bottom = self._held_bottom(ctx, x["held_name"])
+            rim = float(P["drawer_top_z"])
             dz = min(max(0.0, top - (rim - PLACE_Z_MARGIN)), float(x.get("max_dz", LOWER_IN_MAX)))
             print(f"[datagen.cab] lower_to_floor: top={top:.3f}->{top - dz:.3f} bottom={bottom:.3f}->{bottom - dz:.3f} "
                   f"rim={rim:.3f} -> dz=-{dz:.3f}", flush=True)
             return np.array([ep[0], ep[1], ep[2] - dz]), eq
-        if tag == "lower_to_support":                     # relocate set-down: lower the held bottom onto the
-            bottom = self._held_bottom(ctx, x["held_name"])   # TABLE top (live measured), capped — NOT a fixed
-            st = float(_np(ctx.support.aabb[1])[2]) if ctx.support is not None else 0.0   # eef-z (which drives
-            dz = min(max(0.0, bottom - (st + PLACE_Z_MARGIN)), float(x.get("max_dz", 0.30)))   # the object INTO
-            # RE-TARGET the computed place_xy (the on-table edge spot), not the LIVE eef xy: the carry / edge_yaw
-            # reorient drifts the eef ~7cm toward the table edge, and lowering at the drifted xy drops the object
-            # off the table (-> falls -> upright violation). The topdown grasp holds the object directly below
-            # the eef, so eef xy == object centre == place_xy; driving there lands the object ON the table.
+        if tag == "lower_to_support":                     # Lower the relocated object's bottom onto the measured table top, within
+            # the descent cap. Re-target place_xy to correct carry or reorientation
+            # drift before release; the centered top-down grasp aligns eef and object XY.
+            bottom = self._held_bottom(ctx, x["held_name"])
+            st = float(_np(ctx.support.aabb[1])[2]) if ctx.support is not None else 0.0
+            dz = min(max(0.0, bottom - (st + PLACE_Z_MARGIN)), float(x.get("max_dz", 0.30)))
             xyt = np.asarray(x["xy"], float) if x.get("xy") is not None else ep[:2]
             return np.array([float(xyt[0]), float(xyt[1]), ep[2] - dz]), eq
         if tag == "over_handle":                          # translate HORIZONTAL (z + orientation held) a

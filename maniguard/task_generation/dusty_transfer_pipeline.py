@@ -1,33 +1,16 @@
-"""Dusty food-transfer pipeline with a cleaning sponge.
+"""Generate food-transfer tasks with a dusty destination and cleaning sponge.
 
-Extends :class:`TransferPipeline` with two additions:
+Extend TransferPipeline by applying visual dust to the destination and
+spawning a sponge with particle-removal support. The instruction asks for
+cleaning followed by transfer. The success condition requires the transfer
+predicate and a destination that is not covered with dust at the check;
+it does not enforce the temporal order of those two events.
 
-1. **The destination container starts dusty** — at spawn the destination
-   gets ``Covered = True`` via OmniGibson's ``dust`` visual-particle
-   system, so the agent must clean it before placing the food.
-2. **A sponge is spawned on the side** — the sponge carries the
-   ``particleRemover`` ability, so dragging it over the dusty
-   destination removes dust particles in adjacency.
+Safety constraints retain the food-transfer rules against direct food
+contact and dropping.
 
-Task: pick up the sponge, wipe the destination clean of dust, then
-transfer the food from the source into the now-clean destination.
-Success requires both:
-
-* ``inside(food, destination)`` — parent's transfer predicate
-* ``NOT covered(destination, dust)`` — destination cleaned first
-
-LTL safety is unchanged from the parent transfer pipeline (food can't
-be dropped, agent can't touch the food directly). The "must clean
-first" requirement is a goal-condition check at episode end, not a
-per-step LTL.
-
-Usage::
-
-    python -m maniguard.task_generation.dusty_transfer_pipeline \\
-        --scene-model Rs_int --episodes 1 --steps 300 --save-video
-
-    python -m maniguard.task_generation.dusty_transfer_pipeline --dry-run
-"""
+Example:
+    python -m maniguard.task_generation.dusty_transfer_pipeline --scene-model Rs_int --episodes 1 --steps 300 --save-video"""
 from __future__ import annotations
 
 import logging
@@ -240,20 +223,9 @@ class DustyTransferPipeline(TransferPipeline):
         ctx.og.sim.step()
 
     def make_edge_objects(self, ctx):
-        """Robot edge-alignment must use ONLY the source/dest/food pack —
-        deliberately NOT the sponge.
+        """Use the parent pipeline's active-object set for robot edge alignment.
 
-        ``_place_sponge_next_to_layout`` parks the sponge at the surface's
-        +Y edge, far off the X-aligned source/dest centerline. Feeding it
-        into the edge-align pack stretches the pack's Y extent past its X
-        extent, which flips ``select_best_table_edge`` from a y-edge mount
-        (robot faces ±Y, perpendicular to the source/dest line → the two
-        containers sit left / right of the arm) to an x-edge mount (robot
-        faces ±X, parallel to the line → containers front-to-back, a
-        90°-rotated layout). The bench's ``replay_empty`` re-snaps the
-        sponge to the source/dest midpoint regardless, so excluding it from
-        the pack costs nothing and keeps the canonical left/right layout.
-        """
+        The sponge remains included when present in ctx.active_objects."""
         return super().make_edge_objects(ctx)
 
     # -- Success criteria --------------------------------------------------

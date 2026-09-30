@@ -1,23 +1,14 @@
-"""lid_transport family skeleton.
+"""Place a lid on its container, then carry the attached assembly to the goal region.
 
-lid_transport = ``pick(lid) -> place onto the container's F meta-link -> release ->
-LidSnapper auto-weld -> pick(container body / rim+lid sandwich) -> transport -> END
-HOLDING inside the green goal sphere`` (no place-down; teleop termination semantics).
+The sequence grasps and positions the lid, releases it for LidSnapper attachment,
+then grasps and transports the assembly while keeping the gripper closed. The
+shared goal checker evaluates the goal region; success_extra additionally requires
+the lid to remain attached to the container.
 
-Success = shared GoalRegionChecker (held ∧ AABB∩sphere; assembly-aware held for the
-sandwich/lid-grip cases, gated on diag ``lid_info``) ∧ ``success_extra`` (lid still
-``AttachedTo`` container). LTL: ``(container_on_support U lid_on_container) &
-G(!container_dropped)``.
-
-Three geometry classes drive the lid-place approach:
-  plain  (~14 tasks): top knob grasp, vertical descend onto F, vertical retreat.
-  handle (kettle/teapot x4): SIDE grasp (annotated), horizontal insertion under the
-         overhead handle arch, replay-reverse exit back out of the arch.
-  cap    (x8): small cap onto a tall bottle/carton mouth, vertical.
-
-Conventions (audited 2026-07-09): grasp approach axis = **eef +Z** (grasp_select
-convention); annotated positions are EEF-LINK poses (fingertips ~0.104 m further along
-+Z). Spec: docs/superpowers/specs/2026-07-09-lid-transport-datagen-design.md
+Approaches depend on geometry: plain lids and caps descend vertically; lids on
+kettles and teapots enter horizontally beneath the handle arch and retreat along
+the recorded path. Grasp poses describe eef_link; the approach axis is local +Z,
+with the fingertips approximately 0.104 m farther along that axis.
 """
 from __future__ import annotations
 
@@ -41,18 +32,15 @@ from maniguard.data.datagen.grasp_db import load_db, target_grasps_world
 HANDLE_CONTAINERS = frozenset({"kettle", "teapot"})
 CAP_CATEGORIES = frozenset({"cap"})
 
-RELEASE_CLEAR_Z_M = 0.008     # release the lid's M-link this far above the F-link (8mm:
-#                               15mm drop impulse tips the hypersensitive gqwnfv canister)
+RELEASE_CLEAR_Z_M = 0.008     # Release the lid's M-link this far above the F-link to limit drop impulse.
 PRE_STANDOFF_M = 0.10         # pre-grasp standoff back along the approach axis
 LIFT_M = 0.10                 # straight lift after the lid grasp
 PLACE_STANDOFF_M = 0.10       # transit standoff before the final place servo
 CONT_LIFT_M = 0.08            # fixed lift of the lidded assembly before to_goal (the
 #                               clearance-based lift is 0 in lid scenes -- nothing else on
 #                               the table -- which reads as dragging the object across it)
-ALIGN_TOL_M = 0.012           # pre-release M<->F horizontal alignment gate (a crooked
-#                               drop onto a narrow mouth TIPS light canisters: 0008/0010).
-#                               12mm: healthy placements measure 9.9-10.7mm (0010), tip-over
-#                               drops were the >15mm class — 8mm rejected good seats.
+ALIGN_TOL_M = 0.012           # Maximum M-link/F-link horizontal offset before release. Reject crooked
+# placements that could tip a narrow, light container.
 SNAP_MAX_STEPS = 60           # try_snap budget after release before FamilyAbort
 SIDE_TILT_MIN_DEG = 60.0      # geometric side-grasp threshold (arch insertion)
 FAT_MESH_LIMIT = 32           # cuRobo _attach_objects_to_robot hard cap on collision prims;
@@ -150,7 +138,7 @@ class LidSkeleton(FamilySkeleton):
         self._AttachedTo = None
 
     def grasping_mode(self) -> str:
-        return "sticky"          # thin lid rims defeat assisted raycast attach (jar evidence)
+        return "sticky"          # Sticky grasping supports contact with thin lid rims.
 
     # ---- one-time setup ---------------------------------------------------------------
     def select_grasps(self, ctx: TaskContext, world, robot) -> None:
@@ -270,9 +258,8 @@ class LidSkeleton(FamilySkeleton):
         return [
             # ---- Phase L: lid pick -> place -> release -> weld --------------------------
             MotionSegment("lid_pre", lid_pre, gq_l, mode=Mode.FREE),
-            # ignore_clutter: the thin lid lies flat on the support — fingertips end
-            # mm above the table, which a support-collision plan always refuses
-            # (clutter/dusty descend precedent; physics + AG + LTL gate own execution).
+            # Exclude clutter during the lid descent: the thin lid places fingertips
+            # near the support. Physics, grasp attachment, and the LTL gate check execution.
             MotionSegment("lid_descend", np.asarray(gl.eef_pos, float), gq_l,
                           mode=Mode.LINEAR,
                           ignore_objects=(self._lid_obj.name,
@@ -323,20 +310,16 @@ class LidSkeleton(FamilySkeleton):
     # ---- per-segment runtime checks --------------------------------------------------------
     def on_segment(self, seg: MotionSegment, ctx: TaskContext) -> None:
         if seg.name == "lid_retreat":
-            # EARLY SNAP: weld at first touch, right after the release settle — the
-            # crooked-settle window between release and snap_verify is when a slightly
-            # off-centre lid pushes light containers over (0010). Best-effort only;
-            # snap_verify remains the hard gate.
+            # Try attachment after release to stabilize the lid before retreat.
+            # snap_verify remains the required attachment check.
             import omnigibson as og
             for _ in range(10):
                 if self._snapper.try_snap(robot=ctx.robot):
                     break
                 og.sim.step()
         if seg.name == "lid_pre":
-            # RESET HYGIENE: the attach patch disables lid<->container collision at weld
-            # time and that filter OUTLIVES the scene reset — the next attempt's released
-            # lid falls THROUGH the container (0012: lid z 0.97 -> floor, not-touching
-            # x70). Re-enable the pair at the start of every attempt.
+            # Attachment collision filters can persist across scene reset.
+            # Restore lid-container collision pairs before each attempt.
             st = self._lid_obj.states.get(self._AttachedTo)
             if st is not None and ctx.target in getattr(st, "parents_disabled_collisions", set()):
                 st.parents_disabled_collisions.discard(ctx.target)
@@ -348,9 +331,8 @@ class LidSkeleton(FamilySkeleton):
                             pass
                 print("[datagen.lid] re-enabled lid<->container collision (post-reset)",
                       flush=True)
-        # wrong-grab guards (dusty food_grabbed precedent): sticky can attach a NEIGHBOR
-        # (0002: the lid grasp closed onto the steamer basket) — verify at the first
-        # post-close segment of each phase, abort cleanly so the driver retries.
+        # Sticky grasping can attach another contacted object. Check the intended
+        # object at the first post-close segment of each phase.
         if seg.name == "lid_lift" and not self._is_grasped(ctx, self._lid_obj):
             raise FamilyAbort("wrong_grab_lid", held=self._held_name(ctx))
         if seg.name == "cont_lift":

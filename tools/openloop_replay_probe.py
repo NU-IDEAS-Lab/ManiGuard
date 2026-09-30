@@ -1,54 +1,17 @@
 #!/usr/bin/env python3
-"""Open-loop replay probe for an openpi policy checkpoint.
+"""Compare a policy's predictions with recorded actions from one dataset episode.
 
-Feeds an SFT episode's *recorded* observations back to a running policy server and
-compares the predicted action against the recorded (ground-truth) action. This isolates
-**did the checkpoint fit its training data?** (an open-loop question) from **does it work
-in the closed loop?** (what the OmniGibson eval measures). A policy can ace this probe and
-still fail the eval — that gap is closed-loop drift / collapse, not undertraining.
+Send sampled overview/wrist images, state, and prompt to a running websocket
+server. Compare the first predicted action with the recorded action and report
+mean absolute error divided by each action coordinate's episode standard
+deviation. Camera choice and action convention must match the checkpoint.
 
-How it works
-------------
-For ~N evenly-spaced steps of one SFT episode it sends the recorded observation
-(``observation/image_left`` = the external overview, ``observation/wrist_image``,
-``observation/state``, ``prompt``) to the server and reads back the predicted action chunk.
-It compares the chunk's first action to the recorded action and reports the absolute error
-**normalized by each action dim's std** over the episode — a scale-free "how far off is the
-prediction, in units of how much that joint actually varies".
+This measures agreement on sampled recorded inputs. Low error does not prove
+full-dataset fit, rule out undertraining, or identify the cause of closed-loop
+failure. The printed threshold is a diagnostic heuristic.
 
-Interpretation
---------------
-* normalized error ~1-3%  -> the policy reproduces its training actions: it **fit the data**.
-  Any eval failure is therefore closed-loop (drift / collapse / distribution coverage), NOT
-  undertraining. (Companion diagnostic to the engagement metric — see
-  ``docs/evaluation/engagement_metric.md``.)
-* normalized error high    -> the checkpoint never fit this episode: undertrained, wrong
-  dataset, or a mismatched observation mapping (e.g. wrong ``--external-cam``).
-
-Usage::
-
-    # 1. serve the checkpoint on :8000 in a separate process, e.g.
-    #    python -m maniguard.serve.openpi_native \
-    #        --config pi05_base_jar_transport_joint_2cam_lora \
-    #        --checkpoint outputs/eval_ckpts/jar/2160 --port 8000
-    #
-    # 2. run the probe against an SFT episode of THAT checkpoint's dataset
-    #    (run it while the server is idle — it competes with the eval client for the GPU):
-    python tools/openloop_replay_probe.py outputs/lerobot_datasets/sim-jar-transport-30-joint-3cam
-    python tools/openloop_replay_probe.py <dataset> --episode 15            # a different episode
-    python tools/openloop_replay_probe.py <cabinet_dataset> --external-cam right
-
-Notes
------
-* ``--external-cam`` MUST match the checkpoint's train/eval external view (the dataset's
-  left or right overview fed into the server's single external slot). Only **cabinet** uses
-  ``right`` (its left overview is low-quality); the other five families use ``left``.
-  Picking the wrong one feeds an out-of-distribution view and inflates the error.
-* Pick ``--episode`` to cover each trained operand/content (e.g. one per teleop'd object).
-  Use ``meta/tasks.jsonl`` -> the episode's ``task_index`` tells you which prompt it is.
-* Run with the eval client's interpreter (the ``behavior`` conda env), which has
-  ``openpi_client`` + ``pandas`` + ``imageio``.
-"""
+Example:
+    python tools/openloop_replay_probe.py /path/to/lerobot-dataset --episode 0 --external-cam left"""
 from __future__ import annotations
 
 import argparse

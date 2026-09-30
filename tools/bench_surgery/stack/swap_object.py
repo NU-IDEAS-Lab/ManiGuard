@@ -1,20 +1,10 @@
-"""Swap a stack_retrieve (same-mode) task's stacked objects for a donor object.
+"""Replace same-model stacked objects with a selected donor asset.
 
-Same idea as ``tools.bench_surgery.cabinet.swap_object`` but for the stack family: a same-mode task has 4 task
-objects — the bottom ``target`` + 3 ``stack`` instances — ALL of one category/model. This rewrites the
-task's ``base/scene_ep1.json`` (init_info args + registry poses, every object RENAMED to the donor and
-RE-STACKED at the donor's thickness) + ``base/diagnostics.jsonl`` (selection / spawn_specs / goal_region
-names / ltl over-globs / prompt). Then re-finalize with ``tools.bench_surgery.stack.rerender_base --tasks task_NNNN``
-(settles physics + re-renders the 4 review videos + recomputes cameras/gate/LTL/surface).
-
-The donor's geometry (scale + expected_file_hash) is read from ANY base scene where it already appears
-(bench first, then 6fam-base). Its stacking thickness is the upright bbox z-extent from the dataset
-object metadata. Idempotent per task; backs both files up to ``*.bak_swap`` on first touch.
-
-Usage:
-  python -m tools.bench_surgery.stack.swap_object --task-dir <ABS>/task_0022/base --object toy_dice/ievnsq
-  python -m tools.bench_surgery.stack.swap_object --task-dir <ABS>/task_0026/base --object folder/lktggf
-"""
+Look up donor scale/hash in the configured roots, obtain upright thickness
+from object metadata, rename the selected target/stack instances, and rebuild
+their vertical positions. Update selection, goal names, safety patterns, and
+prompt text. Preserve one-time .bak_swap backups. Re-finalize afterward to
+refresh measurements and videos; physical feasibility is not checked here."""
 from __future__ import annotations
 
 import argparse
@@ -25,15 +15,16 @@ import re
 import shutil
 from pathlib import Path
 
-BENCH = Path("outputs/lerobot_datasets/maniguard-bench/stack_retrieve")
-SIXFAM = Path("outputs/lerobot_datasets/6fam-base/stack_retrieve")
-DATA = os.environ.get("OMNIGIBSON_DATA_PATH", "")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+BENCH = REPO_ROOT / "outputs/lerobot_datasets/maniguard-bench/stack_retrieve"
+DATA = Path(os.environ.get("OMNIGIBSON_DATA_PATH", REPO_ROOT / "behavior-1k/datasets"))
 GAP = 0.003          # small load-time gap between stacked objects (gravity closes it on settle)
 
 
-def _donor_args(cat: str, model: str) -> dict:
-    """First base scene (bench, then 6fam) that spawns cat/model -> its init_info args (scale + hash)."""
-    for root in (BENCH, SIXFAM):
+def _donor_args(cat: str, model: str, donor_roots=None) -> dict:
+    """Return scale and hash from the first matching scene in the configured roots."""
+    roots = [Path(p).expanduser() for p in donor_roots] if donor_roots else [BENCH]
+    for root in roots:
         for scene_path in sorted(glob.glob(str(root / "task_*" / "*" / "scene_ep1.json"))
                                  + glob.glob(str(root / "task_*" / "*" / "scene_ep1_replay.json"))):
             scene = json.loads(Path(scene_path).read_text())
@@ -42,22 +33,24 @@ def _donor_args(cat: str, model: str) -> dict:
                 if a.get("category") == cat and a.get("model") == model:
                     return {"scale": a.get("scale", [1.0, 1.0, 1.0]),
                             "expected_file_hash": a.get("expected_file_hash")}
-    raise SystemExit(f"donor {cat}/{model} not found in any bench/6fam base scene")
+    raise SystemExit(f"donor {cat}/{model} not found under {roots}")
 
 
 def _donor_thickness(cat: str, model: str) -> float:
     """Upright z-extent (stacking thickness) = bbox_size[2] from the dataset object metadata."""
-    fs = glob.glob(f"{DATA}/**/{cat}/{model}/misc/metadata.json", recursive=True)
-    if not fs:
-        raise SystemExit(f"no metadata.json for {cat}/{model} under OMNIGIBSON_DATA_PATH={DATA}")
-    return float(json.loads(Path(fs[0]).read_text())["bbox_size"][2])
+    path = DATA / "behavior-1k-assets/objects" / cat / model / "misc/metadata.json"
+    if not path.is_file():
+        raise SystemExit(f"no metadata.json for {cat}/{model} at {path}")
+    return float(json.loads(path.read_text())["bbox_size"][2])
 
 
 def _synset(diag_selection: dict) -> str:
     return diag_selection.get("target_synset") or diag_selection.get("stack_synset") or ""
 
 
-def swap(task_dir: str, new_cat: str, new_model: str) -> None:
+def swap(task_dir: str, new_cat: str, new_model: str, *, donor_roots=None) -> None:
+    donor = _donor_args(new_cat, new_model, donor_roots)
+    thick = _donor_thickness(new_cat, new_model)
     d = Path(task_dir)
     for f in ("scene_ep1.json", "diagnostics.jsonl"):
         bak = d / (f + ".bak_swap")
@@ -71,8 +64,6 @@ def swap(task_dir: str, new_cat: str, new_model: str) -> None:
     old_model = sel["target_model"]
     old_synset = _synset(sel)
     new_synset = f"{new_cat}.n.01"
-    donor = _donor_args(new_cat, new_model)
-    thick = _donor_thickness(new_cat, new_model)
     top_z = float(diag["surface_info"]["top_z"])
 
     # bottom target + 3 stack instances share ONE xy (a clean vertical stack); index by the ep1_<n>
@@ -144,8 +135,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--task-dir", required=True, help="the task's bench base/ dir")
     ap.add_argument("--object", required=True, help='donor "category/model" for all 4 stacked objects')
+    ap.add_argument("--donor-root", action="append", type=Path,
+                    help="Family directory containing donor task scenes; repeat to search multiple roots. "
+                         "Default: this family's ManiGuard-Bench directory.")
     a = ap.parse_args()
-    swap(a.task_dir, *a.object.split("/"))
+    swap(a.task_dir, *a.object.split("/"), donor_roots=a.donor_root)
 
 
 if __name__ == "__main__":

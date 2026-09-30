@@ -1,42 +1,17 @@
-"""Cabinet FIRSTHALF skeleton — the shipped cabinet demo, stopped once the drawer is open.
+"""Collect the cabinet sequence through blocker relocation and drawer opening.
 
-The sim counterpart of the real-robot ``higher-firsthalf`` setup, which ends after the
-blocking object is moved aside and the drawer is pulled open (the full-horizon real policy
-is ``higherZ``). Pairing the two lets the sim2real comparison use the same task horizon on
-both sides.
+Reuse CabinetSkeleton.derive_segments and truncate after handle_back_open,
+including handle release and retreat. The prefix uses the same segment-generation
+code and random draws as the full sequence.
 
-The full cabinet demo is four phases::
+Pass a matching --horizon-override table to replace the full task's goal and
+instruction. Without it, the full inside-and-closed goal remains unsatisfied.
+The task's LTL specification is unchanged.
 
-    1  relocate blockers          ┐ kept
-    2  open drawer                ┘ kept   <- ends at `handle_back_open`
-    3  place target in drawer      dropped
-    4  close drawer                dropped
-
-This subclass does NOT re-derive phases 1-2. It calls ``CabinetSkeleton.derive_segments``
-and truncates, so the kept prefix goes through the *same code path with the same RNG draws*
-as the full-horizon demo: for a given ``(grasp, draw_index)`` the firsthalf demo's blocker
-placement, open distance, and jitter are identical to the full one's. The two collections
-are therefore matched pairs differing only in horizon — which re-deriving the phases here,
-or truncating recorded trajectories after the fact, would not give.
-
-Truncating a RECORDED trajectory was the alternative and does not work: the recorder stores
-no segment labels (state / actions / sim-state dumps only), the drawer joint is buried in a
-serialized state blob, and the correct cut is not "drawer fully open" but after the gripper
-releases the handle and backs off -- a boundary that the gripper signal cannot disambiguate,
-since phase 2 ends OPEN and phase 3 opens again to pre-grasp. Cutting by construction, here,
-is exact.
-
-⚠️ Success and prompt are NOT defined here. The shipped task's goal is ``inside & closed``,
-which a firsthalf demo can never satisfy, so every demo would be discarded by the gate. Run
-this family WITH the matching horizon-override table, which substitutes the goal and the
-instruction together::
-
-    python -m maniguard.data.datagen.driver \\
-        --task-dir <bench>/cabinet_pickup/task_0019/base --family cabinet_firsthalf \\
-        --horizon-override configs/firsthalf/cabinet_task0019.json ...
-
-LTL safety is inherited unchanged: cabinet's constraints are pure safety formulas
-(``G (...)``), which stay meaningful on a truncated horizon.
+Example:
+    python -m maniguard.data.datagen.driver \
+        --task-dir <bench>/cabinet_pickup/task_0019/base --family cabinet_firsthalf \
+        --horizon-override configs/firsthalf/cabinet_task0019.json --target 1
 """
 from __future__ import annotations
 
@@ -81,9 +56,8 @@ class CabinetFirstHalfSkeleton(CabinetSkeleton):
         end-of-demo joint position is that value directly -- unlike the full-horizon demo,
         which closes the drawer again in phase 4.
 
-        The distribution of this field over the collected demos is what calibrates the eval
-        threshold in ``configs/firsthalf/*.json``; recording it is the only reason a policy is
-        later asked for a number rather than OmniGibson's boolean Open state."""
+        This field supports calibration of the numeric drawer-opening threshold in
+        ``configs/firsthalf/*.json`` from collected demonstrations."""
         P = self._prepare(ctx)
         cab = P["cab"]
         return {

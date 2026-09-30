@@ -1,31 +1,9 @@
-# ManiGuard datagen-v1 post-training config for LingBot-VLA 2.0 (8x GPU).
-#
-# Cloned from the upstream SIMULATION sample (configs/vla/robotwin/robotwin.yaml) and
-# changed ONLY where our setup differs; every MoE / distillation / parallelism knob is left
-# exactly as upstream ships it, so this stays LingBot's own recipe.
-#
-# Diffs vs the robotwin sample, and why:
-#   * data.data_name        -> maniguard  (configs/robot_configs/maniguard.yaml)
-#   * data.cameras          -> 2 views (camera_top = the `left` overview, camera_wrist_left
-#                              = wrist). Benchmark parity: pi0.5 / pi0 / GR00T / SmolVLA all
-#                              consume the same two views.
-#   * data.norm_type        -> kept bounds_99_woclip (upstream's SIMULATION choice).
-#   * data.joints           -> UNCHANGED from upstream, including the unused end.position:
-#                              these sizes align with the pretrained action/state heads, and
-#                              a joint type is only used if the robot config maps data to it.
-#   * batch + lr            -> micro 32 / global 256 = the 8-GPU shape upstream itself ships
-#                              in configs/vla/real_robot/real_robot.yaml (32x8), which also
-#                              pairs it with lr 5e-5 (robotwin's 1e-4 is for global 1024).
-#                              global 256 also equals the pi0.5 / pi0 global batch.
-#                              Decay stays cosine (robotwin's schedule) with lr_min = lr/2,
-#                              the same ratio robotwin uses (1e-4 -> 5e-5).
-#   * max_steps / save_steps-> 2 EPOCHS of the family, overridden per run by run_sft.sh
-#                              (values below are clutter's). Every base model in the
-#                              ManiGuard benchmark trains 2 epochs on the same data.
-#   * paths                 -> assets/pretrained/... (see tools/lingbot_sft/SFT.md).
-#                              model_path is the PRETRAIN checkpoint lingbot-vla-v2-6b, NOT
-#                              the RoboTwin post-trained lingbot-vla-v2-6b-robotwin.
-#   * use_wandb             -> true (runs report to the ManiGuard project).
+# LingBot post-training configuration for ManiGuard joint-control data.
+# The default global batch is 256 with micro batch 32 and an eight-GPU setup.
+# Use the overview and wrist images and absolute joint action mapping from
+# robot_config.yaml. The driver overrides family dataset, normalization file,
+# step count, save interval, and output directory. Depth/video alignment and
+# WandB logging are enabled by the values below.
 
 model:
   model_path: assets/pretrained/lingbot-vla-v2-6b

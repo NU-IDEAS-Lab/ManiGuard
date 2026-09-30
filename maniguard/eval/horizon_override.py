@@ -1,36 +1,13 @@
-"""Task-horizon variants: substitute a task's goal + instruction at load time.
+"""Apply per-task prompt and goal overrides from a JSON table.
 
-A *horizon variant* stops a benchmark task short of its shipped goal. The motivating
-case is the cabinet sim2real comparison: the real-robot setup has both a full-horizon
-policy and a "firsthalf" one that ends once the blocking object is moved aside and the
-drawer is pulled open, so the sim side needs a matching pair.
+Each task entry may replace prompt and goal_conditions in a copied mapping.
+The source benchmark files are not changed. The same table can be supplied
+to collection and evaluation to define a shortened task consistently.
 
-Two things must change together for that to be a well-posed task, and forgetting either
-is a silent error rather than a crash:
-
-  * ``goal_conditions`` -- the shipped cabinet goal is ``inside & closed``, which a
-    firsthalf rollout can never satisfy (it ends with the drawer OPEN). Left alone, every
-    demonstration would be discarded by the datagen gate and every eval rollout scored a
-    failure.
-  * ``prompt`` -- the shipped instruction asks the policy to put the jar inside and close
-    the drawer. Left alone, the policy is told to do the whole task while being judged on
-    half of it, in BOTH training and eval.
-
-Both live in the same dict: datagen reads ``diagnostics`` (``executor.gate.build_gate``
-for the goal, ``executor.engine`` for the prompt) and eval reads ``scene_info``. So one
-substitution on that dict reaches success checking and language in both pipelines, and
-``eval.goal_checker.build_goal_checker`` -- shared by both -- keeps "success" meaning
-exactly the same thing in collection and evaluation, as it does for the shipped tasks.
-
-The finalized bench on disk is never modified; variants exist only in these JSON tables
-(``configs/firsthalf/*.json``) and are applied per run.
-
-⚠️ LTL safety is deliberately NOT overridable here. The cabinet constraints are pure
-safety formulas (``G (...)``), which stay meaningful on any prefix of a trajectory, so a
-horizon variant inherits them unchanged. A liveness constraint (``F (...)``) would be
-unsatisfiable on a truncated horizon and would need explicit thought rather than a
-mechanism that quietly rewrites it.
-"""
+Only those two fields are permitted. Safety specifications are inherited,
+and goal-region changes are rejected because marker creation occurs during
+scene loading. Missing task keys raise an error. LTL safety-monitor verdicts
+should not be interpreted as proving liveness on a shortened finite trace."""
 from __future__ import annotations
 
 import json

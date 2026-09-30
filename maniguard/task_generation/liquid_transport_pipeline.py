@@ -1,27 +1,13 @@
-"""Liquid transport scene generation pipeline.
+"""Generate liquid-container transport tasks with surrounding obstacles.
 
-Extends the tabletop clutter pipeline: places a liquid-filled container
-on a table with fragile/clutter obstacles, then runs LTL-monitored
-rollouts that track spill, tilt, and obstacle safety.
+Targets come from fillable_container_pool.json, fragile obstacles from
+liquid_transport/liquid_fragile_pool.json, and clutter from
+clutter_pipeline/table_obstacle_pool.json. Fill the target with the selected
+particle system and monitor spill, tilt, dropping, and obstacle constraints.
+The difficulty option sets the liquid spill threshold and target tilt limit.
 
-The target is a graspable + fillable container drawn from
-``fillable_container_pool.json`` (115 categories, 365 models — every
-``status=graspable`` model whose BEHAVIOR taxonomy entry has the
-``fillable`` / ``openfillable`` ability). Fragiles use the clutter
-pipeline's ``fragile_pool.json``; clutter uses ``table_obstacle_pool``.
-The ``--difficulty`` flag only controls the liquid-specific spill
-threshold and tilt limit.
-
-Usage:
-    python -m maniguard.task_generation.liquid_transport_pipeline \
-        --scene-model Rs_int --episodes 1 --steps 300 --save-video
-
-    python -m maniguard.task_generation.liquid_transport_pipeline \
-        --scene-model Rs_int --difficulty hard --system-name water
-
-    python -m maniguard.task_generation.liquid_transport_pipeline \
-        --scene-model Rs_int --dry-run
-"""
+Example:
+    python -m maniguard.task_generation.liquid_transport_pipeline --scene-model Rs_int --episodes 1 --steps 300 --save-video"""
 
 from maniguard.task_generation.clutter_scene_pipeline import ClutterPipeline
 from maniguard.utils.task_spec import (

@@ -1,28 +1,11 @@
-"""Re-home a stack_retrieve task's OBJECTS onto a DONOR task's scaffold (surface + canonical robot +
-cameras), to escape a too-small / oblique surface while KEEPING the task's own objects (object-type
-richness preserved). Inverse of ``tools.bench_surgery.stack.swap_object`` (which keeps the table, swaps the objects).
+"""Move a four-object stack task onto a donor task's support and robot layout.
 
-The donor (default ``task_0005``: ``breakfast_table_uhrsex_0``, 1.06 m², robot orthogonal @0.61 m) gives a
-big axis-aligned surface. ``finalize_base_task`` STRIPS the source robot and bakes a CANONICAL robot
-relative to the surface, so an axis-aligned donor table => an orthogonal robot automatically — which is
-exactly the fix for the too-small (0001/0023/0025) and oblique-square (0018/0020) / tiny (0019) surfaces.
-
-Per task T (all read BEFORE overwrite):
-  * from T's diag: selection / prompt / ltl_safety / goal_conditions / goal_region (target_name + width +
-    radius) + T's object names (target = goal_region.target_name, stack = the other 3 task objects);
-  * from T's scene: each object's init args (scale + expected_file_hash);
-  * thickness (metadata bbox_size[2]) for the target + stack models.
-Then: copy the donor scene+diag, REMAP the donor's (1 target + 3 stack) objects to T's target/stack
-models (T's ORIGINAL names, re-stacked at T's thicknesses on the donor's stack xy), rename the donor goal
-marker to T's target + T's radius, and patch the diag identity to T (surface / scene_model stay donor's;
-surface_info/cameras/gate/LTL are recomputed by the subsequent finalize).
-
-Backs up T's originals to ``*.bak_rehome``. Re-finalise afterwards with ``tools.bench_surgery.stack.rerender_base``.
-
-Usage:
-  python -m tools.bench_surgery.stack.rehome_task --task-dir <ABS>/task_0018/base
-  python -m tools.bench_surgery.stack.rehome_task --task-dir <ABS>/task_0001/base --donor <ABS>/task_0005/base
-"""
+Read the source task from one-time .bak_rehome backups. Preserve its target
+and three stack-object identities, place them at the donor stack XY using
+metadata thicknesses, and retain the donor support, robot, and goal position.
+Apply the source goal radius and task metadata, then remove measurements
+that need recomputation. Re-finalize the result before using runtime checks.
+The default donor is DONOR_DEFAULT; supply --donor to select another base."""
 from __future__ import annotations
 
 import argparse

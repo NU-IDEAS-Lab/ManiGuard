@@ -1,18 +1,9 @@
-"""Phase 0a-2 (cabinet) — extract the articulated cabinet for handle annotation + measure its
-drawer geometry for the offline in-path check.
+"""Extract cabinet meshes and drawer geometry for grasp annotation.
 
-All 35 cabinet_pickup tasks use ONE cabinet model, so this runs once. It:
-  1. spawns the cabinet, sets the drawer joint to the task's initial open fraction,
-  2. extracts the cabinet's object-local visual mesh -> mesh_db (so the viser tool can show it
-     and the user can annotate a side grasp on the handle),
-  3. measures the drawer LINK's AABB in the cabinet-ROOT-local frame + records the joint at
-     extraction (`j_extract`) and the slide/stroke metadata -> ``cabinet_geom.json``.
-
-At runtime the handle world pose tracks the drawer: read the live drawer-link pose, or add
-``slide_dir * (joint - j_extract)`` to the root-local annotated grasp.
-
-  VK_ICD_FILENAMES=... CUDA_VISIBLE_DEVICES=0 OMNIGIBSON_HEADLESS=1 PYTHONPATH=$HOME/project/ManiGuard \
-  python -u -m maniguard.data.datagen.annotation.extract_cabinet
+Load a representative cabinet task, position its selected drawer at the recorded
+opening, export the visual mesh in the cabinet-root frame, and record the drawer
+link AABB, extraction joint position, and slide metadata in cabinet_geom.json.
+The runtime shifts annotated handle poses by the live drawer displacement.
 """
 from __future__ import annotations
 

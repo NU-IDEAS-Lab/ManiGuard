@@ -56,9 +56,9 @@ _transfer_cache = None
 def load_transfer_data():
     """Load the precomputed transfer compatibility matrix.
 
-    The matrix at maniguard/task_generation/utils/transfer_compatibility.json
-    is built by tools/build_transfer_compatibility.py and already filters by:
-      * geometry: max(food.bbox_dims) <= container.opening_minor
+    The matrix at task_generation/utils/food_transfer_pipeline/transfer_compatibility.json
+    is built by that directory's build_transfer_compatibility.py and filters by:
+      * geometry: max(food.bbox_dims) <= container.opening_square_side_m
       * readiness: status=graspable, role-specific suitability
     so the runtime work here is just inverting the matrix into the
     food→containers indexes that build_transfer_objects iterates.
@@ -343,15 +343,8 @@ class TransferPipeline(BasePipeline):
         cx = 0.5 * (sx0 + sx1)
         cy = 0.5 * (sy0 + sy1)
 
-        # Lay the source/dest pair out along the surface zone's LONGER axis.
-        # ``select_best_table_edge`` mounts the robot on the zone's short
-        # edge facing the long axis, so placing the two containers along that
-        # same long axis keeps the source/dest line perpendicular to the
-        # robot's heading — one container to the arm's left, one to its right
-        # (the canonical transfer layout). The old code hardcoded the line to
-        # world-X, which only looked right when the zone happened to be
-        # X-longer; on a Y-longer zone the robot faced ±X and the containers
-        # ended up nose-to-tail in front of the arm (a 90°-rotated layout).
+        # Lay out source and destination along the support region's longer axis.
+        # The following offset calculation accounts for their individual AABB sizes.
         along_x = (sx1 - sx0) >= (sy1 - sy0)
 
         # Compute AABB-aware spread. Each object lives at

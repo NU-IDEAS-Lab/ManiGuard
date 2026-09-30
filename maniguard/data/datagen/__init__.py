@@ -1,12 +1,7 @@
-"""ManiGuard datagen — cuRobo-driven automatic SFT trajectory collection on the
-finalized bench base tasks. A clean refactor of the earlier pnp/cuRobo pipeline.
+"""Collect scripted manipulation demonstrations from frozen benchmark tasks.
 
-Layered like ``bench_builder`` (primitives ↔ per-family skeleton ↔ driver):
-  - ``primitives/`` — family-agnostic reusable primitives (scene / cuRobo segment /
-    grasp / move-holding / contact / execute / record / obstacles / cameras).
-  - ``families/``   — per-family manip skeletons (clutter / lid / jar / cabinet /
-    stack / dusty): subtask sequence + per-step waypoints derived from diagnostics.
-  - ``driver.py``   — single-task + batch-sweep orchestration.
-  - ``data_format`` — the single source of truth for the dataset schema (joint-native;
-    5 cameras; state8 / actions8 [achieved] / actions_commanded8; MimicGen sidecar).
+The package provides scene, planning, execution, camera, and recording primitives;
+family-specific motion sequences; a shared executor; and single-task and batch drivers.
+Successful demonstrations are written as RAW video, HDF5, and metadata files.
+The separate converters produce LeRobot v2.1 datasets using data_format.py.
 """

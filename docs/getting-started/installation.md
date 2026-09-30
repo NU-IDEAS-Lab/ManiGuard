@@ -11,18 +11,19 @@ runs in each model's own environment (openpi / GR00T / SmolVLA — see the
 |---|---|
 | OS | Linux x86_64 (tested on Ubuntu 22.04 / 24.04); fully headless servers are supported (`OMNIGIBSON_HEADLESS=1`) |
 | GPU | NVIDIA **RTX**-class GPU (Isaac Sim requires ray-tracing hardware); tested on RTX 3090 / 4080 / 4090 |
-| NVIDIA driver | **A 5xx-series driver up to the 580 series** (CUDA ≤ 13.0) — see the warning below |
+| NVIDIA driver | **A tested 5xx-series driver; 580.x is verified** — see the setup-specific compatibility note below |
 | CUDA toolkit | Not needed system-wide — the `behavior` env ships its own runtime (torch 2.6.0 + cu124) |
 | VRAM | **16 GB runs the full eval pipeline on one card** — simulation + the heaviest policy server (π0 / π0.5) peaks at ~13 GB measured (GR00T ~11 GB, SmolVLA ~6 GB). The simulation client alone needs only ~4 GB, so an 8 GB card works when the policy server sits on another GPU or machine |
 | RAM | ≥ 32 GB (64 GB comfortable) |
 | Disk | ≥ 80 GB free: BEHAVIOR assets ~36 GB + the `behavior` conda env ~22 GB + benchmark & headroom |
 
-!!! warning "NVIDIA drivers newer than the 580 series crash Isaac Sim"
-    We have repeatedly observed Isaac Sim 4.5 **segfault at startup** on driver
-    versions above the 580 series (CUDA 13.0) — across multiple machines and GPU
-    models. Check yours with `nvidia-smi`; if it is newer, downgrade to a
-    580-series (or older 5xx) driver before installing. Driver 580.x + CUDA 12.x
-    userland is the verified configuration.
+!!! warning "Driver compatibility in the tested ManiGuard stack"
+    ManiGuard uses the OmniGibson-pinned Isaac Sim 4.5 stack and was developed and
+    validated on 5xx-series NVIDIA drivers. In our setup, driver versions newer than
+    580 produced repeatable startup segfaults across multiple machines and GPU models.
+    This is an observed compatibility issue in the tested stack, not a general driver
+    limit documented by Isaac Sim. We recommend using a tested 5xx-series
+    configuration; driver 580.x with CUDA 12.x userland is verified.
 
 !!! note "RTX 50-series (Blackwell) GPUs"
     `sm_120` needs a newer torch than the env default: after setup, replace torch
@@ -63,10 +64,34 @@ pip install -e .                 # base
 pip install -e ".[serve]"        # with policy-server extras
 ```
 
+The pinned OmniGibson installation supplies SciPy, trimesh, OpenCV and
+`huggingface-hub`; upstream's `--eval` step installs PyAV. Command-line video
+tools also require FFmpeg. Installing
+ManiGuard alone does not install these simulator dependencies.
+
+For browser-based grasp annotation and mesh preview, install
+`pip install -e '.[annotation]'` (viser, SciPy, trimesh and matplotlib).
+Mesh extraction still requires the simulator and its installed assets.
+
+RAW demonstration conversion uses **LeRobot 0.3.3** to write the **v2.1 dataset
+format**. These are distinct version numbers. Use a separate Python 3.10
+environment so conversion dependencies do not replace the simulator or model
+training environment:
+
+```bash
+conda create -n maniguard-convert python=3.10 -y
+conda activate maniguard-convert
+pip install -e '.[conversion]'
+python -m maniguard.data.datagen.to_lerobot --help
+```
+
+Use the model-specific environments for training and policy serving.
+
 ## 4. ManiGuard-Bench + robot asset
 
-To **run the benchmark** you need two ManiGuard-owned artifacts (both separate from
-the Stanford-licensed BEHAVIOR asset bundle, both hosted on HuggingFace).
+To **run the benchmark**, download two artifacts released with ManiGuard. Both are
+hosted on Hugging Face and are separate from the Stanford-licensed BEHAVIOR asset
+bundle.
 
 **4a. Robot asset (required).** The benchmark uses a Franka Panda with extended
 **fin-ray fingers** — not part of the stock OmniGibson robot set. Drop it into the

@@ -13,7 +13,7 @@ Usage:
     # path.is_dir() == True; discover_scenes(path) proceeds unchanged.
 
 Private datasets: the user must already be logged in
-(``huggingface-cli login`` or ``HF_TOKEN`` env var); no explicit auth
+(a cached Hugging Face login or ``HF_TOKEN``); no explicit auth
 handling here.
 """
 
@@ -29,12 +29,11 @@ def resolve_benchmark_root(source: str, revision: str = "main") -> Path:
         source: Either an absolute/relative local path, or a HuggingFace
             dataset repo_id in the form ``<owner>/<name>``.
         revision: Git revision to snapshot when ``source`` is a repo_id.
-            Defaults to ``main`` (always latest). Pass a commit SHA or
+            Defaults to the repository's ``main`` revision. Pass a commit SHA or
             tag name for reproducibility.
 
     Returns:
-        Path to a directory containing per-scene subdirectories
-        (``<scene_name>/scene_ep1.json`` + ``diagnostics.jsonl``).
+        Local snapshot directory, preserving the source repository's layout.
     """
     candidate = Path(source).expanduser()
     if candidate.is_dir():

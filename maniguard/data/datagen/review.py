@@ -1,20 +1,9 @@
-"""Per-task review montage — tile every demo of a task into one MP4 for efficient review.
+"""Create per-task video montages of collected demonstrations.
 
-Each trajectory contributes a side-by-side pair ``[left_shoulder | wrist]`` (a "group"),
-arranged GROUPS_PER_ROW groups per row. Cells keep their native 256² pixels (the source is
-already low-res — no spatial downscale); size is controlled by lowering the frame rate
-(``--stride``). All cells play in lockstep; a shorter clip FREEZES on its last frame until the
-longest in the montage finishes (then the whole MP4 loops in a player).
-
-Labels are minimal: each group is tagged with its trajectory index (top-left); the whole
-montage is titled with the task. One MP4 per task, auto-split into ``_p0/_p1`` if a task has
-more than ``MAX_ROWS`` rows of demos. Streaming (parallel-decode) so memory stays ~10 MB even
-at full 256² resolution.
-
-  conda activate behavior
-  PYTHONPATH=$HOME/project/ManiGuard python -m maniguard.data.datagen.review \
-      --dataset scale_test --family clutter --task task_0000      # one task
-  ... --dataset scale_test --family clutter --all                  # every task in the family
+Tile a selected external view with an optional wrist view for each trajectory.
+Preserve source cell resolution, subsample time with --stride, and hold each
+shorter clip's last frame until the longest clip finishes. Split large task
+collections across multiple montage files.
 """
 from __future__ import annotations
 

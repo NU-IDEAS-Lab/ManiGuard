@@ -1,17 +1,9 @@
-"""Phase A — batch-extract grasp-target meshes + metadata for the annotation tool.
+"""Extract meshes and metadata for the objects grasped by scripted collection.
 
-OmniGibson assets are encrypted USD, so meshes can only be read via OG. This enumerates
-the distinct ``(category, model)`` grasp TARGETS across the bench families (from each
-task's ``diagnostics`` goal target + ``scene_ep1.json`` object model — pure JSON), then
-in ONE OG session spawns every distinct target (``visual_only``, in a grid), extracts its
-object-local visual mesh, exports a GLB, and records bbox + the upright world orientation
-(parsed from the scene state, = how it stands in the task scene). Output feeds the viser
-annotation tool (Phase B). Distractors are NOT extracted (never grasped).
-
-  VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json CUDA_VISIBLE_DEVICES=0 \
-  OMNIGIBSON_HEADLESS=1 PYTHONPATH=$HOME/project/ManiGuard \
-  python -u -m maniguard.data.datagen.annotation.extract_meshes \
-      [--families clutter_pickup] [--limit N]
+Read frozen-task diagnostics and snapshots to identify targets and auxiliary
+grasped objects. Spawn distinct object models in one OmniGibson session and
+export object-local meshes, bounding boxes, upright orientations, and family
+membership for the annotation tools. Existing mesh-database entries are merged.
 """
 from __future__ import annotations
 
@@ -124,11 +116,12 @@ def enumerate_targets(families) -> dict:
         for tdir in sorted(glob.glob(str(BENCH / fam / "task_*/base"))):
             tdir = Path(tdir)
             try:
-                with open(tdir / "diagnostics.jsonl") as f:
-                    diag = json.loads(f.readline())
-                scene = json.load(open(tdir / "scene_ep1.json"))
-            except Exception:  # noqa: BLE001
-                continue
+                diag = json.JSONDecoder().raw_decode(
+                    (tdir / "diagnostics.jsonl").read_text().lstrip()
+                )[0]
+                scene = json.loads((tdir / "scene_ep1.json").read_text())
+            except (OSError, ValueError) as exc:
+                raise ValueError(f"Cannot read task {tdir}: {exc}") from exc
             if diag.get("dust_system"):
                 names = _dusty_instance_names(diag, scene)
             elif diag.get("lid_info"):
@@ -143,18 +136,19 @@ def enumerate_targets(families) -> dict:
                     continue
                 key = f"{cat}/{model}"
                 if key in db:
+                    db[key]["families"] = sorted(set(db[key]["families"]) | {fam})
                     continue
                 db[key] = {"category": cat, "model": model,
                            "upright_orientation_xyzw": _state_ori(scene, nm),
-                           "source_task": f"{fam}/{tdir.parent.name}"}
+                           "source_task": f"{fam}/{tdir.parent.name}", "families": [fam]}
     return db
 
 
 def _lid_instance_names(diag: dict, scene: dict) -> list[str]:
     """lid family: the TWO grasped objects are the lid and the container (the food is
     never grasped; the goal marker is not annotated). Resolved by (category, model)
-    match so BOTH bench naming generations work (roles ``container`` vs ``target``,
-    instance names ``lid_43`` vs ``lid_lid_ep1_1``). Gated on ``diag["lid_info"]``."""
+    match to support roles ``container`` and ``target`` and the corresponding
+    instance names ``lid_43`` and ``lid_lid_ep1_1``. Gated on ``diag["lid_info"]``."""
     sel = {x["role"]: x for x in diag["selection"]["spawn_specs"]}
     cont_spec = sel.get("container") or sel.get("target")
     wants = [(sel["lid"]["category"], sel["lid"]["model"]),
@@ -235,6 +229,8 @@ def main() -> int:
     keys = list(targets)
     if args.limit:
         keys = keys[: args.limit]
+    if not keys:
+        raise SystemExit(f"No grasp targets found under {BENCH} for {families}")
     print(f"[extract] {len(keys)} distinct targets from {families}", flush=True)
 
     from maniguard.data.datagen.primitives import scene as scenemod
@@ -281,15 +277,15 @@ def main() -> int:
             # multi-family membership: UNION this family into the object's families (never clobber another
             # family's claim on a SHARED object); keep the FIRST source_task (a valid load-task for validate).
             existing = db["objects"].get(key, {})
-            this_fam = str(targets[key].get("source_task", "")).split("/", 1)[0]
             db["objects"][key] = {
+                **existing,
                 "category": targets[key]["category"], "model": targets[key]["model"],
                 "upright_orientation_xyzw": targets[key]["upright_orientation_xyzw"],
                 "source_task": existing.get("source_task") or targets[key].get("source_task"),
-                "families": sorted(obj_families(existing) | ({this_fam} if this_fam else set())),
+                "families": sorted(obj_families(existing) | obj_families(targets[key])),
                 "bbox_size": [float(v) for v in mesh.extents],
                 "mesh": f"meshes/{fname}",
-                "grasps": [],
+                "grasps": existing.get("grasps", []),
             }
             ok += 1
             if ok % 10 == 0:
@@ -305,7 +301,7 @@ def main() -> int:
         og.sim.stop()
     except Exception:  # noqa: BLE001
         pass
-    return 0
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":

@@ -1,36 +1,13 @@
 #!/usr/bin/env python
-"""Build a prompt-ablation variant of a datagen LeRobot dataset — WITHOUT copying data.
+"""Build a prompt variant of a LeRobot dataset with shared trajectory files.
 
-The Q2 ablation (clutter, base only) trains the same policy on the same trajectories three
-times, varying only how the safety constraint is conveyed in the language instruction:
-``no_instruction`` (today's data, unchanged), ``natural_language``, ``ltl``.
+Copy meta/ and replace task strings using the selected prompt table. Support
+v2.1 tasks.jsonl and v3 tasks.parquet, preserving task-index row order. Link data/
+and videos/ to the source using relative symlinks. Numeric trajectories and
+videos remain shared; the source and output must be distinct directories.
 
-Every model resolves its prompt from ONE small file in ``meta/``, so a variant only needs
-that file rewritten:
-
-  * LeRobot **v2.1** — ``meta/tasks.jsonl``, one JSON object per line
-      openpi (pi0.5 / pi0): ``PromptFromLeRobotTask(dataset_meta.tasks)``
-      GR00T: ``annotation.human.action.task_description`` <- ``task_index`` -> tasks.jsonl
-  * LeRobot **v3.0** — ``meta/tasks.parquet``, a DataFrame INDEXED BY THE TASK STRING
-      SmolVLA: ``dataset_reader.py`` does ``item["task"] = meta.tasks.iloc[task_idx].name``,
-      i.e. the prompt IS the index value at positional row ``task_index``. Rewriting the
-      variant therefore replaces the index strings and must PRESERVE ROW ORDER -- ``iloc``
-      is positional, so reordering would hand every episode a different task's prompt.
-
-This script produces a *lightweight* dataset: ``meta/`` is a real copy with the prompts
-substituted, while ``data/`` and ``videos/`` are RELATIVE SYMLINKS to the source dataset
-(both directory names are unchanged between v2.1 and v3.0). Cost is a few MB instead of
-tens of GB, and the source dataset is never written to.
-
-Prompts come from ``configs/ablation_prompt/clutter_base_prompts.json``, generated from the
-finalized bench (each task's own ``ltl_safety`` block), so the task instruction and the
-underlying automaton are identical across conditions — only the conveyance differs.
-
-Usage (on the SFT box, from the ManiGuard repo):
-  python tools/ablation_prompt/build_dataset_variant.py \
-      --src  <HF_LEROBOT_HOME>/IDEAS-Lab-Northwestern/datagen-clutter-v1-joint-5cam \
-      --condition natural_language \
-      [--out <...>/datagen-clutter-v1-joint-5cam-promptnl]   # default: <src>-prompt{nl,ltl}
+Use a prompt map matching the dataset family. --force removes an existing output
+before rebuilding. The default map is the clutter table when available.
 """
 
 from __future__ import annotations

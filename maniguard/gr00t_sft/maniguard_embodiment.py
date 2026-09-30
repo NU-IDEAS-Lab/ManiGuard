@@ -1,24 +1,12 @@
-"""GR00T ``NEW_EMBODIMENT`` modality config for the ManiGuard sim Franka.
+"""Register the ManiGuard simulation modality configuration as NEW_EMBODIMENT.
 
-Self-contained: depends only on ``gr00t``, so it can be passed to
-``launch_finetune.py --modality-config-path`` and exec'd inside the Isaac-GR00T
-uv venv (which does NOT have the ``maniguard`` package installed). Importing this
-module registers ``MODALITY_CONFIG`` under ``EmbodimentTag.NEW_EMBODIMENT``.
+Map state/actions columns into seven arm joints and one gripper value, and read
+image_left plus wrist_image. Predict 16-step action chunks with state-relative
+arm actions and absolute gripper commands. MODALITY_JSON maps these modalities
+to the existing dataset keys; no source columns or video files are renamed.
 
-Embodiment: Franka Panda, 8-D joint state/action (7 arm joints + 1 gripper),
-2 camera views (one overview + wrist). Mirrors GR00T's own joint-space reference
-(``oxe_droid``): arm = state-relative chunks, gripper = absolute, both ``NON_EEF``.
-
-Data mapping (see ``MODALITY_JSON``): the ManiGuard LeRobot export stores state
-and action as the 8-D ``state`` / ``actions`` columns and videos under
-``image_left`` / ``image_right`` / ``wrist_image``. GR00T's ``original_key`` field
-points at those existing names, so NO columns or video files are renamed — the
-only on-disk change is adding ``meta/modality.json`` (+ generated stats).
-
-The active views (``image_left`` overview + wrist) are exactly what the pi0.5 SFT
-consumes (``external_cam="left"``), so GR00T and pi0.5 train on identical inputs
-(benchmark parity). GR00T natively supports more views — adding one back is a
-one-line change to ``VIDEO_KEYS`` (see below), then re-run stats.
+This module depends on gr00t and registers at import time. Import one embodiment
+configuration per process.
 """
 
 from gr00t.configs.data.embodiment_configs import register_modality_config

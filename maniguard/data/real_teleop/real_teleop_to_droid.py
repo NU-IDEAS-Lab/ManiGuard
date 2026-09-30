@@ -8,7 +8,7 @@ Reference: openpi examples/droid/convert_droid_data_to_lerobot.py
 
 LeRobot columns written:
     exterior_image_1_left  (video, 180x320x3)   <- cam0 (main), center-cropped to 16:9
-    exterior_image_2_left  (video, 180x320x3)   <- ALL-ZERO frames (we have no 2nd exterior)
+    exterior_image_2_left  (video, 180x320x3)   <- ALL-ZERO frames (second exterior view is unused)
     wrist_image_left       (video, 180x320x3)   <- cam1 (wrist), center-cropped to 16:9
     joint_position         (float32, (7,))      <- observation/joint_position
     gripper_position       (float32, (1,))      <- observation/gripper_position (normalized 0-1)
@@ -32,7 +32,7 @@ Notes:
     - Aspect ratio handled by center-cropping 640x480 -> 640x360 (16:9) then
       resizing to 320x180. Preserves horizontal FOV, crops top/bottom equally.
     - Stored as `dtype: "video"` (not "image") for HF transfer efficiency.
-      openpi's data loader reads videos identically.
+      openpi's data loader decodes the stored video frames.
 
 Usage:
     python -m maniguard.data.real_teleop.real_teleop_to_droid \\
@@ -70,7 +70,7 @@ def _decode_crop_resize(jpeg_bytes: bytes) -> np.ndarray:
 
 
 def _build_frames(npz_path: Path, prompt: str):
-    """Yield one dict per retained frame (N-1 frames; last obs dropped)."""
+    """Yield len(joint_position) - 1 frames, dropping the final observation."""
     d = np.load(npz_path, allow_pickle=True)
 
     joint_pos = d["observation/joint_position"].astype(np.float32)     # (N+1, 7)
@@ -88,7 +88,7 @@ def _build_frames(npz_path: Path, prompt: str):
 
         ext1 = _decode_crop_resize(cam0_b)
         wrist = _decode_crop_resize(cam1_b)
-        ext2 = np.zeros_like(ext1)                          # per user: all zeros
+        ext2 = np.zeros_like(ext1)                          # unused second exterior view
 
         action = np.concatenate([
             joint_vel[t],                                   # joint_velocity[t]   -> 7D
@@ -121,7 +121,7 @@ def main():
 
     # lerobot 0.3.x (v2.1 codebase, matches openpi's pinned rev) puts LeRobotDataset
     # under lerobot.datasets; 0.4.x keeps same path but writes v3.0 (incompatible).
-    # We install lerobot<0.4 so openpi can read our dataset.
+    # This exporter requires the LeRobot v2.1 dataset API.
     try:
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
     except ImportError:

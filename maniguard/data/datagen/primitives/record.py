@@ -1,28 +1,13 @@
-"""Joint-native RAW trajectory recorder for datagen — Layer-1 primitive.
+"""Record RAW joint trajectories, camera streams, and optional simulation states.
 
-Writes the RAW curobo-collected data the user reviews BEFORE any LeRobot
-conversion: per trajectory, a self-contained folder with the five video streams
-(4 bench third-person + injected wrist) + one ``traj.hdf5`` (the joint trajectory
-+ sim-state dump) + ``meta.json``. The MP4s match the bench spec byte-for-byte
-(same PyAV ``h264`` / ``yuv420p`` encode at the camera's native render size,
-256² @ 30 fps), so a reviewer just opens the videos. LeRobot v2.1 conversion for
-SFT is a SEPARATE downstream step (passthrough — no re-encode), not done here.
+Each accepted trajectory folder contains five MP4 files, traj.hdf5, and meta.json.
+For each recorded environment step, capture achieved joints, commanded joints,
+the gripper command, images, and optionally the serialized simulation state.
+The recorder reads state and never commands the robot.
 
-Per env step the recorder captures: the 5 image streams, the robot's ACHIEVED
-joint state, the cuRobo-COMMANDED joint target, the gripper command, and a
-serialized sim-state dump (the MimicGen replay hook). ``traj.hdf5`` columns
-(see ``data_format``):
-  ``state``             (N,8) = ``[arm_q, gripper]``                  current joints
-  ``actions``           (N,8) = ``[arm_q[t+1], gripper_cmd]``         (b) next-achieved
-  ``actions_commanded`` (N,8) = ``[arm_q_cmd, gripper_cmd]``          (a) cuRobo command
-  ``states``            (N,*) = serialized ``og.sim.dump_state`` per step (MimicGen)
-  ``datagen_info/gripper_action`` (N,)
-
-The recorder NEVER commands the arm — the caller (``execute_trajectory`` / the
-family skeleton) steps the env with cuRobo joint targets and calls
-``record_step(arm_q_cmd, gripper_cmd)`` after each ``env.step``; the recorder only
-READS the achieved state + frames. Joint-native (no eef-8d / sim-state joint
-reverse-engineering).
+actions pairs next-recorded arm joints with the recorded gripper command; the
+last arm action repeats the final achieved position. actions_commanded stores
+the submitted joint targets. LeRobot conversion is a separate downstream step.
 """
 from __future__ import annotations
 
@@ -38,8 +23,7 @@ from maniguard.data.datagen import data_format
 from maniguard.data.datagen.primitives.cameras import find_wrist_sensor
 
 
-# --- PyAV h264/yuv420p writer (replicated from the bench task_generation video
-#     writer so raw MP4s match the bench rollout spec exactly). ---------------
+# PyAV H.264/yuv420p writer matching the benchmark rollout video format.
 def _open_video(path: Path, fps: int, h: int, w: int) -> dict:
     import av
 

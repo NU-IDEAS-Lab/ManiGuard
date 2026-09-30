@@ -1,21 +1,17 @@
-"""Stack-retrieve family skeleton — the ONLY stack-specific manip code.
+"""Relocate the three upper objects, then retrieve the bottom target to the goal region.
 
-``stack_retrieve`` = unstack the 3 IDENTICAL top objects onto ONE right-side re-stack pile, then
-retrieve the exposed bottom target left into the goal sphere (held). Each object is moved by a
-"double-gate": lift to a FIXED safe transfer height ``H_safe`` → translate over the pick point →
-cuRobo-descend to the grasp → close (sticky) → lift back to ``H_safe`` → translate over the dest pile
-→ descend onto the growing pile → release. Only the two grasp descents use cuRobo (``Mode.FREE``);
-every transfer is pure-IK (``Mode.SERVO``). The target tail reuses clutter's ``over_goal`` +
-``aim_to_goal_center`` and keeps the gripper CLOSED through the goal (success = ``held_intersection``).
+Upper objects are removed from top to bottom and placed upright on a shared
+right-side pile. Each relocation approaches the grasp, lifts to a clearance
+height computed from the live scene, carries to the destination, aligns the held
+object, and releases above the growing pile. SERVO segments use Cartesian IK;
+grasp descents use FREE planning unless a task hint requests vertical SERVO.
 
-Per-task geometry (stack order, ``z_top0``, ``dest_xy``, per-instance grasps) is captured once in
-``select_grasps``/``_prepare`` (needs the live world — filled in Task 4). ``derive_segments`` is a PURE
-function of that captured state + the target grasp + the variant params. ``resolve_compute`` (Task 5)
-resolves the 3 family compute tags — ``safe_up`` (raise to H_safe, live eef), ``over_dest`` (held CENTRE
-over dest at H_safe), ``lower_to_dest_pile`` (descend onto the live dest-pile top) — from the live state;
-the ``over``/``descend`` waypoints are absolute (the captured grasp pose is valid every pristine variant).
-
-Spec/plan: docs/superpowers/{specs,plans}/2026-07-01-stack-retrieve-datagen.md.
+Task geometry and auxiliary grasps are cached during setup. derive_segments
+builds each attempt's segment list and resets its height-jitter/logging state.
+resolve_compute obtains live targets for safe_up, over_at_hsafe, over_dest,
+reorient_place, align_xy, and lower_to_dest_pile. The shared executor resolves
+terminal goal targets. Success also requires that no relocation moves multiple
+objects beyond the configured displacement threshold.
 """
 from __future__ import annotations
 
@@ -44,16 +40,8 @@ def _np(x) -> np.ndarray:
     return np.asarray(x, dtype=float)
 
 
-# Per-task opt-out of the ADAPTIVE re-stack gap (``dest_center``'s ``gap_max``). The adaptive gap widens
-# the source->dest clearance on a roomy table so the exposed bottom target has room to be grasped (built
-# for the waffle, task_0023) — a net win for most tasks. For these two, whose scene places the pile near
-# the arm's edge, the widened dest sits ~0.1m PAST the IK-reachable envelope, so the re-stack carry/reorient
-# fails IK on every attempt (100% servo_ik_fail, 0/40). They are thin, flat targets (a chopping board /
-# a folder) that do NOT need the extra clearance, so we revert them to the minimal ``GAP`` — the
-# pre-adaptive dest, which was reachable and collectable. The keys are ``category/model`` (== TaskContext
-# .target_key, the annotation-DB key) and are UNIQUE to these two tasks (task_0025 chopping_board/drjnag,
-# task_0026 folder/lktggf), so every other task keeps the adaptive gap byte-identically. See
-# ``stack_geom.dest_center``.
+# Disable adaptive destination-gap widening for these object models.
+# Their task layouts use the minimum gap to keep the carry destination in reach.
 _MINIMAL_GAP_KEYS = frozenset({"chopping_board/drjnag", "folder/lktggf"})
 
 
@@ -66,7 +54,7 @@ def _dest_gap_max(target_key, gap_max_default):
 
 @dataclass
 class _StackItem:
-    """One relocated stack instance, captured on the pristine scene by ``_prepare`` (Task 4)."""
+    """Cached geometry and grasp data for one relocated stack object."""
 
     name: str
     obj: object = None
@@ -77,7 +65,7 @@ class _StackItem:
     #                                        -approach so the pick clears the object below); None => grasp_pos
     below_obj: object = None               # the instance/target directly UNDER this one when it is grasped
     upright_quat: np.ndarray | None = None  # the object's ABSOLUTE upright world orientation (grasp-DB
-    #                                        upright_orientation_xyzw; verified true upright — opening +Z —
+    #                                        upright_orientation_xyzw; opening +Z
     #                                        for bowls). NOT the spawn pose (a nested stack spawns tilted).
     place_quat: np.ndarray | None = None   # eef orientation that holds THIS object upright for the re-stack
     #                                        place (measured in-hand at reorient); None => keep the grasp quat
@@ -96,25 +84,24 @@ class StackSkeleton(FamilySkeleton):
     #                           the stack over during the H_safe transit. Term 2 lifts H_safe until the whole
     #                           gripper clears — plates/boxes already satisfy it, so only tall rim-grasps rise.
     GAP = 0.065               # MIN separation between the pack's right edge and the re-stack pile
-    GAP_MAX = 0.20            # adaptive gap: on a roomy table, widen the source<->dest gap up to this so
-    #                           the exposed bottom target has room to grasp without fouling the re-stack
-    #                           pile (task_0023); capped by comfortable reach + on-surface, small tables
-    #                           keep GAP (graded clamp then shrinks). See stack_geom.dest_center.
-    REACH_MAX = 0.85          # coarse Franka horizontal reach clamp for the dest (bring-up refines)
-    REACH_COMFORT = 0.72      # Fix 4: pull the dest toward the robot until within this reach (narrow/arc
-    #                           table) so the pure-IK carry can actually solve (REACH_MAX passed servo-IK-fail)
+    GAP_MAX = 0.20            # On roomy tables, widen the source/destination gap to leave room for the
+    # bottom-target grasp. Limit widening by reach and surface bounds; small
+    # tables keep the minimum gap before graded clamping. See stack_geom.dest_center.
+    REACH_MAX = 0.85          # Maximum horizontal destination reach for the Franka.
+    REACH_COMFORT = 0.72      # Pull the destination toward the robot to keep the carry within this
+    # more conservative reach limit.
     GENTLE_STEP = 0.004       # SERVO eef step for the lift: small step + spw=1 => slow continuous glide, so
     GENTLE_SPW = 1            # peeling the top object off a stack doesn't jerk/tip the ones below (nested bowls)
     SHALLOW_MARGIN = 0.004    # geometric shallow-grab: clear the object BELOW by this (m) ...
     SHALLOW_CONTACT_TOL = 0.012  # ... while still contacting the grasped TOP object within this (m) ...
     SHALLOW_D_MAX = 0.05      # ... retracting at most this far along -approach (else raise: gripper too thick)
     MULTIGRAB_XY = 0.05       # a pick that moves >1 object by more than this (m, xy) grabbed the one below
-    CARRY_IK_TIMEOUT_S = 2.0  # per-grasp downstream carry-reachability IK probe timeout (Fix 3)
+    CARRY_IK_TIMEOUT_S = 2.0  # per-grasp downstream carry-reachability IK probe timeout
 
     def __init__(self, db: dict | None = None, *, grip_settle_steps: int = 6):
         self._db = db
         self.grip_settle_steps = int(grip_settle_steps)
-        # per-task state, populated by _prepare/select_grasps (Task 4)
+        # per-task state, populated by _prepare/select_grasps
         self._prepared_for: str | None = None
         self._hints: dict = {}                # per-task opt-in manip tweaks (set in _prepare from diagnostics)
         self._stack: list[_StackItem] = []
@@ -224,8 +211,7 @@ class StackSkeleton(FamilySkeleton):
         from maniguard.data.datagen.families import stack_grasp_depth as SD
 
         env, diag = ctx.env, ctx.diagnostics
-        # per-task opt-in manipulation tweaks (present ONLY in the two hard tasks' diagnostics; absent
-        # everywhere else -> every other task keeps byte-identical behaviour, no regression needed).
+        # Optional per-task manipulation hints; absent entries retain the defaults.
         self._hints = diag.get("datagen_hints") or {}
         want = self._stack_specs(diag)
         insts = [o for o in env.scene.objects
@@ -259,9 +245,9 @@ class StackSkeleton(FamilySkeleton):
         surf_lo = np.asarray(b[0], float) if b else pack_lo - 1.0
         surf_hi = np.asarray(b[1], float) if b else pack_hi + 1.0
         robot_xy = _np(ctx.robot.get_position_orientation()[0])[:2]
-        self._right = right                                         # source->dest unit dir (Fix 1/3/4)
+        self._right = right                                         # source->dest unit dir
         self._dest_geom = (pack_lo, pack_hi, surf_lo, surf_hi, robot_xy)   # replayed to finalise the dest
-        # Fix 4: pull the dest toward the robot until within REACH_COMFORT (0 for normal wide tables where
+        # pull the dest toward the robot until within REACH_COMFORT (0 for normal wide tables where
         # the un-pulled dest is already close). Estimated from the un-pulled provisional dest.
         base = SG.dest_center(pack_lo, pack_hi, right, self._stack_half, gap=self.GAP, surf_lo_xy=surf_lo,
                               surf_hi_xy=surf_hi, robot_xy=robot_xy, reach_max=self.REACH_MAX,
@@ -304,16 +290,13 @@ class StackSkeleton(FamilySkeleton):
             # multi-drop: score in instance i's WILL-BE-EXPOSED state (drop i itself + the above ones,
             # gone by then) — score_grasps drops every object in the list target from the collision world.
             scored = score_grasps(world, robot, [it.obj, *above], cands, prefer_top_down=True)
-            # Fix 3: among the pick-reachable grasps, PREFER the DEST-side ones (shorter carry -> easier
+            # among the pick-reachable grasps, PREFER the DEST-side ones (shorter carry -> easier
             # transfer IK), then take the first whose CARRY to over-dest is ALSO IK-reachable (bounded).
             reach = [c for c in scored if c.reachable] or scored
             c_xy = G.object_center(it.obj)[:2]
-            # Fix 3 prefers DEST-side grasps (shorter carry). BUT when the target has geometry that
-            # protrudes UP into the grasp on the dest side (task_0007: the router's antenna sits on the
-            # re-stack side), a dest-side top-down grasp drives the fingers around the antenna/body and the
-            # sticky AG grabs the TARGET. The ``stack_grasp_avoid_dest_side`` hint (0007 only) FLIPS the
-            # preference to the FAR-from-dest side (away from the antenna) — still top-down, just the far
-            # end of the stack object. Absent on every other task -> unchanged dest-side preference.
+            # The stack_grasp_avoid_dest_side hint reverses the default destination-side
+            # grasp preference. This lets a layout avoid protruding target geometry
+            # that the sticky gripper could contact while picking an upper object.
             _avoid_dest = bool(self._hints.get("stack_grasp_avoid_dest_side"))
             reach.sort(key=lambda cc: float(np.dot(_np(cc.eef_pos)[:2] - c_xy, self._right)),
                        reverse=not _avoid_dest)
@@ -353,9 +336,9 @@ class StackSkeleton(FamilySkeleton):
                 it.descend_pos = it.grasp_pos - float(d) * (approach / float(np.linalg.norm(approach)))
                 shallow_ds.append(round(float(d), 3))
 
-        # Fix 1: finalise the dest from the CHOSEN grasps' ACTUAL eef offset toward the source. The rail
-        # only clips group1 when a grasp points the eef (hence the rail) at it; a wide / centre grasp keeps
-        # eef_off~0 => offset falls back to stack_half => the dest is NOT over-pushed (task_0000 restored).
+        # Finalize the destination using selected grasps' source-facing eef offsets
+        # so the finger rail clears the source pile. Centered grasps use the
+        # stack-half-extent floor without unnecessary additional displacement.
         from maniguard.data.datagen.executor import geometry as G
         from maniguard.data.datagen.families import stack_geom as SG
         eef_off = 0.0
@@ -399,7 +382,7 @@ class StackSkeleton(FamilySkeleton):
     def _gate_relocate(self, i, it, h_ph, gap, steps, dxy) -> list[MotionSegment]:
         gpos = np.asarray(it.grasp_pos, float)
         gq = np.asarray(it.grasp_quat, float)
-        # SHALLOW descend: stop short along -approach so the gripper clears the object below (Task 3);
+        # SHALLOW descend: stop short along -approach so the gripper clears the object below;
         # None => not computed (pure unit tests) => full grasp depth.
         dpos = np.asarray(it.descend_pos, float) if it.descend_pos is not None else gpos.copy()
         over = np.array([gpos[0], gpos[1], h_ph])
@@ -412,10 +395,9 @@ class StackSkeleton(FamilySkeleton):
                           grip_steps=steps, compute="safe_up", extra=dict(ph)),
             MotionSegment(f"s{i}_over", over, gq, mode=Mode.SERVO, grip=Grip.OPEN, grip_steps=steps,
                           compute="over_at_hsafe", extra=dict(ph)),
-            # Default = FREE (cuRobo point-to-point) descent into the grasp. The ``clean_vertical_descend``
-            # hint (task_0010 only: a fragile stack of small regular cubes) swaps it for a PURE-VERTICAL
-            # SERVO straight-down from the over-pose, so the fingers close with no lateral push and the
-            # cube tower is not nudged over before the grasp settles. Absent elsewhere -> unchanged FREE.
+            # Use FREE grasp descent by default. The clean_vertical_descend hint
+            # selects vertical SERVO from the over-pose for fragile stacks, limiting
+            # lateral motion before the grasp settles.
             MotionSegment(f"s{i}_descend", dpos, gq,
                           mode=(Mode.SERVO if self._hints.get("clean_vertical_descend") else Mode.FREE),
                           grip=Grip.CLOSE, grip_steps=steps, ignore_clutter=True),
@@ -454,11 +436,9 @@ class StackSkeleton(FamilySkeleton):
                           grip_steps=steps, ignore_clutter=True),
             MotionSegment("t_lift", tpos.copy(), tq, mode=Mode.SERVO, grip=Grip.HOLD,
                           attach=True, compute="safe_up", extra=dict(ph)),
-            # target TRANSPORT to the goal (the gate "over"): SERVO by default — a straight-line IK path
-            # holds the grasp orientation (upright) THROUGHOUT, so the held target never tilts >45deg
-            # mid-way (an unconstrained cuRobo FREE plan does, tripping the per-step LTL target_upright,
-            # task_0023). If the servo can't reach a far goal it falls back to cuRobo FREE with an
-            # orientation-hold constraint (free_fallback; reach_fallback then relaxes to the sphere).
+            # Transport the target with fixed-orientation SERVO to preserve uprightness.
+            # For unreachable straight paths, allow the configured FREE fallback with
+            # orientation hold and terminal goal-sphere placement relaxation.
             MotionSegment("t_transport", np.array([goal[0], goal[1], tpos[2]]), tq, mode=Mode.SERVO,
                           grip=Grip.HOLD, attach=True, compute="over_goal", reach_fallback=True,
                           free_fallback=True, no_salvage=True, plan_tries=8),
@@ -496,12 +476,10 @@ class StackSkeleton(FamilySkeleton):
             held = self._stack[int(inst)].obj if inst is not None else ctx.target   # the gripper fingertips
             ep_z = float(_np(ctx.robot.eef_links[ctx.robot.default_arm].get_position_orientation()[0])[2])
             drop = max(drop, ep_z - float(G.lowest_z(held)))   # held object's bottom below eef (rigid grasp)
-            if inst is None:                                   # TARGET carry (t_lift/t_transport): the 3 stack
-                exclude_extra = [it.obj for it in self._stack]  # objects are re-stacked on the RIGHT and the
-                #                                                target transports LEFT over open space, so the
-                #                                                gate need NOT clear that pile — keep H_safe LOW
-                #                                                (a high gate pushes the far goal reach into
-                #                                                singularity / servo_ik_fail, task_0023).
+            if inst is None:                                   # During target carry, exclude the re-stacked pile on the right because
+            # the target moves left through open space. This keeps the transfer
+            # height from imposing an unnecessary reach requirement.
+                exclude_extra = [it.obj for it in self._stack]
         z = self._live_h_safe(ctx, held, x["gz"], drop, exclude_extra=exclude_extra)
         if not self._logged_h_safe:
             print(f"[datagen.stack] H_safe(live)={z:.3f} @ {seg.name} (drop={drop:.3f})", flush=True)
@@ -509,7 +487,7 @@ class StackSkeleton(FamilySkeleton):
         return z
 
     def _carry_reachable(self, ctx: TaskContext, world, robot, cand) -> bool:
-        """Fix 3: is the CARRY (hold this grasp's object over the dest @ H_safe) IK-reachable? A pick that
+        """Is carrying this grasp's object over the destination at H_safe IK-reachable? A pick that
         can't be transferred to the dest is worthless — reject it before it wastes an attempt. Bounded
         single-pose IK probe (uses the PROVISIONAL dest; the finalised dest is within ~cm)."""
         import torch as th

@@ -1,25 +1,14 @@
 #!/usr/bin/env python
-"""Push a ManiGuard LingBot-VLA 2.0 checkpoint (+ a model card) to the Hugging Face Hub.
+"""Upload an exported LingBot checkpoint and serving metadata to Hugging Face.
 
-Training writes DCP shards plus an exported HF folder per save:
-``<output_dir>/**/global_step_<N>/hf_ckpt/``. Only the exported ``hf_ckpt`` is pushed --
-the DCP shards and optimizer state are training-only bulk (and would leak local paths).
+Choose a global_step_<N>/hf_ckpt directory or an explicit checkpoint. Exclude
+training state, sanitize path strings in config.json, and add family norm
+statistics, a robot mapping with a checkpoint-relative statistics path, and
+the supplied VLM configuration. Generate a model card after upload.
+Serving still requires compatible LingBot software and a data configuration.
 
-The upload is made SELF-CONTAINED for eval by adding, alongside the weights:
-  * ``maniguard/norm_stats.json``  -- the family's normalization statistics
-  * ``maniguard/robot_config.yaml`` -- the feature mapping the policy was trained with, with its
-    ``norm_stats:`` REWRITTEN to point at the file above (see ``retarget_norm_stats``)
-  * ``vlm/config.json``            -- the Qwen3-VL-4B-Instruct config LingBot builds the VLM
-    skeleton from, vendored unchanged so a fresh clone needs nothing else
-Serving needs all of these, and pairing them with the weights removes any chance of an eval run
-loading a mismatched pair.
-
-Usage:
-  python tools/lingbot_sft/push_to_hf.py --run-dir outputs/lingbot_sft/runs/clutter \
-      --family clutter --repo IDEAS-Lab-Northwestern/lingbot-vla2-datagen-v1-clutter-joint-2cam-yanZ
-  # a specific rung instead of the last one:
-  #   --step 1775        (or --ckpt <path to a hf_ckpt dir>)
-"""
+Example:
+    python tools/lingbot_sft/push_to_hf.py --family clutter --run-dir outputs/lingbot_sft/runs/clutter --repo organization/model-name"""
 
 from __future__ import annotations
 
@@ -45,17 +34,11 @@ _IGNORE = [
 
 
 def retarget_norm_stats(path: pathlib.Path) -> bytes:
-    """Return ``robot_config.yaml`` with ``norm_stats:`` pointing at this checkpoint's own file.
+    """Set the robot mapping's norm_stats field to maniguard/norm_stats.json.
 
-    The training tree's copy carries a per-run DEFAULT (``assets/norm_stats/maniguard_clutter``)
-    that ``run_sft.sh`` overrides on the command line. Uploaded verbatim, that default becomes a
-    lie in every non-clutter repo: it names another family's statistics.
-
-    The key cannot simply be dropped. ``FeatureTransform.__init__`` does
-    ``robot_config.pop('norm_stats')`` with no default on BOTH branches, so a missing key raises
-    KeyError even when an explicit ``norm_stats_path`` is passed. So retarget rather than delete,
-    and say in the file that the path is relative to the checkpoint root.
-    """
+    Retain the field because FeatureTransform expects it even when a loader
+    provides an explicit statistics path. Resolve this relative path against
+    the downloaded checkpoint root when serving."""
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
     kept = [ln for ln in lines if not ln.startswith("norm_stats:")]
@@ -76,18 +59,10 @@ def retarget_norm_stats(path: pathlib.Path) -> bytes:
 
 
 def sanitize_config(path: pathlib.Path) -> bytes:
-    """Return ``config.json`` with every absolute local path replaced.
+    """Replace slash-prefixed string values in config.json with outputs/<basename>.
 
-    The exported config embeds absolute paths from the training box. The one upstream
-    always writes is ``align_params.visual_dir``, derived in train_lingbotvla.py from
-    ``--train.output_dir`` -- so on a cluster it carries the full home path, which on a
-    SHARED filesystem also names other people's directories. It is only read by the
-    depth/DINO visualization helpers during training; inference never touches it.
-
-    Rather than special-casing that one key, this rewrites ANY absolute-path string value
-    to ``outputs/<basename>`` so a field added upstream later cannot leak silently, and
-    then hard-fails if anything absolute survives.
-    """
+    Walk nested dictionaries and lists, report replacements, and reject output
+    that still matches the configured absolute-path patterns."""
     cfg = json.loads(path.read_text())
     scrubbed: list[str] = []
 

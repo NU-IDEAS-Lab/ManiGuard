@@ -1,17 +1,8 @@
-"""Parse a ManiGuard base-task dump — Layer-1 primitive (family-agnostic).
+"""Read frozen-task diagnostics and scene snapshots without importing OmniGibson.
 
-A base task is a folder with ``scene_ep<N>.json`` (the OmniGibson scene snapshot)
-+ ``diagnostics.jsonl`` (the bench's per-episode metadata). This module turns that
-pair into the three things the scene builder needs: the diagnostics row, the scene
-snapshot, and the ordered list of task-object names ``[support, obj1, obj2, ...]``
-plus a ``DatasetObject`` config for each.
-
-OmniGibson-free on purpose (pure JSON parsing → fast to unit-test without a sim).
-Replicated clean from the reference reader
-``maniguard/data/curobo/replay_empty_from_dataset.py`` — datagen does NOT import
-the old curobo reference tree, so the loaders live here. Cleanup vs the reference:
-dropped the unused ``_SCHEME_B_PATTERN`` and the family-specific dusty sponge-snap
-hack (that belongs in the Layer-2 dusty skeleton, not a Layer-1 primitive).
+Resolve the support object, enumerate the snapshot's DatasetObjects, and build
+object configurations from their stored poses, scales, and fixed-base settings.
+The scene builder adds the robot separately.
 """
 from __future__ import annotations
 
@@ -94,13 +85,7 @@ def identify_task_objects(
     scene_info: dict[str, Any],
     diagnostics: dict[str, Any],
 ) -> list[str]:
-    """Return ``[support, task_obj_1, task_obj_2, ...]``.
-
-    ``spawn_specs`` records the pipeline's *intent*, but a spawn can fail silently
-    (placement / physics gate), so the snapshot may hold fewer instances than
-    requested. Trust the snapshot: keep every object matching a spawn-spec category
-    AND the task-object name pattern.
-    """
+    """Return the support name followed by all other DatasetObject names in snapshot order. Non-DatasetObject entries, including the robot, are excluded."""
     init_info = scene_info["objects_info"]["init_info"]
     surface = _resolve_surface_name(scene_info, diagnostics)
 

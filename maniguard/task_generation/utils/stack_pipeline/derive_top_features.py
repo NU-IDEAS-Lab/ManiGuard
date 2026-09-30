@@ -1,5 +1,9 @@
 """Derive per-object features from the top-surface scan.
 
+Regeneration requires the raw scan, which is not included with the derived
+catalogs. Generate it with:
+    python -m maniguard.task_generation.utils.stack_pipeline.scan_top_surface --n-objects 0 --output maniguard/task_generation/utils/stack_pipeline/scan_top_full.json
+
 Reads ``scan_top_full.json`` (raycast heightmaps from above) and computes,
 for each object, the largest axis-aligned square that fits within the
 up-facing surface at:

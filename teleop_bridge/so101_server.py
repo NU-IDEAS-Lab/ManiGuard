@@ -7,10 +7,10 @@ and publishes via ZMQ for the OmniGibson Franka teleop client.
 
 Usage:
     # In lerobot venv
-    python so101_server.py --port /dev/ttyACM0 --zmq-port 5557
+    python teleop_bridge/so101_server.py --port /dev/ttyACM0 --urdf /path/to/so101.urdf --zmq-port 5557
 
     # Mock mode (no hardware)
-    python so101_server.py --mock --zmq-port 5557
+    python teleop_bridge/so101_server.py --mock --zmq-port 5557
 """
 
 import argparse
@@ -61,7 +61,7 @@ class SO101LeRobotReader:
         print(f"SO-101 leader connected on {port}")
 
     def read(self):
-        """Read current joint positions (degrees) and gripper state (0-100)."""
+        """Read joint positions in degrees and return normalized gripper state (0-1)."""
         # get_action() returns {"motor_name.pos": value, ...}
         action = self._robot.get_action()
         joints = np.array([action[f"{name}.pos"] for name in self.ARM_JOINT_NAMES])

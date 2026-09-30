@@ -1,25 +1,12 @@
-"""One-shot: respawn the 12 far-target cabinet base tasks as both-front.
+"""Relayout selected cabinet tasks and update their frozen snapshots.
 
-The 12 ``blocker_mode="obstacle"`` cabinet tasks spawn the *target* on the
-off-side of the drawer (perpendicular ``side_clearance_m`` away), ~1.05 m from
-the robot base — unreachable. This script reloads each base task into
-OmniGibson, calls the pipeline's own ``_layout_target_and_obstacle`` with
-``blocker_mode="both"`` (both objects in front of the drawer's leading face,
-staggered along the slide axis), settles, and rewrites ``scene_ep1.json`` +
-``diagnostics.jsonl`` so both objects are reachable. Originals are backed up
-to ``*.bak_bothfront`` (only on the first run — re-runs never clobber a backup).
+Place objects near the drawer front with footprint-aware separation, settle the
+scene, and update scene_ep1.json and diagnostics.jsonl. Preserve the first saved
+version in .bak_bothfront backups. Each task runs in a separate simulator process.
 
-OmniGibson's sim is a singleton, so this runs ONE task per process;
-``--task all`` fans out to a subprocess per task (single GPU = single process).
-Run headless via ``python -u``; the exit-139 teardown segfault is benign — all
-file writes happen before any teardown.
-
-  # dry-run one task (no writes): prints the new xy + dist-to-robot
-  python -u -m maniguard.data.datagen.families.cabinet_bothfront --task task_0001 --dry-run
-  # apply all 12
-  python -u -m maniguard.data.datagen.families.cabinet_bothfront --task all
-  # offline verify (no sim): 12-row table
-  python -u -m maniguard.data.datagen.families.cabinet_bothfront --verify
+Use --dry-run to inspect a proposed layout, --task to select tasks, and --verify
+for the offline check. This utility changes task definitions when run without
+--dry-run; it is separate from demonstration collection.
 """
 from __future__ import annotations
 
@@ -71,8 +58,7 @@ def _layout_both_front_adaptive(og, drawer_link, target_obj, obstacle_obj,
     The pipeline's ``_layout_target_and_obstacle(blocker_mode="both")`` staggers
     the two objects by a FIXED ``obstacle_extra_gap_m=0.10`` along the slide
     axis. For object pairs whose combined half-width exceeds 0.10 they spawn
-    interpenetrating, and a settle launches them (the task_0003/0007/0031
-    explosions). Here the obstacle is set back along +slide by
+    interpenetrating and can be displaced during settling. Set the obstacle back along +slide by
     ``target_hw + obstacle_hw + margin`` so the two never overlap — then a
     short velocity-zeroed settle, and the ACTUAL post-settle poses are returned
     (gravity stays disabled, matching how the native both-tasks were saved).
@@ -100,10 +86,9 @@ def _layout_both_front_adaptive(og, drawer_link, target_obj, obstacle_obj,
     def along(extra):
         return (lead_x + sx * (gap_m + extra), lead_y + sy * (gap_m + extra))
 
-    # Near-edge rule (§11b): if the robot is clearly offset along the cross-slide
-    # axis p, shift an in-path object to the band edge NEAREST the robot (still
-    # inside the band -> still blocks the drawer), clamped by the object's
-    # p-half-width. No-op when the robot is ~aligned (|rp| <= band_half).
+    # If the robot is offset along the cross-slide axis, move an in-path object
+    # toward the near band edge, clamped by its half-width so it still blocks
+    # the drawer. Leave aligned layouts unchanged.
     p = np.array([-sy, sx], dtype=np.float64)               # unit perpendicular to slide
     drawer_c = np.array([cx, cy], dtype=np.float64)
     band_half = 0.5 * float(np.dot(
@@ -178,9 +163,8 @@ def _layout_both_front_adaptive(og, drawer_link, target_obj, obstacle_obj,
                                          surf_max[pi] - o_half[pi] - 0.01))
     _place_obj_upright_on_surface(og, obstacle_obj, float(o_xy[0]), float(o_xy[1]), top_z)
 
-    # Settle with a drift guard: this cuRobo/PhysX stack occasionally LAUNCHES an
-    # object during settle (observed task_0012: target flung 0.88 m off-table). If
-    # any object drifts > 8 cm from its intended xy, re-place it and re-settle.
+    # Guard settling against large displacement: re-place and re-settle an
+    # object if it drifts more than 8 cm from its intended XY.
     intended = [
         ("target", target_obj, t_xy),
         ("obstacle", obstacle_obj, o_xy),
@@ -236,12 +220,8 @@ def _respawn_one(task_id: str, *, dry_run: bool, mode: str = "both") -> None:
     drawer_link = cab.links[cab_info["link"]]
     slide_dir = np.array(cab_info["slide_dir"], dtype=np.float32)
 
-    # Force the correct drawer state before laying out: open the SELECTED joint
-    # (cabinet_info["joint"]) to open_fraction, close every other prismatic drawer.
-    # Guards against the task_0034 drift where an upper drawer (link_3) slid open
-    # while the selected big bottom drawer (link_1) sat nearly closed — which also
-    # corrupts the leading-face the objects are placed against. No-op when already
-    # correct.
+    # Set the selected drawer to open_fraction and close other prismatic
+    # drawers before deriving the leading face used for object placement.
     from omnigibson.utils.constants import JointType
     open_frac = float(cab_info.get("open_fraction", 0.2))
     for jname, j in cab.joints.items():

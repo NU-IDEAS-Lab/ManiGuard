@@ -1,11 +1,11 @@
-"""Jar family skeleton — the ONLY jar-specific code.
+"""Close a hinged jar lid, then grasp the jar body and carry it to the goal region.
 
-jar_transport = ``close_lid(hinge) -> grasp(jar_body, side) -> transport(jar -> goal)``. Phase A
-closes the articulated lid by pivoting the OPEN gripper about the hinge axis (a chain of short SERVO
-arc segments resolved by the family ``arc_about_hinge`` compute tag), past the vertical tipping
-point, then retreats so gravity seats the lid at the ``lower_limit`` (closed). Phase B is the clutter
-boxy skeleton restricted to SIDE grasps (keeps the jar upright, off the just-closed lid). The generic
-executor plans / executes / gates / records everything; the engine is unchanged."""
+The active lid-closing sequence positions the open gripper beneath the lid,
+translates it along a fixed-orientation support path past the lid's tipping
+point, and retraces the path while gravity closes the lid. The transport phase
+prefers annotated side grasps and uses orientation-preserving SERVO motion with
+configured planning fallbacks. The shared executor runs and evaluates the sequence.
+"""
 from __future__ import annotations
 
 import numpy as np
@@ -45,10 +45,9 @@ class JarSkeleton(FamilySkeleton):
             return
         hf = JH.read_hinge(ctx.target)
         e = hf.ext_dir                                        # TRUE radial extension (from lid_quat, robust)
-        # LID-RIDE (the user's teleop maneuver), parameterized from the lid link's MEASURED hull:
-        # a finger bar in the wedge UNDER the flopped lid, then ONE straight fixed-orientation ride
-        # that lifts the lid past its tipping point — the lid rests on the bar under gravity and
-        # pivots about its own hinge, the contact sliding freely (unilateral: nothing drags the jar).
+        # Support the lid on an open finger bar positioned from its measured hull.
+        # A fixed-orientation translation lifts it past the tipping point while
+        # the lid pivots on its hinge and slides freely over the bar.
         base_p = _np(ctx.robot.get_position_orientation()[0])
         hull = _np(JH.lid_link(ctx.target).collision_boundary_points_world)
         lid_c = hull.mean(axis=0)
@@ -59,9 +58,8 @@ class JarSkeleton(FamilySkeleton):
         # the lid line until the LOWEST approach point clears the desk by a safe margin.
         from maniguard.data.datagen.executor import geometry as G
         desk_top = float(G.surface_top_z(ctx.support)) if ctx.support is not None else -np.inf
-        # a support with raised parts (task_0014's desk has a privacy divider) reports its AABB top,
-        # 30cm above the actual sitting plane, and the palm-floor checks then veto EVERY ride pose.
-        # The jar's own bottom IS the sitting plane — clamp to it (identical on flat supports).
+        # A support AABB may include raised structures above the sitting plane.
+        # Clamp the floor reference to the jar bottom for the palm-clearance check.
         jar_bottom = float(G.aabb_lo_hi(ctx.target)[0][2])
         desk_top = min(desk_top, jar_bottom)
         if ctx.support is not None:
@@ -107,9 +105,8 @@ class JarSkeleton(FamilySkeleton):
         return cands
 
     def score_margin_floor(self) -> float:
-        # 0.15 rad (~8.6deg): each jar has only a handful of SIDE grasps, and edge placements can
-        # land the best one at ~0.17 — the shared 0.2 floor then yields 0 attempts (task_0025 after
-        # its yaw surgery). Still above the wrist-at-limit regime the floor guards against.
+        # Use a 0.15 rad joint-margin floor for the small side-grasp candidate pool
+        # near workspace edges; retain the subsequent motion and acceptance checks.
         return 0.15
 
     def select_grasps(self, ctx: TaskContext, world, robot) -> None:
@@ -164,12 +161,9 @@ class JarSkeleton(FamilySkeleton):
                   f"skew={skew:.0f}", flush=True)
         else:
             print("[datagen.jar] ride variant: NONE feasible, keeping geometric default", flush=True)
-        # --- goal-endpoint margin DIAGNOSTIC (env-gated, OFF by default; NO filtering). As a hard
-        # filter this dropped the empirically-winning grasp on 5/11 passing tasks (endpoint margin
-        # is measured on ONE IK branch; the transport has configuration freedom, so low margin does
-        # NOT predict failure — task_0001 succeeded first-try with a 0.01-margin grasp). Gated even
-        # as a log: the solves perturb the flaky solver's RNG stream and marginal tasks (0009) roll
-        # different dice — keep the default call sequence identical to the validated one. ---
+        # Optional endpoint-margin diagnostics do not filter grasps: one IK branch
+        # is not sufficient to determine transport feasibility. Keep probes disabled
+        # by default because extra solves advance the planner random-number state.
         import os
         if os.environ.get("DATAGEN_DIAG_GOAL_MARGINS") != "1":
             return
@@ -206,11 +200,10 @@ class JarSkeleton(FamilySkeleton):
         # --- Phase A: LID-RIDE — finger bar under the lid, one straight fixed-orientation ride
         # lifts the lid past its tipping point; gravity closes the rest; retreat retraces the ride.
         # The gripper stays OPEN and never closes on the lid (no coupling that could drag the jar). ---
-        # standoff style ALTERNATES per attempt for zero regression on already-passing tasks:
-        #   even draws -> the ORIGINAL 4cm-below-the-lid pre (validated by the 20/26 sweep);
-        #   odd draws  -> sideways 10cm toward the robot ALONG the hinge axis (exits cuRobo's obstacle
-        #                 inflation without diving toward the desk) — the extra way out for tasks whose
-        #                 below-the-lid pre sits inside the inflation ("IK_FAIL" with mm pose errors)
+        # Alternate standoffs by draw: even draws start 4 cm below the lid; odd
+        # draws start 10 cm toward the robot along the hinge axis. The lateral
+        # standoff provides an alternative when the lower pose lies inside
+        # the support's collision inflation.
         if params.draw_index % 2 == 0:
             pre_p = np.asarray(ride_start, float) + 0.04 * np.asarray(fN, float)
         else:
@@ -252,8 +245,7 @@ class JarSkeleton(FamilySkeleton):
         close_in = False
         if ctx.robot is not None:
             base_xy = _np(ctx.robot.get_position_orientation()[0])[:2]
-            close_in = float(np.linalg.norm(goal[:2] - base_xy)) < 0.44   # 0.48 would also flip task_0023
-            #                                                              (goal_d .45) which PASSES at 7cm
+            close_in = float(np.linalg.norm(goal[:2] - base_xy)) < 0.44   # Increase lift for goals within this horizontal distance of the base.
         lift_dz = 0.14 if close_in else 0.07
         segs += [
             MotionSegment("side_pre_grasp", pre_grasp, q, mode=Mode.FREE, grip=Grip.OPEN,

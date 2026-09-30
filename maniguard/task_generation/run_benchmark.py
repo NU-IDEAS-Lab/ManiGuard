@@ -1,17 +1,13 @@
 #!/usr/bin/env python
-"""Run a scene generation pipeline on all eligible scenes as a benchmark.
+"""Run scene-generation pipelines in separate subprocesses.
 
-Spawns one subprocess per scene to avoid GPU memory accumulation.
-Records videos, saves scene JSON snapshots, and produces a summary report.
+Enumerate eligible scenes, invoke the selected generator, and aggregate
+reported artifacts and diagnostics under a run directory.
 
-Usage:
-    python -m maniguard.task_generation.run_benchmark
-    python -m maniguard.task_generation.run_benchmark --pipeline cabinet
+Examples:
+    python -m maniguard.task_generation.run_benchmark --pipeline table --scenes Rs_int --steps 300
     python -m maniguard.task_generation.run_benchmark --pipeline transfer --no-strict-gate
-    python -m maniguard.task_generation.run_benchmark --pipeline stack --stack-height medium
-    python -m maniguard.task_generation.run_benchmark --scenes Rs_int Merom_1_int --timeout 600
-    python -m maniguard.task_generation.run_benchmark --density high --steps 500 --episodes 2
-"""
+    python -m maniguard.task_generation.run_benchmark --pipeline stack --stack-height medium"""
 
 import argparse
 import csv
@@ -26,7 +22,7 @@ from datetime import datetime
 log = logging.getLogger(__name__)
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", ".."))
+_PROJECT_ROOT = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", ".."))
 _DEFAULT_OUTPUT_DIR = os.path.join(_PROJECT_ROOT, "outputs", "benchmark_runs")
 
 _STACK_SCRIPT = os.path.join(_SCRIPT_DIR, "stack_scene_pipeline.py")
@@ -57,11 +53,7 @@ _EXCLUDED_SCENES = {
         "hall_train_station",        # train station restroom
         "school_gym",                # gymnasium, no tables
     }),
-    # cabinet_pickup is empty-scene and managed via cabinet_pickup_pipeline.py's
-    # own --task-id batch flag; it doesn't participate in run_benchmark's
-    # per-scene loop. Leaving the key out so we don't accidentally route a
-    # scene-based subprocess to an empty-scene pipeline.
-    # Transfer and stack pipelines need the same table-like surfaces as table.
+    # No cabinet-specific scene exclusions are configured in this mapping.
     "transfer": frozenset({
         "Benevolence_0_int",
         "grocery_store_convenience",
@@ -119,22 +111,58 @@ def _discover_scenes(scenes_dir, pipeline):
     return eligible
 
 
-def _expected_rollout_paths(run_dir, episodes):
-    return [
-        os.path.join(run_dir, f"rollout_ep{ep}.mp4")
-        for ep in range(1, episodes + 1)
-    ]
+def _artifact_paths(run_dir, episodes, pipeline=None):
+    """Required snapshot/video files in the scene or standalone episode layout."""
+    paths = [os.path.join(run_dir, "diagnostics.jsonl")]
+    nested = pipeline in ("cabinet_pickup", "jar_transport") or os.path.isdir(
+        os.path.join(run_dir, "snapshots", "ep001")
+    )
+    for ep in range(1, episodes + 1):
+        root = os.path.join(run_dir, "snapshots", f"ep{ep:03d}") if nested else run_dir
+        paths.append(os.path.join(root, f"scene_ep{ep}.json"))
+        views = [os.path.join(root, f"rollout_{view}_ep{ep}.mp4") for view in
+                 ("opposite_side_front", "left_overview", "right_overview", "left_shoulder")]
+        legacy = os.path.join(root, f"rollout_ep{ep}.mp4")
+        paths.extend(views if any(os.path.isfile(v) for v in views) or not os.path.isfile(legacy) else [legacy])
+    return paths
 
 
-def _validate_scene_artifacts(run_dir, episodes):
-    missing = []
-    diagnostics_path = os.path.join(run_dir, "diagnostics.jsonl")
-    if not os.path.isfile(diagnostics_path):
-        missing.append("diagnostics.jsonl")
-    for video_path in _expected_rollout_paths(run_dir, episodes):
-        if not os.path.isfile(video_path):
-            missing.append(os.path.basename(video_path))
-    return missing
+def _read_episode_diagnostics(run_dir, episodes):
+    path = os.path.join(run_dir, "diagnostics.jsonl")
+    with open(path, encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f if line.strip()]
+    # Generators append diagnostics when retrying in the same directory.
+    rows = rows[-episodes:]
+    if len(rows) != episodes or any(not isinstance(r, dict) for r in rows):
+        raise ValueError(f"expected {episodes} episode records")
+    ids = [r.get("episode") for r in rows]
+    if any(type(ep) is not int for ep in ids) or sorted(ids) != list(range(1, episodes + 1)):
+        raise ValueError("episode records are missing or duplicated")
+    if any(type(r.get(key)) is not bool for r in rows for key in ("gate_pass", "ltl_violated")):
+        raise ValueError("episode gate/safety verdicts must be Boolean")
+    return rows
+
+
+def _file_stamp(path):
+    stat = os.stat(path)
+    return stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
+
+
+def _validate_scene_artifacts(run_dir, episodes, pipeline=None, previous_files=None):
+    errors = []
+    for path in _artifact_paths(run_dir, episodes, pipeline):
+        label = os.path.relpath(path, run_dir)
+        if not os.path.isfile(path) or os.path.getsize(path) == 0:
+            errors.append(label)
+        elif previous_files is not None and previous_files.get(path) == _file_stamp(path):
+            errors.append(f"unchanged artifact from earlier attempt: {label}")
+    diag = os.path.join(run_dir, "diagnostics.jsonl")
+    if os.path.isfile(diag):
+        try:
+            _read_episode_diagnostics(run_dir, episodes)
+        except (OSError, ValueError) as exc:
+            errors.append(f"invalid diagnostics.jsonl: {exc}")
+    return errors
 
 
 def _spot_preflight_or_exit():
@@ -159,20 +187,22 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
 
     pipeline_script = _PIPELINE_SCRIPTS[args.pipeline]
     cmd = [
-        sys.executable, pipeline_script,
+        sys.executable, "-m", "maniguard.task_generation." + os.path.basename(pipeline_script)[:-3],
         "--episodes", str(args.episodes),
         "--steps", str(args.steps),
         "--seed", str(scene_seed),
-        "--mount-gap-m", str(args.mount_gap_m),
         "--run-dir", run_dir,
         "--save-video",
         "--video-fps", str(args.video_fps),
-        "--strict-gate" if args.strict_gate else "--no-strict-gate",
     ]
-    if scene_model:
+    standalone = args.pipeline in ("cabinet_pickup", "jar_transport")
+    if not standalone:
+        cmd.extend(["--mount-gap-m", str(args.mount_gap_m),
+                    "--strict-gate" if args.strict_gate else "--no-strict-gate"])
+    if scene_model and not standalone:
         cmd.extend(["--scene-model", scene_model])
     # Pipeline-specific flags.
-    if args.pipeline in ("table", "cabinet"):
+    if args.pipeline == "table":
         cmd.extend(["--clutter-density", args.density])
         if args.randomize:
             cmd.append("--randomize")
@@ -216,6 +246,11 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
     print(f"[Benchmark] Timeout:  {args.timeout}s")
     print(f"{'='*70}")
 
+    previous_files = {
+        os.path.join(root, name): _file_stamp(os.path.join(root, name))
+        for root, _, names in os.walk(run_dir) for name in names
+        if os.path.isfile(os.path.join(root, name))
+    }
     t0 = time.time()
     try:
         with open(log_path, "w") as log_file:
@@ -229,15 +264,17 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         elapsed = time.time() - t0
         result["duration_s"] = round(elapsed, 1)
 
-        missing_artifacts = _validate_scene_artifacts(run_dir, args.episodes)
+        missing_artifacts = _validate_scene_artifacts(
+            run_dir, args.episodes, args.pipeline, previous_files,
+        )
 
         if proc.returncode == 0 and not missing_artifacts:
             result["status"] = "success"
         elif proc.returncode == -11 and not missing_artifacts:
-            # SIGSEGV during Isaac Sim shutdown is benign if the pipeline
-            # wrote diagnostics (meaning it completed its real work).
+            # Accept freshly completed artifacts while retaining the exit error;
+            # the return code alone does not establish where the crash occurred.
             result["status"] = "success"
-            result["error"] = "clean exit (shutdown segfault ignored)"
+            result["error"] = "exit -11 after complete, fresh artifacts"
         elif missing_artifacts:
             result["status"] = "failed"
             result["error"] = f"missing artifacts: {', '.join(missing_artifacts)}"
@@ -257,19 +294,11 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         result["status"] = "error"
         result["error"] = str(e)
 
-    # Parse diagnostics.jsonl if it exists to extract gate/ltl info.
-    diagnostics_path = os.path.join(run_dir, "diagnostics.jsonl")
-    if os.path.isfile(diagnostics_path):
-        try:
-            with open(diagnostics_path, "r") as f:
-                for line in f:
-                    entry = json.loads(line.strip())
-                    if "gate_pass" in entry:
-                        result["gate_pass"] = entry["gate_pass"]
-                    if "ltl_violated" in entry:
-                        result["ltl_violated"] = entry["ltl_violated"]
-        except Exception as exc:
-            log.warning("run_benchmark: diagnostics read from %s failed: %s", diagnostics_path, exc)
+    # Report every episode in this attempt, not just the final row.
+    if result["status"] == "success":
+        entries = _read_episode_diagnostics(run_dir, args.episodes)
+        result["gate_pass"] = all(r["gate_pass"] for r in entries)
+        result["ltl_violated"] = any(r["ltl_violated"] for r in entries)
 
     status_icon = {"success": "OK", "failed": "FAIL", "timeout": "TIME", "error": "ERR"}.get(
         result["status"], "?"
@@ -314,7 +343,7 @@ def _write_summary(results, output_dir):
 def parse_args():
     p = argparse.ArgumentParser(description="Run clutter scene pipeline benchmark on all eligible scenes")
     p.add_argument("--pipeline", default="table", choices=list(_PIPELINE_SCRIPTS),
-                   help="Pipeline type: 'table' (tabletop clutter) or 'cabinet' (cabinet clutter)")
+                   help="Task-generation pipeline to run")
     p.add_argument("--scenes", nargs="*", default=None,
                    help="Specific scenes to run. If omitted, each trial auto-selects.")
     p.add_argument("--num-trials", type=int, default=None,
@@ -347,34 +376,32 @@ def parse_args():
                    help="Output directory (default: outputs/benchmark_runs/<timestamp>)")
     p.add_argument("--resume", default=None,
                    help="Resume a previous benchmark run directory (skip completed scenes)")
-    return p.parse_args()
+    args = p.parse_args()
+    if args.pipeline in ("cabinet_pickup", "jar_transport") and args.scenes:
+        p.error("This pipeline constructs empty-scene tasks; use --num-trials instead of --scenes")
+    for name in ("episodes", "timeout", "video_fps"):
+        if getattr(args, name) <= 0:
+            p.error(f"--{name.replace('_', '-')} must be positive")
+    if args.steps < 0 or (args.num_trials is not None and args.num_trials <= 0):
+        p.error("--steps must be nonnegative and --num-trials must be positive")
+    return args
 
 
 def _find_completed_scenes(output_dir, episodes):
-    """Find scenes that already completed successfully in a previous run."""
-    completed = set()
-    summary_path = os.path.join(output_dir, "summary.csv")
-    if os.path.isfile(summary_path):
-        with open(summary_path, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row.get("status") == "success":
-                    completed.add(row["scene"])
-    # Also check individual scene dirs for diagnostics.
-    if os.path.isdir(output_dir):
-        for scene_dir in os.listdir(output_dir):
-            scene_run_dir = os.path.join(output_dir, scene_dir)
-            diag = os.path.join(scene_run_dir, "diagnostics.jsonl")
-            if os.path.isfile(diag) and not _validate_scene_artifacts(scene_run_dir, episodes):
-                try:
-                    with open(diag, "r") as f:
-                        for line in f:
-                            entry = json.loads(line.strip())
-                            if entry.get("gate_pass"):
-                                completed.add(scene_dir)
-                except Exception as exc:
-                    log.warning("run_benchmark: diagnostics scan of %s failed: %s", diag, exc)
-    return completed
+    """Resume only directories with complete artifacts and episode diagnostics."""
+    if not os.path.isdir(output_dir):
+        return set()
+    statuses = {}
+    summary = os.path.join(output_dir, "summary.csv")
+    if os.path.isfile(summary):
+        with open(summary, newline="") as f:
+            statuses = {r["scene"]: r.get("status") for r in csv.DictReader(f)}
+    return {
+        name for name in os.listdir(output_dir)
+        if statuses.get(name, "success") == "success"
+        and os.path.isdir(os.path.join(output_dir, name))
+        and not _validate_scene_artifacts(os.path.join(output_dir, name), episodes)
+    }
 
 
 def main():
@@ -382,7 +409,8 @@ def main():
     _spot_preflight_or_exit()
 
     scenes_dir = os.path.join(
-        _PROJECT_ROOT, "datasets", "behavior-1k-assets", "scenes",
+        os.environ.get("OMNIGIBSON_DATA_PATH", os.path.join(_PROJECT_ROOT, "behavior-1k", "datasets")),
+        "behavior-1k-assets", "scenes",
     )
 
     # Determine output directory.
@@ -404,22 +432,17 @@ def main():
     else:
         scenes = None  # auto-select mode
 
-    # In auto-select mode, build a trial list of None entries.
+    # Keep original indices when resuming: the index determines the seed.
     if scenes is None:
-        num_trials = args.num_trials or 10
+        num_trials = args.num_trials if args.num_trials is not None else 10
         scenes = [None] * num_trials
         print(f"[Benchmark] Auto-select mode: {num_trials} trials")
-    else:
-        # If resuming, skip already-completed scenes.
-        completed = set()
-        if args.resume:
-            completed = _find_completed_scenes(output_dir, args.episodes)
-            if completed:
-                print(f"[Benchmark] Resuming — skipping {len(completed)} completed scenes")
-            scenes = [s for s in scenes if s not in completed]
+    planned = list(enumerate(scenes))
+    completed = _find_completed_scenes(output_dir, args.episodes) if args.resume else set()
+    pending = [(i, scene) for i, scene in planned if (scene or f"trial_{i}") not in completed]
 
     print(f"[Benchmark] Output: {output_dir}")
-    print(f"[Benchmark] Trials: {len(scenes)} to run")
+    print(f"[Benchmark] Trials: {len(pending)} to run")
     print(f"[Benchmark] Config: episodes={args.episodes}, steps={args.steps}, "
           f"density={args.density}, timeout={args.timeout}s")
 
@@ -429,6 +452,7 @@ def main():
         "pipeline": args.pipeline,
         "scenes": [s for s in scenes if s is not None],
         "episodes": args.episodes,
+        "num_trials": len(scenes) if all(s is None for s in scenes) else None,
         "steps": args.steps,
         "seed": args.seed,
         "timeout": args.timeout,
@@ -436,7 +460,7 @@ def main():
         "mount_gap_m": args.mount_gap_m,
         "timestamp": datetime.now().isoformat(),
     }
-    if args.pipeline in ("table", "cabinet"):
+    if args.pipeline == "table":
         config_data["density"] = args.density
         config_data["randomize"] = args.randomize
     if args.pipeline == "transfer":
@@ -452,19 +476,43 @@ def main():
             "target_model": args.target_model,
             "stack_model": args.stack_model,
         })
-    with open(config_path, "w") as f:
-        json.dump(config_data, f, indent=2)
+    if args.resume and os.path.isfile(config_path):
+        with open(config_path, encoding="utf-8") as f:
+            previous_config = json.load(f)
+        mismatched = [k for k in config_data if k != "timestamp" and k in previous_config
+                      and previous_config[k] != config_data[k]]
+        if mismatched:
+            raise ValueError(f"Resume configuration differs in {mismatched}; use the original run settings")
+    else:
+        with open(config_path, "w") as f:
+            json.dump(config_data, f, indent=2)
 
+    previous_rows = {}
+    summary_path = os.path.join(output_dir, "summary.csv")
+    if args.resume and os.path.isfile(summary_path):
+        with open(summary_path, newline="") as f:
+            previous_rows = {r["scene"]: r for r in csv.DictReader(f)}
     results = []
-    for idx, scene in enumerate(scenes):
-        print(f"\n[Benchmark] Progress: {idx + 1}/{len(scenes)}")
-        result = _run_scene(scene, args, output_dir, scene_index=idx)
-        results.append(result)
-        # Write incremental summary after each scene so progress is visible.
+    for idx, scene in planned:
+        label = scene or f"trial_{idx}"
+        if label in completed:
+            run_dir = os.path.join(output_dir, label)
+            entries = _read_episode_diagnostics(run_dir, args.episodes)
+            results.append({
+                "scene": label, "status": "success",
+                "duration_s": float(previous_rows.get(label, {}).get("duration_s") or 0),
+                "gate_pass": all(r["gate_pass"] for r in entries),
+                "ltl_violated": any(r["ltl_violated"] for r in entries),
+                "error": previous_rows.get(label, {}).get("error", ""), "run_dir": run_dir,
+            })
+        else:
+            print(f"\n[Benchmark] Trial {idx + 1}/{len(planned)}")
+            results.append(_run_scene(scene, args, output_dir, scene_index=idx))
         _write_summary(results, output_dir)
 
     print(f"\n[Benchmark] Done. Results at: {output_dir}")
+    return 1 if any(r["status"] != "success" for r in results) else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

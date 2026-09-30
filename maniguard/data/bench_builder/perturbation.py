@@ -1,33 +1,15 @@
-"""Shared perturbation infrastructure for ManiGuard-Bench.
+"""Shared perturbation metadata and runtime appearance overrides.
 
-Every bench task — `base` or any perturbation level (`target` / `language` /
-`location` / `env`) — is just a **task instance**: a directory with
-`scene_ep1.json` + `diagnostics.jsonl` + 4 review videos. A consumer (the bench
-renderer or the eval client) loads ANY instance the same way:
+Task instances store a scene snapshot and diagnostics. Builder runs can also
+write four review videos. After loading a snapshot, consumers should call
+apply_perturbation(env, diagnostics) to apply material properties that are not
+serialized in the scene snapshot.
 
-    cfg = build_og_config(scene_file, diag)   # adaptive: Scene vs room scene
-    env = og.Environment(cfg); env.reset()
-    apply_perturbation(env, diag)             # <- the only post-load branch
-
-`apply_perturbation` is the single, uniform post-load hook. It reads the
-instance's optional ``diagnostics["perturbation"]`` block and applies whatever
-that level needs that cannot be baked into `scene_ep1.json`:
-
-* ``target``   — recolor the target object (``diffuse_tint`` is an asset/USD
-                 material property; OmniGibson does NOT serialize it into the
-                 scene snapshot, so it must be re-applied on every load).
-* ``location`` / ``env`` — object moves / room geometry are already baked into
-                 `scene_ep1.json` (or the scene config), so this is a no-op;
-                 the block is provenance only.
-* ``language`` — only the prompt changes, no sim effect → no-op.
-* ``base`` / absent — no-op.
-
-So the consumer never branches on "is this a perturbation"; it always calls
-``apply_perturbation`` and the dispatch is data-driven by ``kind``.
-
-This module deliberately imports NOTHING from the legacy perturbation code
-(``perturbation_scaling.py`` / ``perturbation_runtime.py``); the palette and the
-material-override idiom are re-derived here.
+Target variants store their recoloring parameters in diagnostics. Environment
+and location variants store geometry changes in the scene snapshot; language
+variants store the rewritten prompt in diagnostics. These three kinds require
+no additional action from this hook. Missing or base perturbation metadata is
+also a no-op.
 """
 from __future__ import annotations
 
@@ -50,11 +32,8 @@ APPEARANCE_COLOR_PALETTE: tuple[tuple[float, float, float], ...] = (
     (0.78, 0.16, 0.85),  # magenta #C828D8
 )
 
-# Per-family "target" object — the manipuland whose appearance the `target`
-# level recolors (your §4b definitions). Each family lists the candidate
-# spawn-spec ROLE(s) (first that resolves wins); the concrete scene object is
-# then found by that role's category. lid carries two provenances — the capped
-# container is role "container" in older tasks, "target" in newer ones.
+# Candidate spawn-spec roles for each family's appearance target. The first
+# role with a category is used; lid tasks accept container or target.
 TARGET_ROLE: dict[str, tuple[str, ...]] = {
     "jar_transport": ("target",),            # hinged_jar
     "cabinet_pickup": ("target",),           # place target
@@ -130,13 +109,12 @@ def _obj_z(obj) -> float:
 
 
 def resolve_target_object(env, diag: dict, family: str):
-    """The SPECIFIC live target object to recolor. Resolves the target category
-    (per family role), then the concrete object. When several objects share that
-    category — stack-SAME tasks stack identical objects, so target and stack are
-    the same category — disambiguate to the actual manipuland: the goal's grasp
-    reference (e.g. the bottom bowl ``bowl_45``), else the BOTTOM of the stack
-    (lowest z, the retrieved object). Picking the first category match recolored
-    the TOP of the stack instead of the bottom."""
+    """Resolve the live manipuland used for appearance perturbation.
+
+    Match the family's target category. When several objects match, prefer
+    the goal's grasp reference; otherwise choose the object with the lowest
+    world z coordinate. This selects the bottom object in same-category stacks.
+    """
     cat = resolve_target_category(diag, family)
     if not cat:
         return None
@@ -157,12 +135,11 @@ _MIN_TINT_DIST = 0.35  # a tint this far (RGB) from the original reads as clearl
 
 
 def pick_tint(orig_rgb, task_index: int) -> list[float]:
-    """Pick a saturated palette tint by CYCLING on the task index, so a family's
-    variants rotate through visibly distinct colors (task 0→red, 1→orange,
-    2→yellow, 3→green, 4→cyan, 5→magenta, then wraps). A light guard skips a
-    palette color that happens to sit near the target's own color (rare — most
-    manipulands are neutral), advancing to the next index so the recolor is always
-    clearly out-of-distribution. Deterministic in the task index.
+    """Select a palette color deterministically from the task index.
+
+    Cycle through the palette starting at task_index, skipping colors whose
+    RGB distance from orig_rgb is below _MIN_TINT_DIST. If none qualifies,
+    return the farthest palette color.
     """
     orig = np.asarray(orig_rgb, dtype=np.float32).reshape(3)
     n = len(APPEARANCE_COLOR_PALETTE)
@@ -177,7 +154,7 @@ def pick_tint(orig_rgb, task_index: int) -> list[float]:
 
 
 # ---------------------------------------------------------------------------
-# Material recolor (re-derived from the legacy diffuse_tint idiom)
+# Material recolor
 # ---------------------------------------------------------------------------
 
 def _iter_materials(obj) -> list[Any]:
@@ -225,18 +202,12 @@ def albedo_add_for(orig_rgb) -> float:
 
 
 def apply_recolor(obj, tint_rgb, albedo_add: float = 0.0) -> int:
-    """FORCE every material of ``obj`` to the vivid color, regardless of the
-    object's original brightness/texture, via the engine's own recolor inputs:
+    """Set material tint and additive albedo adjustment where supported.
 
-        final_albedo = diffuse_tint * (orig_albedo + albedo_add)
-
-    ``albedo_add`` lifts a dark/textured albedo up to ~1 (washing out the
-    original color), then ``diffuse_tint`` colors it — so even a near-black tray
-    becomes the vivid tint. This is exactly how OmniGibson recolors objects for
-    Frozen / Cooked / Burnt states (``StatefulObject._update_texture_change``),
-    so it is robust across asset materials. A plain multiplicative tint cannot
-    brighten a dark albedo; the additive term is what makes this universal.
-    Returns how many materials were recolored.
+    For textured materials, the renderer combines diffuse_tint with the
+    original albedo and albedo_add. The additive term brightens dark materials.
+    Primitive materials can instead receive diffuse_color_constant.
+    Return the number of materials whose color property was set successfully.
     """
     import torch as th
 
