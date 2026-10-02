@@ -471,6 +471,8 @@ def main():
     all_results = []
 
     for scene_idx, scene_info in enumerate(scenes):
+        from maniguard.eval.recording import make_observer
+        recorder = make_observer(cfg, scene_info)
         episode_seed = None
         initialization_phase = "scene_configuration"
         try:
@@ -702,6 +704,9 @@ def main():
                 initialization_phase = "initial_safety"
                 _validate_initial_safety(monitor, scene_info["name"])
 
+            if recorder is not None:
+                recorder.start(env, robot, obs, monitor, episode_seed, scene_info)
+
             step_idx = 0
             done = False
             success = False
@@ -768,6 +773,8 @@ def main():
             with results_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(result, ensure_ascii=True) + "\n")
             all_results.append(result)
+            if recorder is not None:
+                recorder.finish(result)
             print(f"  INITIALIZATION FAILED during {initialization_phase}: {e}", flush=True)
             print(result["rollout_diagnostics"]["exception"]["traceback"], flush=True)
             continue
@@ -791,6 +798,8 @@ def main():
                             "act0": np.asarray(chunk[0], dtype=np.float32).tolist(),
                         }) + "\n")
                 chunk_len = min(cfg.execute_horizon, len(chunk), cfg.max_steps - step_idx)
+                if recorder is not None:
+                    recorder.proposal(step_idx, chunk, chunk_len, action_space)
 
                 for ci in range(chunk_len):
                     rollout_diagnostics["phase"] = "action_conversion"
@@ -817,11 +826,15 @@ def main():
                     _record_action_finiteness(rollout_diagnostics, action_clipped, "clipped")
 
                     _eef_before = np.asarray(obs["states"][:3], dtype=np.float32)
+                    if recorder is not None:
+                        recorder.before_action(step_idx, ci, chunk[ci], ctrl_action, action_clipped)
                     rollout_diagnostics["phase"] = "env_step"
                     _, reward, _, _, _ = env.step(
                         torch.from_numpy(action_clipped).unsqueeze(0)
                     )
                     rollout_diagnostics["env_steps_returned"] += 1
+                    if recorder is not None:
+                        recorder.applied(step_idx)
                     rollout_diagnostics["phase"] = "extract_obs"
                     obs = extract_obs(env, robot, scene_info["prompt"], cfg)
                     rollout_diagnostics["observations_returned"] += 1
@@ -847,6 +860,8 @@ def main():
                             wrist_frames.append(obs["wrist_images"])
                     step_idx += 1
                     total_reward += float(reward)
+                    if recorder is not None:
+                        recorder.transition(step_idx, obs)
 
                     # Stop on a non-finite observation; its cause requires the
                     # action diagnostics and simulator logs.
@@ -892,9 +907,13 @@ def main():
 
                     # Advance safety monitoring after each executed action.
                     # A monitoring error invalidates the rollout rather than scoring it safe.
-                    if monitor is not None:
-                        rollout_diagnostics["phase"] = "safety_monitor"
-                        monitor.step(step_idx)
+                    try:
+                        if monitor is not None:
+                            rollout_diagnostics["phase"] = "safety_monitor"
+                            monitor.step(step_idx)
+                    finally:
+                        if recorder is not None:
+                            recorder.oracle(step_idx, monitor)
 
                     if goal_checker is not None:
                         rollout_diagnostics["phase"] = "goal_check"
@@ -1002,6 +1021,8 @@ def main():
             "counted_violation": _counted_violation,
         }
         all_results.append(result)
+        if recorder is not None:
+            recorder.finish(result)
         _ltl_str = "" if monitor is None else f", ltl_violated={result['ltl_violated']}"
         print(f"  Result: success={result['success']}, steps={step_idx}, status={status}{_ltl_str}", flush=True)
 

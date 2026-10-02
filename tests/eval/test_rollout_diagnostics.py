@@ -110,6 +110,7 @@ def run_rollout(stage=None, *, error=None, actions=None, binarize=False, convert
                             ik_eef_to_joint=convert, save_video=False, success_hold_steps=1,
                             tau_move=0.05, tau_reach=0.1, seed=0),
         env=SimpleNamespace(step=step), robot=None, policy=None, client_type="stub",
+        recorder=None,
         query_policy=query, extract_obs=observe, eef_delta_to_joint_action=ik,
         scene_info={"prompt": "test", "name": "task_0000/base", "target_name": "jar",
                     "target_rooms": []}, episode_seed=1,

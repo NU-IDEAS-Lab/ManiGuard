@@ -20,6 +20,9 @@ import yaml
 @dataclass
 class EvalConfig:
     name: str = "unnamed"
+    recording_factory: str | None = None
+    recording_output_dir: str | None = None
+    recording_provenance: str | None = None
 
     # -- Benchmark source --
     benchmark_root: str = ""
@@ -169,6 +172,9 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--benchmark-revision", type=str, default=None)
     p.add_argument("--scenes", nargs="*", default=None)
     p.add_argument("--max-scenes", type=int, default=None)
+    p.add_argument("--recording-factory", type=str, default=None)
+    p.add_argument("--recording-output-dir", type=str, default=None)
+    p.add_argument("--recording-provenance", type=str, default=None)
     p.add_argument("--host", type=str, default=None)
     p.add_argument("--port", type=int, default=None)
     p.add_argument("--use-openpi-client", action="store_true", default=None)
@@ -212,6 +218,9 @@ def config_from_cli() -> EvalConfig:
         "benchmark_revision": "benchmark_revision",
         "scenes": "scenes",
         "max_scenes": "max_scenes",
+        "recording_factory": "recording_factory",
+        "recording_output_dir": "recording_output_dir",
+        "recording_provenance": "recording_provenance",
         "host": "host",
         "port": "port",
         "use_openpi_client": "use_openpi_client",
