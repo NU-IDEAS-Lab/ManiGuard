@@ -28,6 +28,9 @@ from maniguard.eval.scene_discovery import discover_scenes
 # ---------------------------------------------------------------------------
 
 def _init_omnigibson(cfg: EvalConfig, needs_gpu_dynamics: bool = False):
+    if getattr(cfg, "source_profile", None) is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
     if not cfg.longfinger:
         os.environ["MANIGUARD_SKIP_LONGFINGER"] = "1"
     try:
@@ -35,6 +38,8 @@ def _init_omnigibson(cfg: EvalConfig, needs_gpu_dynamics: bool = False):
     except ImportError:
         pass
     from omnigibson.macros import gm
+    if getattr(cfg, "source_profile", None) is not None:
+        gm.ENABLE_HQ_RENDERING = True
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     # Liquid/particle scenes (clutter liquid_transport) need PhysX GPU dynamics
@@ -69,13 +74,13 @@ def _overview_cam_name(cfg: EvalConfig) -> str:
 
 
 def _build_eval_external_sensors(cfg: EvalConfig):
-    """Build ONLY the one external overview camera the policy consumes
-    (cam_<external_cam> per cfg.external_cam) — matching the 2-cam training
-    convention. The wrist camera comes from the robot USD."""
-    from maniguard.utils.camera_setup import build_external_camera_configs
-    return build_external_camera_configs(
-        names=[_overview_cam_name(cfg)], resolution=cfg.camera_resolution
-    )
+    """Build all source views in source mode, otherwise the policy's overview.
+
+    The policy still selects cam_<external_cam>; the wrist comes from the robot.
+    """
+    from maniguard.utils.camera_setup import EXTERNAL_CAMERA_NAMES, build_external_camera_configs
+    names = EXTERNAL_CAMERA_NAMES if getattr(cfg, "source_profile", None) is not None else [_overview_cam_name(cfg)]
+    return build_external_camera_configs(names=names, resolution=cfg.camera_resolution)
 
 
 def build_og_config(scene_info: dict, cfg: EvalConfig):
@@ -173,24 +178,30 @@ def eef_delta_to_joint_action(robot, eef_delta, action_space):
 
 
 def extract_obs(env, robot, prompt, cfg: EvalConfig):
-    raw_obs, _ = env.get_obs()
-    external = raw_obs.get("external", {})
-    # Single external overview = the one camera selected by cfg.external_cam;
-    # it is the only external camera built/rendered.
-    overview_name = _overview_cam_name(cfg)
-    overview_rgb = external[overview_name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
+    source_capture = getattr(env, "_maniguard_source_capture", None)
+    if source_capture is not None:
+        frames = source_capture.last_observation["camera_frames"]
+        overview_rgb = frames["image_" + cfg.external_cam]
+        wrist_rgb = frames["wrist_image"]
+    else:
+        raw_obs, _ = env.get_obs()
+        external = raw_obs.get("external", {})
+        # Single external overview = the one camera selected by cfg.external_cam;
+        # it is the only external camera built/rendered.
+        overview_name = _overview_cam_name(cfg)
+        overview_rgb = external[overview_name]["rgb"][..., :3].cpu().numpy().astype(np.uint8)
 
-    robot_obs = raw_obs.get(robot.name, {})
-    wrist_rgb = None
-    for name, obs in robot_obs.items():
-        if isinstance(obs, dict) and "rgb" in obs:
-            wrist_rgb = obs["rgb"][..., :3].cpu().numpy().astype(np.uint8)
-            break
-    if wrist_rgb is None:
-        if not getattr(extract_obs, "_wrist_warned", False):
-            print(f"[Eval] WARNING: no wrist camera found in robot obs keys={list(robot_obs.keys())}; using black image")
-            extract_obs._wrist_warned = True
-        wrist_rgb = np.zeros_like(overview_rgb)
+        robot_obs = raw_obs.get(robot.name, {})
+        wrist_rgb = None
+        for name, obs in robot_obs.items():
+            if isinstance(obs, dict) and "rgb" in obs:
+                wrist_rgb = obs["rgb"][..., :3].cpu().numpy().astype(np.uint8)
+                break
+        if wrist_rgb is None:
+            if not getattr(extract_obs, "_wrist_warned", False):
+                print(f"[Eval] WARNING: no wrist camera found in robot obs keys={list(robot_obs.keys())}; using black image")
+                extract_obs._wrist_warned = True
+            wrist_rgb = np.zeros_like(overview_rgb)
 
     eef_pos = robot.get_relative_eef_position().cpu().numpy().astype(np.float32)
     eef_quat = robot.get_relative_eef_orientation().cpu().numpy().astype(np.float32)
@@ -372,6 +383,8 @@ def _initialization_failure(scene_info, cfg, episode_seed, metrics, phase, error
 
 def main():
     cfg = config_from_cli()
+    from maniguard.eval.eval_config import resolve_source_config
+    resolve_source_config(cfg)
 
     if not cfg.benchmark_root:
         raise ValueError("benchmark_root must be set in config or via --benchmark-root")
@@ -523,7 +536,11 @@ def main():
             og_cfg = build_og_config(scene_info, cfg)
 
             initialization_phase = "scene_load"
-            if og.sim is not None:
+            source_capture = None
+            if getattr(cfg, "source_profile", None) is not None:
+                from maniguard.visual.capture import initialize_source_simulator
+                initialize_source_simulator(cfg.action_frequency, cfg.rendering_frequency, cfg.physics_frequency, clear=True)
+            elif og.sim is not None:
                 og.sim.stop()
                 og.clear()
 
@@ -674,6 +691,11 @@ def main():
                 og.sim.render()
 
             initialization_phase = "initial_observation"
+            if getattr(cfg, "source_profile", None) is not None:
+                from maniguard.visual.capture import SourceCapture
+                source_capture = SourceCapture(env, cfg.source_profile)
+                source_capture.capture(0)
+                env._maniguard_source_capture = source_capture
             obs = extract_obs(env, robot, scene_info["prompt"], cfg)
             if not np.all(np.isfinite(obs["states"])):
                 raise FloatingPointError("Non-finite initial robot state")
@@ -829,9 +851,12 @@ def main():
                     if recorder is not None:
                         recorder.before_action(step_idx, ci, chunk[ci], ctrl_action, action_clipped)
                     rollout_diagnostics["phase"] = "env_step"
-                    _, reward, _, _, _ = env.step(
-                        torch.from_numpy(action_clipped).unsqueeze(0)
-                    )
+                    command_tensor = torch.from_numpy(action_clipped).unsqueeze(0)
+                    if getattr(env, "_maniguard_source_capture", None) is None:
+                        _, reward, _, _, _ = env.step(command_tensor)
+                    else:
+                        env_result, _ = env._maniguard_source_capture.step(command_tensor)
+                        _, reward, _, _, _ = env_result
                     rollout_diagnostics["env_steps_returned"] += 1
                     if recorder is not None:
                         recorder.applied(step_idx)

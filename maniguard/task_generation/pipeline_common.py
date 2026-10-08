@@ -74,6 +74,7 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p.add_argument("--run-dir", default=None)
     p.add_argument("--save-video", action="store_true")
     p.add_argument("--video-fps", type=int, default=30)
+    p.add_argument("--source-profile", default=None, help="High-fidelity source rendering YAML")
     p.add_argument("--camera-resolution", type=int, default=None,
                    help="Override the external-camera resolution (single int "
                         "= square pixels). Defaults to "
@@ -959,6 +960,26 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
     # is loaded. Discovers pairs once at rollout start.
     lid_snapper = LidSnapper(env)
 
+    if getattr(args, 'source_profile', None) is not None:
+        from pathlib import Path
+
+        from maniguard.visual.preview import render_preview
+        views = build_video_view_specs(args, robot, target_obj, support_obj=support_obj,
+                                       active_objects_by_inst=active_objects_by_inst, camera_override=camera_override)
+        setup_cameras(env, views)
+        def advance():
+            action = rng.normal(0.0, args.jitter_scale, size=robot.action_space.shape).astype(np.float32)
+            if hasattr(robot.action_space, 'low'):
+                action = np.clip(action, robot.action_space.low, robot.action_space.high)
+            env._pre_step(action)
+            og.sim.step()
+            lid_snapper.try_snap(robot=robot)
+        # This is a task-generation preview; no source-command episode is inferred.
+        render_preview(env, Path(args.run_dir) / f'source_preview_ep{episode+1}', args.source_profile,
+                       frames=args.steps, fps=args.video_fps, mode='idle_step',
+                       monitor=ltl_monitor, advance=advance)
+        return ltl_monitor.summary(), args.steps
+
     video_writers = []
     if args.save_video:
         video_views = build_video_view_specs(
@@ -1358,6 +1379,14 @@ class BasePipeline(ABC):
         import omnigibson as og
         from omnigibson.macros import gm
 
+        if getattr(args, 'source_profile', None) is not None:
+            from maniguard.visual.capture import prepare_source_launch
+            from maniguard.visual.profile import load_profile, resolve_source_resolution
+            args.source_profile = load_profile(args.source_profile)
+            args.camera_resolution = resolve_source_resolution(args.source_profile, args.camera_resolution)
+            prepare_source_launch()
+            gm.ENABLE_HQ_RENDERING = True
+
         gm.ENABLE_OBJECT_STATES = True
         # Disable BEHAVIOR transition rules. Spawning containers like
         # ``bottle_of_dish_soap`` would otherwise trigger a recipe that
@@ -1532,6 +1561,11 @@ class BasePipeline(ABC):
             build_external_camera_configs,
         )
         cam_res = int(getattr(args, "camera_resolution", None) or CAMERA_RESOLUTION)
+        if getattr(args, 'source_profile', None) is not None:
+            from maniguard.visual.capture import initialize_source_simulator
+            cfg.setdefault('env', {}).update(action_frequency=args.video_fps, rendering_frequency=60,
+                                             physics_frequency=120, automatic_reset=False)
+            initialize_source_simulator(args.video_fps, 60, 120)
         cfg.setdefault("env", {})["external_sensors"] = build_external_camera_configs(
             resolution=cam_res,
         )

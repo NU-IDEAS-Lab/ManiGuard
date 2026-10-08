@@ -49,6 +49,9 @@ def load_traj(traj_dir, *, load_sim_states: bool = False) -> dict:
         out["state"] = h["state"][:]
         out["actions"] = h["actions"][:]
         out["actions_commanded"] = h["actions_commanded"][:]
+        for key in ("command_issued", "source_observation_id", "source_boundary_id", "target_observation_id", "sim_time_s"):
+            if key in h:
+                out[key] = h[key][:]
         if load_sim_states and "states" in h:
             out["sim_states"] = h["states"][:]
     return out

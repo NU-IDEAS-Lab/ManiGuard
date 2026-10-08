@@ -23,6 +23,8 @@ class EvalConfig:
     recording_factory: str | None = None
     recording_output_dir: str | None = None
     recording_provenance: str | None = None
+    source_profile: str | dict | None = None
+    recording_max_bytes: int = 5 * 1024**3
 
     # -- Benchmark source --
     benchmark_root: str = ""
@@ -150,6 +152,23 @@ class EvalConfig:
         )
 
 
+def resolve_source_config(cfg) -> None:
+    """Resolve the explicitly selected source mode before saving run metadata."""
+    if getattr(cfg, "source_profile", None) is None:
+        return
+    from maniguard.visual.profile import load_profile, resolve_source_resolution
+    cfg.source_profile = load_profile(cfg.source_profile)
+    cfg.camera_resolution = resolve_source_resolution(cfg.source_profile, cfg.camera_resolution)
+    # HQ particle surfaces require the 60 Hz internal render interval.
+    cfg.rendering_frequency = 60
+    from maniguard.visual.capture import time_contract
+    time_contract(cfg.action_frequency, cfg.rendering_frequency, cfg.physics_frequency)
+    if cfg.save_video:
+        raise ValueError("Source capture streams RGB to HDF5; set save_video=false and export previews offline")
+    if cfg.recording_output_dir and cfg.recording_factory is None:
+        cfg.recording_factory = "maniguard.data.recording.observer:create_observer"
+
+
 def load_eval_config(path: str | Path) -> EvalConfig:
     path = Path(path)
     if not path.is_file():
@@ -175,6 +194,8 @@ def config_from_cli() -> EvalConfig:
     p.add_argument("--recording-factory", type=str, default=None)
     p.add_argument("--recording-output-dir", type=str, default=None)
     p.add_argument("--recording-provenance", type=str, default=None)
+    p.add_argument("--source-profile", type=str, default=None)
+    p.add_argument("--recording-max-bytes", type=int, default=None)
     p.add_argument("--host", type=str, default=None)
     p.add_argument("--port", type=int, default=None)
     p.add_argument("--use-openpi-client", action="store_true", default=None)
@@ -242,6 +263,8 @@ def config_from_cli() -> EvalConfig:
         "external_cam": "external_cam",
         "grasping_mode": "grasping_mode",
         "camera_resolution": "camera_resolution",
+        "source_profile": "source_profile",
+        "recording_max_bytes": "recording_max_bytes",
         "prompt_map": "prompt_map",
         "prompt_condition": "prompt_condition",
         "horizon_override": "horizon_override",

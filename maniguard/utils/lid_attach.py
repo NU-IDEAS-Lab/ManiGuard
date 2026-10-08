@@ -157,7 +157,7 @@ class LidSnapper:
         hits = contact_links & container_link_set
         return bool(hits), len(hits)
 
-    def try_snap(self, robot=None, verbose: bool = False) -> str | None:
+    def try_snap(self, robot=None, verbose: bool = False, *, step_callback=None) -> str | None:
         """Run one snap pass over all known pairs. Returns the name of the
         first pair attached this call, or None.
 
@@ -167,6 +167,7 @@ class LidSnapper:
         """
         AttachedTo = self._AttachedTo
         import omnigibson as og
+        advance = og.sim.step if step_callback is None else step_callback
         for p in self.pairs:
             try:
                 if p.lid.states[AttachedTo].get_value(p.container):
@@ -198,7 +199,7 @@ class LidSnapper:
                     print(f"[LidSnapper] {p.lid.name}->{p.container.name}: "
                           f"reposition_lid_onto_F returned False", flush=True)
                 continue
-            og.sim.step()  # let new poses register
+            advance()  # let new poses register through the caller's recorder when present
             try:
                 # Disable joint breaking so transport acceleration does not
                 # detach the lid from the container.
@@ -212,7 +213,7 @@ class LidSnapper:
                           f"set_value raised {type(exc).__name__}: {exc}",
                           flush=True)
                 continue
-            og.sim.step()
+            advance()
             if ok and p.lid.states[AttachedTo].get_value(p.container):
                 line = f"[LidSnapper] ATTACHED {p.lid.name} -> {p.container.name}"
                 print(line, flush=True)

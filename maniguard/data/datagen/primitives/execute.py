@@ -29,6 +29,15 @@ def build_joint_action(robot, arm_q, gripper_cmd: float):
     return action
 
 
+def _execute_step(env, action, recorder, on_step, arm_q, gripper_cmd):
+    if recorder is not None and hasattr(recorder, "execute_step"):
+        return recorder.execute_step(action, on_step)
+    env.step(action)
+    if recorder is not None:
+        recorder.record_step(arm_q_cmd=arm_q, gripper_cmd=gripper_cmd)
+    return bool(on_step is not None and on_step())
+
+
 def execute_trajectory(env, robot, arm_traj, *, gripper_cmd: float = OPEN,
                        recorder: Any = None, steps_per_waypoint: int = 1,
                        on_step: Any = None) -> int:
@@ -44,17 +53,17 @@ def execute_trajectory(env, robot, arm_traj, *, gripper_cmd: float = OPEN,
     violation must stop the unsafe trajectory at once)."""
     import torch as th
 
+    if recorder is not None and hasattr(recorder, "record_plan"):
+        recorder.record_plan(arm_traj, gripper_cmd, steps_per_waypoint)
     n = 0
     for q in arm_traj:
         q = th.as_tensor(q, dtype=th.float32).reshape(-1)
         action = build_joint_action(robot, q, gripper_cmd)
         q_np = q.cpu().numpy()
         for _ in range(int(steps_per_waypoint)):
-            env.step(action)
-            if recorder is not None:
-                recorder.record_step(arm_q_cmd=q_np, gripper_cmd=gripper_cmd)
+            stop = _execute_step(env, action, recorder, on_step, q_np, gripper_cmd)
             n += 1
-            if on_step is not None and on_step():
+            if stop:
                 return n
     return n
 
@@ -71,10 +80,8 @@ def actuate_gripper(env, robot, *, close: bool, n_steps: int,
     for _ in range(int(n_steps)):
         cur_q = robot.get_joint_positions()[robot.arm_control_idx[arm]]
         action = build_joint_action(robot, cur_q, gripper_cmd)
-        env.step(action)
-        if recorder is not None:
-            recorder.record_step(arm_q_cmd=cur_q.cpu().numpy(), gripper_cmd=gripper_cmd)
+        stop = _execute_step(env, action, recorder, on_step, cur_q.cpu().numpy(), gripper_cmd)
         n += 1
-        if on_step is not None and on_step():
+        if stop:
             return n
     return n

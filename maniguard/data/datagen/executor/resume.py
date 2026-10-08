@@ -7,6 +7,24 @@ bound. Failed attempted draws advance the saved cursor as well.
 from __future__ import annotations
 
 
+def source_attempt_name(grasp_id, draw_index):
+    return f"attempt_{int(draw_index):06d}_g{int(grasp_id)}"
+
+
+def max_recorded_draw(root):
+    import json
+    from pathlib import Path
+
+    highest = -1
+    paths = list(Path(root).glob("traj_*/meta.json")) + list(Path(root).glob("attempt_*/episode.json"))
+    for path in paths:
+        data = json.loads(path.read_text())
+        meta = data.get("scene", {}).get("attempt", {}) if path.name == "episode.json" else data
+        if meta.get("draw_index") is not None:
+            highest = max(highest, int(meta["draw_index"]))
+    return highest
+
+
 def resolve_start_k(existing_summary: dict | None, start_draw_override: int | None,
                     ondisk_max_draw: int = -1) -> int:
     """The draw index to start (or resume) a run's variant stream from.

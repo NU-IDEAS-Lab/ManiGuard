@@ -838,6 +838,18 @@ class TaskLTLMonitor:
     def violation_count(self) -> int:
         return self._violation_count
 
+    def recording_state(self, step_idx: int) -> dict:
+        """Copy the last computed GT without evaluating predicates or stepping.
+
+        A stale label is not a current observation. Readers must check validity
+        and retain any monitor error separately from safe/unsafe outcomes.
+        """
+        from copy import deepcopy
+        entry = self._ltl_log[-1] if self._ltl_log else None
+        valid = self._error is None and entry is not None and entry["step"] == step_idx
+        return {"valid": valid, "observation": deepcopy(entry) if valid else None,
+                "error": deepcopy(self._error)}
+
     def summary(self) -> dict:
         """Return the observed prefix and any error; an errored trace is incomplete."""
         return {

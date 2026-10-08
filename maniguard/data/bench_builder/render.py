@@ -1,13 +1,9 @@
 """Record review videos and camera metadata for benchmark construction.
 
-render_views accepts a configured live environment, positions four external
-cameras, records one video per view, and returns updated diagnostics and endpoint
-stability statistics. Idle-step mode advances physics for each recorded frame;
-frozen mode renders without advancing physics.
-
-render_task loads a snapshot and sets BENCH_INIT_QPOS before recording. It does
-not currently apply runtime appearance overrides; use a configured live
-environment when rendering those overrides.
+Legacy rendering positions four external cameras and returns endpoint stability
+statistics. A source profile records all five views, preserving saved cameras
+and robot pose and applying appearance overrides. Idle-step advances physics;
+frozen mode only renders. CLI previews write to a separate staging directory.
 """
 from __future__ import annotations
 
@@ -86,6 +82,7 @@ def render_views(
     mode: str = "idle_step",
     ltl_monitor=None,
     track_object_names=None,
+    source_profile=None,
 ) -> tuple[dict, dict]:
     """Render the 4 canonical review videos from a LIVE env + return (diagnostics, stats).
 
@@ -132,23 +129,35 @@ def render_views(
 
     # --- place the 4 canonical robot-frame cameras; setup_cameras applies AND returns
     #     the posed specs (eye/orientation/sensor_name) we stamp into diagnostics ---
-    views = compute_robot_frame_views(env)
-    posed = setup_cameras(env, views)
     diagnostics = dict(diagnostics)
-    diagnostics["cameras"] = [
-        {
-            "label": v["label"],
-            "sensor_name": v["sensor_name"],
-            "eye": [float(x) for x in v["position"]],
-            "lookat": [float(x) for x in v["lookat"]],
-            "orientation": [float(x) for x in v["orientation"]],
-        }
-        for v in posed
-    ]
+    if source_profile is not None and diagnostics.get('cameras'):
+        from maniguard.utils.camera_setup import place_recorded_task_cameras
+        place_recorded_task_cameras(env, diagnostics, set_viewer=False)
+    else:
+        views = compute_robot_frame_views(env)
+        posed = setup_cameras(env, views)
+        diagnostics["cameras"] = [
+            {"label": v["label"], "sensor_name": v["sensor_name"],
+             "eye": [float(x) for x in v["position"]],
+             "lookat": [float(x) for x in v["lookat"]],
+             "orientation": [float(x) for x in v["orientation"]]}
+            for v in posed
+        ]
 
     # --- baseline for the stability/hold stats (frame-0 joint + object state) ---
     q0 = robot.get_joint_positions().cpu().numpy()
     obj0 = _object_positions(env, robot, track_object_names)
+
+    if source_profile is not None:
+        from maniguard.visual.preview import render_preview
+        report = render_preview(env, out_dir / f"source_preview_ep{episode}", source_profile,
+                                frames=n_frames, fps=fps, mode=mode, monitor=ltl_monitor)
+        q1 = robot.get_joint_positions().cpu().numpy()
+        obj1 = _object_positions(env, robot, track_object_names)
+        diagnostics["source_visual"] = {"profile": report["profile"], "cameras": report["cameras"]}
+        return diagnostics, {"arm_drift": float(np.max(np.abs(q1-q0))) if len(q0) else 0.,
+                             "obj_disp": max((float(np.linalg.norm(obj1[k]-v)) for k,v in obj0.items() if k in obj1), default=0.),
+                             "steps_executed": n_frames if mode == "idle_step" else 0}
 
     # --- probe one frame to size the writers from the ACTUAL rgb (sensor-kwarg resolution
     #     is unreliable in OmniGibson; sizing from the real frame avoids a swscale mismatch). ---
@@ -213,6 +222,7 @@ def render_task(
     fps: int = DEFAULT_FPS,
     resolution: int = DEFAULT_RESOLUTION,
     mode: str = "idle_step",
+    source_profile=None,
 ) -> dict:
     """Load a snapshot, set the canonical init pose, and render its 4 review videos.
 
@@ -228,19 +238,67 @@ def render_task(
     scene_file = Path(scene_file)
     out_dir = Path(out_dir)
 
+    if source_profile is not None:
+        from maniguard.data.datagen.primitives.scene import init_omnigibson, task_needs_gpu_dynamics
+        from maniguard.visual.capture import initialize_source_simulator, prepare_source_launch
+        from maniguard.visual.profile import load_profile
+        source_profile = load_profile(source_profile)
+        resolution = source_profile["resolution"][0]
+        prepare_source_launch()
+        init_omnigibson(needs_gpu_dynamics=task_needs_gpu_dynamics(scene_file.parent), source_profile=source_profile)
     og_cfg = _build_og_config(scene_file, diagnostics, resolution)
-    if og.sim is not None:
+    if source_profile is not None:
+        og_cfg["env"].update(action_frequency=fps, rendering_frequency=60, physics_frequency=120)
+        initialize_source_simulator(fps, 60, 120, clear=True)
+    elif og.sim is not None:
         og.sim.stop()
         og.clear()
     env = og.Environment(configs=og_cfg)
     env.reset()
 
     robot = env.robots[0]
-    robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
-    robot.keep_still()
+    if source_profile is None:
+        robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
+        robot.keep_still()
+    else:
+        from maniguard.data.bench_builder.perturbation import apply_perturbation
+        apply_perturbation(env, diagnostics)
 
     diagnostics, _stats = render_views(
         env, diagnostics, out_dir,
         episode=episode, n_frames=n_frames, fps=fps, resolution=resolution, mode=mode,
+        source_profile=source_profile,
     )
     return diagnostics
+
+
+def main():
+    """Render a source-quality staging preview without rewriting benchmark GT."""
+    import argparse
+    import hashlib
+
+    from maniguard.data.datagen.primitives.task_io import load_diagnostics_row
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument('--task-dir', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--source-profile', required=True)
+    parser.add_argument('--frames', type=int, default=1)
+    parser.add_argument('--fps', type=int, default=30)
+    parser.add_argument('--mode', choices=['frozen', 'idle_step'], default='frozen')
+    args = parser.parse_args()
+    task = args.task_dir.resolve()
+    output = args.output.resolve()
+    if output == task or task in output.parents:
+        parser.error('Write previews to a separate staging directory')
+    files = [task / 'scene_ep1.json', task / 'diagnostics.jsonl']
+    before = [hashlib.sha256(p.read_bytes()).hexdigest() for p in files]
+    render_task(files[0], load_diagnostics_row(task, 1), output, n_frames=args.frames, fps=args.fps,
+                mode=args.mode, source_profile=args.source_profile)
+    if before != [hashlib.sha256(p.read_bytes()).hexdigest() for p in files]:
+        raise RuntimeError('Source benchmark files changed during preview')
+    print('Source scene and diagnostics are unchanged.', flush=True)
+    import omnigibson as og
+    og.shutdown()
+
+
+if __name__=='__main__': main()
