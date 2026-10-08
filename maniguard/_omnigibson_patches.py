@@ -691,3 +691,38 @@ def apply() -> None:
 
 
 __all__ = ["apply"]
+
+
+def enable_source_timing(simulator) -> None:
+    """Opt one simulator into independent source rendering and control rates.
+
+    The upstream headless equality check assumes rendering on every action.
+    Source capture instead advances physics once and renders explicitly. Keep
+    its positive integer timestep ratios and correct float-floor loop counts.
+    This only binds methods on the supplied instance; legacy instances retain
+    upstream behavior. Call before constructing the source-capture environment.
+    """
+    from types import MethodType
+
+    from maniguard.visual.capture import time_contract
+
+    if getattr(simulator, "_maniguard_source_timing", False):
+        return
+    original_set = simulator.set_simulation_dt
+
+    def validate(self, physics_dt, rendering_dt, sim_step_dt):
+        if min(physics_dt, rendering_dt, sim_step_dt) <= 0:
+            raise ValueError("Simulation timesteps must be positive")
+        return time_contract(1 / sim_step_dt, 1 / rendering_dt, 1 / physics_dt)
+
+    def set_dt(self, physics_dt=None, rendering_dt=None, sim_step_dt=None):
+        physics = self.get_physics_dt() if physics_dt is None else physics_dt
+        rendering = self.get_rendering_dt() if rendering_dt is None else rendering_dt
+        action = self.get_sim_step_dt() if sim_step_dt is None else sim_step_dt
+        contract = validate(self, physics, rendering, action)
+        original_set(physics_dt=physics, rendering_dt=rendering, sim_step_dt=action)
+        self._n_steps_per_loop = contract["render_intervals_per_action"]
+
+    simulator._validate_dts = MethodType(validate, simulator)
+    simulator.set_simulation_dt = MethodType(set_dt, simulator)
+    simulator._maniguard_source_timing = True
