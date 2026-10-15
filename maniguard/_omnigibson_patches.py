@@ -199,12 +199,35 @@ def _patch_grasp_reward() -> None:
 
 
 def _patch_sampling_utils() -> None:
+    from functools import wraps
+
     from omnigibson.utils import sampling_utils
 
     if getattr(sampling_utils, "_maniguard_patched", False):
         return
 
     import torch as th
+
+    original_raytest = sampling_utils.raytest
+
+    @wraps(original_raytest)
+    def raytest_safe(start_point, end_point, only_closest=True,
+                     ignore_bodies=None, ignore_collisions=None, callback=None):
+        start = th.as_tensor(start_point)
+        end = th.as_tensor(end_point)
+        if not bool(th.isfinite(start).all()) or not bool(th.isfinite(end).all()):
+            raise ValueError("Ray endpoints must contain only finite coordinates")
+        # A coincident segment has no direction. Do not normalize it or send it
+        # to PhysX; preserve short, nonzero rays without applying an epsilon.
+        if start.shape == end.shape == (3,) and th.equal(start, end):
+            return {"hit": False} if only_closest else []
+        return original_raytest(
+            start_point, end_point, only_closest=only_closest,
+            ignore_bodies=ignore_bodies, ignore_collisions=ignore_collisions,
+            callback=callback,
+        )
+
+    sampling_utils.raytest = raytest_safe
 
     def draw_debug_markers(hit_positions, radius=0.01):
         from omnigibson.utils.ui_utils import draw_line
@@ -632,6 +655,39 @@ def apply_ag_throttle_from_env() -> None:
     _patch_throttle_assisted_grasping(interval)
 
 
+def _patch_visual_clear() -> None:
+    """Detach camera backends before upstream clear deletes their scene.
+
+    External cameras live below the scene prim, but upstream removes their
+    annotators after deleting that prim. Lazy camera-parameter annotators also
+    lie outside the normal modality set. Detach both while the graph is valid;
+    leave sensor, scene and simulator destruction to the original clear().
+    """
+    from functools import wraps
+
+    import omnigibson as og
+    from omnigibson import lazy
+    from omnigibson.sensors import VisionSensor
+
+    if getattr(og.clear, "_maniguard_visual_clear", False):
+        return
+    original = og.clear
+
+    @wraps(original)
+    def clear(*args, **kwargs):
+        if og.sim is not None:
+            # Viewports must not keep following a camera in the deleted scene.
+            for viewport in lazy.omni.kit.viewport.window.get_viewport_window_instances():
+                viewport.viewport_api.set_active_camera("/OmniverseKit_Persp")
+            for sensor in tuple(VisionSensor.SENSORS.values()):
+                for modality in tuple(sensor._annotators):
+                    sensor._remove_modality_from_backend(modality)
+        return original(*args, **kwargs)
+
+    clear._maniguard_visual_clear = True
+    og.clear = clear
+
+
 def _apply_eager_patches() -> None:
     global _EAGER_APPLIED
     if _EAGER_APPLIED:
@@ -641,6 +697,7 @@ def _apply_eager_patches() -> None:
     _patch_grasp_reward()
     _patch_sampling_utils()
     _patch_create_joint_skip_render()
+    _patch_visual_clear()
     if not os.environ.get("MANIGUARD_SKIP_LONGFINGER"):
         _patch_franka_longfinger()
     apply_ag_throttle_from_env()
@@ -668,3 +725,38 @@ def apply() -> None:
 
 
 __all__ = ["apply"]
+
+
+def enable_source_timing(simulator) -> None:
+    """Opt one simulator into independent source rendering and control rates.
+
+    The upstream headless equality check assumes rendering on every action.
+    Source capture instead advances physics once and renders explicitly. Keep
+    its positive integer timestep ratios and correct float-floor loop counts.
+    This only binds methods on the supplied instance; legacy instances retain
+    upstream behavior. Call before constructing the source-capture environment.
+    """
+    from types import MethodType
+
+    from maniguard.visual.capture import time_contract
+
+    if getattr(simulator, "_maniguard_source_timing", False):
+        return
+    original_set = simulator.set_simulation_dt
+
+    def validate(self, physics_dt, rendering_dt, sim_step_dt):
+        if min(physics_dt, rendering_dt, sim_step_dt) <= 0:
+            raise ValueError("Simulation timesteps must be positive")
+        return time_contract(1 / sim_step_dt, 1 / rendering_dt, 1 / physics_dt)
+
+    def set_dt(self, physics_dt=None, rendering_dt=None, sim_step_dt=None):
+        physics = self.get_physics_dt() if physics_dt is None else physics_dt
+        rendering = self.get_rendering_dt() if rendering_dt is None else rendering_dt
+        action = self.get_sim_step_dt() if sim_step_dt is None else sim_step_dt
+        contract = validate(self, physics, rendering, action)
+        original_set(physics_dt=physics, rendering_dt=rendering, sim_step_dt=action)
+        self._n_steps_per_loop = contract["render_intervals_per_action"]
+
+    simulator._validate_dts = MethodType(validate, simulator)
+    simulator.set_simulation_dt = MethodType(set_dt, simulator)
+    simulator._maniguard_source_timing = True

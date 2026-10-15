@@ -76,6 +76,7 @@ extra_javascript:
 
 # Files / globs to ignore when building.
 exclude_docs: |
+  /local/
   /superpowers/
   /datagen/debug_logs/
   graspability_classified.csv
@@ -100,7 +101,9 @@ nav:
           - Empty-scene runner: pipelines/empty_scene.md
           - Food transfer (base): pipelines/transfer.md
       - Additional families: pipelines/other_families.md
-  - Data Collection: data_collection/index.md
+  - Data Collection:
+      - Overview: data_collection/index.md
+      - Source recording: data_collection/source_recording.md
   - Fine-Tuning:
       - Overview: fine_tuning/index.md
       - Dataset & data-source configs: fine_tuning/dataset_and_config.md

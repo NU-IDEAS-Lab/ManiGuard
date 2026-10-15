@@ -106,10 +106,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=60)
     parser.add_argument("--video-fps", type=int, default=30)
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--source-profile", default="high_fidelity")
     parser.add_argument(
         "--skip-existing-logs",
         action="store_true",
-        help="Skip task dirs that already contain render_worker_stdout.log.",
+        help="Skip only complete videos matching the selected visual profile.",
     )
     parser.add_argument(
         "--worker-timeout-seconds",
@@ -153,11 +154,12 @@ def _render_one_task(
     video_fps: int,
     headless: bool,
     session: FrozenTaskRuntimeSession | None = None,
+    source_profile="high_fidelity",
 ) -> dict:
     task_dir = task_dir.resolve()
     results = []
     owns_session = session is None
-    runtime_session = session or FrozenTaskRuntimeSession(headless=bool(headless))
+    runtime_session = session or FrozenTaskRuntimeSession(headless=bool(headless), source_profile=source_profile)
     if owns_session:
         runtime_session = runtime_session.__enter__()
     og = runtime_session.og
@@ -168,11 +170,11 @@ def _render_one_task(
         scene_info = json.loads((task_dir / "scene_ep1.json").read_text(encoding="utf-8"))
         diagnostics = _read_first_jsonl(task_dir / "diagnostics.jsonl")
         camera_names = _selected_camera_names(diagnostics)
-        env = og.Environment(configs=build_env_config(scene_info, diagnostics, camera_names=camera_names))
+        env = og.Environment(configs=runtime_session.prepare_config(build_env_config(scene_info, diagnostics, camera_names=camera_names)))
         env.reset()
-        configure_review_sensors(env)
+        configure_review_sensors(env, runtime_session.source_profile)
         position_diagnostics_cameras(env, og, diagnostics, set_viewer=False)
-        with ReviewVideoRecorder(path=task_dir, fps=int(video_fps), camera_names=camera_names) as recorder:
+        with ReviewVideoRecorder(path=task_dir, fps=int(video_fps), camera_names=camera_names, source_profile=runtime_session.source_profile) as recorder:
             recorder.record(env, og)
             apply_runtime_perturbations(env, scene_root=task_dir, og=og, video_recorder=recorder)
             step_idle(env, og, steps=int(steps), video_recorder=recorder)
@@ -194,6 +196,7 @@ def _run_worker(args: argparse.Namespace) -> int:
         steps=int(args.steps),
         video_fps=int(args.video_fps),
         headless=bool(args.headless),
+        source_profile=args.source_profile,
     )
     Path(args.worker_output_path).write_text(json.dumps(payload, ensure_ascii=True), encoding="utf-8")
     return 0
@@ -201,6 +204,10 @@ def _run_worker(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    from maniguard.visual.profile import resolve_profile_selection
+    resolve_profile_selection(args.source_profile)
+    if args.source_profile not in ("high_fidelity", "legacy"):
+        args.source_profile = str(Path(args.source_profile).resolve())
     if args.worker_task_dir:
         return _run_worker(args)
 
@@ -217,11 +224,12 @@ def main(argv: list[str] | None = None) -> int:
         kinds=set(args.kinds) if args.kinds else None,
         include_base=bool(args.include_base),
     )
+    from maniguard.data.bench_builder.render import review_videos_complete
     if args.skip_existing_logs:
         items = [
             item
             for item in items
-            if not (Path(item["task_dir"]).resolve() / "render_worker_stdout.log").is_file()
+            if not review_videos_complete(Path(item["task_dir"]).resolve(), source_profile=args.source_profile)
         ]
     if not items:
         raise RuntimeError(f"No render items found under {root}")
@@ -239,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
                 str(task_dir),
                 "--worker-output-path",
                 str(output_path),
+                "--source-profile", args.source_profile,
                 "--steps",
                 str(int(args.steps)),
                 "--video-fps",
@@ -303,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 output_path.unlink(missing_ok=True)
     else:
-        with FrozenTaskRuntimeSession(headless=bool(args.headless)) as session:
+        with FrozenTaskRuntimeSession(headless=bool(args.headless), source_profile=args.source_profile) as session:
             for item in items:
                 task_dir = Path(item["task_dir"]).resolve()
                 stdout_log = task_dir / "render_worker_stdout.log"
@@ -314,6 +323,7 @@ def main(argv: list[str] | None = None) -> int:
                         steps=int(args.steps),
                         video_fps=int(args.video_fps),
                         headless=bool(args.headless),
+                        source_profile=args.source_profile,
                         session=session,
                     )
                     row = dict(payload["results"][0]) if payload.get("results") else {"task_dir": str(task_dir), "ok": False}

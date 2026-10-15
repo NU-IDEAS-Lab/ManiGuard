@@ -15,6 +15,14 @@ from collections.abc import Iterable, Sequence
 CAMERA_RESOLUTION = 256
 EXTERNAL_CAMERA_NAMES = ("cam_opposite", "cam_left", "cam_right", "cam_left_shoulder")
 POLICY_EXTERNAL_CAMERAS_DEFAULT = ("cam_opposite",)
+# Dataset keys are independent of the views selected by a policy.
+SOURCE_CAMERA_KEYS = ("image_left", "image_right", "image_left_shoulder", "image_opposite", "wrist_image")
+SOURCE_EXTERNAL_SENSORS = {
+    "image_left": "cam_left",
+    "image_right": "cam_right",
+    "image_left_shoulder": "cam_left_shoulder",
+    "image_opposite": "cam_opposite",
+}
 
 
 def left_shoulder_eye(rp, forward, left, cam_z, back=0.43, side=0.55) -> tuple:

@@ -58,12 +58,13 @@ def _load_diag(base_dir: Path, episode: int) -> dict:
         return json.loads([ln for ln in txt.splitlines() if ln.strip()][0])
 
 
-def _is_complete(out_dir: Path, episode: int) -> bool:
+def _is_complete(out_dir: Path, episode: int, source_profile="recorded") -> bool:
     if not (out_dir / f"scene_ep{episode}.json").is_file():
         return False
     if not (out_dir / "diagnostics.jsonl").is_file():
         return False
-    return all((out_dir / f"rollout_{lbl}_ep{episode}.mp4").is_file() for lbl in VIDEO_LABELS)
+    from maniguard.data.bench_builder.render import review_videos_complete
+    return review_videos_complete(out_dir, episode, source_profile)
 
 
 def _select_tasks(out_fam: Path, spec: str | None, episode: int) -> list[str]:
@@ -100,12 +101,12 @@ def _worker_env() -> dict:
 # ---------------------------------------------------------------------------- worker
 
 def _run_worker(base_dir: Path, out_dir: Path, family: str, episode: int, max_attempts: int,
-                reach_window=None, force_move=None) -> None:
+                reach_window=None, force_move=None, source_profile="high_fidelity") -> None:
     task = base_dir.parent.name
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         row = _make_location_variant(base_dir, out_dir, family, episode, max_attempts,
-                                     reach_window, force_move)
+                                     reach_window, force_move, source_profile=source_profile)
     except Exception as e:  # noqa: BLE001
         import traceback
         row = {"task": task, "family": family, "status": "fail",
@@ -124,7 +125,12 @@ def _translate(obj, d):
 
 
 def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
-                           max_attempts: int = 5, reach_window=None, force_move=None) -> dict:
+                           max_attempts: int = 5, reach_window=None, force_move=None, source_profile="high_fidelity") -> dict:
+    from maniguard.visual.profile import resolve_profile_selection
+    source_profile = resolve_profile_selection(source_profile)
+    if source_profile is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
     import omnigibson as og
     import torch as th
 
@@ -157,6 +163,8 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
     if og.sim is not None:
         og.sim.stop()
         og.clear()
+    from maniguard.data.bench_builder.render import prepare_preview_environment
+    prepare_preview_environment(og_cfg, source_profile)
     env = og.Environment(configs=og_cfg)
     env.reset()
     robot = env.robots[0]
@@ -206,6 +214,9 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
         + ([sponge] if sponge is not None else [])
     base_poses = {o.name: tuple(t.clone() for t in o.get_position_orientation()) for o in restore_objs}
 
+    from maniguard.data.scene.liquid_state import capture_movable_liquids, restore_moved_liquids
+    liquid_state = capture_movable_liquids(env, diag)
+
     # Build the LTL monitor once — the active-object set is fixed across attempts
     # (same objects, only their positions change), so we reset() it per attempt.
     ltl_safety = _patch_lid_ltl(family, diag.get("ltl_safety") or {},
@@ -233,6 +244,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
             p, q = base_poses[o.name]
             o.set_position_orientation(position=p.clone(), orientation=q.clone())
             o.keep_still()
+        restore_moved_liquids(env, liquid_state)
         og.sim.step()
         moves = []
         goal_disp = None
@@ -257,6 +269,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
         sponge_info = _replace_sponge(sponge, units, bounds, diag, th, og) \
             if (sponge is not None and family == "dusty_transfer") else None
         settle_objs = list(movable) + ([sponge] if sponge is not None else [])
+        restore_moved_liquids(env, liquid_state)
         if monitor is not None:
             monitor.reset()
             init_doomed = bool(monitor.step(0).get("doomed", False))
@@ -369,7 +382,7 @@ def _make_location_variant(base_dir: Path, out_dir: Path, family: str, episode: 
     env.scene.save(json_path=str(out_dir / f"scene_ep{episode}.json"))
     if monitor is not None:
         monitor.reset()
-    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode, ltl_monitor=monitor)
+    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode, source_profile=source_profile, ltl_monitor=monitor)
     ltl_violated = bool(monitor.violated) if monitor is not None else False
     out_diag["gate_pass"] = bool(final["gate_pass"])
     out_diag["ltl_violated"] = bool(ltl_violated or final["ltl_violated"])
@@ -464,11 +477,12 @@ def _replace_sponge(sponge, units, bounds, diag, th, og):
 # ---------------------------------------------------------------------------- driver
 
 def _spawn_worker(base_dir: Path, out_dir: Path, family: str, episode: int, env: dict,
-                  timeout: int, max_attempts: int, reach_window_str=None, force_move_str=None):
+                  timeout: int, max_attempts: int, reach_window_str=None, force_move_str=None, source_profile="high_fidelity"):
     cmd = [
         sys.executable, "-m", "maniguard.data.bench_builder.perturb_location",
         "--worker", "--base-dir", str(base_dir), "--out-dir", str(out_dir),
-        "--family", family, "--episode", str(episode), "--max-attempts", str(max_attempts),
+        "--family", family, "--episode", str(episode),
+        "--source-profile", source_profile, "--max-attempts", str(max_attempts),
     ]
     if reach_window_str:
         cmd += ["--reach-window", reach_window_str]
@@ -528,7 +542,7 @@ def _driver(args: argparse.Namespace) -> int:
     env = _worker_env()
 
     to_run = [t for t in tasks
-              if not (args.skip_existing and _is_complete(out_fam / t / LEVEL, args.episode))]
+              if not (args.skip_existing and _is_complete(out_fam / t / LEVEL, args.episode, args.source_profile))]
     skipped = [t for t in tasks if t not in set(to_run)]
     print(f"[location] {args.family}: {len(tasks)} base tasks ({len(to_run)} to run, "
           f"{len(skipped)} skip), jobs={args.jobs} -> {out_fam}/*/location", flush=True)
@@ -560,7 +574,7 @@ def _driver(args: argparse.Namespace) -> int:
         futs = {
             ex.submit(_spawn_worker, out_fam / t / "base", out_fam / t / LEVEL,
                       args.family, args.episode, env, args.timeout, args.max_attempts,
-                      args.reach_window, args.force_move): t
+                      args.reach_window, args.force_move, source_profile=args.source_profile): t
             for t in to_run
         }
         done = 0
@@ -608,7 +622,12 @@ def main() -> int:
     ap.add_argument("--force-move", default=None,
                     help="Translate each move unit by world DX,DY meters without random retries. "
                          "Bypasses surface clamping, reach-window, and cabinet-overlap rejection.")
+    ap.add_argument("--source-profile", default="high_fidelity")
     args = ap.parse_args()
+    from maniguard.visual.profile import resolve_profile_selection
+    resolve_profile_selection(args.source_profile)
+    if args.source_profile not in ("high_fidelity", "legacy"):
+        args.source_profile = str(Path(args.source_profile).resolve())
 
     rw = None
     if args.reach_window:
@@ -623,7 +642,7 @@ def main() -> int:
         if not args.base_dir or not args.out_dir:
             ap.error("--worker requires --base-dir and --out-dir")
         _run_worker(Path(args.base_dir), Path(args.out_dir), args.family, args.episode,
-                    args.max_attempts, rw, fm)
+                    args.max_attempts, rw, fm, source_profile=args.source_profile)
         return 0
     return _driver(args)
 

@@ -1,5 +1,12 @@
 # Run the benchmark
 
+New runs use high-fidelity 640×640 DLAA rendering by default. For the previous
+visual condition add `--source-profile legacy`; old configs that explicitly set
+`camera_resolution: 256` require that selector or removal of the size override.
+See [visual profiles](../data_collection/source_recording.md) for video/source
+storage choices and provenance. This does not regenerate published benchmark data.
+
+
 This page is the end-to-end recipe for evaluating **your own VLA checkpoint** on
 ManiGuard-Bench: download the benchmark, serve the checkpoint, run a family, and
 read the results in the paper's metrics. Architecture background (why policy and
@@ -129,6 +136,14 @@ done
     See [Controller · data · action · eval](../fine_tuning/end_to_end.md).
 
 ## 4. Read the results
+
+Liquid scenes must contain serialized physical particles. GPU dynamics is chosen
+from the same discovered and filtered scene list that will be evaluated. During
+initial safety validation, each container named by a spill predicate must have a
+positive contained-particle baseline. An empty container produces an
+`initialization_failed` row with unavailable verdicts; evaluation never silently
+refills it. With a valid baseline, the task's existing fractional spill threshold
+is unchanged.
 
 If a runtime safety check raises an exception, the evaluator stops that rollout
 with `status: "monitor_failed"`. Its `success`, `ltl_violated`, and

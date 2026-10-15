@@ -37,9 +37,9 @@ def artifacts(root, episodes=1, nested=False):
 def test_standalone_outputs_in_episode_subdirectories_are_complete(tmp_path, pipeline):
     mod = driver()
     artifacts(tmp_path, episodes=2, nested=True)
-    assert mod._validate_scene_artifacts(str(tmp_path), 2) == []
+    assert mod._validate_scene_artifacts(str(tmp_path), 2, source_profile="legacy") == []
     (tmp_path / 'snapshots/ep002/rollout_left_overview_ep2.mp4').unlink()
-    assert mod._validate_scene_artifacts(str(tmp_path), 2)
+    assert mod._validate_scene_artifacts(str(tmp_path), 2, source_profile="legacy")
 
 
 @pytest.mark.parametrize('bad', ['snapshot', 'empty_video', 'bad_json', 'missing_episode', 'bad_verdict'])
@@ -56,7 +56,7 @@ def test_incomplete_or_invalid_artifacts_are_rejected(tmp_path, bad):
         (tmp_path / 'diagnostics.jsonl').write_text('{"episode": 1, "gate_pass": true, "ltl_violated": false}\n')
     else:
         (tmp_path / 'diagnostics.jsonl').write_text('{"episode": 1, "gate_pass": null, "ltl_violated": false}\n')
-    assert mod._validate_scene_artifacts(str(tmp_path), 2)
+    assert mod._validate_scene_artifacts(str(tmp_path), 2, source_profile="legacy")
 
 
 def test_resume_does_not_trust_stale_summary_csv(tmp_path):
@@ -69,7 +69,7 @@ def test_resume_does_not_trust_stale_summary_csv(tmp_path):
 def test_resume_keeps_original_indices_and_complete_summary(tmp_path, monkeypatch, scenes):
     import csv
     mod = driver()
-    argv = ['run', '--resume', str(tmp_path), '--num-trials', '3']
+    argv = ['run', '--source-profile', 'legacy', '--resume', str(tmp_path), '--num-trials', '3']
     if scenes:
         argv += ['--scenes', 'a', 'b', 'c']
     labels = ['a', 'b', 'c'] if scenes else ['trial_0', 'trial_1', 'trial_2']
@@ -94,7 +94,7 @@ def test_resume_keeps_original_indices_and_complete_summary(tmp_path, monkeypatc
 def test_old_outputs_cannot_make_a_new_crashed_attempt_successful(tmp_path, monkeypatch, returncode):
     mod = driver()
     artifacts(tmp_path / 'trial_0')
-    monkeypatch.setattr(sys, 'argv', ['run', '--pipeline', 'table'])
+    monkeypatch.setattr(sys, 'argv', ['run', '--source-profile', 'legacy', '--pipeline', 'table'])
     args = mod.parse_args()
     monkeypatch.setattr(mod.subprocess, 'run', lambda *a, **kw: SimpleNamespace(returncode=returncode))
     assert mod._run_scene(None, args, str(tmp_path))['status'] != 'success'
@@ -103,7 +103,7 @@ def test_old_outputs_cannot_make_a_new_crashed_attempt_successful(tmp_path, monk
 @pytest.mark.parametrize('returncode', [0, -11])
 def test_fresh_standalone_outputs_can_survive_shutdown_error(tmp_path, monkeypatch, returncode):
     mod = driver()
-    monkeypatch.setattr(sys, 'argv', ['run', '--pipeline', 'jar_transport'])
+    monkeypatch.setattr(sys, 'argv', ['run', '--source-profile', 'legacy', '--pipeline', 'jar_transport'])
     args = mod.parse_args()
 
     def run(*a, **kw):
@@ -147,16 +147,34 @@ def test_resume_refuses_changed_protocol(tmp_path, monkeypatch):
     cfg = {'pipeline': 'table', 'episodes': 1, 'seed': 7}
     config_path = tmp_path / 'benchmark_config.json'
     config_path.write_text(json.dumps(cfg))
-    monkeypatch.setattr(sys, 'argv', ['run', '--resume', str(tmp_path), '--seed', '9'])
+    monkeypatch.setattr(sys, 'argv', ['run', '--source-profile', 'legacy', '--resume', str(tmp_path), '--seed', '9'])
     monkeypatch.setattr(mod, '_spot_preflight_or_exit', lambda: None)
     with pytest.raises(ValueError, match='seed'):
         mod.main()
     assert json.loads(config_path.read_text()) == cfg
 
 
+def test_resume_refuses_edited_profile_file(tmp_path, monkeypatch):
+    mod = driver()
+    profile = tmp_path / 'visual.yaml'
+    profile.write_text('resolution: [640, 640]\n')
+    output = tmp_path / 'run'
+    common = ['run', '--source-profile', str(profile), '--num-trials', '1']
+    monkeypatch.setattr(sys, 'argv', [*common, '--output-dir', str(output)])
+    monkeypatch.setattr(mod, '_spot_preflight_or_exit', lambda: None)
+    monkeypatch.setattr(mod, '_run_scene', lambda *a, **kw: {
+        'scene': 'trial_0', 'status': 'failed', 'duration_s': 0, 'gate_pass': False,
+        'ltl_violated': None, 'error': 'fixture', 'run_dir': str(output)})
+    assert mod.main() == 1
+    profile.write_text('resolution: [512, 512]\n')
+    monkeypatch.setattr(sys, 'argv', [*common, '--resume', str(output)])
+    with pytest.raises(ValueError, match='source_profile'):
+        mod.main()
+
+
 def test_multi_episode_verdicts_do_not_use_only_the_last_row(tmp_path, monkeypatch):
     mod = driver()
-    monkeypatch.setattr(sys, 'argv', ['run', '--pipeline', 'table', '--episodes', '2'])
+    monkeypatch.setattr(sys, 'argv', ['run', '--source-profile', 'legacy', '--pipeline', 'table', '--episodes', '2'])
     args = mod.parse_args()
 
     def run(*a, **kw):

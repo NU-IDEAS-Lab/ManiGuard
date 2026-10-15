@@ -124,6 +124,7 @@ def parse_args():
     p.add_argument("--run-dir", default=None)
     p.add_argument("--out-dir", default=None)
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--source-profile", default="high_fidelity")
     return p.parse_args()
 
 
@@ -177,8 +178,12 @@ def _surface_region_world_bounds(surface_pick, surface_spawn_xyz):
 # OmniGibson init + env build
 # ---------------------------------------------------------------------------
 
-def _init_og(headless):
+def _init_og(headless, source_profile=None):
+    if source_profile is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
     from omnigibson.macros import gm
+    gm.ENABLE_HQ_RENDERING = source_profile is not None
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     gm.USE_GPU_DYNAMICS = False
@@ -190,7 +195,7 @@ def _init_og(headless):
 
 
 def _build_env(og, surface_pick, jar_category, jar_model,
-               item_category, item_model):
+               item_category, item_model, *, source_profile=None):
     """Empty Scene + fixed surface + jar (target) + item (food) + Franka.
 
     Robot config matches cabinet_pickup_pipeline's choice
@@ -256,16 +261,18 @@ def _build_env(og, surface_pick, jar_category, jar_model,
             "rendering_frequency": 30,
             "physics_frequency": 120,
             "external_sensors": build_external_camera_configs(
-                names=_CAM_NAMES_4, resolution=_CAM_HW,
+                names=_CAM_NAMES_4, resolution=source_profile["resolution"][0] if source_profile is not None else _CAM_HW,
             ),
         },
     }
+    from maniguard.data.bench_builder.render import prepare_preview_environment
+    prepare_preview_environment(env_cfg, source_profile)
     env = og.Environment(configs=env_cfg)
     ext_sensors = env.external_sensors or {}
     if ext_sensors:
         for cam in ext_sensors.values():
-            cam.image_height = _CAM_HW[0]
-            cam.image_width = _CAM_HW[1]
+            cam.image_height = source_profile["resolution"][0] if source_profile is not None else _CAM_HW[0]
+            cam.image_width = source_profile["resolution"][1] if source_profile is not None else _CAM_HW[1]
         env.load_observation_space()
     env.reset()
     og.sim.step()
@@ -581,6 +588,22 @@ def _run_ltl_rollout(og, env, robot, args, activity_name,
     monitor.reset()
     monitor.step(0)
 
+    if getattr(args, "source_profile", None) is not None:
+        from maniguard.visual.preview import render_preview
+        n_steps = max(1, int(args.steps))
+        rng = np.random.default_rng(int(args.seed) + 7919 * (episode + 1))
+        def advance():
+            action = rng.normal(0.0, args.jitter_scale, size=robot.action_space.shape).astype(np.float32)
+            if hasattr(robot.action_space, "low"):
+                action = np.clip(action, robot.action_space.low, robot.action_space.high)
+            env._pre_step(action)
+            og.sim.step()
+        output = Path(run_dir) / f"source_preview_ep{episode+1}" if args.save_video else None
+        report = render_preview(env, output, args.source_profile, frames=n_steps,
+                                fps=round(1 / og.sim.get_sim_step_dt()), mode="idle_step",
+                                monitor=monitor, advance=advance)
+        return monitor.summary(), n_steps, ([str(output / f"{key}.mp4") for key in report["profile"]["camera_keys"]] if output else [])
+
     video_writers = []
     if args.save_video and video_views:
         for view in video_views:
@@ -733,7 +756,7 @@ def _run_episode(og, args, ep, rng, debug_jsonl):
 
     env, surface_spawn_xyz = _build_env(
         og, surface_pick, sel["jar_category"], sel["jar_model"],
-        sel["item_category"], sel["item_model"],
+        sel["item_category"], sel["item_model"], source_profile=args.source_profile,
     )
     try:
         jar_name = f"target_{sel['jar_category']}_ep1_1"
@@ -971,7 +994,9 @@ def _run_episode(og, args, ep, rng, debug_jsonl):
 
 
 def run_sim(args, debug_jsonl):
-    og = _init_og(headless=args.headless)
+    from maniguard.visual.profile import resolve_profile_selection
+    args.source_profile = resolve_profile_selection(args.source_profile)
+    og = _init_og(headless=args.headless, source_profile=args.source_profile)
     rng = np.random.default_rng(args.seed)
     for ep in range(args.episodes):
         ep_rng = np.random.default_rng(int(rng.integers(2**32)))

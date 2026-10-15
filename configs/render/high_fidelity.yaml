@@ -1,0 +1,12 @@
+name: high_fidelity
+resolution: [640, 640]
+camera_keys: [image_left, image_right, image_left_shoulder, image_opposite, wrist_image]
+renderer: RaytracedLighting
+denoiser: ray_reconstruction
+render_deliveries: 4
+glass_shadows: exclude_omniglass
+tonemap: aces
+motion_blur: false
+depth_of_field: false
+frame_generation: false
+rgb_encoding: {codec: jpeg, quality: 95, subsampling: '444', color_order: RGB}

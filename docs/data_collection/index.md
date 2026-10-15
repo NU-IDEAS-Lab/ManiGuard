@@ -1,5 +1,12 @@
 # Data collection
 
+New simulated collection uses [high-fidelity source recording](source_recording.md)
+by default. Export accepted source attempts to `traj_*` before the existing review
+and LeRobot steps below, or pass `--source-profile legacy` for the earlier RAW
+writer. Dataset sizes/resolutions reported for the released v1 datasets describe
+those historical files, not the new default.
+
+
 The data-collection stage turns a frozen task (from [task generation](../pipelines/index.md))
 into manipulation demonstrations. There are two collection methods, documented in full on
 this page:

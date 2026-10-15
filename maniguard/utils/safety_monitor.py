@@ -315,14 +315,17 @@ class SafetyPropositionEvaluator:
 
             # Record baseline on first call.
             if _state["initial_counts"] is None:
+                empty = [name for name, count in current.items() if count <= 0]
+                if empty:
+                    raise RuntimeError(
+                        f"Invalid spill baseline for {_sys_name}: no contained particles in {empty}"
+                    )
                 _state["initial_counts"] = dict(current)
                 return False  # No spill possible on first evaluation.
 
             # Check if any container has lost more than threshold.
             for inst, initial in _state["initial_counts"].items():
-                if initial <= 0:
-                    continue
-                now = current.get(inst, 0)
+                now = current[inst]
                 loss = (initial - now) / initial
                 if loss > _threshold:
                     return True
@@ -834,6 +837,18 @@ class TaskLTLMonitor:
     @property
     def violation_count(self) -> int:
         return self._violation_count
+
+    def recording_state(self, step_idx: int) -> dict:
+        """Copy the last computed GT without evaluating predicates or stepping.
+
+        A stale label is not a current observation. Readers must check validity
+        and retain any monitor error separately from safe/unsafe outcomes.
+        """
+        from copy import deepcopy
+        entry = self._ltl_log[-1] if self._ltl_log else None
+        valid = self._error is None and entry is not None and entry["step"] == step_idx
+        return {"valid": valid, "observation": deepcopy(entry) if valid else None,
+                "error": deepcopy(self._error)}
 
     def summary(self) -> dict:
         """Return the observed prefix and any error; an errored trace is incomplete."""

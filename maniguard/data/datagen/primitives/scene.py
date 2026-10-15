@@ -38,7 +38,13 @@ class SceneBundle:
 
 
 def _needs_gpu_dynamics(diag: dict) -> bool:
-    """Return whether diagnostics select GPU particle dynamics. A declared system_name enables it, except for lid_info tasks, whose stored liquid labels do not correspond to simulated particle systems."""
+    """Use GPU dynamics for declared spill systems or physical liquid selections.
+
+    Lid labels without a spill specification do not imply simulated particles.
+    """
+    from maniguard.data.scene.liquid_state import spill_systems
+    if spill_systems(diag):
+        return True
     if diag.get("lid_info"):
         return False
     return bool((diag.get("selection") or {}).get("system_name"))
@@ -51,10 +57,14 @@ def task_needs_gpu_dynamics(task_dir: str | Path, episode: int = 1) -> bool:
     return _needs_gpu_dynamics(load_diagnostics_row(Path(task_dir), episode))
 
 
-def init_omnigibson(headless: bool = True, needs_gpu_dynamics: bool = False):
+def init_omnigibson(headless: bool = True, needs_gpu_dynamics: bool = False, *, source_profile=None):
     """Set OmniGibson macros before initialization and return the imported module. Use CPU dynamics with flatcache for dry tasks and GPU dynamics without flatcache for particle tasks."""
     from omnigibson.macros import gm
 
+    if source_profile is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
+    gm.ENABLE_HQ_RENDERING = source_profile is not None
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     gm.USE_GPU_DYNAMICS = needs_gpu_dynamics
@@ -75,6 +85,7 @@ def scene_from_task_dir(
     external_sensors: Sequence[dict] | None = None,
     pre_build_hooks: Sequence[Callable[[], None]] = (),
     settle_steps: int = 10,
+    source_profile=None,
 ) -> SceneBundle:
     """Build the empty-scene env for one base task and return a :class:`SceneBundle`.
 
@@ -115,7 +126,7 @@ def scene_from_task_dir(
         controller_preset="joint_position_raw",
         grasping_mode=grasping_mode,
         action_frequency=30,
-        rendering_frequency=30,
+        rendering_frequency=60 if source_profile is not None else 30,
     )
     # pnp wants a plain empty Scene with explicit object cfgs, NOT the snapshot's
     # furnished InteractiveTraversableScene.
@@ -128,6 +139,9 @@ def scene_from_task_dir(
     for hook in pre_build_hooks:
         hook()
 
+    if source_profile is not None:
+        from maniguard.visual.capture import initialize_source_simulator
+        initialize_source_simulator(30, 60, 120, clear=og.sim is not None)
     env = og.Environment(configs=env_cfg)
     env.reset()
 
@@ -156,6 +170,12 @@ def scene_from_task_dir(
         )
     if hasattr(robot, "keep_still"):
         robot.keep_still()
+    # Explicit-object reconstruction does not restore the snapshot's systems.
+    from maniguard.data.scene.liquid_state import restore_liquid_systems, spill_systems
+    restore_liquid_systems(
+        env, scene_info.get("state", {}).get("registry", {}).get("system_registry", {}),
+        spill_systems(diagnostics),
+    )
     og.sim.step()
 
     goal_spec = None
@@ -168,6 +188,9 @@ def scene_from_task_dir(
     for _ in range(max(0, int(settle_steps))):
         og.sim.step()
 
+    if spill_systems(diagnostics):
+        # Keep restored liquid in subsequent env.reset() calls as well.
+        env.scene.update_initial_file()
     surface = env.scene.object_registry("name", task_names[0])
     return SceneBundle(
         env=env,

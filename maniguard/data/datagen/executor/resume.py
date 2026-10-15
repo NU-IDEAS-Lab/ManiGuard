@@ -7,6 +7,24 @@ bound. Failed attempted draws advance the saved cursor as well.
 from __future__ import annotations
 
 
+def source_attempt_name(grasp_id, draw_index):
+    return f"attempt_{int(draw_index):06d}_g{int(grasp_id)}"
+
+
+def max_recorded_draw(root):
+    import json
+    from pathlib import Path
+
+    highest = -1
+    paths = list(Path(root).glob("traj_*/meta.json")) + list(Path(root).glob("attempt_*/episode.json"))
+    for path in paths:
+        data = json.loads(path.read_text())
+        meta = data.get("scene", {}).get("attempt", {}) if path.name == "episode.json" else data
+        if meta.get("draw_index") is not None:
+            highest = max(highest, int(meta["draw_index"]))
+    return highest
+
+
 def resolve_start_k(existing_summary: dict | None, start_draw_override: int | None,
                     ondisk_max_draw: int = -1) -> int:
     """The draw index to start (or resume) a run's variant stream from.
@@ -32,3 +50,21 @@ def compute_next_draw(last_run_draw: int | None, start_k: int) -> int:
     this run (incl. failures — failed k are deterministic, so the cursor must skip past them, not just
     past successes). If nothing ran, the cursor is unchanged (``start_k``)."""
     return int(start_k) if last_run_draw is None else int(last_run_draw) + 1
+
+
+def validate_visual_resume(root, profile):
+    """Do not top up one dataset with a different renderer or recording format."""
+    import json
+    from pathlib import Path
+
+    root = Path(root)
+    profiles = []
+    summary = root / "_summary.json"
+    if summary.exists():
+        profiles.append(json.loads(summary.read_text()).get("source_profile"))
+    if any(root.glob("traj_*/traj.hdf5")):
+        profiles.append(None)
+    for path in root.glob("attempt_*/episode.json"):
+        profiles.append(json.loads(path.read_text()).get("source_profile"))
+    if any(previous != profile for previous in profiles):
+        raise ValueError("Visual profile/format differs from existing collection; use a new output directory")
