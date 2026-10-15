@@ -443,6 +443,8 @@ class DemoEngine:
         self._timeout = False                    # tripped if the rollout exceeds self.max_steps
         self._cur_seg = None                     # current segment name, labels the DATAGEN_TRACE rows
         self._skip_to_goal = False               # set by the reach fallback: it already placed the object
+        if hasattr(recorder, 'attempt_metadata'):
+            recorder.attempt_metadata = {**(meta or {}), 'seed': int(seed)}
         recorder.attach(self.env, self.robot, out_dir,
                         prompt=ctx.diagnostics.get("prompt", ""))
 
@@ -450,6 +452,17 @@ class DemoEngine:
         self._trace_i = 0                         # per-rollout step counter for the trace rows
         if os.environ.get("DATAGEN_TRACE"):      # (joints q+qdot + target pose/lin+ang vel), per rollout
             self._trace_f = open(os.path.join(str(out_dir), "trace.jsonl"), "w")  # noqa: SIM115
+
+        def fail(stage, **detail):
+            recorder.finalize(success=False, attrs={
+                "termination_reason": stage,
+                "failure_detail": detail,
+                "n_steps": int(recorder.n_steps),
+                "ltl_violated": bool(gate.violated),
+            })
+            if self._trace_f is not None:
+                self._trace_f.close()
+            return DemoResult.fail(stage, **detail)
 
         def tick() -> bool:                      # per-step hook: LTL + step-limit (+ trace), abort on either
             gate.step()
@@ -463,23 +476,30 @@ class DemoEngine:
             return False
 
         carry = OPEN                             # last-segment gripper cmd; held during the end settle
+        ctx.source_passive_step = (lambda: recorder.passive_step(tick)) if hasattr(recorder, 'passive_step') else None
         for seg in segments:
             if self._timeout:                      # step-limit tripped in a prior segment's settle/gripper
-                recorder.finalize(success=False)
-                return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
+                return fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
             if seg.compute == "aim_to_goal_center" and self._skip_to_goal:
                 continue                            # reach fallback already placed the object in the sphere
             self._cur_seg = seg.name               # label the DATAGEN_TRACE rows by segment
             try:
-                skeleton.on_segment(seg, ctx)      # family runtime side-effects (e.g. hold drawer open)
-                tpos, tquat = self._resolve_target(seg, ctx, skeleton)
+                if hasattr(recorder, 'observer'):
+                    recorder.segment = seg.name
+                    recorder.observer.writer.append_event({'type':'scripted_segment', 'name':seg.name,
+                        'source_observation_id':recorder.step_idx})
+                try:
+                    skeleton.on_segment(seg, ctx)      # family runtime side-effects (e.g. hold drawer open)
+                    tpos, tquat = self._resolve_target(seg, ctx, skeleton)
+                finally:
+                    if hasattr(recorder, 'state_boundary'):
+                        recorder.state_boundary(f"scripted segment {seg.name}")
             except SegmentSkip:                    # family says this segment's objective is already met
                 continue
             except FamilyAbort as e:               # family-declared clean failure (e.g. dusty's hard
                 #                                    wipe_incomplete gate) -> fail the attempt, driver retries
                 print(f"[datagen.engine] {seg.name} FAMILY-ABORT: {e.stage} {e.detail}", flush=True)
-                recorder.finalize(success=False)
-                return DemoResult.fail(e.stage, **{"seg": seg.name, **e.detail})
+                return fail(e.stage, **{"seg": seg.name, **e.detail})
             if seg.ignore_clutter:
                 # world-collision-off for the final grasp descent (drop every non-robot obstacle)
                 robots = set(self.env.robots)
@@ -496,16 +516,14 @@ class DemoEngine:
             # or the default collision-aware cuRobo solve.
             if seg.replay_reverse_path:
                 if not self._path_buf:
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("no_path", seg=seg.name)
+                    return fail("no_path", seg=seg.name)
                 rev = th.flip(th.cat(self._path_buf, dim=0), dims=[0])   # retrace the WHOLE relocate back toward HOME
                 k = max(1, int(seg.replay_frac * rev.shape[0]))   # replay_frac of it -> stop ~ (1-frac) into the path
                 arm_traj = rev[:k]
                 self._path_buf = None
             elif seg.replay_reverse:
                 if self._last_servo is None:
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("no_servo", seg=seg.name)
+                    return fail("no_servo", seg=seg.name)
                 arm_traj = th.flip(self._last_servo, dims=[0])    # retreat back out the push lane
             elif seg.mode == Mode.SERVO:
                 arm_traj = self._servo_line(tpos, tquat, ctx, seg)
@@ -521,18 +539,15 @@ class DemoEngine:
                           f"(upright-hold)", flush=True)
                     res = self._free_transport_solve(seg, ctx, tpos, tquat, attach, obstacles.UPRIGHT_HOLD)
                     if res is None:
-                        recorder.finalize(success=False)
-                        return DemoResult.fail("plan_fail", seg=seg.name)
+                        return fail("plan_fail", seg=seg.name)
                     arm_traj = res.arm_traj
                 else:
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("servo_ik_fail", seg=seg.name)
+                    return fail("servo_ik_fail", seg=seg.name)
             else:
                 mc = obstacles.LINEAR_SERVO if seg.mode == Mode.LINEAR else None
                 res = self._free_transport_solve(seg, ctx, tpos, tquat, attach, mc)
                 if res is None:
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("plan_fail", seg=seg.name)
+                    return fail("plan_fail", seg=seg.name)
                 arm_traj = res.arm_traj
 
             # accumulate this segment's joint path so a later replay_reverse_path can retrace it (skip the
@@ -555,11 +570,9 @@ class DemoEngine:
                                on_step=tick)
             if self._timeout:
                 print(f"[datagen.engine] {seg.name} TIMEOUT: {recorder.n_steps} steps > {self.max_steps}", flush=True)
-                recorder.finalize(success=False)
-                return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
+                return fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
             if gate.violated:
-                recorder.finalize(success=False)
-                return DemoResult.fail("unsafe", seg=seg.name, step=gate.violation_step)
+                return fail("unsafe", seg=seg.name, step=gate.violation_step)
 
             # settle: re-command the FINAL waypoint so the PD-tracked arm converges to it.
             # Per-waypoint stepping under-tracks (esp. under the carried load) — without this
@@ -568,8 +581,7 @@ class DemoEngine:
                                recorder=recorder, steps_per_waypoint=max(self.settle_steps, spw),
                                on_step=tick)
             if gate.violated:
-                recorder.finalize(success=False)
-                return DemoResult.fail("unsafe", seg=seg.name, step=gate.violation_step)
+                return fail("unsafe", seg=seg.name, step=gate.violation_step)
 
             if os.environ.get("DATAGEN_LOG_JOINTS"):
                 self._log_achieved_joints(seg, arm_traj, tpos)
@@ -588,8 +600,7 @@ class DemoEngine:
                 if err > seg.reach_tol_m:
                     print(f"[datagen.engine] {seg.name} STUCK: eef reach err={err:.3f} > {seg.reach_tol_m} "
                           f"(eef={ez.round(3)} target={np.asarray(tpos, float).round(3)})", flush=True)
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("stuck", seg=seg.name, reach_err=err)
+                    return fail("stuck", seg=seg.name, reach_err=err)
 
             # verify the HELD object actually cleared a required height (e.g. the target's bottom is
             # above the drawer rim) BEFORE this/the next lateral move — moving while still below the
@@ -600,8 +611,7 @@ class DemoEngine:
                 if bottom < seg.verify_held_above_z:
                     print(f"[datagen.engine] {seg.name} BELOW-Z: held bottom={bottom:.3f} "
                           f"< rim={seg.verify_held_above_z:.3f}", flush=True)
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("below_z", seg=seg.name, bottom=bottom)
+                    return fail("below_z", seg=seg.name, bottom=bottom)
 
             # the gripper ACTION after reaching the target (grasp close / settle open)
             if seg.grip in (Grip.OPEN, Grip.CLOSE):
@@ -620,11 +630,9 @@ class DemoEngine:
                     if seg.require_attach and (ag is None or int(ag) != 1):
                         # the grasp did NOT attach — fail fast instead of carrying air to the goal
                         print(f"[datagen.engine] {seg.name} NO-ATTACH (AG={ag}) -> abort attempt", flush=True)
-                        recorder.finalize(success=False)
-                        return DemoResult.fail("no_attach", seg=seg.name)
+                        return fail("no_attach", seg=seg.name)
                 if gate.violated:
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("unsafe", seg=seg.name, step=gate.violation_step)
+                    return fail("unsafe", seg=seg.name, step=gate.violation_step)
 
             # verify the 3 cm clearance actually holds after a lift (belt + suspenders)
             if seg.min_clearance_m is not None:
@@ -642,8 +650,7 @@ class DemoEngine:
                       f"other_top={other_top:.3f}({oname}) eef_z={ez:.3f} "
                       f"clearance={cl:.4f} (need {seg.min_clearance_m})", flush=True)
                 if np.isfinite(cl) and cl < seg.min_clearance_m - self.clearance_eps:
-                    recorder.finalize(success=False)
-                    return DemoResult.fail("clearance", seg=seg.name, clearance=float(cl))
+                    return fail("clearance", seg=seg.name, clearance=float(cl))
 
             if os.environ.get("DATAGEN_DEBUG_STATE"):     # gated per-segment family-state probe
                 ds = skeleton.debug_state(ctx)
@@ -651,23 +658,31 @@ class DemoEngine:
                 print(f"[datagen.engine] after {seg.name}: eef={ep_now.round(3)} {ds}", flush=True)
 
         if self._timeout:                         # a step-limit tripped inside the LAST segment's settle/
-            recorder.finalize(success=False)      # gripper has no next-iteration check -- fail cleanly here
-            return DemoResult.fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
+            return fail("timeout", seg=seg.name, n_steps=int(recorder.n_steps))
 
         # Advance the safety gate during final settling before evaluating success.
-        # These steps are not recorded, so the acceptance state can occur after
-        # the final video/HDF5 frame.
+        # Source episodes include these observations. Legacy demonstrations
+        # retain their original frame count and end before this settling phase.
         if self.rest_settle_steps > 0:
             self._cur_seg = "rest_settle"
+            source_recorder = recorder if hasattr(recorder, "execute_step") else None
+            if source_recorder is not None:
+                # Preserve the existing execution-limit semantics during final
+                # settling, while recording all final physics/GT transitions.
+                source_recorder.recording_rest = True
             actuate_gripper(self.env, self.robot, close=(carry == CLOSE),
-                            n_steps=self.rest_settle_steps, recorder=None, on_step=tick)
+                            n_steps=self.rest_settle_steps, recorder=source_recorder, on_step=tick)
 
         reached = gate.success()
-        ok = bool(reached and skeleton.success_extra(ctx) and not gate.violated)
+        family_ok = bool(skeleton.success_extra(ctx)) if reached else False
+        ok = bool(reached and family_ok and not gate.violated)
+        termination = ("success" if ok else "unsafe" if gate.violated else
+                       "goal_not_reached" if not reached else "family_acceptance_failed")
         recorder.finalize(success=ok, attrs={
             **(meta or {}),
             "family": skeleton.name, "seed": int(seed),
             "goal_reached": bool(reached), "ltl_violated": bool(gate.violated),
+            "termination_reason": termination,
             "n_steps": int(recorder.n_steps),
             **skeleton.demo_attrs(ctx),      # family extras; {} for every family that ignores it
         })

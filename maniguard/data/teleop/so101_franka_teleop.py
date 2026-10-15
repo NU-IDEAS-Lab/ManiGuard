@@ -221,7 +221,13 @@ def main():
                              "pair is loaded, the lid auto-attaches when "
                              "the lid is touching the container and the "
                              "gripper has released it.")
+    parser.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or YAML profile")
     args = parser.parse_args()
+    from maniguard.visual.capture import SourceCapture, prepare_source_environment, prepare_source_launch
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(args.source_profile)
+    if profile is not None:
+        prepare_source_launch()
 
     cfg = _build_from_snapshot(
         args.snapshot,
@@ -230,6 +236,7 @@ def main():
     print(f"[Teleop] grasping_mode = {args.grasping_mode}")
 
     # Create environment
+    prepare_source_environment(cfg, profile)
     env = og.Environment(configs=cfg)
     env.reset()
 
@@ -268,6 +275,7 @@ def main():
     _diag_path = os.path.join(os.path.dirname(args.snapshot), "diagnostics.jsonl")
     _cam_diag = _read_first_jsonl(_diag_path) if os.path.isfile(_diag_path) else None
     place_recorded_task_cameras(env, _cam_diag, set_viewer=True)
+    capture = SourceCapture(recorder.env if recorder is not None else env, profile) if profile is not None else None
 
     # Initialize SO-101 teleop agent
     teleop_cfg = SO101TeleopConfig(
@@ -382,6 +390,8 @@ def main():
                 gv = action[gripper_idx].tolist() if hasattr(action[gripper_idx], "tolist") else action[gripper_idx]
                 print(f"[Action] gripper -> {gv}")
             env.step(action)
+            if capture is not None:
+                capture.capture(capture.observation_id + 1)
 
             if lid_snapper is not None:
                 lid_snapper.try_snap(robot=robot)
@@ -416,7 +426,9 @@ def main():
             recorder.save_data()
             print(f"[Teleop] HDF5 written: {args.output_hdf5}")
         agent.stop()
-        og.clear()
+        if capture is not None:
+            capture.close()
+        og.shutdown()
 
 
 if __name__ == "__main__":

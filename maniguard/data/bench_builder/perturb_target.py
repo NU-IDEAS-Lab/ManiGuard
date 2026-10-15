@@ -57,12 +57,13 @@ def _load_diag(base_dir: Path, episode: int) -> dict:
         return json.loads([ln for ln in txt.splitlines() if ln.strip()][0])
 
 
-def _is_complete(out_dir: Path, episode: int) -> bool:
+def _is_complete(out_dir: Path, episode: int, source_profile="recorded") -> bool:
     if not (out_dir / f"scene_ep{episode}.json").is_file():
         return False
     if not (out_dir / "diagnostics.jsonl").is_file():
         return False
-    return all((out_dir / f"rollout_{lbl}_ep{episode}.mp4").is_file() for lbl in VIDEO_LABELS)
+    from maniguard.data.bench_builder.render import review_videos_complete
+    return review_videos_complete(out_dir, episode, source_profile)
 
 
 def _select_tasks(out_fam: Path, spec: str | None, episode: int) -> list[str]:
@@ -102,12 +103,12 @@ def _worker_env() -> dict:
 
 # ---------------------------------------------------------------------------- worker
 
-def _run_worker(base_dir: Path, out_dir: Path, family: str, episode: int) -> None:
+def _run_worker(base_dir: Path, out_dir: Path, family: str, episode: int, source_profile="high_fidelity") -> None:
     """Build ONE task's target/ variant; persist the row before teardown."""
     task = base_dir.parent.name
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
-        row = _make_target_variant(base_dir, out_dir, family, episode)
+        row = _make_target_variant(base_dir, out_dir, family, episode, source_profile=source_profile)
     except Exception as e:  # noqa: BLE001
         import traceback
         row = {"task": task, "family": family, "status": "fail",
@@ -115,9 +116,14 @@ def _run_worker(base_dir: Path, out_dir: Path, family: str, episode: int) -> Non
     (out_dir / ROW_FILE).write_text(json.dumps(row, default=float), encoding="utf-8")
 
 
-def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: int) -> dict:
+def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: int, source_profile="high_fidelity") -> dict:
     import shutil
 
+    from maniguard.visual.profile import resolve_profile_selection
+    source_profile = resolve_profile_selection(source_profile)
+    if source_profile is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
     import omnigibson as og
     import torch as th
 
@@ -152,6 +158,8 @@ def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: in
     if og.sim is not None:
         og.sim.stop()
         og.clear()
+    from maniguard.data.bench_builder.render import prepare_preview_environment
+    prepare_preview_environment(og_cfg, source_profile)
     env = og.Environment(configs=og_cfg)
     env.reset()
     robot = env.robots[0]
@@ -181,7 +189,7 @@ def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: in
     }
 
     # Render the recolored env (render_views re-stamps diag['cameras']).
-    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode)
+    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode, source_profile=source_profile)
 
     # scene snapshot = byte copy of base (the tint is NOT baked; it lives in diag).
     shutil.copy2(scene_file, out_dir / f"scene_ep{episode}.json")
@@ -198,11 +206,12 @@ def _make_target_variant(base_dir: Path, out_dir: Path, family: str, episode: in
 
 # ---------------------------------------------------------------------------- driver
 
-def _spawn_worker(base_dir: Path, out_dir: Path, family: str, episode: int, env: dict, timeout: int):
+def _spawn_worker(base_dir: Path, out_dir: Path, family: str, episode: int, env: dict, timeout: int, source_profile="high_fidelity"):
     cmd = [
         sys.executable, "-m", "maniguard.data.bench_builder.perturb_target",
         "--worker", "--base-dir", str(base_dir), "--out-dir", str(out_dir),
         "--family", family, "--episode", str(episode),
+        "--source-profile", source_profile,
     ]
     try:
         return subprocess.run(cmd, env=env, timeout=timeout).returncode
@@ -253,7 +262,7 @@ def _driver(args: argparse.Namespace) -> int:
     env = _worker_env()
 
     to_run = [t for t in tasks
-              if not (args.skip_existing and _is_complete(out_fam / t / LEVEL, args.episode))]
+              if not (args.skip_existing and _is_complete(out_fam / t / LEVEL, args.episode, args.source_profile))]
     skipped = [t for t in tasks if t not in set(to_run)]
     print(f"[target] {args.family}: {len(tasks)} base tasks ({len(to_run)} to run, "
           f"{len(skipped)} skip), jobs={args.jobs} -> {out_fam}/*/target", flush=True)
@@ -281,7 +290,7 @@ def _driver(args: argparse.Namespace) -> int:
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as ex:
         futs = {
             ex.submit(_spawn_worker, out_fam / t / "base", out_fam / t / LEVEL,
-                      args.family, args.episode, env, args.timeout): t
+                      args.family, args.episode, env, args.timeout, source_profile=args.source_profile): t
             for t in to_run
         }
         done = 0
@@ -314,12 +323,17 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=1, help="parallel worker subprocesses")
     ap.add_argument("--skip-existing", action="store_true")
     ap.add_argument("--timeout", type=int, default=600, help="per-task worker timeout (s)")
+    ap.add_argument("--source-profile", default="high_fidelity")
     args = ap.parse_args()
+    from maniguard.visual.profile import resolve_profile_selection
+    resolve_profile_selection(args.source_profile)
+    if args.source_profile not in ("high_fidelity", "legacy"):
+        args.source_profile = str(Path(args.source_profile).resolve())
 
     if args.worker:
         if not args.base_dir or not args.out_dir:
             ap.error("--worker requires --base-dir and --out-dir")
-        _run_worker(Path(args.base_dir), Path(args.out_dir), args.family, args.episode)
+        _run_worker(Path(args.base_dir), Path(args.out_dir), args.family, args.episode, source_profile=args.source_profile)
         return 0
     return _driver(args)
 

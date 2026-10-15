@@ -49,7 +49,7 @@ def _output(tmp_path, *, row=None):
     for name in ['scene_ep1.json', 'diagnostics.jsonl'] + [
         f'rollout_{label}_ep1.mp4' for label in driver.VIDEO_LABELS
     ]:
-        (out / name).write_text('fixture')
+        (out / name).write_text('{}' if name == 'diagnostics.jsonl' else 'fixture')
     valid = {'task': 'task_0000', 'family': 'lid_transport', 'status': 'ok'}
     (out / driver.ROW_FILE).write_text(json.dumps(valid if row is None else row))
     return out_fam, out
@@ -113,7 +113,7 @@ def test_driver_manifest_accounts_for_retry_and_worker_exit(tmp_path, monkeypatc
 
     monkeypatch.setattr(driver.subprocess, 'run', run)
     args = SimpleNamespace(src_root=str(src_root), out_root=str(tmp_path / 'out'),
-        family='lid_transport', tasks=None, src_subdir='base', episode=1,
+        source_profile='legacy', family='lid_transport', tasks=None, src_subdir='base', episode=1,
         skip_existing=mode in {'failed_skip', 'corrupt_skip', 'valid_skip'}, jobs=1, timeout=10)
     code = driver._driver(args)
     rows = [json.loads(s) for s in (out_fam / 'base_manifest.jsonl').read_text().splitlines()]

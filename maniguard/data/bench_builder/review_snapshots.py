@@ -36,6 +36,11 @@ def _last_frame(video_path: Path):
 
 def _find_video(base_dir: Path, view: str, episode: int) -> Path | None:
     """Locate the task's review video for the requested view (exact name, then a loose glob)."""
+    keys = {"opposite_side_front": "image_opposite", "left_overview": "image_left",
+            "right_overview": "image_right", "left_shoulder": "image_left_shoulder"}
+    source = base_dir / f"source_preview_ep{episode}" / f"{keys.get(view, view)}.mp4"
+    if source.is_file():
+        return source
     exact = base_dir / f"rollout_{view}_ep{episode}.mp4"
     if exact.exists():
         return exact

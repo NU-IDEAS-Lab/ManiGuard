@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -111,8 +112,10 @@ def _discover_scenes(scenes_dir, pipeline):
     return eligible
 
 
-def _artifact_paths(run_dir, episodes, pipeline=None):
+def _artifact_paths(run_dir, episodes, pipeline=None, *, source_profile="high_fidelity", save_video=True):
     """Required snapshot/video files in the scene or standalone episode layout."""
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(source_profile)
     paths = [os.path.join(run_dir, "diagnostics.jsonl")]
     nested = pipeline in ("cabinet_pickup", "jar_transport") or os.path.isdir(
         os.path.join(run_dir, "snapshots", "ep001")
@@ -120,6 +123,13 @@ def _artifact_paths(run_dir, episodes, pipeline=None):
     for ep in range(1, episodes + 1):
         root = os.path.join(run_dir, "snapshots", f"ep{ep:03d}") if nested else run_dir
         paths.append(os.path.join(root, f"scene_ep{ep}.json"))
+        if not save_video:
+            continue
+        if profile is not None:
+            preview = os.path.join(root, f"source_preview_ep{ep}")
+            paths.extend([os.path.join(preview, "preview.json"),
+                          *(os.path.join(preview, f"{key}.mp4") for key in profile["camera_keys"])])
+            continue
         views = [os.path.join(root, f"rollout_{view}_ep{ep}.mp4") for view in
                  ("opposite_side_front", "left_overview", "right_overview", "left_shoulder")]
         legacy = os.path.join(root, f"rollout_ep{ep}.mp4")
@@ -148,14 +158,19 @@ def _file_stamp(path):
     return stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
 
 
-def _validate_scene_artifacts(run_dir, episodes, pipeline=None, previous_files=None):
+def _validate_scene_artifacts(run_dir, episodes, pipeline=None, previous_files=None, *,
+                              source_profile="high_fidelity", save_video=True):
     errors = []
-    for path in _artifact_paths(run_dir, episodes, pipeline):
+    for path in _artifact_paths(run_dir, episodes, pipeline, source_profile=source_profile, save_video=save_video):
         label = os.path.relpath(path, run_dir)
         if not os.path.isfile(path) or os.path.getsize(path) == 0:
             errors.append(label)
         elif previous_files is not None and previous_files.get(path) == _file_stamp(path):
             errors.append(f"unchanged artifact from earlier attempt: {label}")
+        elif path.endswith("preview.json"):
+            from maniguard.visual.preview import preview_is_complete
+            if not preview_is_complete(Path(path).parent, source_profile):
+                errors.append(f"incomplete or mismatched preview: {label}")
     diag = os.path.join(run_dir, "diagnostics.jsonl")
     if os.path.isfile(diag):
         try:
@@ -192,9 +207,11 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
         "--steps", str(args.steps),
         "--seed", str(scene_seed),
         "--run-dir", run_dir,
-        "--save-video",
+        "--source-profile", args.source_profile,
         "--video-fps", str(args.video_fps),
     ]
+    if args.save_video:
+        cmd.append("--save-video")
     standalone = args.pipeline in ("cabinet_pickup", "jar_transport")
     if not standalone:
         cmd.extend(["--mount-gap-m", str(args.mount_gap_m),
@@ -266,6 +283,7 @@ def _run_scene(scene_model, args, output_dir, scene_index=0):
 
         missing_artifacts = _validate_scene_artifacts(
             run_dir, args.episodes, args.pipeline, previous_files,
+            source_profile=args.source_profile, save_video=args.save_video,
         )
 
         if proc.returncode == 0 and not missing_artifacts:
@@ -376,7 +394,13 @@ def parse_args():
                    help="Output directory (default: outputs/benchmark_runs/<timestamp>)")
     p.add_argument("--resume", default=None,
                    help="Resume a previous benchmark run directory (skip completed scenes)")
+    p.add_argument("--source-profile", default="high_fidelity")
+    p.add_argument("--save-video", action=argparse.BooleanOptionalAction, default=True)
     args = p.parse_args()
+    from maniguard.visual.profile import resolve_profile_selection
+    resolve_profile_selection(args.source_profile)
+    if args.source_profile not in ("high_fidelity", "legacy"):
+        args.source_profile = str(Path(args.source_profile).resolve())
     if args.pipeline in ("cabinet_pickup", "jar_transport") and args.scenes:
         p.error("This pipeline constructs empty-scene tasks; use --num-trials instead of --scenes")
     for name in ("episodes", "timeout", "video_fps"):
@@ -387,7 +411,7 @@ def parse_args():
     return args
 
 
-def _find_completed_scenes(output_dir, episodes):
+def _find_completed_scenes(output_dir, episodes, *, source_profile="high_fidelity", save_video=True):
     """Resume only directories with complete artifacts and episode diagnostics."""
     if not os.path.isdir(output_dir):
         return set()
@@ -400,7 +424,7 @@ def _find_completed_scenes(output_dir, episodes):
         name for name in os.listdir(output_dir)
         if statuses.get(name, "success") == "success"
         and os.path.isdir(os.path.join(output_dir, name))
-        and not _validate_scene_artifacts(os.path.join(output_dir, name), episodes)
+        and not _validate_scene_artifacts(os.path.join(output_dir, name), episodes, source_profile=source_profile, save_video=save_video)
     }
 
 
@@ -438,7 +462,7 @@ def main():
         scenes = [None] * num_trials
         print(f"[Benchmark] Auto-select mode: {num_trials} trials")
     planned = list(enumerate(scenes))
-    completed = _find_completed_scenes(output_dir, args.episodes) if args.resume else set()
+    completed = _find_completed_scenes(output_dir, args.episodes, source_profile=args.source_profile, save_video=args.save_video) if args.resume else set()
     pending = [(i, scene) for i, scene in planned if (scene or f"trial_{i}") not in completed]
 
     print(f"[Benchmark] Output: {output_dir}")
@@ -447,8 +471,12 @@ def main():
           f"density={args.density}, timeout={args.timeout}s")
 
     # Save run config.
+    from maniguard.visual.profile import resolve_profile_selection
+
     config_path = os.path.join(output_dir, "benchmark_config.json")
     config_data = {
+        "source_profile": resolve_profile_selection(args.source_profile),
+        "save_video": args.save_video,
         "pipeline": args.pipeline,
         "scenes": [s for s in scenes if s is not None],
         "episodes": args.episodes,
@@ -479,7 +507,9 @@ def main():
     if args.resume and os.path.isfile(config_path):
         with open(config_path, encoding="utf-8") as f:
             previous_config = json.load(f)
-        mismatched = [k for k in config_data if k != "timestamp" and k in previous_config
+        if resolve_profile_selection(previous_config.get("source_profile")) != config_data["source_profile"]:
+            raise ValueError("Cannot resume with a different source_profile; use a new output directory")
+        mismatched = [k for k in config_data if k not in ("timestamp", "source_profile") and k in previous_config
                       and previous_config[k] != config_data[k]]
         if mismatched:
             raise ValueError(f"Resume configuration differs in {mismatched}; use the original run settings")

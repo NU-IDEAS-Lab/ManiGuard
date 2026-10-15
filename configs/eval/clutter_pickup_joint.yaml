@@ -34,7 +34,7 @@ grasping_mode: assisted      # MUST match datagen grasp mode (clutter skeleton -
 max_steps: 1100            # 1.5x the family's LONGEST datagen-v1 demo (292/402/706 min/med/max
                            # steps, episodes.jsonl); ends early when the success condition holds
 success_hold_steps: 10     # goal must hold N consecutive steps (anti false-positive)
-camera_resolution: 256
+source_profile: high_fidelity
 save_video: true
 longfinger: true
 

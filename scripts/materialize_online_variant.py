@@ -22,12 +22,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--online-video-fps", type=int, default=30)
     parser.add_argument("--attempt-artifacts-dir", default=None)
     parser.add_argument("--output-path", required=True)
+    parser.add_argument("--source-profile", default="high_fidelity")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     payload = materialize_online_variant_in_place(
+        source_profile=args.source_profile,
         family=str(args.family),
         task_dir=Path(args.task_dir).expanduser().resolve(),
         activity_root=Path(args.activity_root).expanduser().resolve(),

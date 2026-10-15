@@ -314,9 +314,13 @@ class LidSkeleton(FamilySkeleton):
             # snap_verify remains the required attachment check.
             import omnigibson as og
             for _ in range(10):
-                if self._snapper.try_snap(robot=ctx.robot):
+                if self._snapper.try_snap(robot=ctx.robot, step_callback=self._source_snap_step(ctx)):
                     break
-                og.sim.step()
+                if getattr(ctx, 'source_passive_step', None) is not None:
+                    if ctx.source_passive_step():
+                        raise FamilyAbort('unsafe')
+                else:
+                    og.sim.step()
         if seg.name == "lid_pre":
             # Attachment collision filters can persist across scene reset.
             # Restore lid-container collision pairs before each attempt.
@@ -427,8 +431,13 @@ class LidSkeleton(FamilySkeleton):
         dbg = bool(os.environ.get("DATAGEN_DEBUG_STATE"))
         for i in range(SNAP_MAX_STEPS):
             self._snapper.try_snap(robot=ctx.robot,
-                                   verbose=dbg and i >= SNAP_MAX_STEPS - 10)
-            og.sim.step()
+                                   verbose=dbg and i >= SNAP_MAX_STEPS - 10,
+                                   step_callback=self._source_snap_step(ctx))
+            if getattr(ctx, 'source_passive_step', None) is not None:
+                if ctx.source_passive_step():
+                    raise FamilyAbort('unsafe')
+            else:
+                og.sim.step()
             try:
                 if self._lid_obj.states[self._AttachedTo].get_value(ctx.target):
                     print(f"[datagen.lid] snap_verify: ATTACHED after {i + 1} steps", flush=True)
@@ -436,6 +445,16 @@ class LidSkeleton(FamilySkeleton):
             except KeyError:
                 pass
         raise FamilyAbort("snap_fail", steps=SNAP_MAX_STEPS)
+
+    @staticmethod
+    def _source_snap_step(ctx):
+        callback = getattr(ctx, 'source_passive_step', None)
+        if callback is None:
+            return None
+        def step():
+            if callback():
+                raise FamilyAbort('unsafe')
+        return step
 
     def _check_cont_disp(self, ctx: TaskContext, seg_name: str) -> None:
         xy = _np(ctx.target.get_position_orientation()[0])[:2]

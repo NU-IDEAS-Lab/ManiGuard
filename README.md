@@ -33,6 +33,12 @@
   <a href="#citation">📝 Citation</a>
 </p>
 
+New simulated runs use **640×640 DLAA source rendering** by default. Policies apply
+their own image preprocessing; `--source-profile legacy` selects the earlier
+rendering path. See [visual profiles and source recording](docs/data_collection/source_recording.md)
+for video-only evaluation, full state/action recording, datagen export and playback.
+Published data and historical experiment results retain their original visual settings.
+
 ## Overview
 
 **ManiGuard** is a benchmark and data suite for specification-grounded safety

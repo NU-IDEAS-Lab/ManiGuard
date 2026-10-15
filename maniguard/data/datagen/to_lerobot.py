@@ -10,6 +10,27 @@ from __future__ import annotations
 import numpy as np
 
 
+def video_contract(metas):
+    """Validate a homogeneous export before creating a LeRobot dataset."""
+    from .data_format import FPS, IMAGE_KEYS, RESOLUTION
+    contracts = set()
+    for meta in metas:
+        resolution, fps = meta.get('resolution', RESOLUTION), meta.get('fps', FPS)
+        if not isinstance(resolution, int) or resolution <= 0 or not isinstance(fps, int) or fps <= 0:
+            raise ValueError('LeRobot export requires positive square resolution and integer FPS')
+        if set(meta.get('video_keys', IMAGE_KEYS)) != set(IMAGE_KEYS):
+            raise ValueError('LeRobot export requires all five source views')
+        action_source = meta.get('action_source', 'next_achieved')
+        if action_source != 'next_achieved' and meta.get('action_space') != 'joint':
+            raise ValueError('This LeRobot schema requires declared joint commands')
+        if action_source != 'next_achieved' and meta.get('state_space') != 'joint':
+            raise ValueError('Source export requires declared joint state')
+        contracts.add((resolution, fps, action_source))
+    if len(contracts) != 1:
+        raise ValueError('Mixed resolution, FPS or action semantics; export separate datasets')
+    return contracts.pop()
+
+
 def build_prompt_table(metas: list[dict]) -> tuple[list[str], list[int]]:
     """Unique prompts (first-seen order) + each traj's task_index into that list."""
     unique: list[str] = []
@@ -31,7 +52,13 @@ def frame_rows(traj: dict) -> list[dict]:
     actions = np.asarray(traj["actions"], dtype=np.float32)
     commanded = np.asarray(traj["actions_commanded"], dtype=np.float32)
     n = len(state)
-    return [{"state": state[t], "actions": actions[t], "actions_commanded": commanded[t]}
+    if state.shape != (n, 8) or actions.shape != (n, 8) or commanded.shape != (n, 8):
+        raise ValueError('Joint LeRobot features require aligned (T, 8) state and command arrays')
+    extra = {key: np.asarray(traj[key]) for key in ("command_issued", "source_observation_id", "source_boundary_id", "target_observation_id", "sim_time_s") if key in traj}
+    if any(len(value) != n for value in extra.values()):
+        raise ValueError('Source interval metadata lengths differ')
+    return [{"state": state[t], "actions": actions[t], "actions_commanded": commanded[t],
+             **{key: value[t:t+1] for key, value in extra.items()}}
             for t in range(n)]
 
 
@@ -151,15 +178,21 @@ def convert(dataset: str, family: str, *, out_root: str, repo_id: str, limit=Non
     if not traj_dirs:
         raise ValueError(f"No RAW trajectories found for {family} in {dataset}")
     metas = [reader.load_meta(d) for d in traj_dirs]
+    resolution, fps, action_source = video_contract(metas)
     prompts, task_indices = build_prompt_table(metas)
     print(f"[to_lerobot] {family}: {len(traj_dirs)} trajs, {len(prompts)} unique prompts", flush=True)
 
     root = Path(out_root) / family
-    features = data_format.lerobot_features(data_format.RESOLUTION)
-    ds = LeRobotDataset.create(repo_id=repo_id, fps=data_format.FPS, features=features,
+    features = data_format.lerobot_features(resolution)
+    if action_source != 'next_achieved':
+        features['actions']['names'] = data_format.ACTION_COMMANDED_NAMES
+        for key, dtype in (("command_issued", "bool"), ("source_observation_id", "int64"), ("source_boundary_id", "int64"),
+                           ("target_observation_id", "int64"), ("sim_time_s", "float64")):
+            features[key] = {"dtype": dtype, "shape": (1,), "names": [key]}
+    ds = LeRobotDataset.create(repo_id=repo_id, fps=fps, features=features,
                                root=root, robot_type=data_format.ROBOT_TYPE, use_videos=True)
     keys = list(data_format.IMAGE_KEYS)
-    dummy = {k: np.zeros((data_format.RESOLUTION, data_format.RESOLUTION, 3), dtype=np.uint8) for k in keys}
+    dummy = {k: np.zeros((resolution, resolution, 3), dtype=np.uint8) for k in keys}
 
     kept, skipped = 0, []
     with _passthrough_images():
@@ -200,4 +233,3 @@ if __name__ == "__main__":
     a = ap.parse_args()
     out_root = a.out_root or f"outputs/datagen/{a.dataset}_lerobot_format"
     convert(a.dataset, a.family, out_root=out_root, repo_id=a.repo_id, limit=a.limit)
-

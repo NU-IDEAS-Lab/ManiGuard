@@ -59,7 +59,16 @@ def main() -> int:
     ap.add_argument("--task-cooldown", type=int, default=0,
                     help="seconds to sleep BETWEEN tasks — gives the GPU a brief idle between Isaac "
                          "restarts (may slow the per-GPU CUDA-context leak that causes the wedge).")
+    ap.add_argument("--source-profile", default="high_fidelity")
+    ap.add_argument("--recording-max-bytes", type=int, default=5 * 1024**3)
     a = ap.parse_args()
+
+    from maniguard.data.datagen.executor.resume import validate_visual_resume
+    from maniguard.visual.profile import resolve_profile_selection
+
+    profile = resolve_profile_selection(a.source_profile)
+    if a.source_profile not in ("high_fidelity", "legacy"):
+        a.source_profile = str(Path(a.source_profile).resolve())
 
     bench_family = BENCH_FAMILY[a.family]
     all_tasks = a.tasks or _tasks(bench_family)
@@ -86,6 +95,7 @@ def main() -> int:
     done = []
     for ti, task in enumerate(my_tasks):
         out_task = OUT_ROOT / a.dataset / bench_family / task
+        validate_visual_resume(out_task, profile)
         if a.skip_existing and (out_task / "_summary.json").exists():
             s = json.loads((out_task / "_summary.json").read_text())
             if s.get("n_success", 0) >= a.target:
@@ -97,7 +107,8 @@ def main() -> int:
         log = logdir / f"{task}.log"
         cmd = [sys.executable, "-u", "-m", "maniguard.data.datagen.driver",
                "--task-dir", str(task_dir), "--family", a.family, "--dataset", a.dataset,
-               "--target", str(a.target)]
+               "--target", str(a.target), "--source-profile", a.source_profile,
+               "--recording-max-bytes", str(a.recording_max_bytes)]
         if a.max_attempts:
             cmd += ["--max-attempts", str(a.max_attempts)]
         if a.start_draw is not None:

@@ -19,7 +19,8 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
              score: bool = False, out_root: str = "outputs/datagen",
              headless: bool = True, timeout: float = 5.0, steps_per_waypoint: int = 2,
              limit_demos=None, grasping_mode: str | None = None, start_draw: int | None = None,
-             horizon_override: str | None = None):
+             horizon_override: str | None = None, source_profile="high_fidelity",
+             recording_max_bytes: int = 5 * 1024**3):
     """Build one base task, then run the family skeleton x variants through the generic engine,
     recording each success+safe demo. Returns the list of DemoResults.
 
@@ -38,11 +39,18 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     from maniguard.data.datagen.executor.contracts import TaskContext
     from maniguard.data.datagen.executor.engine import DemoEngine
     from maniguard.data.datagen.executor.gate import build_gate
+    from maniguard.data.datagen.executor.resume import validate_visual_resume
     from maniguard.data.datagen.executor.variation import VariationSampler
     from maniguard.data.datagen.families import FAMILY
     from maniguard.data.datagen.primitives import cameras, obstacles, record
     from maniguard.data.datagen.primitives import scene as scenemod
+    from maniguard.visual.profile import resolve_profile_selection
 
+    source_profile = resolve_profile_selection(source_profile)
+    task_dir = Path(task_dir)
+    out_base = Path(out_root) / dataset / task_dir.parent.parent.name / task_dir.parent.name
+    validate_visual_resume(out_base, source_profile)
+    resolution = source_profile["resolution"][0] if source_profile is not None else 256
     t0 = time.time()
     task_dir = Path(task_dir)
     skeleton = FAMILY[family]()                        # Initialize the family before reading its grasping-mode default.
@@ -52,16 +60,20 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     needs_gpu = scenemod.task_needs_gpu_dynamics(task_dir)
     if needs_gpu:
         print("[driver] liquid/particle task -> gm.USE_GPU_DYNAMICS=True, ENABLE_FLATCACHE=False", flush=True)
-    og = scenemod.init_omnigibson(headless=headless, needs_gpu_dynamics=needs_gpu)   # Initialize the selected physics configuration.
+    og = scenemod.init_omnigibson(headless=headless, needs_gpu_dynamics=needs_gpu, source_profile=source_profile)   # Initialize the selected physics configuration.
     ag_mode = grasping_mode or skeleton.grasping_mode()   # CLI override takes precedence over the family default.
     print(f"[driver] grasping_mode={ag_mode!r} (family default={skeleton.grasping_mode()!r}, "
           f"cli_override={grasping_mode!r})", flush=True)
     bundle = scenemod.scene_from_task_dir(
-        task_dir, external_sensors=cameras.external_camera_configs(),
+        task_dir, external_sensors=cameras.external_camera_configs(resolution),
+        source_profile=source_profile,
         grasping_mode=ag_mode,
         pre_build_hooks=[_patch_franka_longfinger])
     env, robot = bundle.env, bundle.robot
-    cameras.place_and_resize_cameras(env, robot, og, bundle.diagnostics)
+    cameras.place_and_resize_cameras(env, robot, og, bundle.diagnostics, resolution=resolution)
+    if source_profile is not None:
+        from maniguard.visual.capture import SourceCapture
+        env._maniguard_source_capture = SourceCapture(env, source_profile)
 
     # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal + prompt before
     # anything reads them. `bundle.diagnostics` is the single source for BOTH -- build_gate
@@ -117,7 +129,12 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     engine = DemoEngine(env, robot, world, timeout=timeout, steps_per_waypoint=steps_per_waypoint,
                         max_steps=4500, plan_tries=4)   # Bound rollout length and retry failed plans up to four times.
                         # Each retry samples fresh planner seeds; successful plans return immediately.
-    recorder = record.Recorder()      # Record simulation states, padding variable-length dumps.
+    if source_profile is None:
+        recorder = record.Recorder()
+    else:
+        from maniguard.data.recording.datagen import SourceRecorder
+        scene = {**bundle.diagnostics, "scene_file": str(task_dir / "scene_ep1.json")}
+        recorder = SourceRecorder(source_profile, scene, gate.monitor, max_output_bytes=recording_max_bytes)
 
     cands = skeleton.grasp_candidates(ctx)
     if grasp_ids is not None:
@@ -143,26 +160,23 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     sampler = VariationSampler(n_per_grasp=n_per_grasp)
 
     # output dir uses the BENCH family name (clutter_pickup) so it matches the bench dataset layout
-    out_base = Path(out_root) / dataset / bench_family / task_name
     out_base.mkdir(parents=True, exist_ok=True)
 
     # resume cursor: a fresh run starts drawing at k=0; a top-up resumes from the prior run's next_draw
     # so it only ever draws UNSEEN seeds (the seed is deterministic per (grasp_id, k) → restarting at 0
     # would re-collect duplicate trajectories). --start-draw forces the cursor (recollect a deduped task).
-    from maniguard.data.datagen.executor.resume import compute_next_draw, resolve_start_k
+    from maniguard.data.datagen.executor.resume import (
+        compute_next_draw,
+        max_recorded_draw,
+        resolve_start_k,
+        source_attempt_name,
+    )
     summary_path = out_base / "_summary.json"
     prev_summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
     # Floor the resume cursor at the highest draw_index stored on disk.
     # Trajectories without draw_index do not contribute to this bound.
     # This protects against a missing or incomplete summary cursor.
-    ondisk_max_draw = -1
-    for _mp in out_base.glob("traj_*/meta.json"):
-        try:
-            _di = json.loads(_mp.read_text()).get("draw_index")
-        except Exception:  # noqa: BLE001
-            _di = None
-        if _di is not None:
-            ondisk_max_draw = max(ondisk_max_draw, int(_di))
+    ondisk_max_draw = max_recorded_draw(out_base)
     start_k = resolve_start_k(prev_summary, start_draw, ondisk_max_draw)
 
     if target:
@@ -177,6 +191,10 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     # A re-run then collects only the DEFICIT (target - existing) and stops the moment N is reached,
     # instead of collecting `target` MORE on top of what's already there.
     n_existing = sum(1 for p in out_base.glob("traj_*") if (p / "traj.hdf5").exists())
+    if source_profile is not None:
+        n_existing = sum(bool(json.loads(p.read_text()).get("result", {}).get("success"))
+                         for p in out_base.glob("attempt_*/episode.json")
+                         if json.loads(p.read_text()).get("status") == "complete")
     idx = n_existing
     if n_existing:
         print(f"[driver] resume: {n_existing} existing demo(s) count toward target={target}", flush=True)
@@ -199,7 +217,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         robot.keep_still()
         for _ in range(3):
             og.sim.step()
-        traj = f"traj_{idx:03d}"
+        traj = f"traj_{idx:03d}" if source_profile is None else source_attempt_name(g.id, params.draw_index)
         out_dir = out_base / traj
         meta = {"family": fam_name, "source_task": src_task, "task": task_name, "traj": traj,
                 "target_key": target_key, "grasp_id": g.id, "approach": g.approach,
@@ -207,7 +225,12 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
                 "lift_clearance_mult": round(params.lift_clearance_mult, 3),
                 "jitter": params.jitter, "grasp_score": round(getattr(g, "score", 0.0), 3)}
         segs = skeleton.derive_segments(ctx, g, params)
-        res = engine.run(ctx, skeleton, segs, gate, recorder, out_dir=out_dir, seed=params.seed, meta=meta)
+        try:
+            res = engine.run(ctx, skeleton, segs, gate, recorder, out_dir=out_dir, seed=params.seed, meta=meta)
+        except Exception as exc:
+            if source_profile is not None and recorder.observer is not None:
+                recorder.observer.finish({"status":"failed", "error":f"{type(exc).__name__}: {exc}"})
+            raise
         n_have2 = n_existing + sum(r.ok for r in results) + (1 if res.ok else 0)
         print(f"[driver] {traj} g{g.id} seed{params.seed}: ok={res.ok} fail={res.fail_stage} "
               f"{res.detail} [{n_have2}/{target or '∞'} att={n_att}]", flush=True)
@@ -218,7 +241,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     n_this = sum(r.ok for r in results)                  # collected THIS run
     n_total = n_existing + n_this                        # total kept on disk (incl. prior runs)
     elapsed = time.time() - t0
-    summary = {"source_task": src_task, "task": task_name, "target_key": target_key,
+    summary = {"source_profile": source_profile, "source_task": src_task, "task": task_name, "target_key": target_key,
                "target": target, "n_success": n_total, "n_collected_this_run": n_this,
                "n_attempts": n_att, "next_draw": compute_next_draw(last_run_draw, start_k),
                "reached_target": (target is None or n_total >= target),
@@ -259,12 +282,15 @@ if __name__ == "__main__":
                          "cabinet_task0019.json): substitutes this task's goal_conditions + prompt "
                          "so a truncated-horizon demo is gated and captioned as its own task. "
                          "Omit for the shipped full-horizon task.")
+    ap.add_argument("--source-profile", default="high_fidelity")
+    ap.add_argument("--recording-max-bytes", type=int, default=5 * 1024**3)
     a = ap.parse_args()
     run_task(a.task_dir, family=a.family, dataset=a.dataset, grasp_ids=a.grasp_ids,
              n_per_grasp=a.n_per_grasp, target=a.target, max_attempts=a.max_attempts,
              score=a.score, steps_per_waypoint=a.steps_per_waypoint, limit_demos=a.limit_demos,
              grasping_mode=a.grasping_mode, start_draw=a.start_draw,
-             horizon_override=a.horizon_override)
+             horizon_override=a.horizon_override, source_profile=a.source_profile,
+             recording_max_bytes=a.recording_max_bytes)
     # All summaries and trajectory files are written before process exit. Bypass
     # torch/Isaac extension teardown, which can segfault during interpreter shutdown.
     import os

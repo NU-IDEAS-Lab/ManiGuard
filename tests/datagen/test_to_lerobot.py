@@ -28,3 +28,26 @@ def test_frame_rows_shapes_and_values():
     assert rows[0]["state"].dtype == np.float32 and rows[0]["state"].shape == (8,)
     assert np.allclose(rows[1]["state"], np.arange(8, 16))
     assert np.allclose(rows[0]["actions"], 1.0) and np.allclose(rows[0]["actions_commanded"], 3.0)
+
+
+def test_source_metadata_controls_video_contract():
+    from maniguard.data.datagen.data_format import IMAGE_KEYS
+    from maniguard.data.datagen.to_lerobot import video_contract
+    assert video_contract([{}, {}]) == (256, 30, 'next_achieved')
+    new = {'resolution':640, 'fps':20, 'video_keys':list(IMAGE_KEYS),
+           'action_source':'applied', 'action_space':'joint', 'state_space':'joint'}
+    assert video_contract([new, new]) == (640,20,'applied')
+    import pytest
+    with pytest.raises(ValueError, match='Mixed'): video_contract([{},new])
+    with pytest.raises(ValueError, match='joint'): video_contract([{**new,'action_space':'eef'}])
+    with pytest.raises(ValueError, match='views'): video_contract([{**new,'video_keys':['wrist_image']}])
+
+
+def test_source_export_cannot_mislabel_eef_state_as_joint_state():
+    from maniguard.data.datagen.to_lerobot import video_contract
+    from maniguard.data.datagen.data_format import IMAGE_KEYS
+    import pytest
+    meta={'resolution':640, 'fps':20, 'video_keys':list(IMAGE_KEYS),
+          'action_source':'applied', 'action_space':'joint', 'state_space':'eef_8d'}
+    with pytest.raises(ValueError,match='joint state'):
+        video_contract([meta])

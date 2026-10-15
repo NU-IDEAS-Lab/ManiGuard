@@ -16,7 +16,7 @@ import fnmatch
 import json
 from pathlib import Path
 
-from maniguard.data.bench_builder.render import DEFAULT_FPS, DEFAULT_N_FRAMES, DEFAULT_RESOLUTION
+from maniguard.data.bench_builder.render import DEFAULT_FPS, DEFAULT_N_FRAMES
 from maniguard.data.bench_builder.validate_base import _category_lemma  # shared bddl taxonomy bridge
 
 ARM_DRIFT_TOL = 1e-2     # rad
@@ -330,7 +330,8 @@ def finalize_base_task(
     episode: int = 1,
     n_frames: int = DEFAULT_N_FRAMES,
     fps: int = DEFAULT_FPS,
-    resolution: int = DEFAULT_RESOLUTION,
+    resolution: int | None = None,
+    source_profile="high_fidelity",
 ) -> dict:
     """Finalize one base task into ``out_base_dir``; never writes to ``src_base_dir``."""
     src_base_dir = Path(src_base_dir).resolve()
@@ -338,10 +339,17 @@ def finalize_base_task(
     if src_base_dir == out_base_dir:
         raise ValueError("Source and output task directories must be different")
 
+    from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
+    source_profile = resolve_profile_selection(source_profile)
+    resolution = resolve_source_resolution(source_profile, resolution)
+    if source_profile is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
+
     import omnigibson as og
     import torch as th
 
-    from maniguard.data.bench_builder.render import render_views
+    from maniguard.data.bench_builder.render import prepare_preview_environment, render_views
     from maniguard.envs.frozen_task_runtime import build_env_config
     from maniguard.utils.camera_setup import EXTERNAL_CAMERA_NAMES
     from maniguard.utils.robot_pose import (
@@ -383,6 +391,7 @@ def finalize_base_task(
     if og.sim is not None:
         og.sim.stop()
         og.clear()
+    prepare_preview_environment(og_cfg, source_profile)
     env = og.Environment(configs=og_cfg)
     env.reset()
     robot = env.robots[0]
@@ -444,7 +453,7 @@ def finalize_base_task(
     # --- render idle-step videos + step the LTL monitor over the SAME steps; collect stats ---
     rv_diag, stats = render_views(
         env, diag, out_base_dir,
-        episode=episode, n_frames=n_frames, fps=fps, resolution=resolution,
+        episode=episode, n_frames=n_frames, fps=fps, resolution=resolution, source_profile=source_profile,
         mode="idle_step", ltl_monitor=monitor,
     )
     cameras = rv_diag["cameras"]

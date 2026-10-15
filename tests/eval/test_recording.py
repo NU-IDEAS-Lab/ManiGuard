@@ -18,7 +18,9 @@ def test_observer_factory_is_explicit_and_receives_unmodified_configuration(monk
 def test_output_directory_without_factory_is_an_error():
     with pytest.raises(ValueError):make_observer(SimpleNamespace(recording_factory=None,recording_output_dir='x'),{})
 
-def test_actual_execution_loop_preserves_actions_and_records_in_order():
+@pytest.mark.parametrize("source", [False, True])
+@pytest.mark.parametrize("video", [False, True])
+def test_actual_execution_loop_preserves_actions_and_records_in_order(source, video):
     import ast,copy,io
     from pathlib import Path
     import numpy as np
@@ -28,7 +30,7 @@ def test_actual_execution_loop_preserves_actions_and_records_in_order():
     code=compile(ast.fix_missing_locations(ast.Module(body=[loop],type_ignores=[])),'actual-eval-loop','exec')
     outputs=[]
     for enabled in (False,True):
-        executed=[];events=[]
+        executed=[];events=[];captures=[];written=[]
         class Observer:
             def proposal(self,t,chunk,n,bounds):events.append(('proposal',t,n))
             def before_action(self,t,offset,raw,transformed,command):events.append(('before',t))
@@ -38,9 +40,15 @@ def test_actual_execution_loop_preserves_actions_and_records_in_order():
         def step(action):executed.append(action.copy());return None,0.,None,None,None
         def obs():return {'states':np.zeros(8),'overview_image':None,'wrist_images':None}
         chunk=np.ones((8,8),dtype=np.float32)*.2;chunk[:,-1]=.3
-        scope={'cfg':SimpleNamespace(max_steps=4,execute_horizon=2,gripper_binarize=True,ik_eef_to_joint=False,save_video=False),
+        def capture_step(action, executed=executed, captures=captures, step=step):
+            value=step(action)
+            captures.append(len(executed))
+            return value, obs()
+        env=SimpleNamespace(step=step)
+        if source: env._maniguard_source_capture=SimpleNamespace(step=capture_step)
+        scope={'videos': {'overview_image': SimpleNamespace(append=written.append)} if video else {}, 'cfg':SimpleNamespace(max_steps=4,execute_horizon=2,gripper_binarize=True,ik_eef_to_joint=False,save_video=False),
             'step_idx':0,'done':False,'success':False,'query_policy':lambda *args:chunk.copy(),'policy':None,'client_type':'fixture',
-            'obs':obs(),'os':SimpleNamespace(environ={}), 'np':np,'env':SimpleNamespace(step=step),
+            'obs':obs(),'os':SimpleNamespace(environ={}), 'np':np,'env':env,
             'robot':None,'scene_info':{'prompt':'move'},'episode_seed':7,'total_reward':0.,'recorder':Observer() if enabled else None,
             'action_space':SimpleNamespace(low=np.full(8,-1),high=np.ones(8),shape=(8,)),
             'torch':SimpleNamespace(from_numpy=lambda a:SimpleNamespace(unsqueeze=lambda dim:a)),
@@ -48,6 +56,8 @@ def test_actual_execution_loop_preserves_actions_and_records_in_order():
             '_record_action_finiteness':lambda *a:None,'ever_contacted':False,'_task_objs':[],'_target_obj':None,
             'monitor':SimpleNamespace(step=lambda t:None),'goal_checker':None,'goal_detail':{}}
         with redirect_stdout(io.StringIO()):exec(code,scope)
+        assert captures == ([1, 2, 3, 4] if source else [])
+        assert len(written) == (4 if video else 0)
         outputs.append(np.stack(executed))
         if enabled:
             assert events==[('proposal',0,2),('before',0),('applied',0),('state',1),('oracle',1),('before',1),('applied',1),('state',2),('oracle',2),

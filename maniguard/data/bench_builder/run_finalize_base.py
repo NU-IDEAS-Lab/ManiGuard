@@ -34,13 +34,14 @@ VIDEO_LABELS = ("opposite_side_front", "left_overview", "right_overview", "left_
 
 # ---------------------------------------------------------------------------- helpers
 
-def _is_complete(out_base: Path, episode: int) -> bool:
+def _is_complete(out_base: Path, episode: int, source_profile="recorded") -> bool:
     """Output is a complete finalized task: snapshot + diagnostics + the 4 videos."""
     if not (out_base / f"scene_ep{episode}.json").is_file():
         return False
     if not (out_base / "diagnostics.jsonl").is_file():
         return False
-    return all((out_base / f"rollout_{lbl}_ep{episode}.mp4").is_file() for lbl in VIDEO_LABELS)
+    from maniguard.data.bench_builder.render import review_videos_complete
+    return review_videos_complete(out_base, episode, source_profile)
 
 
 def _scene_file_in(src_base: Path, episode: int) -> Path | None:
@@ -110,14 +111,14 @@ def _check_distinct_paths(src_base: Path, out_base: Path) -> None:
 
 # ---------------------------------------------------------------------------- worker
 
-def _run_worker(src_base: Path, out_base: Path, family: str, episode: int) -> None:
+def _run_worker(src_base: Path, out_base: Path, family: str, episode: int, source_profile="high_fidelity") -> None:
     """Finalize ONE task; persist the manifest row before the (possibly segfaulting) teardown."""
     _check_distinct_paths(src_base, out_base)
     from maniguard.data.bench_builder.finalize_base import finalize_base_task
 
     out_base.mkdir(parents=True, exist_ok=True)
     try:
-        row = finalize_base_task(src_base, out_base, family=family, episode=episode)
+        row = finalize_base_task(src_base, out_base, family=family, episode=episode, source_profile=source_profile)
     except Exception as e:  # noqa: BLE001 — record the reason so the driver can report it
         import traceback
         row = {
@@ -129,7 +130,7 @@ def _run_worker(src_base: Path, out_base: Path, family: str, episode: int) -> No
 
 # ---------------------------------------------------------------------------- driver
 
-def _spawn_worker(src_base: Path, out_base: Path, family: str, episode: int, env: dict, timeout: int):
+def _spawn_worker(src_base: Path, out_base: Path, family: str, episode: int, env: dict, timeout: int, source_profile="high_fidelity"):
     _check_distinct_paths(src_base, out_base)
     # Only a row produced by this attempt can attest to completed output.
     (out_base / ROW_FILE).unlink(missing_ok=True)
@@ -137,6 +138,7 @@ def _spawn_worker(src_base: Path, out_base: Path, family: str, episode: int, env
         sys.executable, "-m", "maniguard.data.bench_builder.run_finalize_base",
         "--worker", "--src-base", str(src_base), "--out-base", str(out_base),
         "--family", family, "--episode", str(episode),
+        "--source-profile", source_profile,
     ]
     try:
         return subprocess.run(cmd, env=env, timeout=timeout).returncode
@@ -198,7 +200,8 @@ def _driver(args: argparse.Namespace) -> int:
     existing = {
         t: _row_for_task(t, out_fam, args.family, args.episode) for t in tasks
     } if args.skip_existing else {}
-    skipped = [t for t in tasks if existing.get(t, {}).get("status") in {"ok", "warn"}]
+    skipped = [t for t in tasks if existing.get(t, {}).get("status") in {"ok", "warn"}
+               and _is_complete(out_fam / t / "base", args.episode, args.source_profile)]
     to_run = [t for t in tasks if t not in set(skipped)]
     print(f"[finalize] {args.family}: {len(tasks)} tasks ({len(to_run)} to run, {len(skipped)} skip), "
           f"jobs={args.jobs} -> {out_fam}", flush=True)
@@ -230,7 +233,7 @@ def _driver(args: argparse.Namespace) -> int:
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as ex:
         futs = {
             ex.submit(_spawn_worker, src_fam / t / args.src_subdir, out_fam / t / "base",
-                      args.family, args.episode, env, args.timeout): t
+                      args.family, args.episode, env, args.timeout, source_profile=args.source_profile): t
             for t in to_run
         }
         done = 0
@@ -286,12 +289,17 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=1, help="parallel worker subprocesses (try 2; drop to 1 on CUDA OOM)")
     ap.add_argument("--skip-existing", action="store_true")
     ap.add_argument("--timeout", type=int, default=600, help="per-task worker timeout (s)")
+    ap.add_argument("--source-profile", default="high_fidelity")
     args = ap.parse_args()
+    from maniguard.visual.profile import resolve_profile_selection
+    resolve_profile_selection(args.source_profile)
+    if args.source_profile not in ("high_fidelity", "legacy"):
+        args.source_profile = str(Path(args.source_profile).resolve())
 
     if args.worker:
         if not args.src_base or not args.out_base:
             ap.error("--worker requires --src-base and --out-base")
-        _run_worker(Path(args.src_base), Path(args.out_base), args.family, args.episode)
+        _run_worker(Path(args.src_base), Path(args.out_base), args.family, args.episode, source_profile=args.source_profile)
         return 0
     if not args.src_root:
         ap.error("--src-root is required")

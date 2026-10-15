@@ -12,6 +12,7 @@ import random
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -2601,9 +2602,9 @@ def _runtime_env(session: FrozenTaskRuntimeSession, bundle: TaskBundle, *, camer
     og = session.og
     assert og is not None
     cfg = build_env_config(bundle.scene_info, bundle.diagnostics, camera_names=camera_names)
-    env = og.Environment(configs=cfg)
+    env = og.Environment(configs=session.prepare_config(cfg))
     env.reset()
-    configure_review_sensors(env)
+    configure_review_sensors(env, session.source_profile)
     position_diagnostics_cameras(env, og, bundle.diagnostics, set_viewer=False)
     return env
 
@@ -3033,20 +3034,21 @@ def _materialize_online_variant(
     headless: bool,
     online_steps: int,
     video_fps: int,
+    source_profile="high_fidelity",
 ) -> TaskBundle:
     camera_names = _task_video_camera_names(bundle)
-    with FrozenTaskRuntimeSession(headless=headless) as session:
+    with FrozenTaskRuntimeSession(headless=headless, source_profile=source_profile) as session:
         env = _runtime_env(session, bundle, camera_names=camera_names)
         og = session.og
         assert og is not None
-        video_context = ReviewVideoRecorder(path=output_dir, fps=video_fps, camera_names=camera_names).__enter__()
+        video_context = ReviewVideoRecorder(path=output_dir, fps=video_fps, camera_names=camera_names, source_profile=session.source_profile).__enter__()
         try:
             video_context.record(env, og)
             _materialize_family(bundle, env, og, video_recorder=video_context)
             step_idle(env, og, steps=online_steps, video_recorder=video_context)
             save_scene_snapshot(env, output_dir / "scene_ep1.json")
         finally:
-            video_context.__exit__(None, None, None)
+            video_context.__exit__(*sys.exc_info())
             env.close()
     return _refresh_bundle_artifacts(bundle, output_dir, materialized_online=True)
 
@@ -3060,6 +3062,7 @@ def materialize_online_variant_in_place(
     online_steps: int,
     online_video_fps: int,
     attempt_artifacts_dir: Path | None = None,
+    source_profile="high_fidelity",
 ) -> dict[str, Any]:
     bundle = load_task_bundle(task_dir, family=family, activity_root=activity_root)
     materialized = _materialize_online_variant(
@@ -3068,6 +3071,7 @@ def materialize_online_variant_in_place(
         headless=headless,
         online_steps=online_steps,
         video_fps=online_video_fps,
+        source_profile=source_profile,
     )
     return {
         "task_dir": str(task_dir),
@@ -3172,6 +3176,7 @@ def _online_acceptance_check(
     activity_root: Path,
     headless: bool,
     attempt_artifacts_dir: Path | None = None,
+    source_profile="high_fidelity",
 ) -> tuple[bool, list[str]]:
     helper = (
         "import json,sys; "
@@ -3187,7 +3192,8 @@ def _online_acceptance_check(
         "ltl_horizon_steps=1, "
         "save_video=None, "
         "auto_save_video=False, "
-        "materialize_reconstruct=False"
+        "materialize_reconstruct=False, "
+        f"source_profile={source_profile!r}"
         "); "
         f"Path(sys.argv[1]).write_text(json.dumps(report.to_dict(), ensure_ascii=True), encoding='utf-8')"
     )
@@ -3235,6 +3241,7 @@ def _run_online_materialization_subprocess(
     online_steps: int,
     online_video_fps: int,
     attempt_artifacts_dir: Path | None = None,
+    source_profile="high_fidelity",
 ) -> dict[str, Any]:
     def _log_text(value: Any) -> str:
         if value is None:
@@ -3257,6 +3264,8 @@ def _run_online_materialization_subprocess(
         str(activity_root.resolve()),
         "--online-steps",
         str(int(online_steps)),
+        "--source-profile",
+        str(source_profile),
         "--online-video-fps",
         str(int(online_video_fps)),
         "--output-path",
@@ -3323,6 +3332,7 @@ def _run_online_materialization_subprocess(
                 if payload.get("materialized_ok", False):
                     ok, failed_checks = _online_acceptance_check(
                         output_dir,
+                        source_profile=source_profile,
                         family=family,
                         activity_root=activity_root,
                         headless=headless,
@@ -3366,6 +3376,7 @@ def scale_base_task_set(
     families: Sequence[str] | None = None,
     task_ids: Sequence[str] | None = None,
     dry_run: bool = False,
+    source_profile="high_fidelity",
 ) -> dict[str, Any]:
     perturbation_kind = str(perturbation_kind)
     if perturbation_kind not in {"object", "position", "semantic", "env"}:
@@ -3501,6 +3512,7 @@ def scale_base_task_set(
                         output_dir=output_dir,
                         activity_root=activity_root,
                         headless=headless,
+                        source_profile=source_profile,
                         online_steps=int(online_steps),
                         online_video_fps=int(online_video_fps),
                         attempt_artifacts_dir=attempt_artifacts_dir,
@@ -3575,6 +3587,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-root", required=True, help="Output root for self-contained perturbed task dirs.")
     parser.add_argument("--activity-root", default=str(DEFAULT_ACTIVITY_ROOT), help="Activity definitions root.")
     parser.add_argument("--headless", action="store_true", help="Run online materialization headless.")
+    parser.add_argument("--source-profile", default="high_fidelity")
     parser.add_argument("--online-steps", type=int, default=DEFAULT_RENDER_STEPS, help="Idle steps to record after online materialization.")
     parser.add_argument("--online-video-fps", type=int, default=DEFAULT_ONLINE_VIDEO_FPS, help="Video FPS for online materialized variants.")
     parser.add_argument("--variant-attempt-limit", type=int, default=DEFAULT_VARIANT_ATTEMPT_LIMIT, help="Retry budget per online-required variant slot.")
@@ -3584,7 +3597,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    from maniguard.visual.profile import resolve_profile_selection
+    resolve_profile_selection(args.source_profile)
+    if args.source_profile not in ("high_fidelity", "legacy"):
+        args.source_profile = str(Path(args.source_profile).resolve())
     summary = scale_base_task_set(
+        source_profile=args.source_profile,
         base_root=Path(args.base_root).expanduser(),
         env_source_root=Path(args.env_source_root).expanduser() if args.env_source_root else None,
         output_root=Path(args.output_root).expanduser(),
