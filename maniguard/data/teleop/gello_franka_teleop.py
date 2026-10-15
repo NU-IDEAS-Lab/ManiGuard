@@ -283,7 +283,13 @@ def main():
                              "without it liquid scenes render empty (no particles "
                              "spawned, no physics). Costs extra VRAM; only enable "
                              "when the scene actually has fluids/particles/cloth.")
+    parser.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or YAML profile")
     args = parser.parse_args()
+    from maniguard.visual.capture import SourceCapture, prepare_source_environment, prepare_source_launch
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(args.source_profile)
+    if profile is not None:
+        prepare_source_launch()
 
     # Apply global macros BEFORE creating og.Environment — simulator.py reads
     # gm.USE_GPU_DYNAMICS during _init_physx and won't pick up later changes.
@@ -319,17 +325,19 @@ def main():
         initial_joint_pos=np.asarray(GELLO_CALIBRATION_FRANKA_POSE, dtype=np.float32),
     )
     print(f"[Gello] grasping_mode = {args.grasping_mode}")
+    prepare_source_environment(cfg, profile)
     env = og.Environment(configs=cfg)
     env.reset()
 
     # ----- Viewer lighting -----
-    og.sim.add_skybox()
-    try:
-        og.sim._skybox.intensity = 12000
-    except Exception as _exc:
-        print(f"[Gello] Could not bump skybox intensity ({_exc}); using default 2500.")
-    og.sim.set_lighting_mode(LightingMode.CAMERA)
-    print("[Gello] Skybox dome added; viewport lighting = CAMERA.")
+    if profile is None:
+        og.sim.add_skybox()
+        try:
+            og.sim._skybox.intensity = 12000
+        except Exception as _exc:
+            print(f"[Gello] Could not bump skybox intensity ({_exc}); using default 2500.")
+        og.sim.set_lighting_mode(LightingMode.CAMERA)
+        print("[Gello] Skybox dome added; viewport lighting = CAMERA.")
 
     # ----- HDF5 recording (mirrors so101) -----
     recorder = None
@@ -353,6 +361,7 @@ def main():
 
     # ----- Cameras -----
     _setup_cameras_for_scene(env, robot, args)
+    capture = SourceCapture(recorder.env if recorder is not None else env, profile) if profile is not None else None
 
     # ----- Hotkeys -----
     KeyboardEventHandler.initialize()
@@ -506,6 +515,8 @@ def main():
                 dtype=th.float32,
             )
             env.step(action)
+            if capture is not None:
+                capture.capture(capture.observation_id + 1)
 
             if lid_snapper is not None:
                 lid_snapper.try_snap(robot=robot)
@@ -552,7 +563,9 @@ def main():
                   f"(only_successes={args.only_successes})")
             recorder.save_data()
             print(f"[Gello] HDF5 written: {args.output_hdf5}")
-        og.clear()
+        if capture is not None:
+            capture.close()
+        og.shutdown()
 
 
 if __name__ == "__main__":

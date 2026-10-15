@@ -18,14 +18,6 @@ _COMMON = {
     "rgb_encoding": {"codec": "jpeg", "quality": 95, "subsampling": "444", "color_order": "RGB"},
 }
 _RENDERERS = {
-    "PathTracing": {
-        "name": "path_tracing_reference",
-        "total_spp": 128,
-        "spp_per_update": 16,
-        "max_bounces": 8,
-        "max_specular_transmission_bounces": 12,
-        "denoiser": "optix_single_frame",
-    },
     "RaytracedLighting": {
         "name": "high_fidelity",
         "denoiser": "ray_reconstruction",
@@ -69,16 +61,8 @@ def load_profile(source=None) -> dict:
         or resolution[0] != resolution[1]
     ):
         raise ValueError("Source resolution must be two equal positive integers")
-    integer_options = (
-        ("total_spp", "spp_per_update", "max_bounces", "max_specular_transmission_bounces")
-        if renderer == "PathTracing"
-        else ("render_deliveries",)
-    )
-    for key in integer_options:
-        if type(profile[key]) is not int or profile[key] <= 0:
-            raise ValueError(f"{key} must be a positive integer")
-    if renderer == "PathTracing" and profile["total_spp"] % profile["spp_per_update"]:
-        raise ValueError("total_spp must be divisible by spp_per_update")
+    if type(profile["render_deliveries"]) is not int or profile["render_deliveries"] <= 0:
+        raise ValueError("render_deliveries must be a positive integer")
     for key in ("renderer", "denoiser", "tonemap", "motion_blur", "depth_of_field", "frame_generation"):
         if profile[key] != defaults[key] or type(profile[key]) is not type(defaults[key]):
             raise ValueError(f"Unsupported {key}: {profile[key]!r}")
@@ -92,6 +76,13 @@ def load_profile(source=None) -> dict:
     if type(encoding["quality"]) is not int or not 1 <= encoding["quality"] <= 100:
         raise ValueError("JPEG quality must be an integer in [1, 100]")
     return profile
+
+
+def resolve_profile_selection(selection="high_fidelity") -> dict | None:
+    """Resolve a public profile selector; explicit null preserves legacy RGB."""
+    if selection is None or selection == "legacy":
+        return None
+    return load_profile(None if selection == "high_fidelity" else selection)
 
 
 def resolve_source_resolution(profile: dict | None, configured_resolution: int | None) -> int:
@@ -114,42 +105,28 @@ def renderer_settings(profile: dict) -> dict:
         "/rtx/post/dof/enabled": False,
         "/rtx-transient/dlssg/enabled": False,
     }
-    if p["renderer"] == "PathTracing":
-        settings.update(
-            {
-                "/rtx/pathtracing/spp": p["spp_per_update"],
-                "/rtx/pathtracing/totalSpp": p["total_spp"],
-                "/rtx/pathtracing/maxBounces": p["max_bounces"],
-                "/rtx/pathtracing/maxSpecularAndTransmissionBounces": p["max_specular_transmission_bounces"],
-                "/rtx/pathtracing/optixDenoiser/enabled": True,
-                "/rtx/pathtracing/optixDenoiser/temporalMode/enabled": False,
-                "/rtx/resetPtAccumOnAnimTimeChange": False,
-                "/rtx-transient/resetPtAccumOnlyWhenExternalFrameCounterChanges": True,
-            }
-        )
-    else:
-        # IsaacLab 4.5 quality preset used by RoboDojo, with native-resolution DLAA.
-        # Replicator tiled-render warning limits are unrelated to these five cameras.
-        settings.update(
-            {
-                "/rtx/post/aa/op": 4,
-                "/rtx/post/dlss/execMode": 2,
-                "/rtx/translucency/enabled": True,
-                "/rtx/translucency/maxRefractionBounces": 6,
-                "/rtx/reflections/enabled": True,
-                "/rtx/reflections/denoiser/enabled": True,
-                "/rtx/directLighting/sampledLighting/enabled": True,
-                "/rtx/sceneDb/ambientLightIntensity": 1.0,
-                "/rtx/shadows/enabled": True,
-                "/rtx/indirectDiffuse/enabled": True,
-                "/rtx/indirectDiffuse/denoiser/enabled": True,
-                "/rtx/ambientOcclusion/enabled": True,
-                "/rtx/ambientOcclusion/denoiserMode": 0,
-                "/rtx/raytracing/subpixel/mode": 1,
-                "/rtx/raytracing/cached/enabled": True,
-                "/rtx-transient/dldenoiser/enabled": True,
-            }
-        )
+    # IsaacLab 4.5 quality preset used by RoboDojo, with native-resolution DLAA.
+    # Replicator tiled-render warning limits are unrelated to these five cameras.
+    settings.update(
+        {
+            "/rtx/post/aa/op": 4,
+            "/rtx/post/dlss/execMode": 2,
+            "/rtx/translucency/enabled": True,
+            "/rtx/translucency/maxRefractionBounces": 6,
+            "/rtx/reflections/enabled": True,
+            "/rtx/reflections/denoiser/enabled": True,
+            "/rtx/directLighting/sampledLighting/enabled": True,
+            "/rtx/sceneDb/ambientLightIntensity": 1.0,
+            "/rtx/shadows/enabled": True,
+            "/rtx/indirectDiffuse/enabled": True,
+            "/rtx/indirectDiffuse/denoiser/enabled": True,
+            "/rtx/ambientOcclusion/enabled": True,
+            "/rtx/ambientOcclusion/denoiserMode": 0,
+            "/rtx/raytracing/subpixel/mode": 1,
+            "/rtx/raytracing/cached/enabled": True,
+            "/rtx-transient/dldenoiser/enabled": True,
+        }
+    )
     return settings
 
 

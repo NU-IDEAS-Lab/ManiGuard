@@ -23,7 +23,7 @@ class EvalConfig:
     recording_factory: str | None = None
     recording_output_dir: str | None = None
     recording_provenance: str | None = None
-    source_profile: str | dict | None = None
+    source_profile: str | dict | None = "high_fidelity"
     recording_max_bytes: int = 5 * 1024**3
 
     # -- Benchmark source --
@@ -109,10 +109,9 @@ class EvalConfig:
     # minimum EEF-to-target distance remain available for offline relabeling.
     tau_move: float = 0.05    # target drifted > this (m) from spawn -> "manipulated"
     tau_reach: float = 0.12   # eef came within this (m) of target -> "reached"
-    camera_resolution: int = 256
+    camera_resolution: int | None = None
     save_video: bool = True
-    # Frames buffer in RAM until the rollout ends; at high camera_resolution the
-    # wrist stream doubles that peak, so it can be dropped independently.
+    # Videos stream to disk; wrist output can be disabled independently.
     save_wrist_video: bool = True
 
     # -- Output --
@@ -131,7 +130,10 @@ class EvalConfig:
     serve_config_name: str = ""
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        if self.source_profile is None:
+            data["source_profile"] = "legacy"
+        return data
 
     def to_yaml(self) -> str:
         d = self.to_dict()
@@ -153,18 +155,17 @@ class EvalConfig:
 
 
 def resolve_source_config(cfg) -> None:
-    """Resolve the explicitly selected source mode before saving run metadata."""
-    if getattr(cfg, "source_profile", None) is None:
-        return
-    from maniguard.visual.profile import load_profile, resolve_source_resolution
-    cfg.source_profile = load_profile(cfg.source_profile)
+    """Resolve visual selection once, before simulator startup or metadata writes."""
+    from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
+
+    cfg.source_profile = resolve_profile_selection(cfg.source_profile)
     cfg.camera_resolution = resolve_source_resolution(cfg.source_profile, cfg.camera_resolution)
+    if cfg.source_profile is None:
+        return
     # HQ particle surfaces require the 60 Hz internal render interval.
     cfg.rendering_frequency = 60
     from maniguard.visual.capture import time_contract
     time_contract(cfg.action_frequency, cfg.rendering_frequency, cfg.physics_frequency)
-    if cfg.save_video:
-        raise ValueError("Source capture streams RGB to HDF5; set save_video=false and export previews offline")
     if cfg.recording_output_dir and cfg.recording_factory is None:
         cfg.recording_factory = "maniguard.data.recording.observer:create_observer"
 
@@ -216,7 +217,8 @@ def config_from_cli() -> EvalConfig:
                    help="Explicit run subfolder leaf under output_dir (skips timestamp).")
     p.add_argument("--tag", type=str, default=None,
                    help="Label folded UPPERCASED into the auto run_name, e.g. --tag smoke.")
-    p.add_argument("--save-video", action="store_true", default=None)
+    p.add_argument("--save-video", action=argparse.BooleanOptionalAction, default=None)
+    p.add_argument("--save-wrist-video", action=argparse.BooleanOptionalAction, default=None)
     p.add_argument("--external-cam", type=str, default=None,
                    choices=["opposite", "left", "right", "left_shoulder"])
     p.add_argument("--grasping-mode", type=str, default=None, choices=["physical", "assisted", "sticky"])

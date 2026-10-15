@@ -70,12 +70,13 @@ def _load_diag(base_dir: Path, episode: int) -> dict:
         return json.loads([ln for ln in txt.splitlines() if ln.strip()][0])
 
 
-def _is_complete(out_dir: Path, episode: int) -> bool:
+def _is_complete(out_dir: Path, episode: int, source_profile="recorded") -> bool:
     if not (out_dir / f"scene_ep{episode}.json").is_file():
         return False
     if not (out_dir / "diagnostics.jsonl").is_file():
         return False
-    return all((out_dir / f"rollout_{lbl}_ep{episode}.mp4").is_file() for lbl in VIDEO_LABELS)
+    from maniguard.data.bench_builder.render import review_videos_complete
+    return review_videos_complete(out_dir, episode, source_profile)
 
 
 def _select_tasks(out_fam: Path, spec: str | None, episode: int) -> list[str]:
@@ -329,12 +330,12 @@ def clear_on_surface_obstacles(env, surf, support_top: float, keep_names: set) -
 # ---------------------------------------------------------------------------- worker
 
 def _run_worker(base_dir: Path, out_dir: Path, family: str, episode: int,
-                sub_room: str | None = None, sub_table: str | None = None) -> None:
+                sub_room: str | None = None, sub_table: str | None = None, source_profile="high_fidelity") -> None:
     task = base_dir.parent.name
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         row = _make_env_variant(base_dir, out_dir, family, episode,
-                                sub_room=sub_room, sub_table=sub_table)
+                                sub_room=sub_room, sub_table=sub_table, source_profile=source_profile)
     except Exception as e:  # noqa: BLE001
         import traceback
         row = {"task": task, "family": family, "status": "fail",
@@ -343,12 +344,17 @@ def _run_worker(base_dir: Path, out_dir: Path, family: str, episode: int,
 
 
 def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
-                      sub_room: str | None = None, sub_table: str | None = None) -> dict:
+                      sub_room: str | None = None, sub_table: str | None = None, source_profile="high_fidelity") -> dict:
     """ONE injection attempt (one Isaac build — OmniGibson does not support rebuilding the env in the
     same process; the external cameras go stale on the 2nd build). NORMAL mode (``sub_room`` None)
     anchors on the SAME table model in the base task's own room (``T = T_room·T_base⁻¹``). SUBSTITUTE
     mode re-anchors the base pack onto a different, adequately-sized table (``sub_room``/``sub_table``).
     The driver orchestrates the normal→substitute fallback by spawning fresh worker subprocesses."""
+    from maniguard.visual.profile import resolve_profile_selection
+    source_profile = resolve_profile_selection(source_profile)
+    if source_profile is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
     import omnigibson as og
     import torch as th
 
@@ -447,6 +453,8 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
     if og.sim is not None:
         og.sim.stop()
         og.clear()
+    from maniguard.data.bench_builder.render import prepare_preview_environment
+    prepare_preview_environment(og_cfg, source_profile)
     env = og.Environment(configs=og_cfg)
     env.reset()
     robot = env.robots[0]
@@ -524,7 +532,7 @@ def _make_env_variant(base_dir: Path, out_dir: Path, family: str, episode: int,
                                            ROBOT_MOUNT_OFFSET, init_doomed)
     # Track obj_disp over the INJECTED task objects only — an unsupported room background object
     # falling into the void would otherwise dominate the max-displacement stat (the task is stable).
-    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode, ltl_monitor=monitor,
+    out_diag, stats = render_views(env, out_diag, out_dir, episode=episode, source_profile=source_profile, ltl_monitor=monitor,
                                    track_object_names={o.name for o in injected_objs})
     ltl_violated = bool(monitor.violated) if monitor is not None else False
     arm_ok = float(stats.get("arm_drift") or 0.0) < ARM_DRIFT_TOL
@@ -585,8 +593,11 @@ def _write_compare_snapshot(base_dir: Path, env_dir: Path, out_png: Path, episod
     import numpy as np
 
     def row(view):
-        bv = base_dir / f"rollout_{view}_ep{episode}.mp4"
-        ev = env_dir / f"rollout_{view}_ep{episode}.mp4"
+        from maniguard.data.bench_builder.review_snapshots import _find_video
+        bv = _find_video(base_dir, view, episode)
+        ev = _find_video(env_dir, view, episode)
+        if bv is None or ev is None:
+            return None
         if not bv.exists() or not ev.exists():
             return None
         bf, ef = _last_frame(bv), _last_frame(ev)
@@ -613,11 +624,12 @@ def _write_compare_snapshot(base_dir: Path, env_dir: Path, out_png: Path, episod
 # ---------------------------------------------------------------------------- driver
 
 def _spawn_worker(base_dir: Path, out_dir: Path, family: str, episode: int, env: dict, timeout: int,
-                  sub_room: str | None = None, sub_table: str | None = None):
+                  sub_room: str | None = None, sub_table: str | None = None, source_profile="high_fidelity"):
     cmd = [
         sys.executable, "-m", "maniguard.data.bench_builder.perturb_env",
         "--worker", "--base-dir", str(base_dir), "--out-dir", str(out_dir),
         "--family", family, "--episode", str(episode),
+        "--source-profile", source_profile,
     ]
     if sub_room and sub_table:
         cmd += ["--substitute-room", sub_room, "--substitute-table", sub_table]
@@ -645,14 +657,14 @@ def _row_for_task(task: str, out_fam: Path, family: str, episode: int) -> dict:
     return _read_row(out_fam / task / LEVEL, task, family, episode)
 
 
-def _reusable(out_dir: Path, episode: int) -> bool:
+def _reusable(out_dir: Path, episode: int, source_profile="recorded") -> bool:
     """Return whether --skip-existing may reuse this task.
 
     Require all output files and an ok worker row. Substitute-mode outputs
     are regenerated; rows without a mode field are treated as normal mode.
     """
     rp = out_dir / ROW_FILE
-    if not rp.exists() or not _is_complete(out_dir, episode):
+    if not rp.exists() or not _is_complete(out_dir, episode, source_profile):
         return False
     try:
         r = json.loads(rp.read_text(encoding="utf-8"))
@@ -663,7 +675,7 @@ def _reusable(out_dir: Path, episode: int) -> bool:
 
 
 def _process_task(out_fam: Path, task: str, family: str, episode: int, env: dict, timeout: int,
-                  geom: dict, index: dict, max_substitute: int, launch_gap: float = 0.0) -> dict:
+                  geom: dict, index: dict, max_substitute: int, launch_gap: float = 0.0, source_profile="high_fidelity") -> dict:
     """Try a matching-table placement, then substitute-table candidates.
 
     Run each attempt in a separate process. Return the first accepted placement
@@ -679,7 +691,7 @@ def _process_task(out_fam: Path, task: str, family: str, episode: int, env: dict
     # gap gives the driver headroom when running two concurrent sessions on one GPU.
     if launch_gap:
         time.sleep(launch_gap)
-    _spawn_worker(base_dir, out_dir, family, episode, env, timeout)
+    _spawn_worker(base_dir, out_dir, family, episode, env, timeout, source_profile=source_profile)
     row = _read_row(out_dir, task, family, episode)
     if row.get("status") == "ok":
         return row
@@ -699,7 +711,7 @@ def _process_task(out_fam: Path, task: str, family: str, episode: int, env: dict
     orig_model = (diag.get("surface_info") or {}).get("model")
     for ci, cand in enumerate(cands[:max_substitute], 1):
         _spawn_worker(base_dir, out_dir, family, episode, env, timeout,
-                      sub_room=cand["scene"], sub_table=cand["name"])
+                      sub_room=cand["scene"], sub_table=cand["name"], source_profile=source_profile)
         srow = _read_row(out_dir, task, family, episode)
         if srow.get("status") == "ok":
             return {**srow, "substituted_for": orig_model, "n_substitute_tried": ci}
@@ -727,7 +739,7 @@ def _driver(args: argparse.Namespace) -> int:
     reuse, to_run = [], []
     for t in tasks:
         out_dir = out_fam / t / LEVEL
-        if args.skip_existing and _reusable(out_dir, args.episode):
+        if args.skip_existing and _reusable(out_dir, args.episode, args.source_profile):
             reuse.append(t)
         else:
             to_run.append(t)
@@ -768,7 +780,7 @@ def _driver(args: argparse.Namespace) -> int:
 
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as ex:
         futs = {ex.submit(_process_task, out_fam, t, args.family, args.episode, env, args.timeout,
-                          geom, index, args.max_substitute, args.launch_gap): t for t in to_run}
+                          geom, index, args.max_substitute, args.launch_gap, source_profile=args.source_profile): t for t in to_run}
         done = 0
         for fut in as_completed(futs):
             t = futs[fut]
@@ -810,13 +822,18 @@ def main() -> int:
                          "single-job sessions sharing one GPU)")
     ap.add_argument("--substitute-room", default=None, help="(worker) re-anchor onto this room")
     ap.add_argument("--substitute-table", default=None, help="(worker) re-anchor onto this table object")
+    ap.add_argument("--source-profile", default="high_fidelity")
     args = ap.parse_args()
+    from maniguard.visual.profile import resolve_profile_selection
+    resolve_profile_selection(args.source_profile)
+    if args.source_profile not in ("high_fidelity", "legacy"):
+        args.source_profile = str(Path(args.source_profile).resolve())
 
     if args.worker:
         if not args.base_dir or not args.out_dir:
             ap.error("--worker requires --base-dir and --out-dir")
         _run_worker(Path(args.base_dir), Path(args.out_dir), args.family, args.episode,
-                    sub_room=args.substitute_room, sub_table=args.substitute_table)
+                    sub_room=args.substitute_room, sub_table=args.substitute_table, source_profile=args.source_profile)
         return 0
     return _driver(args)
 

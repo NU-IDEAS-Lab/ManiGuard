@@ -101,3 +101,23 @@ def camera_metadata(sensors: dict) -> dict:
             "camera_axes": "USD: +X right, +Y up, -Z forward",
         }
     return result
+
+
+def playback_observation(obs, robot_name, capture):
+    """Refresh flattened playback RGB after state restoration, without stepping physics."""
+    import torch
+
+    observation = capture.capture(capture.observation_id + 1)
+    frames = observation["camera_frames"]
+    result = dict(obs)
+    for key, sensor in SOURCE_EXTERNAL_SENSORS.items():
+        flat_key = f"external::{sensor}::rgb"
+        if flat_key in result:
+            result[flat_key] = torch.from_numpy(frames[key])
+    # Match the hand-mounted camera, never a base/head camera.
+    candidates = [key for key in result if key.startswith(f"{robot_name}::") and key.endswith("::rgb")]
+    wrist = [key for key in candidates if any(token in key.lower() for token in ("eef_link", "wrist", "hand"))]
+    if len(wrist) != 1:
+        raise ValueError(f"Expected one wrist RGB observation in playback, found {wrist}")
+    result[wrist[0]] = torch.from_numpy(frames["wrist_image"])
+    return result

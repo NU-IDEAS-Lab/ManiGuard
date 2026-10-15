@@ -31,6 +31,15 @@ def controller_config_from_json(value, reference):
     return value
 
 
+
+def resolve_playback_profile(metadata, selection=None):
+    """Recorded settings are authoritative unless explicitly rerendering."""
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(metadata["source_profile"] if selection is None else selection)
+    if profile is None:
+        raise ValueError("Source snapshot playback requires a source profile; legacy RGB remains readable via EpisodeReader")
+    return profile
+
 def render_recorded_states(env, reader, output, *, profile=None, indices=None):
     """Use an already loaded matching scene; preserve original source times.
 
@@ -47,7 +56,7 @@ def render_recorded_states(env, reader, output, *, profile=None, indices=None):
     ids = list(range(reader.metadata["observations"])) if indices is None else list(indices)
     if not ids or any(type(i) is not int or not 0 <= i < reader.metadata["observations"] for i in ids):
         raise ValueError("Playback needs existing observation indices")
-    profile = reader.metadata["source_profile"] if profile is None else profile
+    profile = resolve_playback_profile(reader.metadata, profile)
     sensors = configure_source_sensors(env, profile)
     source_times = []
 
@@ -72,6 +81,7 @@ def render_recorded_states(env, reader, output, *, profile=None, indices=None):
     report.update(
         type="recorded_state_playback",
         source_episode_id=reader.metadata["episode_id"],
+        original_source_profile=reader.metadata["source_profile"],
         source_observations=source_times,
     )
     (Path(output) / "preview.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -87,7 +97,11 @@ def main():
     parser.add_argument(
         "--observations", type=int, nargs="+", required=True, help="Explicit indices keep state playback output bounded"
     )
+    parser.add_argument("--source-profile", default=None, help="Explicit re-render override; default preserves recorded profile")
     args = parser.parse_args()
+    source_path, output_path = Path(args.episode).resolve(), Path(args.output).resolve()
+    if output_path == source_path or source_path in output_path.parents:
+        parser.error("Playback output must be separate from its source episode")
     with EpisodeReader(args.episode) as reader:
         reader.validate()
         source = Path(args.episode)
@@ -97,7 +111,7 @@ def main():
         from maniguard.data.datagen.primitives.task_io import load_diagnostics_row
         from maniguard.visual.capture import initialize_source_simulator
 
-        profile = reader.metadata["source_profile"]
+        profile = resolve_playback_profile(reader.metadata, args.source_profile)
         og = init_omnigibson(needs_gpu_dynamics=task_needs_gpu_dynamics(source), source_profile=profile)
         diag = load_diagnostics_row(source, 1)
         cfg = _build_og_config(source / "task_scene.json", diag, profile["resolution"][0])
@@ -115,7 +129,7 @@ def main():
             saved = reader.metadata["controller_config"]
             defaults = {key: robot._default_controller_config[key][config["name"]] for key, config in saved.items()}
             robot.reload_controllers(controller_config_from_json(saved, defaults))
-        render_recorded_states(env, reader, args.output, indices=args.observations)
+        render_recorded_states(env, reader, args.output, indices=args.observations, profile=profile)
         og.shutdown()
 
 

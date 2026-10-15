@@ -23,6 +23,9 @@ def iter_traj_dirs(dataset: str = "demos", family: str | None = None, *, root=RO
     fams = [family] if family else [p.name for p in sorted(base.iterdir()) if p.is_dir()]
     for fam in fams:
         for task_dir in sorted((base / fam).glob("task_*")):
+            if any(task_dir.glob("attempt_*/episode.json")):
+                raise ValueError("Source episodes require offline export first: "
+                                 "python -m maniguard.data.recording.export SOURCE OUTPUT --accepted-datagen")
             for traj_dir in sorted(task_dir.glob("traj_*")):
                 if (traj_dir / "traj.hdf5").exists():
                     yield traj_dir

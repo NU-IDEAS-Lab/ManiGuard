@@ -298,10 +298,21 @@ def _init_omnigibson(headless: bool = True):
 class FrozenTaskRuntimeSession:
     headless: bool = True
     og: Any | None = None
+    source_profile: Any = "high_fidelity"
 
     def __enter__(self):
+        from maniguard.visual.capture import prepare_source_launch
+        from maniguard.visual.profile import resolve_profile_selection
+        self.source_profile = resolve_profile_selection(self.source_profile)
+        if self.source_profile is not None:
+            prepare_source_launch()
         self.og = _init_omnigibson(headless=self.headless)
         return self
+
+    def prepare_config(self, config):
+        from maniguard.visual.capture import prepare_source_environment
+        prepare_source_environment(config, self.source_profile)
+        return config
 
     def __exit__(self, exc_type, exc, tb):
         if self.og is not None and self.og.sim is not None:
@@ -425,14 +436,31 @@ def position_diagnostics_cameras(
 
 
 class ReviewVideoRecorder:
-    def __init__(self, *, path: Path, fps: int, camera_names: Sequence[str] | None = None):
-        self.path = path
+    def __init__(self, *, path: Path, fps: int, camera_names: Sequence[str] | None = None, source_profile="high_fidelity"):
+        from maniguard.visual.profile import resolve_profile_selection
+        self.profile = resolve_profile_selection(source_profile)
+        self.capture = None
+        self.frames_written = 0
+        self.path = Path(path)
         self.fps = int(fps)
         self.camera_names = [str(name) for name in (camera_names or []) if str(name)]
         self.writer = None
         self.writers: dict[str, Any] = {}
 
     def __enter__(self):
+        if self.profile is not None:
+            from maniguard.visual.video import StreamingVideoWriter
+            self.path = self.path / "source_preview_ep1"
+            self.path.mkdir(parents=True, exist_ok=True)
+            (self.path / "preview.json").write_text(json.dumps({"complete": False, "profile": self.profile}))
+            try:
+                for key in self.profile["camera_keys"]:
+                    self.writers[key] = StreamingVideoWriter(self.path / f"{key}.mp4", fps=self.fps,
+                                                             frame_hw=self.profile["resolution"])
+            except Exception:
+                self.__exit__(*sys.exc_info())
+                raise
+            return self
         import imageio.v2 as imageio
 
         self.path.mkdir(parents=True, exist_ok=True)
@@ -456,6 +484,15 @@ class ReviewVideoRecorder:
         return frame.astype("uint8")
 
     def record(self, env, og) -> None:
+        if self.profile is not None:
+            from maniguard.visual.capture import SourceCapture
+            if self.capture is None:
+                self.capture = SourceCapture(env, self.profile)
+            record = self.capture.capture(self.frames_written)
+            for key, writer in self.writers.items():
+                writer.append(record["camera_frames"][key])
+            self.frames_written += 1
+            return
         og.sim.render()
         for camera_name, writer in self.writers.items():
             sensor = (env.external_sensors or {}).get(camera_name)
@@ -470,12 +507,31 @@ class ReviewVideoRecorder:
             writer.append_data(self._to_uint8_frame(rgb))
 
     def __exit__(self, exc_type, exc, tb):
-        for writer in self.writers.values():
-            writer.close()
+        from contextlib import ExitStack
+        try:
+            with ExitStack() as stack:
+                for writer in self.writers.values():
+                    stack.callback(writer.close)
+        finally:
+            if self.capture is not None:
+                self.capture.close()
+        if self.profile is not None:
+            (self.path / "preview.json").write_text(json.dumps({
+                "type": "scene_preview", "profile": self.profile,
+                "complete": exc_type is None and self.frames_written > 0,
+                "frame_count": self.frames_written, "fps": self.fps,
+                "render_settings": self.capture.render_report if self.capture else {},
+            }, indent=2) + "\n")
         return False
 
 
-def configure_review_sensors(env) -> None:
+def configure_review_sensors(env, source_profile="high_fidelity") -> None:
+    from maniguard.visual.cameras import configure_source_sensors
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(source_profile)
+    if profile is not None:
+        configure_source_sensors(env, profile)
+        return
     height, width = int(TASKGEN_REVIEW_FRAME_HW[0]), int(TASKGEN_REVIEW_FRAME_HW[1])
     for sensor in (env.external_sensors or {}).values():
         sensor.image_height = height

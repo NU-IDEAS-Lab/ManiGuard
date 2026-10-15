@@ -16,17 +16,6 @@ def test_default_and_canonical_profile_select_validated_dlaa():
     assert not any("pathtracing" in key for key in renderer_settings(profile))
 
 
-def test_pt_reference_remains_explicit_and_self_contained():
-    from maniguard.visual.profile import load_profile
-
-    root = Path(__file__).resolve().parents[2]
-    profile = load_profile(root / "configs/render/experimental/path_tracing.yaml")
-    assert profile["renderer"] == "PathTracing"
-    assert profile["total_spp"] == 128
-    assert "glass_shadows" not in profile
-    assert "render_deliveries" not in profile
-
-
 def test_profile_keeps_source_resolution_independent_of_policy():
     from maniguard.visual.profile import load_profile, resolve_source_resolution
 
@@ -44,8 +33,6 @@ def test_duplicate_cameras_and_unknown_options_fail():
         load_profile({"camera_keys": ["image_left"] * 5})
     with pytest.raises(ValueError, match="Unknown"):
         load_profile({"total_sp": 128})
-    with pytest.raises(ValueError, match="spp"):
-        load_profile({"renderer": "PathTracing", "spp_per_update": 0})
 
 
 def test_renderer_setting_rejection_is_not_silently_accepted():
@@ -89,7 +76,6 @@ def test_dlaa_profile_has_distinct_settings_without_pt_sampling():
     assert settings["/rtx/shadows/enabled"] is True
     assert settings["/rtx/translucency/enabled"] is True
     assert not any("pathtracing" in k for k in settings)
-    assert renderer_settings(load_profile({"renderer": "PathTracing"}))["/rtx/pathtracing/totalSpp"] == 128
     for bad in ({"total_spp": 16}, {"render_deliveries": 0}, {"glass_shadows": "all"}):
         with pytest.raises(ValueError):
             load_profile({"renderer": "RaytracedLighting", **bad})
@@ -103,3 +89,12 @@ def test_omniglass_detection_uses_shader_identity_not_material_name():
     assert is_omniglass_shader("/NVIDIA/Materials/Base/Glass/OmniGlass.mdl", "OmniGlass")
     assert not is_omniglass_shader("OmniPBR.mdl", "OmniGlass")
     assert not is_omniglass_shader("OmniGlass.mdl", "water")
+
+
+@pytest.mark.parametrize("selection,size", [("high_fidelity", 640), ("legacy", 256), (None, 256), ({}, 640)])
+def test_visual_selection(selection, size, monkeypatch, tmp_path):
+    from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
+
+    monkeypatch.chdir(tmp_path)
+    profile = resolve_profile_selection(selection)
+    assert resolve_source_resolution(profile, None) == size

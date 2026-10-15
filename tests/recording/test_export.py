@@ -7,6 +7,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import pytest
 from test_episode import write_episode
 
 
@@ -92,3 +93,44 @@ def test_export_keeps_boundary_state_and_its_identity(tmp_path):
     traj = load_traj(output)
     np.testing.assert_array_equal(traj["state"][0], np.arange(9) + 10)
     np.testing.assert_array_equal(traj["source_boundary_id"], [0])
+
+
+def test_export_datagen_selects_only_accepted_scripted_attempts(tmp_path):
+    from maniguard.data.datagen.reader import iter_traj_dirs, load_traj
+    from maniguard.data.recording.export import export_datagen
+
+    root = tmp_path / "raw/jar_transport/task_0000"
+    for name, status, success in [("attempt_000000_g0", "complete", True),
+                                  ("attempt_000001_g0", "complete", False),
+                                  ("attempt_000002_g0", "partial", True)]:
+        path = root / name
+        write_episode(path)
+        metadata_path = path / "episode.json"
+        meta = json.loads(metadata_path.read_text())
+        meta.update(status=status, result={"success": success},
+                    configuration={"policy": "scripted joint trajectory", "state_mode": "joint", "action_space": "joint"})
+        metadata_path.write_text(json.dumps(meta))
+    out = tmp_path / "export"
+    result = export_datagen(tmp_path / "raw", out, state_field="q")
+    assert len(result) == 1
+    trajs = list(iter_traj_dirs("export", root=tmp_path))
+    assert len(trajs) == 1
+    assert load_traj(trajs[0])["state"].shape == (3, 9)
+    assert export_datagen(tmp_path / "raw", out, state_field="q") == result
+    with pytest.raises(ValueError, match="conflict"):
+        export_datagen(tmp_path / "raw", out, state_field="q", cameras=["image_left"])
+
+
+def test_historical_pt_episode_remains_readable_and_exportable(tmp_path):
+    from maniguard.data.recording import EpisodeReader
+    from maniguard.data.recording.export import export_episode
+    root = tmp_path / "source"
+    write_episode(root)
+    path = root / "episode.json"
+    meta = json.loads(path.read_text())
+    meta["source_profile"] = {"renderer": "PathTracing", "total_spp": 128}
+    path.write_text(json.dumps(meta))
+    with EpisodeReader(root) as reader:
+        assert reader.validate(decode_images=True)["observations"] == 4
+    export_episode(root, tmp_path / "derived", state_field="q", fps=20)
+    assert json.loads((tmp_path / "derived/meta.json").read_text())["source_profile"] == meta["source_profile"]

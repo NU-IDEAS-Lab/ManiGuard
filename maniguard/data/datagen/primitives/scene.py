@@ -64,7 +64,7 @@ def init_omnigibson(headless: bool = True, needs_gpu_dynamics: bool = False, *, 
     if source_profile is not None:
         from maniguard.visual.capture import prepare_source_launch
         prepare_source_launch()
-        gm.ENABLE_HQ_RENDERING = True
+    gm.ENABLE_HQ_RENDERING = source_profile is not None
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     gm.USE_GPU_DYNAMICS = needs_gpu_dynamics

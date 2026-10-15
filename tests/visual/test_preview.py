@@ -16,6 +16,9 @@ def test_preview_preserves_frozen_clock_and_keeps_all_five_views(tmp_path, monke
             self.render_report = {}
             self.sim = SimpleNamespace(get_sim_step_dt=lambda: 1 / 30)
 
+        def close(self):
+            pass
+
         def capture(self, i):
             calls.append(i)
             return {
@@ -83,3 +86,31 @@ def test_playback_controller_json_restores_indexable_limits_without_float_dof_in
     assert restored["subsume_controllers"] == ["other"]
     assert restored["command_input_limits"] is None
     assert isinstance(config["gripper"]["dof_idx"], list)
+
+
+def test_failed_preview_replacement_cannot_leave_stale_complete_manifest(tmp_path, monkeypatch):
+    import json
+
+    import pytest
+
+    from maniguard.visual import preview
+    from maniguard.visual.profile import load_profile
+    profile = load_profile({'resolution': [16, 16]})
+    path = tmp_path / 'preview'
+    path.mkdir()
+    (path / 'preview.json').write_text(json.dumps({'complete': True, 'profile': profile}))
+    closed = []
+
+    class Capture:
+        def __init__(self, *a):
+            self.profile, self.render_report = profile, {}
+        def capture(self, i):
+            raise RuntimeError('lost renderer')
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(preview, 'SourceCapture', Capture)
+    with pytest.raises(RuntimeError, match='lost renderer'):
+        preview.render_preview(None, path, profile, overwrite=True)
+    assert closed == [True]
+    assert json.loads((path / 'preview.json').read_text())['complete'] is False

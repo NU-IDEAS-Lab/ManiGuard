@@ -55,7 +55,6 @@ from omnigibson.envs import DataPlaybackWrapper
 from omnigibson.macros import gm
 
 from maniguard.utils.camera_setup import (
-    CAMERA_RESOLUTION,
     build_external_camera_configs,
 )
 
@@ -119,7 +118,19 @@ def _find_wrist_key(obs: dict, robot_name: str) -> str:
     return sorted(candidates)[0]
 
 
-class ManiGuardPlaybackWriter(DataPlaybackWrapper):
+class SourcePlaybackWrapper(DataPlaybackWrapper):
+    """Keep upstream restoration clocks/actions; refresh RGB with render-only capture."""
+
+    _source_capture = None
+
+    def _process_obs(self, obs, info):
+        if self._source_capture is None:
+            return obs
+        from maniguard.visual.cameras import playback_observation
+        return playback_observation(obs, self.env.robots[0].name, self._source_capture)
+
+
+class ManiGuardPlaybackWriter(SourcePlaybackWrapper):
     """DataPlaybackWrapper that emits the obs fields needed for SFT.
 
     The parent stores whatever `_process_obs` returns under
@@ -139,6 +150,7 @@ class ManiGuardPlaybackWriter(DataPlaybackWrapper):
     _keys_resolved = False
 
     def _process_obs(self, obs, info):
+        obs = super()._process_obs(obs, info)
         robot = self.env.robots[0]
 
         # Resolve each camera's flat-dict key once ("wrist" -> robot wrist
@@ -331,7 +343,8 @@ def main():
                    help="Path to a teleop HDF5 recorded by so101_franka_teleop.py")
     p.add_argument("--output", required=True,
                    help="Path to write the rendered HDF5 (will be overwritten)")
-    p.add_argument("--resolution", type=int, default=CAMERA_RESOLUTION,
+    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity (default), legacy, or YAML profile")
+    p.add_argument("--resolution", type=int, default=None,
                    help="Square side length for main and wrist cameras")
     p.add_argument("--n-render-iterations", type=int, default=3,
                    help="Render iterations per step (higher = cleaner but slower)")
@@ -357,6 +370,16 @@ def main():
                         "Omit only for scenes without recorded camera poses.")
     args = p.parse_args()
 
+    from maniguard.visual.capture import SourceCapture, prepare_source_launch
+    from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
+    profile = resolve_profile_selection(args.source_profile)
+    args.resolution = resolve_source_resolution(profile, args.resolution)
+    if Path(args.input).resolve() == Path(args.output).resolve():
+        raise ValueError("Playback output must differ from the input recording")
+    if profile is not None:
+        prepare_source_launch()
+        gm.ENABLE_HQ_RENDERING = True
+
     # DataPlaybackWrapper precondition.
     gm.ENABLE_TRANSITION_RULES = False
 
@@ -364,6 +387,9 @@ def main():
 
     # Render overview and wrist images at the requested square resolution.
     external_names = [c for c in CAMERA_SETS[args.cams] if c != "wrist"]
+    if profile is not None:
+        from maniguard.utils.camera_setup import EXTERNAL_CAMERA_NAMES
+        external_names = EXTERNAL_CAMERA_NAMES
     external_cfg = build_external_camera_configs(
         names=external_names,
         resolution=args.resolution,
@@ -401,21 +427,36 @@ def main():
     # the default (0,0,0) pose pointing at nothing -> uniform gray images.
     _setup_cameras_from_scene(env.env, diagnostics_path=args.diagnostics)
 
-    if args.all_episodes:
-        env.playback_dataset(record_data=True)
-    else:
-        env.playback_episode(episode_id=args.episode, record_data=True)
+    capture = SourceCapture(env.env, profile) if profile is not None else None
+    env._source_capture = capture
+    try:
+        if args.all_episodes:
+            env.playback_dataset(record_data=True)
+        else:
+            env.playback_episode(episode_id=args.episode, record_data=True)
+        env.save_data()
+        _stamp_metadata(args.output, args.controller, args.cams)
+        stamp_visual_metadata(args.output, profile, capture)
+        _normalize_actions_to_joint(args.output, args.input, args.controller)
+        print(f"[Playback] Wrote: {args.output}  (controller={args.controller}, n_cams={args.cams})")
+        if args.save_mp4:
+            _dump_mp4s(args.output)
+    finally:
+        if capture is not None:
+            capture.close()
+        # This CLI is finished: clear() tears down and relaunches a simulator,
+        # invalidating playback render products while viewport callbacks run.
+        og.shutdown()
 
-    env.save_data()
-    _stamp_metadata(args.output, args.controller, args.cams)
-    _normalize_actions_to_joint(args.output, args.input, args.controller)
-    print(f"[Playback] Wrote: {args.output}  "
-          f"(controller={args.controller}, n_cams={args.cams})")
 
-    if args.save_mp4:
-        _dump_mp4s(args.output)
+def stamp_visual_metadata(path, profile, capture):
+    import json
 
-    og.clear()
+    import h5py
+    with h5py.File(path, "a") as f:
+        f["data"].attrs["source_profile"] = json.dumps(profile)
+        if capture is not None:
+            f["data"].attrs["render_report"] = json.dumps(capture.render_report)
 
 
 if __name__ == "__main__":

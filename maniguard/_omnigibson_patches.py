@@ -655,6 +655,39 @@ def apply_ag_throttle_from_env() -> None:
     _patch_throttle_assisted_grasping(interval)
 
 
+def _patch_visual_clear() -> None:
+    """Detach camera backends before upstream clear deletes their scene.
+
+    External cameras live below the scene prim, but upstream removes their
+    annotators after deleting that prim. Lazy camera-parameter annotators also
+    lie outside the normal modality set. Detach both while the graph is valid;
+    leave sensor, scene and simulator destruction to the original clear().
+    """
+    from functools import wraps
+
+    import omnigibson as og
+    from omnigibson import lazy
+    from omnigibson.sensors import VisionSensor
+
+    if getattr(og.clear, "_maniguard_visual_clear", False):
+        return
+    original = og.clear
+
+    @wraps(original)
+    def clear(*args, **kwargs):
+        if og.sim is not None:
+            # Viewports must not keep following a camera in the deleted scene.
+            for viewport in lazy.omni.kit.viewport.window.get_viewport_window_instances():
+                viewport.viewport_api.set_active_camera("/OmniverseKit_Persp")
+            for sensor in tuple(VisionSensor.SENSORS.values()):
+                for modality in tuple(sensor._annotators):
+                    sensor._remove_modality_from_backend(modality)
+        return original(*args, **kwargs)
+
+    clear._maniguard_visual_clear = True
+    og.clear = clear
+
+
 def _apply_eager_patches() -> None:
     global _EAGER_APPLIED
     if _EAGER_APPLIED:
@@ -664,6 +697,7 @@ def _apply_eager_patches() -> None:
     _patch_grasp_reward()
     _patch_sampling_utils()
     _patch_create_joint_skip_render()
+    _patch_visual_clear()
     if not os.environ.get("MANIGUARD_SKIP_LONGFINGER"):
         _patch_franka_longfinger()
     apply_ag_throttle_from_env()

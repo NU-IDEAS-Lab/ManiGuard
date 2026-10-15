@@ -40,7 +40,7 @@ grasping_mode: sticky        # MUST match datagen grasp mode (lid skeleton -> st
 max_steps: 1900            # 1.5x the family's LONGEST datagen-v1 demo (676/846/1247 min/med/max
                            # steps, episodes.jsonl); ends early on success / safety termination
 success_hold_steps: 10     # goal must hold N consecutive steps (anti false-positive)
-camera_resolution: 256
+source_profile: high_fidelity
 save_video: true
 longfinger: true
 

@@ -74,7 +74,7 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p.add_argument("--run-dir", default=None)
     p.add_argument("--save-video", action="store_true")
     p.add_argument("--video-fps", type=int, default=30)
-    p.add_argument("--source-profile", default=None, help="High-fidelity source rendering YAML")
+    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or profile YAML")
     p.add_argument("--camera-resolution", type=int, default=None,
                    help="Override the external-camera resolution (single int "
                         "= square pixels). Defaults to "
@@ -975,7 +975,7 @@ def run_ltl_rollout(env, activity_name, scene_model, active_objects_by_inst,
             og.sim.step()
             lid_snapper.try_snap(robot=robot)
         # This is a task-generation preview; no source-command episode is inferred.
-        render_preview(env, Path(args.run_dir) / f'source_preview_ep{episode+1}', args.source_profile,
+        render_preview(env, Path(args.run_dir) / f'source_preview_ep{episode+1}' if args.save_video else None, args.source_profile,
                        frames=args.steps, fps=args.video_fps, mode='idle_step',
                        monitor=ltl_monitor, advance=advance)
         return ltl_monitor.summary(), args.steps
@@ -1379,11 +1379,11 @@ class BasePipeline(ABC):
         import omnigibson as og
         from omnigibson.macros import gm
 
-        if getattr(args, 'source_profile', None) is not None:
+        from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
+        args.source_profile = resolve_profile_selection(args.source_profile)
+        args.camera_resolution = resolve_source_resolution(args.source_profile, args.camera_resolution)
+        if args.source_profile is not None:
             from maniguard.visual.capture import prepare_source_launch
-            from maniguard.visual.profile import load_profile, resolve_source_resolution
-            args.source_profile = load_profile(args.source_profile)
-            args.camera_resolution = resolve_source_resolution(args.source_profile, args.camera_resolution)
             prepare_source_launch()
             gm.ENABLE_HQ_RENDERING = True
 

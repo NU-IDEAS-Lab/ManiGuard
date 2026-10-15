@@ -278,15 +278,26 @@ def validate_base_task(out_base_dir, *, family: str, episode: int = 1) -> dict:
     for is_fail, msg in ltl_problems:
         (fails if is_fail else warnings).append(f"LTL {msg}")
 
-    # 9. videos: 4 non-empty, 256x256, N frames, decodable
+    # Validate the recorded format rather than applying legacy dimensions to HQ.
+    profile = diag.get("source_visual", {}).get("profile")
     probes = {}
-    for v in EXTERNAL_CAMERA_NAMES:
-        label = {"cam_opposite": "opposite_side_front", "cam_left": "left_overview",
-                 "cam_right": "right_overview", "cam_left_shoulder": "left_shoulder"}[v]
-        mp4 = out_base_dir / f"rollout_{label}_ep{episode}.mp4"
-        probes[label] = _probe_mp4(mp4) if mp4.exists() and mp4.stat().st_size > 0 else None
-    bad = [k for k, pr in probes.items() if pr is None or (pr[0], pr[1]) != (RESOLUTION, RESOLUTION)]
-    checks["videos"] = len(probes) == 4 and not bad
+    if profile is not None:
+        from maniguard.visual.preview import preview_is_complete
+        preview_dir = out_base_dir / f"source_preview_ep{episode}"
+        if not preview_is_complete(preview_dir, profile):
+            fails.append("incomplete source preview manifest or camera files")
+        for key in profile["camera_keys"]:
+            probes[key] = _probe_mp4(preview_dir / f"{key}.mp4")
+        expected_hw = tuple(profile["resolution"])
+    else:
+        for v in EXTERNAL_CAMERA_NAMES:
+            label = {"cam_opposite": "opposite_side_front", "cam_left": "left_overview",
+                     "cam_right": "right_overview", "cam_left_shoulder": "left_shoulder"}[v]
+            mp4 = out_base_dir / f"rollout_{label}_ep{episode}.mp4"
+            probes[label] = _probe_mp4(mp4) if mp4.exists() and mp4.stat().st_size > 0 else None
+        expected_hw = (RESOLUTION, RESOLUTION)
+    bad = [k for k, pr in probes.items() if pr is None or (pr[1], pr[0]) != expected_hw]
+    checks["videos"] = not bad
     if bad:
         fails.append(f"bad/missing videos: {bad}")
     short = [k for k, pr in probes.items() if pr and pr[2] != N_FRAMES]

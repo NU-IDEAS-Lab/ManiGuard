@@ -54,10 +54,12 @@ def initialize_source_simulator(action_hz, rendering_hz=60, physics_hz=120, *, c
     the instance-scoped timing adapter on every reset, never on upstream files.
     """
     import omnigibson as og
+    from omnigibson.macros import gm
 
     from maniguard._omnigibson_patches import enable_source_timing
 
     time_contract(action_hz, rendering_hz, physics_hz)
+    gm.ENABLE_HQ_RENDERING = True
     startup = {"physics_dt": 1 / physics_hz, "rendering_dt": 1 / rendering_hz, "sim_step_dt": 1 / rendering_hz}
     if clear and og.sim is not None:
         og.sim.stop()
@@ -105,7 +107,7 @@ def claim_source_rendering(orchestrator) -> None:
     """Leave sensor annotators active; give source capture ownership of rendering.
 
     Disabling timeline coupling first keeps Replicator's pause from pausing the
-    simulator. SourceCapture then owns deliveries and, for PT, accumulation resets.
+    simulator. SourceCapture then owns sensor deliveries.
     """
     orchestrator.set_capture_on_play(False)
     orchestrator.pause()
@@ -139,14 +141,13 @@ class SourceCapture:
         # Initialize the lazy camera-parameter annotators before any capture.
         for sensor in self.sensors.values():
             _ = sensor.camera_parameters
-        self.disabled_previews = disable_headless_previews(
-            lazy.omni.kit.viewport.window.get_viewport_window_instances(), self.sensors, headless=gm.HEADLESS
-        )
-        claim_source_rendering(lazy.omni.replicator.core.orchestrator)
         self.material_override = None
         self._activate()
+        viewports = list(lazy.omni.kit.viewport.window.get_viewport_window_instances())
+        self.previous_preview_updates = [(v.viewport_api, v.viewport_api.updates_enabled) for v in viewports]
+        self.disabled_previews = disable_headless_previews(viewports, self.sensors, headless=gm.HEADLESS)
+        claim_source_rendering(lazy.omni.replicator.core.orchestrator)
         self.observation_id = 0
-        self.frame_counter = int(self.settings.get("/rtx/externalFrameCounter") or 0)
 
     def _activate(self):
         """Reapply the route when playback or another capture used this environment."""
@@ -178,6 +179,8 @@ class SourceCapture:
                     self.settings.destroy_item(key)
                 else:
                     self.settings.set(key, value)
+            for api, enabled in getattr(self, "previous_preview_updates", []):
+                api.updates_enabled = enabled
             self.env._maniguard_active_source_capture = None
 
     def capture(self, observation_id: int) -> dict:
@@ -186,16 +189,8 @@ class SourceCapture:
         before = float(self.sim.current_time)
         tick = int(self.sim.current_time_step_index)
         renderer = self.profile["renderer"]
-        if renderer == "PathTracing":
-            self.frame_counter = max(self.frame_counter, int(self.settings.get("/rtx/externalFrameCounter") or 0)) + 1
-            self.settings.set("/rtx/externalFrameCounter", self.frame_counter)
-            # Two propagation deliveries precede the full requested accumulation.
-            required = self.profile["total_spp"] // self.profile["spp_per_update"] + 2
-        else:
-            required = self.profile["render_deliveries"]
+        required = self.profile["render_deliveries"]
         passes = wait_for_delivery(self.sim.render, dispatcher_time, required, required * 4)
-        if renderer == "PathTracing" and self.settings.get("/rtx/externalFrameCounter") != self.frame_counter:
-            raise RuntimeError("Another renderer reset source sample accumulation during capture")
         frames = read_rgb(self.sensors, self.profile)
         metadata = camera_metadata(self.sensors)
         if float(self.sim.current_time) != before or int(self.sim.current_time_step_index) != tick:
@@ -247,3 +242,25 @@ class SourceCapture:
         ) - tick != round(dt / self.sim.get_physics_dt()):
             raise RuntimeError("Hold interval advanced an unexpected number of physics ticks")
         return self.capture(self.observation_id + 1)
+
+
+def prepare_source_environment(config, source_profile="high_fidelity", *, clear=False):
+    """Configure source sensors/rendering without changing the existing control clock.
+
+    Call before Environment construction. Renderer launch preparation must precede
+    importing OmniGibson in the public entrypoint.
+    """
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(source_profile)
+    if profile is not None:
+        from maniguard.utils.camera_setup import build_external_camera_configs
+        settings = config.setdefault("env", {})
+        settings["rendering_frequency"] = 60
+        settings["external_sensors"] = build_external_camera_configs(resolution=profile["resolution"][0])
+        for robot in config.get("robots", []):
+            modalities = robot.get("obs_modalities", [])
+            if modalities != "all":
+                robot["obs_modalities"] = list(dict.fromkeys([*modalities, "rgb"]))
+        initialize_source_simulator(settings.get("action_frequency", 30), 60,
+                                    settings.get("physics_frequency", 120), clear=clear)
+    return profile

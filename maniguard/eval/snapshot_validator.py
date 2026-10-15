@@ -843,7 +843,10 @@ def _position_review_cameras(env, og, bundle: ValidationBundle, preferred_camera
 
 
 class ReviewVideoRecorder:
-    def __init__(self, *, path: Path, fps: int, camera_names: Sequence[str] | None = None):
+    def __init__(self, *, path: Path, fps: int, camera_names: Sequence[str] | None = None, source_profile="high_fidelity"):
+        from maniguard.visual.profile import resolve_profile_selection
+        self.source_profile = resolve_profile_selection(source_profile)
+        self.capture = None
         self.path = path
         self.fps = int(fps)
         self.camera_names = [str(name) for name in (camera_names or []) if str(name)]
@@ -896,10 +899,21 @@ class ReviewVideoRecorder:
         return frame.astype("uint8")
 
     def record(self, env, og) -> None:
-        og.sim.render()
+        source_frames = None
+        if self.source_profile is not None:
+            from maniguard.utils.camera_setup import SOURCE_EXTERNAL_SENSORS
+            from maniguard.visual.capture import SourceCapture
+            if self.capture is None:
+                self.capture = SourceCapture(env, self.source_profile)
+            observation = self.capture.capture(self.frames_written)
+            source_frames = {name: observation["camera_frames"][key]
+                             for key, name in SOURCE_EXTERNAL_SENSORS.items()}
+        else:
+            og.sim.render()
         wrote_frame = False
         if self.writer is not None:
-            viewer_rgb = og.sim.viewer_camera.get_obs()[0].get("rgb")
+            viewer_rgb = (source_frames[self.camera_names[0] if self.camera_names else "cam_opposite"]
+                          if source_frames is not None else og.sim.viewer_camera.get_obs()[0].get("rgb"))
             if viewer_rgb is not None:
                 frame = self._to_uint8_frame(viewer_rgb)
                 self.writer.append_data(frame)
@@ -911,7 +925,7 @@ class ReviewVideoRecorder:
             if sensor is None:
                 continue
             try:
-                rgb = sensor.get_obs()[0].get("rgb")
+                rgb = source_frames[camera_name] if source_frames is not None else sensor.get_obs()[0].get("rgb")
             except Exception:
                 rgb = None
             if rgb is None:
@@ -928,6 +942,8 @@ class ReviewVideoRecorder:
         return [path for path in self.video_paths.values() if path.is_file()]
 
     def __exit__(self, exc_type, exc, tb):
+        if self.capture is not None:
+            self.capture.close()
         if self.writer is not None:
             self.writer.close()
         for writer in self.writers.values():
@@ -1740,7 +1756,13 @@ def run_runtime_validation(
     materialize_settle_steps: int = 24,
     session: RuntimeValidationSession | None = None,
     video_output_exact_dir: bool = False,
+    source_profile="high_fidelity",
 ) -> tuple[list[ValidationCheck], dict[str, Any], str | None]:
+    from maniguard.visual.capture import prepare_source_environment, prepare_source_launch
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(source_profile)
+    if profile is not None:
+        prepare_source_launch()
     resolved_activity_root = Path(activity_root).resolve() if activity_root else DEFAULT_ACTIVITY_ROOT.resolve()
     if not resolved_activity_root.is_dir():
         raise FileNotFoundError(f"Activity root not found: {resolved_activity_root}")
@@ -1788,11 +1810,13 @@ def run_runtime_validation(
     env = None
     video_path = _resolve_video_output_path(bundle, save_video, exact_dir=video_output_exact_dir)
     try:
+        prepare_source_environment(cfg, profile)
+        strategy["source_profile"] = profile
         env = og.Environment(configs=cfg)
         env.reset()
         if selected_video_cameras:
             try:
-                height, width = int(QA_REVIEW_FRAME_HW[0]), int(QA_REVIEW_FRAME_HW[1])
+                height, width = profile["resolution"] if profile is not None else QA_REVIEW_FRAME_HW
                 for sensor in (env.external_sensors or {}).values():
                     sensor.image_height = height
                     sensor.image_width = width
@@ -1811,6 +1835,7 @@ def run_runtime_validation(
                 path=video_path,
                 fps=video_fps,
                 camera_names=selected_video_cameras,
+                source_profile=profile,
             ).__enter__()
         try:
             if video_context is not None:
@@ -1939,6 +1964,7 @@ def validate_task(
     materialize_settle_steps: int = 24,
     session: RuntimeValidationSession | None = None,
     video_output_exact_dir: bool = False,
+    source_profile="high_fidelity",
 ) -> ValidationReport:
     bundle = load_validation_bundle(
         family=family,
@@ -1973,6 +1999,7 @@ def validate_task(
                 materialize_settle_steps=materialize_settle_steps,
                 session=session,
                 video_output_exact_dir=video_output_exact_dir,
+                source_profile=source_profile,
             )
             checks.extend(runtime_checks)
         except Exception as exc:
@@ -2022,6 +2049,7 @@ def validate_root(
     video_cameras: Sequence[str] | None = None,
     max_tasks: int | None = None,
     video_output_exact_dir: bool = False,
+    source_profile="high_fidelity",
 ) -> dict[str, Any]:
     task_dirs = list(iter_task_dirs(Path(root).resolve()))
     if max_tasks is not None:
@@ -2031,6 +2059,10 @@ def validate_root(
     reports = []
     session = None
     if run_runtime:
+        from maniguard.visual.capture import prepare_source_launch
+        from maniguard.visual.profile import resolve_profile_selection
+        if resolve_profile_selection(source_profile) is not None:
+            prepare_source_launch()
         resolved_activity_root = Path(activity_root).resolve() if activity_root else DEFAULT_ACTIVITY_ROOT.resolve()
         session = RuntimeValidationSession(activity_root=resolved_activity_root, headless=headless).__enter__()
     try:
@@ -2053,6 +2085,7 @@ def validate_root(
                     video_cameras=video_cameras,
                     session=session,
                     video_output_exact_dir=video_output_exact_dir,
+                source_profile=source_profile,
                 ).to_dict()
             )
     finally:
@@ -2083,6 +2116,7 @@ def parse_args(argv: list[str] | None = None):
     parser.add_argument("--runtime-steps", type=int, default=1, help="Extra settle steps after reset before gate/LTL checks.")
     parser.add_argument("--ltl-horizon-steps", type=int, default=3, help="Passive post-reset horizon for LTL monitoring.")
     parser.add_argument("--max-tasks", type=int, default=None, help="Limit tasks when --root is used.")
+    parser.add_argument("--source-profile", default="high_fidelity")
     parser.add_argument("--headless", action="store_true", help="Run OmniGibson headless during runtime checks.")
     parser.add_argument(
         "--save-video",
@@ -2132,6 +2166,7 @@ def main(argv: list[str] | None = None) -> int:
             video_fps=int(args.video_fps),
             video_cameras=args.video_cameras,
             video_output_exact_dir=bool(args.video_output_exact_dir),
+            source_profile=args.source_profile,
             max_tasks=args.max_tasks,
         )
     else:
@@ -2152,6 +2187,7 @@ def main(argv: list[str] | None = None) -> int:
             video_fps=int(args.video_fps),
             video_cameras=args.video_cameras,
             video_output_exact_dir=bool(args.video_output_exact_dir),
+            source_profile=args.source_profile,
         ).to_dict()
 
     if args.output_path:

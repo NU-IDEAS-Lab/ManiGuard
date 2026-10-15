@@ -20,8 +20,9 @@ import argparse
 import os
 
 import omnigibson as og
-from omnigibson.envs import DataPlaybackWrapper
 from omnigibson.macros import gm
+
+from maniguard.data.playback import SourcePlaybackWrapper, _setup_cameras_from_scene, stamp_visual_metadata
 
 
 def main():
@@ -43,7 +44,15 @@ def main():
                         "Slower but closer to a live re-simulation. Off by default: "
                         "objects become visual-only and states are just 'scrubbed' "
                         "frame by frame, which is ~30x faster.")
+    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or YAML profile")
+    p.add_argument("--diagnostics", default=None)
     args = p.parse_args()
+    from maniguard.visual.capture import SourceCapture, prepare_source_launch
+    from maniguard.visual.profile import resolve_profile_selection
+    profile = resolve_profile_selection(args.source_profile)
+    if profile is not None:
+        prepare_source_launch()
+        gm.ENABLE_HQ_RENDERING = True
 
     # Required by DataPlaybackWrapper
     gm.ENABLE_TRANSITION_RULES = False
@@ -52,10 +61,18 @@ def main():
         stem, ext = os.path.splitext(args.input)
         args.output = f"{stem}_playback{ext or '.hdf5'}"
 
-    env = DataPlaybackWrapper.create_from_hdf5(
+    from pathlib import Path
+    if Path(args.input).resolve() == Path(args.output).resolve():
+        raise ValueError("Playback output must differ from input")
+    source_options = {}
+    if profile is not None:
+        from maniguard.utils.camera_setup import build_external_camera_configs
+        source_options["external_sensors_config"] = build_external_camera_configs(resolution=profile["resolution"][0])
+    env = SourcePlaybackWrapper.create_from_hdf5(
         input_path=args.input,
         output_path=args.output,
-        robot_obs_modalities=["rgb"] if args.record else [],
+        robot_obs_modalities=["rgb"] if args.record or profile is not None else [],
+        **source_options,
         n_render_iterations=args.n_render_iterations,
         only_successes=False,
         overwrite=True,
@@ -63,18 +80,25 @@ def main():
         include_contacts=args.with_physics,
     )
 
-    if args.all:
-        env.playback_dataset(record_data=args.record)
-    else:
-        env.playback_episode(episode_id=args.episode, record_data=args.record)
-
-    if args.record:
-        env.save_data()
-        print(f"[Playback] Observations saved to: {args.output}")
-    else:
-        print("[Playback] Done. (no observations recorded — pass --record to dump obs)")
-
-    og.clear()
+    if profile is not None:
+        _setup_cameras_from_scene(env.env, diagnostics_path=args.diagnostics)
+    capture = SourceCapture(env.env, profile) if profile is not None else None
+    env._source_capture = capture
+    try:
+        if args.all:
+            env.playback_dataset(record_data=args.record)
+        else:
+            env.playback_episode(episode_id=args.episode, record_data=args.record)
+        if args.record:
+            env.save_data()
+            stamp_visual_metadata(args.output, profile, capture)
+            print(f"[Playback] Observations saved to: {args.output}")
+        else:
+            print("[Playback] Done. (no observations recorded — pass --record to dump obs)")
+    finally:
+        if capture is not None:
+            capture.close()
+        og.shutdown()
 
 
 if __name__ == "__main__":

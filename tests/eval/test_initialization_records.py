@@ -92,7 +92,8 @@ def run_preparation(tmp_path, monkeypatch, stage):
         cfg.action_dim = 9
     elif stage == 'wrong_eef_width':
         cfg.ik_eef_to_joint = True
-    ns = dict(scenes=scenes, cfg=cfg, resolved_root=tmp_path, Path=Path, json=json,
+    from contextlib import ExitStack
+    ns = dict(ExitStack=ExitStack, scenes=scenes, cfg=cfg, resolved_root=tmp_path, Path=Path, json=json,
               np=np, torch=torch, og=SimpleNamespace(sim=SimpleNamespace(stop=lambda: None,
                   render=lambda: None), clear=lambda: None, Environment=environment),
               build_og_config=lambda *a: {}, extract_obs=observe,

@@ -63,39 +63,6 @@ def test_source_capture_claims_accumulation_without_pausing_physics():
     assert calls == [("capture_on_play", False), ("pause_replicator",)]
 
 
-def test_capture_starts_new_accumulation_and_rejects_external_resets(monkeypatch):
-    import maniguard.visual.capture as module
-
-    settings = {"/rtx/externalFrameCounter": 100}
-
-    class Settings:
-        get = settings.get
-
-        def set(self, key, value):
-            settings[key] = value
-
-    capture = object.__new__(module.SourceCapture)
-    capture.settings = Settings()
-    capture.frame_counter = 2
-    capture.profile = {"renderer": "PathTracing", "total_spp": 128, "spp_per_update": 16}
-    capture.sensors = {}
-    capture.sim = SimpleNamespace(current_time=1.0, current_time_step_index=120, render=lambda: None)
-    monkeypatch.setattr(module, "wait_for_delivery", lambda *args: 10)
-    monkeypatch.setattr(module, "read_rgb", lambda *args: {})
-    monkeypatch.setattr(module, "camera_metadata", lambda *args: {})
-    monkeypatch.setattr(module, "dispatcher_time", lambda: 1.0)
-    capture.capture(0)
-    assert capture.frame_counter == 101
-
-    def conflicting_render(*args):
-        settings["/rtx/externalFrameCounter"] += 20
-        return 10
-
-    monkeypatch.setattr(module, "wait_for_delivery", conflicting_render)
-    with pytest.raises(RuntimeError, match="accumulation"):
-        capture.capture(1)
-
-
 def test_dlaa_delivery_does_not_reset_or_require_pt_counter(monkeypatch):
     import maniguard.visual.capture as module
     from maniguard.visual.profile import load_profile
@@ -124,7 +91,7 @@ def test_dlaa_delivery_does_not_reset_or_require_pt_counter(monkeypatch):
     assert settings["/rtx/externalFrameCounter"] == 101
 
 
-def test_route_replacement_restores_global_settings_before_pt():
+def test_route_replacement_and_close_restore_global_settings():
     from maniguard.visual.capture import SourceCapture
     from maniguard.visual.profile import load_profile
 
@@ -143,14 +110,47 @@ def test_route_replacement_restores_global_settings_before_pt():
 
     dlaa = make({"renderer": "RaytracedLighting", "glass_shadows": "native"})
     assert values["/rtx/sceneDb/ambientLightIntensity"] == 1.0
-    pt = make({"renderer": "PathTracing"})
-    assert values["/rtx/rendermode"] == "PathTracing"
-    assert values["/rtx/sceneDb/ambientLightIntensity"] == 0.2
-    assert "/rtx/post/aa/op" not in values
+    replacement = make({"renderer": "RaytracedLighting", "glass_shadows": "native"})
+    assert values["/rtx/rendermode"] == "RaytracedLighting"
     dlaa._activate()
     assert values["/rtx/sceneDb/ambientLightIntensity"] == 1.0
     # Closing a superseded capture must not change the active route.
-    pt.close()
+    replacement.close()
     assert values["/rtx/rendermode"] == "RaytracedLighting"
     dlaa.close()
     assert values == {"/rtx/rendermode": "RaytracedLighting", "/rtx/sceneDb/ambientLightIntensity": 0.2}
+
+
+def test_headless_preview_iterator_is_disabled_and_restored(monkeypatch):
+    import sys
+
+    import maniguard.visual.capture as module
+
+    api = SimpleNamespace(updates_enabled=True, get_render_product_path=lambda: "/preview")
+    viewport = SimpleNamespace(viewport_api=api, name="Viewport")
+    values = dict(module._SYNC_SETTINGS)
+    settings = SimpleNamespace(
+        get=values.get, set=lambda k, v: values.update({k: v}), destroy_item=lambda k: values.pop(k, None)
+    )
+    lazy = SimpleNamespace(
+        carb=SimpleNamespace(settings=SimpleNamespace(get_settings=lambda: settings)),
+        omni=SimpleNamespace(
+            kit=SimpleNamespace(
+                viewport=SimpleNamespace(window=SimpleNamespace(get_viewport_window_instances=lambda: iter([viewport])))
+            )
+        ),
+    )
+    lazy.omni.replicator = SimpleNamespace(
+        core=SimpleNamespace(orchestrator=SimpleNamespace(set_capture_on_play=lambda enabled: None, pause=lambda: None))
+    )
+    monkeypatch.setitem(
+        sys.modules, "omnigibson", SimpleNamespace(sim=SimpleNamespace(get_sim_step_dt=lambda: 0.05), lazy=lazy)
+    )
+    monkeypatch.setitem(sys.modules, "omnigibson.macros", SimpleNamespace(gm=SimpleNamespace(HEADLESS=True)))
+    monkeypatch.setattr(module, "configure_source_sensors", lambda *args: {})
+    env = SimpleNamespace(env_config={"action_frequency": 20})
+    capture = module.SourceCapture(env, {"glass_shadows": "native"})
+    assert api.updates_enabled is False
+    assert capture.disabled_previews == ["Viewport"]
+    capture.close()
+    assert api.updates_enabled is True

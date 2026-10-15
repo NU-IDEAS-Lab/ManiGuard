@@ -19,7 +19,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
              score: bool = False, out_root: str = "outputs/datagen",
              headless: bool = True, timeout: float = 5.0, steps_per_waypoint: int = 2,
              limit_demos=None, grasping_mode: str | None = None, start_draw: int | None = None,
-             horizon_override: str | None = None, source_profile=None,
+             horizon_override: str | None = None, source_profile="high_fidelity",
              recording_max_bytes: int = 5 * 1024**3):
     """Build one base task, then run the family skeleton x variants through the generic engine,
     recording each success+safe demo. Returns the list of DemoResults.
@@ -39,14 +39,17 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     from maniguard.data.datagen.executor.contracts import TaskContext
     from maniguard.data.datagen.executor.engine import DemoEngine
     from maniguard.data.datagen.executor.gate import build_gate
+    from maniguard.data.datagen.executor.resume import validate_visual_resume
     from maniguard.data.datagen.executor.variation import VariationSampler
     from maniguard.data.datagen.families import FAMILY
     from maniguard.data.datagen.primitives import cameras, obstacles, record
     from maniguard.data.datagen.primitives import scene as scenemod
+    from maniguard.visual.profile import resolve_profile_selection
 
-    if source_profile is not None:
-        from maniguard.visual.profile import load_profile
-        source_profile = load_profile(source_profile)
+    source_profile = resolve_profile_selection(source_profile)
+    task_dir = Path(task_dir)
+    out_base = Path(out_root) / dataset / task_dir.parent.parent.name / task_dir.parent.name
+    validate_visual_resume(out_base, source_profile)
     resolution = source_profile["resolution"][0] if source_profile is not None else 256
     t0 = time.time()
     task_dir = Path(task_dir)
@@ -157,7 +160,6 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     sampler = VariationSampler(n_per_grasp=n_per_grasp)
 
     # output dir uses the BENCH family name (clutter_pickup) so it matches the bench dataset layout
-    out_base = Path(out_root) / dataset / bench_family / task_name
     out_base.mkdir(parents=True, exist_ok=True)
 
     # resume cursor: a fresh run starts drawing at k=0; a top-up resumes from the prior run's next_draw
@@ -239,7 +241,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     n_this = sum(r.ok for r in results)                  # collected THIS run
     n_total = n_existing + n_this                        # total kept on disk (incl. prior runs)
     elapsed = time.time() - t0
-    summary = {"source_task": src_task, "task": task_name, "target_key": target_key,
+    summary = {"source_profile": source_profile, "source_task": src_task, "task": task_name, "target_key": target_key,
                "target": target, "n_success": n_total, "n_collected_this_run": n_this,
                "n_attempts": n_att, "next_draw": compute_next_draw(last_run_draw, start_k),
                "reached_target": (target is None or n_total >= target),
@@ -280,7 +282,7 @@ if __name__ == "__main__":
                          "cabinet_task0019.json): substitutes this task's goal_conditions + prompt "
                          "so a truncated-horizon demo is gated and captioned as its own task. "
                          "Omit for the shipped full-horizon task.")
-    ap.add_argument("--source-profile", default=None)
+    ap.add_argument("--source-profile", default="high_fidelity")
     ap.add_argument("--recording-max-bytes", type=int, default=5 * 1024**3)
     a = ap.parse_args()
     run_task(a.task_dir, family=a.family, dataset=a.dataset, grasp_ids=a.grasp_ids,

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
 import imageio.v2 as imageio
@@ -38,8 +39,7 @@ def _init_omnigibson(cfg: EvalConfig, needs_gpu_dynamics: bool = False):
     except ImportError:
         pass
     from omnigibson.macros import gm
-    if getattr(cfg, "source_profile", None) is not None:
-        gm.ENABLE_HQ_RENDERING = True
+    gm.ENABLE_HQ_RENDERING = getattr(cfg, "source_profile", None) is not None
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     # Liquid/particle scenes (clutter liquid_transport) need PhysX GPU dynamics
@@ -481,12 +481,20 @@ def main():
     else:
         print(f"Connected to policy server at {cfg.host}:{cfg.port} ({client_type})")
 
+    if cfg.save_video:
+        import av  # noqa: F401 — fail before starting the first rollout
+
+        from maniguard.visual.video import StreamingVideoWriter
+
     all_results = []
 
     for scene_idx, scene_info in enumerate(scenes):
         from maniguard.eval.recording import make_observer
         recorder = make_observer(cfg, scene_info)
         episode_seed = None
+        video_writers = ExitStack()
+        videos = {}
+        source_capture = None
         initialization_phase = "scene_configuration"
         try:
             # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal_conditions +
@@ -536,7 +544,6 @@ def main():
             og_cfg = build_og_config(scene_info, cfg)
 
             initialization_phase = "scene_load"
-            source_capture = None
             if getattr(cfg, "source_profile", None) is not None:
                 from maniguard.visual.capture import initialize_source_simulator
                 initialize_source_simulator(cfg.action_frequency, cfg.rendering_frequency, cfg.physics_frequency, clear=True)
@@ -700,10 +707,15 @@ def main():
             if not np.all(np.isfinite(obs["states"])):
                 raise FloatingPointError("Non-finite initial robot state")
             obs["episode_seed"] = episode_seed
-            # Two separate streams recorded as two mp4s: the policy's overview
-            # (cam_left/right) and the wrist — same resolution the policy sees.
-            main_frames = [obs["overview_image"]] if cfg.save_video else []
-            wrist_frames = [obs["wrist_images"]] if cfg.save_video and cfg.save_wrist_video else []
+            if cfg.save_video:
+                for key, suffix in (("overview_image", "main"), ("wrist_images", "wrist")):
+                    if suffix == "wrist" and not cfg.save_wrist_video:
+                        continue
+                    videos[key] = video_writers.enter_context(StreamingVideoWriter(
+                        output_dir / f"{scene_info['name']}_{suffix}.mp4",
+                        fps=cfg.action_frequency, frame_hw=obs[key].shape[:2],
+                    ))
+                    videos[key].append(obs[key])
 
             # LTL safety monitor — records throughout the rollout but NEVER ends it
             # (success / max_steps govern termination). scene_model=None: evaluate
@@ -799,6 +811,9 @@ def main():
                 recorder.finish(result)
             print(f"  INITIALIZATION FAILED during {initialization_phase}: {e}", flush=True)
             print(result["rollout_diagnostics"]["exception"]["traceback"], flush=True)
+            video_writers.close()
+            if source_capture is not None:
+                source_capture.close()
             continue
 
         # Preserve partial results and videos on rollout errors. Record the
@@ -879,10 +894,8 @@ def main():
                                 "eef_before": _eef_before.tolist(),
                                 "eef_after": _eef_after.tolist(),
                             }) + "\n")
-                    if cfg.save_video:
-                        main_frames.append(obs["overview_image"])
-                        if cfg.save_wrist_video:
-                            wrist_frames.append(obs["wrist_images"])
+                    for key, writer in videos.items():
+                        writer.append(obs[key])
                     step_idx += 1
                     total_reward += float(reward)
                     if recorder is not None:
@@ -966,6 +979,7 @@ def main():
                     if not done:
                         rollout_diagnostics["phase"] = "progress_logging"
                     print(f"  Step {step_idx}/{cfg.max_steps} | success={success} | goals={goal_detail}", flush=True)
+            video_writers.close()
         except Exception as e:  # noqa: BLE001 - want the partial video regardless of cause
             import traceback as _tb
             rollout_diagnostics["exception"] = {
@@ -989,6 +1003,10 @@ def main():
                 rollout_diagnostics["termination_reason"] = "exception"
                 print(f"  ROLLOUT CRASHED at step {step_idx}: {type(e).__name__}: {e}", flush=True)
             print(rollout_diagnostics["exception"]["traceback"], flush=True)
+            try:
+                video_writers.close()
+            except Exception as video_error:  # noqa: BLE001 - preserve the primary rollout error
+                rollout_diagnostics["video_close_error"] = str(video_error)
 
         ltl_summary = monitor.summary() if monitor is not None else None
         rollout_failed = status != "completed"
@@ -1054,13 +1072,8 @@ def main():
         with results_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=True) + "\n")
 
-        if cfg.save_video and main_frames:
-            # Save overview and wrist images at the observed resolution.
-            # Playback is encoded at 30 fps, independent of action_frequency.
-            (output_dir / scene_info["name"]).parent.mkdir(parents=True, exist_ok=True)
-            imageio.mimsave(str(output_dir / f"{scene_info['name']}_main.mp4"), main_frames, fps=30)
-            if wrist_frames:
-                imageio.mimsave(str(output_dir / f"{scene_info['name']}_wrist.mp4"), wrist_frames, fps=30)
+        if source_capture is not None:
+            source_capture.close()
 
         # Full per-step LTL log to a sidecar (kept out of the main results to
         # avoid bloating them with thousands of per-step AP dicts).

@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from maniguard.visual.capture import prepare_source_environment as prepare_preview_environment
+
 DEFAULT_FPS = 30
 DEFAULT_N_FRAMES = 60        # 60 frames @ 30 fps = a ~2 s idle-step stability clip
 DEFAULT_RESOLUTION = 256
@@ -53,6 +55,22 @@ def _build_og_config(scene_file: Path, diagnostics: dict, resolution: int) -> di
         },
     }
 
+def review_videos_complete(directory, episode=1, source_profile="recorded"):
+    """Validate the requested (or recorded) visual layout without starting Kit."""
+    from maniguard.visual.preview import preview_is_complete
+    from maniguard.visual.profile import resolve_profile_selection
+    directory = Path(directory)
+    if source_profile == "recorded":
+        try:
+            diag = json.loads((directory / "diagnostics.jsonl").read_text().splitlines()[0])
+            source_profile = diag.get("source_visual", {}).get("profile")
+        except (OSError, ValueError, IndexError):
+            return False
+    profile = resolve_profile_selection(source_profile)
+    if profile is not None:
+        return preview_is_complete(directory / f"source_preview_ep{episode}", profile)
+    return all((directory / f"rollout_{label}_ep{episode}.mp4").is_file() for label in
+               ("opposite_side_front", "left_overview", "right_overview", "left_shoulder"))
 
 def _object_positions(env, robot, names=None):
     """World-XYZ of non-robot scene objects, keyed by name (for obj-displacement stats). ``names``
@@ -78,11 +96,11 @@ def render_views(
     episode: int = 1,
     n_frames: int = DEFAULT_N_FRAMES,
     fps: int = DEFAULT_FPS,
-    resolution: int = DEFAULT_RESOLUTION,
+    resolution: int | None = None,
     mode: str = "idle_step",
     ltl_monitor=None,
     track_object_names=None,
-    source_profile=None,
+    source_profile="high_fidelity",
 ) -> tuple[dict, dict]:
     """Render the 4 canonical review videos from a LIVE env + return (diagnostics, stats).
 
@@ -122,7 +140,9 @@ def render_views(
         setup_cameras,
     )
     from maniguard.utils.camera_setup import compute_robot_frame_views
-
+    from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
+    source_profile = resolve_profile_selection(source_profile)
+    resolution = resolve_source_resolution(source_profile, resolution)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     robot = env.robots[0]
@@ -151,7 +171,8 @@ def render_views(
     if source_profile is not None:
         from maniguard.visual.preview import render_preview
         report = render_preview(env, out_dir / f"source_preview_ep{episode}", source_profile,
-                                frames=n_frames, fps=fps, mode=mode, monitor=ltl_monitor)
+                                frames=n_frames, fps=round(1 / og.sim.get_sim_step_dt()) if mode == "idle_step" else fps,
+                                mode=mode, monitor=ltl_monitor, overwrite=True)
         q1 = robot.get_joint_positions().cpu().numpy()
         obj1 = _object_positions(env, robot, track_object_names)
         diagnostics["source_visual"] = {"profile": report["profile"], "cameras": report["cameras"]}
@@ -220,16 +241,23 @@ def render_task(
     episode: int = 1,
     n_frames: int = DEFAULT_N_FRAMES,
     fps: int = DEFAULT_FPS,
-    resolution: int = DEFAULT_RESOLUTION,
+    resolution: int | None = None,
     mode: str = "idle_step",
-    source_profile=None,
+    source_profile="high_fidelity",
 ) -> dict:
-    """Load a snapshot, set the canonical init pose, and render its 4 review videos.
+    """Load a snapshot, set the canonical init pose, and render the selected views.
 
     Thin wrapper around ``render_views`` for ad-hoc rendering of an existing snapshot (it does
     NOT enforce the mount — that is the finalizer's job). Returns the updated diagnostics dict
     (with refreshed ``cameras``); MP4s are written to ``out_dir``.
     """
+    from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
+    source_profile = resolve_profile_selection(source_profile)
+    resolution = resolve_source_resolution(source_profile, resolution)
+    if source_profile is not None:
+        from maniguard.visual.capture import prepare_source_launch
+        prepare_source_launch()
+
     import omnigibson as og
     import torch as th
 
@@ -240,16 +268,15 @@ def render_task(
 
     if source_profile is not None:
         from maniguard.data.datagen.primitives.scene import init_omnigibson, task_needs_gpu_dynamics
-        from maniguard.visual.capture import initialize_source_simulator, prepare_source_launch
-        from maniguard.visual.profile import load_profile
-        source_profile = load_profile(source_profile)
+        from maniguard.visual.capture import prepare_source_launch
+        source_profile = resolve_profile_selection(source_profile)
         resolution = source_profile["resolution"][0]
         prepare_source_launch()
         init_omnigibson(needs_gpu_dynamics=task_needs_gpu_dynamics(scene_file.parent), source_profile=source_profile)
     og_cfg = _build_og_config(scene_file, diagnostics, resolution)
     if source_profile is not None:
         og_cfg["env"].update(action_frequency=fps, rendering_frequency=60, physics_frequency=120)
-        initialize_source_simulator(fps, 60, 120, clear=True)
+        prepare_preview_environment(og_cfg, source_profile, clear=True)
     elif og.sim is not None:
         og.sim.stop()
         og.clear()
@@ -281,7 +308,7 @@ def main():
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('--task-dir', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--source-profile', required=True)
+    parser.add_argument('--source-profile', default='high_fidelity')
     parser.add_argument('--frames', type=int, default=1)
     parser.add_argument('--fps', type=int, default=30)
     parser.add_argument('--mode', choices=['frozen', 'idle_step'], default='frozen')

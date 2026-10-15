@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -93,6 +94,8 @@ def export_episode(source, output, *, cameras=None, state_field="policy_state", 
                     container.mux(packet)
         metadata = {
             "source_episode_id": reader.metadata["episode_id"],
+            "source_profile": reader.metadata.get("source_profile"),
+            "source_attempt": reader.metadata.get("scene", {}).get("attempt", {}),
             "n_steps": n,
             "fps": int(fps),
             "resolution": height if height == width else [height, width],
@@ -118,6 +121,48 @@ def export_episode(source, output, *, cameras=None, state_field="policy_state", 
     return output
 
 
+def export_datagen(source, output, **options):
+    """Export accepted scripted attempts, preserving their stable source identities.
+
+    Layout is family/task/traj_<attempt id>; failed/partial attempts are retained
+    only in the source collection. Existing exports must match these semantics.
+    """
+    source, output = Path(source), Path(output)
+    if source.resolve() == output.resolve() or source.resolve() in output.resolve().parents:
+        raise ValueError("Export destination must be separate from the source collection")
+    paths = sorted(source.glob("*/task_*/attempt_*/episode.json"))
+    if not paths:
+        raise ValueError("No datagen source attempts found; expected family/task/attempt/episode.json")
+    exported = []
+    for path in paths:
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        if meta.get("configuration", {}).get("policy") != "scripted joint trajectory":
+            raise ValueError(f"Not a scripted datagen attempt: {path.parent}")
+        if meta.get("status") != "complete" or meta.get("result", {}).get("success") is not True:
+            continue
+        relative = path.parent.relative_to(source)
+        destination = output / relative.parent / relative.name.replace("attempt_", "traj_", 1)
+        if destination.exists():
+            expected = {
+                "source_episode_id": meta["episode_id"],
+                "source_profile": meta.get("source_profile"),
+                "state_field": options.get("state_field", "policy_state"),
+                "action_source": options.get("action_source", "applied"),
+                "video_keys": options.get("cameras") or meta["camera_keys"],
+                "n_steps": meta["transitions"],
+            }
+            existing = json.loads((destination / "meta.json").read_text(encoding="utf-8"))
+            if any(existing.get(key) != value for key, value in expected.items()) or not all(
+                (destination / filename).is_file()
+                for filename in ["traj.hdf5", *(f"{key}.mp4" for key in expected["video_keys"])]
+            ):
+                raise ValueError(f"Export conflict at {destination}; choose a new output directory")
+        else:
+            export_episode(path.parent, destination, **options)
+        exported.append(destination)
+    return exported
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -127,4 +172,8 @@ if __name__ == "__main__":
     parser.add_argument("--cameras", nargs="+")
     parser.add_argument("--state-field", default="policy_state")
     parser.add_argument("--action-source", choices=["raw", "transformed", "applied"], default="applied")
-    export_episode(**vars(parser.parse_args()))
+    parser.add_argument("--accepted-datagen", action="store_true",
+                        help="Export only complete, accepted scripted attempts from a collection root")
+    args = vars(parser.parse_args())
+    exporter = export_datagen if args.pop("accepted_datagen") else export_episode
+    exporter(**args)
