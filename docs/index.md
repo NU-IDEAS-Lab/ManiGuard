@@ -8,16 +8,20 @@ implemented as a Python package on top of
 collection**, **VLA supervised fine-tuning**, and **policy evaluation** in simulated
 household environments.
 
+!!! note "Visual update"
+    New simulation runs use **640×640 DLAA rendering**, with improved visibility
+    through glass and corrected appearance changes for glass objects. The update
+    covers benchmark previews, task generation, evaluation, scripted data collection,
+    simulated teleop and playback. **Published demonstration datasets retain their
+    original 256×256 recordings.** See [rendering and source recording](data_collection/source_recording.md).
+
 !!! tip "Evaluate your VLA on ManiGuard-Bench → [Run the benchmark](evaluation/run_benchmark.md)"
     Download the benchmark, serve your checkpoint, run a family across ID + OOD,
     and read the results in the [paper](https://arxiv.org/abs/2608.17386)'s
     success × safety metrics.
 
-<img class="mg-hero" src="index_gallery/overall_pipeline.webp" alt="ManiGuard framework: the six benchmark families, the LTL runtime monitor, and the safety-annotated dataset suite">
-<p class="mg-gallery-cap"><em>The ManiGuard framework: 200 tasks across 6 families (spatial-invariance and temporal/ordering constraints, three skill levels), every rollout runtime-checked by a compiled LTL<sub>f</sub> monitor, and a safety-annotated demonstration suite (200 tasks × 40 trajectories).</em></p>
-
-<img class="mg-hero" src="index_gallery/overview.png" alt="ManiGuard-Bench task overview">
-<p class="mg-gallery-cap"><em>A glimpse of 60 base tasks (opposite-camera view), sampled across the 6 ManiGuard-Bench families.</em></p>
+<img class="mg-hero" src="index_gallery/overview.png" alt="ManiGuard: six task families and a matched Jar task across ID and four OOD conditions">
+<p class="mg-gallery-cap"><em>200 base tasks across six families, each with one ID scenario and four OOD variants: target appearance, language, location and environment. Task success and specification-grounded safety are evaluated separately.</em></p>
 
 ## Explore the docs
 

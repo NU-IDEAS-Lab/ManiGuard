@@ -40,9 +40,9 @@ different Python/CUDA stacks. For per-scene isolation,
 aggregates the results.
 
 New simulation runs default to five 640×640 DLAA source views; each policy receives
-its configured view subset and applies its own processor. Select
-`source_profile: legacy` or `--source-profile legacy` to use the earlier rendering
-path. Video previews and full source recording are independent options; see
+its configured view subset and applies its own processor. High fidelity is the
+only supported rendering route for new runs. Video previews and full source
+recording are independent options; see
 [Visual profiles and source recording](../data_collection/source_recording.md).
 
 ## The eval loop (`eval/benchmark.py`)

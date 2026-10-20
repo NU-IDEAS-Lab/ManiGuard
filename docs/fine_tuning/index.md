@@ -19,7 +19,11 @@ anywhere in the loop.
 |---|---|---|
 | `state` | (8,) f32 | `[joint_0..6, gripper]` — absolute joint config |
 | `actions` | (8,) f32 | `[joint_0..6_target, gripper_cmd]` — absolute joint target + binary gripper |
-| `image_*` | 256×256×3 | third-person + wrist camera streams (video, passthrough) |
+| `image_*` | H×W×3 | third-person + wrist camera streams at their recorded resolution |
+
+The published demonstration datasets contain 256×256 images. New simulation
+recordings use 640×640 by default; conversion preserves their recorded dimensions.
+Each policy applies its own image preprocessing during training and evaluation.
 
 Details, LeRobot v2.1 conventions, and how each data source is produced:
 **[Dataset & data-source configs](dataset_and_config.md)**.

@@ -1,10 +1,9 @@
 # Run the benchmark
 
-New runs use high-fidelity 640×640 DLAA rendering by default. For the previous
-visual condition add `--source-profile legacy`; old configs that explicitly set
-`camera_resolution: 256` require that selector or removal of the size override.
-See [visual profiles](../data_collection/source_recording.md) for video/source
-storage choices and provenance. This does not regenerate published benchmark data.
+New runs use **640×640 DLAA rendering** and apply the task's appearance overrides,
+including glass colors. Policy servers apply their checkpoint's image transforms.
+See [rendering and source recording](../data_collection/source_recording.md)
+for video/source storage options and configuration.
 
 
 This page is the end-to-end recipe for evaluating **your own VLA checkpoint** on

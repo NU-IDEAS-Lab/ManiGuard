@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://nu-ideas-lab.github.io/ManiGuard/static/teaser_figure.png" alt="ManiGuard project overview" width="900">
+  <img src="page/static/readme-overview.png" alt="ManiGuard: six task families and a matched task across ID and four OOD conditions" width="900">
 </p>
 
 <p align="center">
@@ -33,11 +33,13 @@
   <a href="#citation">📝 Citation</a>
 </p>
 
-New simulated runs use **640×640 DLAA source rendering** by default. Policies apply
-their own image preprocessing; `--source-profile legacy` selects the earlier
-rendering path. See [visual profiles and source recording](docs/data_collection/source_recording.md)
-for video-only evaluation, full state/action recording, datagen export and playback.
-Published data and historical experiment results retain their original visual settings.
+> [!NOTE]
+> **Visual update** — New simulation runs use **640×640 DLAA rendering**, with
+> improved visibility through glass and corrected appearance changes for glass objects.
+> This covers benchmark previews, task generation, policy evaluation, scripted data
+> collection, simulated teleop and playback. Policies resize source images as needed.
+> **Published demonstration datasets retain their original 256×256 recordings.**
+> See [rendering and source recording](docs/data_collection/source_recording.md) for usage.
 
 ## Overview
 

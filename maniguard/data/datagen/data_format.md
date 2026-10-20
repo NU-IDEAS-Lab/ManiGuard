@@ -4,8 +4,8 @@ This page describes the historical RAW / LeRobot schema. New collection defaults
 to five 640×640 DLAA source views in `attempt_*` episodes. Run
 `python -m maniguard.data.recording.export SOURCE EXPORT --accepted-datagen`
 to produce the `traj_*` layout below; dimensions, FPS and action conventions then
-come from each export's metadata. Select `--source-profile legacy` for the original
-256×256 collection path. Existing datasets retain their recorded dimensions.
+come from each export's metadata. New collection uses the high-fidelity source
+recorder; existing datasets remain readable with their recorded dimensions.
 
 
 Schema source of truth: `maniguard/data/datagen/data_format.py`.
