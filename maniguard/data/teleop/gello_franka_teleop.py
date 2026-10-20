@@ -283,7 +283,7 @@ def main():
                              "without it liquid scenes render empty (no particles "
                              "spawned, no physics). Costs extra VRAM; only enable "
                              "when the scene actually has fluids/particles/cloth.")
-    parser.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or YAML profile")
+    parser.add_argument("--source-profile", default="high_fidelity", help="high_fidelity or a high-fidelity YAML profile")
     args = parser.parse_args()
     from maniguard.visual.capture import SourceCapture, prepare_source_environment, prepare_source_launch
     from maniguard.visual.profile import resolve_profile_selection

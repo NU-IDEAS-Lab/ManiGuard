@@ -12,7 +12,7 @@ actions:
 ```
 state    (f32, 8)  [joint_0..6, gripper]          absolute joint config
 actions  (f32, 8)  [joint_0..6_target, gripper]   absolute joint target + binary gripper
-image_*  (video 256×256×3, 30 fps)                third-person overview(s) + wrist camera
+image_*  (video H×W×3)                          third-person overview(s) + wrist camera
 ```
 
 - **Absolute**, not delta. `actions` are the next-step absolute joint targets an
@@ -21,6 +21,11 @@ image_*  (video 256×256×3, 30 fps)                third-person overview(s) + w
   to per-step deltas internally, then reconstructs to absolute at inference — see
   [openpi SFT](openpi.md)). That is a per-model config detail, **not** a property
   of the dataset.
+
+Image size and frame rate come from the recording metadata. The published
+demonstration datasets use 256×256 at 30 fps; new simulation recordings use
+640×640 by default. Conversion preserves source dimensions and timing, while each
+policy's image processor applies the resizing required by its checkpoint.
 
 ### Cameras: dataset ships many, policy uses two
 
@@ -64,7 +69,7 @@ The mature 6-family pipeline generates success+safe demos and converts them to
 LeRobot v2.1. This is the current main SFT data source.
 
 ```
-outputs/datagen/<dataset>/<family>/task_*/traj_*   →   to_lerobot   →   datagen-<fam>-v1-joint-5cam
+attempt_* source episodes → accepted-datagen export → traj_* → to_lerobot → LeRobot v2.1
 ```
 
 Full recipe: **[Scripted datagen](../data_collection/index.md#scripted-datagen)** (collection

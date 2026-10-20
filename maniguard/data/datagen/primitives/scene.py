@@ -59,12 +59,14 @@ def task_needs_gpu_dynamics(task_dir: str | Path, episode: int = 1) -> bool:
 
 def init_omnigibson(headless: bool = True, needs_gpu_dynamics: bool = False, *, source_profile=None):
     """Set OmniGibson macros before initialization and return the imported module. Use CPU dynamics with flatcache for dry tasks and GPU dynamics without flatcache for particle tasks."""
+    from maniguard.visual.profile import resolve_profile_selection
+    from maniguard.visual.capture import prepare_source_launch
+
+    resolve_profile_selection(source_profile)
+    prepare_source_launch()
     from omnigibson.macros import gm
 
-    if source_profile is not None:
-        from maniguard.visual.capture import prepare_source_launch
-        prepare_source_launch()
-    gm.ENABLE_HQ_RENDERING = source_profile is not None
+    gm.ENABLE_HQ_RENDERING = True
     gm.ENABLE_OBJECT_STATES = True
     gm.ENABLE_TRANSITION_RULES = False
     gm.USE_GPU_DYNAMICS = needs_gpu_dynamics
@@ -93,6 +95,9 @@ def scene_from_task_dir(
     families with thin objects may pass ``"sticky"``). ``external_sensors`` /
     ``pre_build_hooks`` are the camera seams (see module docstring).
     """
+    from maniguard.visual.profile import resolve_profile_selection
+    source_profile = resolve_profile_selection(source_profile)
+
     import omnigibson as og
     import torch as th
 
@@ -126,7 +131,7 @@ def scene_from_task_dir(
         controller_preset="joint_position_raw",
         grasping_mode=grasping_mode,
         action_frequency=30,
-        rendering_frequency=60 if source_profile is not None else 30,
+        rendering_frequency=60,
     )
     # pnp wants a plain empty Scene with explicit object cfgs, NOT the snapshot's
     # furnished InteractiveTraversableScene.
@@ -139,9 +144,8 @@ def scene_from_task_dir(
     for hook in pre_build_hooks:
         hook()
 
-    if source_profile is not None:
-        from maniguard.visual.capture import initialize_source_simulator
-        initialize_source_simulator(30, 60, 120, clear=og.sim is not None)
+    from maniguard.visual.capture import initialize_source_simulator
+    initialize_source_simulator(30, 60, 120, clear=og.sim is not None)
     env = og.Environment(configs=env_cfg)
     env.reset()
 

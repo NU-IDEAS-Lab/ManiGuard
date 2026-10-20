@@ -2,8 +2,8 @@
 
 New simulated collection uses [high-fidelity source recording](source_recording.md)
 by default. Export accepted source attempts to `traj_*` before the existing review
-and LeRobot steps below, or pass `--source-profile legacy` for the earlier RAW
-writer. Dataset sizes/resolutions reported for the released v1 datasets describe
+and LeRobot steps below. The original RAW format remains readable and exportable.
+Dataset sizes/resolutions reported for the released v1 datasets describe
 those historical files, not the new default.
 
 
@@ -21,8 +21,8 @@ this page:
 ```
 task-gen / bench frozen scene
         │
-        ├─►  scripted datagen  ─►  RAW (hdf5 + videos)  ─►  to_lerobot  ─►  LeRobot v2.1 → SFT
-        │     (data/datagen)                                                     ▲
+        ├─►  scripted datagen  ─►  source attempts  ─►  accepted export  ─►  RAW  ─►  LeRobot v2.1 → SFT
+        │     (data/datagen)                                                        ▲
         │
         └─►  human teleop  ─►  raw HDF5  ─►  playback render  ─►  SFT HDF5  ─────┘
               (data/teleop)                  (data/playback)
@@ -330,7 +330,8 @@ so without reset variant 2+ starts corrupted).
     AG-held AND its AABB intersects the goal sphere. **LTL**:
     `utils.safety_monitor.TaskLTLMonitor` stepped every executed env step (patterns rebuilt
     against the loaded scene, replicated from the eval runner). A violation **instantly
-    voids** the demo — we never collect "success but not safe."
+    voids** the demonstration's acceptance. The source recorder retains failed
+    attempts for inspection; only success + safe demonstrations enter the SFT export.
 
 #### 4 · Sweep across tasks
 
@@ -352,13 +353,24 @@ dirs / logs never collide.
     On a single GPU two shards still help: the workload is **latency / CPU-sync bound**
     (GPU-Util ~100% but power ~35% of TDP, memory bandwidth ~3%), so a second process fills
     the idle cycles — expect ~1.5–1.8×, with VRAM the limiting constraint (stagger launches).
-    No two processes ever write the same file: demos under `task_NNNN/traj_NNN/` (a task is
-    owned by one shard), per-task `_summary.json`, per-task log under `_logs/<task>.log`.
+    No two processes ever write the same file: source attempts under
+    `task_NNNN/attempt_*/` (a task is owned by one shard), per-task `_summary.json`,
+    per-task log under `_logs/<task>.log`.
 
 ### Review & conversion (steps 5–6)
 
 Both steps are offline — no sim: eyeball the collected demos, then repackage them into
 LeRobot v2.1 for SFT.
+
+For new source recordings, first export the accepted attempts:
+
+```bash
+python -m maniguard.data.recording.export \
+    outputs/datagen/COLLECTION outputs/datagen/COLLECTION_export --accepted-datagen
+```
+
+Use `--dataset COLLECTION_export` in the review and conversion commands below.
+Historical collections already in the `traj_*` layout can be read directly.
 
 #### 5 · Review montage
 
@@ -372,9 +384,10 @@ python -m maniguard.data.datagen.review --dataset v1 --family clutter_pickup --t
 
 ??? note "▸ Montage layout"
     Default = **`left_shoulder` only, 10 cells/row** (50 demos → 5 rows, one file); add
-    wrist with `--wrist` (5 `left_shoulder|wrist` pairs/row). Native 256² pixels; size is
-    controlled by frame rate (`--stride 3` = 10 fps). All demos play in lockstep; a shorter
-    clip freezes on its last frame. Streaming decode → ~10 MB memory even at full res.
+    wrist with `--wrist` (5 `left_shoulder|wrist` pairs/row). Each view is resized to
+    a 256×256 review cell; source videos remain unchanged. `--stride 3` samples every
+    third frame (10 fps for a 30 fps recording). All demos play in lockstep; a shorter
+    clip freezes on its last frame.
 
 #### 6 · RAW → LeRobot conversion
 
@@ -401,13 +414,14 @@ python -m maniguard.data.datagen.to_lerobot_parallel \
     **Input** — one directory per kept demo (see the RAW layout below).
 
     **Output** — standard LeRobot v2.1, one dataset per family (`meta/`, `data/chunk-000/…parquet`,
-    `videos/chunk-000/<key>/…mp4`). Feature schema (`data_format.py`, 30 fps, 256²):
+    `videos/chunk-000/<key>/…mp4`). Resolution, frame rate and action convention
+    are read from each export's metadata; incompatible inputs cannot be mixed:
 
     | feature | shape | meaning |
     |---|---|---|
-    | 5 camera streams (`image_*`, `wrist_image`) | (256,256,3) uint8 | passthrough MP4 |
+    | 5 camera streams (`image_*`, `wrist_image`) | (H,W,3) uint8 | passthrough MP4 |
     | `state` | (8,) f32 | `[arm_q(7), gripper]` |
-    | `actions` | (8,) f32 | next-achieved absolute joint — the default SFT target |
+    | `actions` | (8,) f32 | absolute joint target; convention recorded in metadata |
     | `actions_commanded` | (8,) f32 | the cuRobo commanded joint target — alternative target |
 
     `reader.py` (`iter_traj_dirs` / `load_meta` / `load_traj` / `read_frames`) is the single
@@ -436,7 +450,7 @@ python -m maniguard.data.datagen.to_lerobot_parallel \
     | file | role |
     |---|---|
     | `reader.py` | walk the RAW layout |
-    | `data_format.py` | single source of truth for FPS / resolution / camera keys / schema |
+    | `data_format.py` | feature schema, camera keys and historical defaults |
     | `to_lerobot.py` | serial converter + pure helpers + video passthrough |
     | `to_lerobot_parallel.py` | shard-by-task → serial per task → merge → verify |
     | `lerobot_merge.py` | `merge_shards`: concat, re-offset the 3 global columns, rebuild meta |
@@ -444,7 +458,8 @@ python -m maniguard.data.datagen.to_lerobot_parallel \
 
 #### Data layout & schema (RAW)
 
-The on-disk layout every step reads/writes (step 6 repackages it into LeRobot):
+The accepted-demo layout consumed by review and conversion (new source attempts
+are exported to this layout first):
 
 ```
 outputs/datagen/<dataset>/<bench_family>/<task>/traj_<NNN>/
@@ -456,8 +471,9 @@ outputs/datagen/<dataset>/<bench_family>/<task>/traj_<NNN>/
 ```
 
 `<bench_family>` matches the bench dataset dir name; `traj_NNN` is sequential over **kept**
-demos only (gap-free). Each demo ≈ 1.1 MB (mostly the 5 videos). Naming and resolution
-(256², 30 fps, h264/yuv420p) are byte-for-byte consistent with the bench rollout videos.
+demos only (gap-free). Historical demonstrations use 256×256 at 30 fps. New
+exports retain the source resolution and control rate, with MP4 dimensions and
+timing recorded in `meta.json`. Size depends on duration, resolution and scene content.
 
 ### Families & gotchas
 
@@ -850,7 +866,7 @@ bash scripts/render_teleop_to_lerobot.sh --stage2   # rendered HDF5 → LeRobot 
 - **Stage 1 — render** — `maniguard.data.playback --input <raw> --output <rendered>`
   (defaults `--controller joint --cams 3`). Replays the raw teleop HDF5 with physics and
   records 8-D joint state/action + `image_left` / `image_right` / `wrist_image` at
-  256×256 — normalizing SO-101's 7-D raw actions to the joint convention (above), and
+  640×640 by default — normalizing SO-101's 7-D raw actions to the joint convention (above), and
   placing the external cameras at the task's recorded poses when the bench task ships a
   `diagnostics.jsonl` (the same load-side rule datagen and eval use). Resume-safe; the
   `og.clear()` teardown segfault *after* a complete write is expected and harmless
@@ -859,7 +875,10 @@ bash scripts/render_teleop_to_lerobot.sh --stage2   # rendered HDF5 → LeRobot 
   `task_*_traj_*.hdf5`, looks up each task's prompt from
   `<diag-root>/<task>/base/diagnostics.jsonl`, and writes one multitask dataset with
   per-frame `task_index`. The schema is auto-detected from the playback fingerprint (no
-  schema flags). The template builds locally (no push).
+  schema flags). Image dimensions are inferred from the rendered HDF5 arrays and
+  preserved. An optional `--resolution` checks the source size; it does not resize
+  images. Mixed controller/camera/image schemas are rejected before creating the
+  dataset. The template builds locally (no push).
 - **Push** (separate, explicit) — do **not** re-run the exporter with `--push-to-hub` on
   an already-built dataset (`LeRobotDataset.create()` aborts with `FileExistsError`).
   Push the local dataset directly with

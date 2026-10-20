@@ -67,7 +67,7 @@ def main() -> int:
     from maniguard.visual.profile import resolve_profile_selection
 
     profile = resolve_profile_selection(a.source_profile)
-    if a.source_profile not in ("high_fidelity", "legacy"):
+    if a.source_profile != "high_fidelity":
         a.source_profile = str(Path(a.source_profile).resolve())
 
     bench_family = BENCH_FAMILY[a.family]

@@ -1,4 +1,4 @@
-# High-fidelity source recording
+# High-fidelity rendering and source recording
 
 ManiGuard can record source observations and simulator state independently of a
 policy's image processor. The source profile uses five 640 × 640 RGB views and
@@ -8,12 +8,15 @@ lighting, native-resolution DLAA and ray reconstruction. The built-in defaults
 select the same configuration. Policy servers receive
 the selected source views and apply their checkpoint's native image transforms.
 
-High-fidelity rendering is the default for new simulation runs. Use
-`--source-profile legacy` (or `source_profile: legacy` in YAML) to select the
-previous rendering path. Explicit YAML `null` also selects legacy; an omitted
-setting selects high fidelity. Old evaluation results and released demonstration
-files keep their original pixels and provenance. New rendering is a different
-experimental visual condition.
+High fidelity is the rendering route for all new simulation runs. Appearance
+overrides apply to glass and opaque objects using the task's declared color.
+Custom profiles can raise the source resolution above 640×640; policies apply
+their own image resizing downstream.
+
+!!! note "Published demonstration datasets"
+    The released demonstration datasets retain their original 256×256 recordings.
+    New data collection uses the improved rendering. Historical evaluation results
+    refer to the visual settings used when those experiments were run.
 
 Rendering and storage are separate choices. Ordinary evaluation can render for
 the policy with no video, write streaming MP4 previews, record full source
@@ -29,11 +32,9 @@ evaluation, datagen, benchmark generation, simulated teleop and playback.
 Camera calibration, source storage, action/state/GT records and physics/render
 synchronization use shared modules; each entry point supplies its own actions.
 
-The realtime settings adapt the IsaacLab 4.5 quality preset used by
-[RoboDojo](https://github.com/RoboDojo-Benchmark/RoboDojo/blob/266130a3ec41ba9b20b0e5648d2f3542f219c06c/env/environment/base_env.py),
-with global illumination, reflections, translucency, ambient occlusion and shadows
-retained. DLAA does not downsample the 640-square source. Motion blur, depth of
-field and generated frames are disabled.
+The realtime renderer enables global illumination, reflections, translucency,
+ambient occlusion and shadows. Native-resolution DLAA preserves the 640×640
+source size. Motion blur, depth of field and generated frames are disabled.
 
 `glass_shadows: exclude_omniglass` excludes meshes bound entirely to the
 `OmniGlass.mdl` / `OmniGlass` shader from casting shadows. This addresses opaque
@@ -68,8 +69,6 @@ Ordinary video-only evaluation uses the default quality:
 
 ```bash
 python -m maniguard.eval.benchmark --config configs/eval/jar_transport_joint.yaml --save-video
-# Previous rendering, with its original evaluation source resolution:
-python -m maniguard.eval.benchmark --config configs/eval/jar_transport_joint.yaml --source-profile legacy
 ```
 
 Use `--no-save-video --no-save-wrist-video` to disable both video outputs. Video
@@ -103,8 +102,8 @@ original diagnostics. Keep the simulator assets at the recorded version.
 ## Scripted demonstration collection
 
 Both `python -m maniguard.data.datagen.driver` and
-`python -m maniguard.data.datagen.sweep` default to high fidelity; pass
-`--source-profile legacy` for the original `traj_*` RAW writer. Use a new dataset
+`python -m maniguard.data.datagen.sweep` use high-fidelity source recording.
+Export accepted attempts to the `traj_*` layout when needed. Use a new dataset
 name/output directory when changing profiles: resume rejects mixed rendering or
 recording formats. The sweep forwards the selection to each worker.
 Use `--recording-max-bytes` to
@@ -261,14 +260,14 @@ Task-generation pipelines accept the same `--source-profile` for five-view previ
 
 ## Simulated teleop and HDF5 playback
 
-GELLO/SO101 simulation entrypoints accept `--source-profile high_fidelity|legacy`
-or a YAML path. Input-device controls and state/action recording are unchanged;
+GELLO/SO101 simulation entrypoints accept `--source-profile high_fidelity`
+or a high-fidelity YAML path. Input-device controls and state/action recording are unchanged;
 interactive viewports remain active. Real-camera capture is independent.
 
 `python -m maniguard.data.playback --input TELEOP.hdf5 --output RENDERED.hdf5`
 uses high-fidelity rendering, retaining `--cams 2|3` export keys and the selected
-controller convention. `--source-profile legacy` retains the previous render
-path; `--resolution` must agree with an explicitly selected high-fidelity profile.
+controller convention. `--resolution` must agree with the selected high-fidelity
+profile, whose source resolution is at least 640×640.
 The input recording cannot be used as the output. Upstream contact-enabled
 playback retains its 1000 Hz restoration clock; render-only captures do not add
 physical steps. Source-snapshot playback instead defaults to its recorded profile
@@ -282,9 +281,11 @@ machines set `OMNIGIBSON_HEADLESS=1` and a valid `VK_ICD_FILENAMES`. On hosts wi
 many CPU cores, bounded `OMP_NUM_THREADS` / `OPENBLAS_NUM_THREADS` / `MKL_NUM_THREADS`
 (for example 4) avoid excessive startup threads; tune these to the host.
 
-Historical evaluation YAMLs with `camera_resolution: 256` must either select
-`source_profile: legacy` or remove that source-size override to adopt the new
-default. High fidelity fails explicitly on conflicting resolution, missing cameras
+Remove `source_profile: legacy` and `camera_resolution: 256` from historical
+evaluation YAMLs to use the current defaults. A null profile also selects high
+fidelity. Re-rendering historical lower-resolution or PT source episodes requires
+an explicit `--source-profile high_fidelity`; reading/exporting them does not.
+High fidelity fails explicitly on conflicting resolution, missing cameras
 or unavailable render delivery; it does not silently fall back. New source records
 include the resolved profile. Benchmark task JSON/specifications, old HF previews,
 released demonstrations and checkpoints are not rewritten by installing this code.

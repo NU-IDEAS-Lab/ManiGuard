@@ -42,7 +42,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     from maniguard.data.datagen.executor.resume import validate_visual_resume
     from maniguard.data.datagen.executor.variation import VariationSampler
     from maniguard.data.datagen.families import FAMILY
-    from maniguard.data.datagen.primitives import cameras, obstacles, record
+    from maniguard.data.datagen.primitives import cameras, obstacles
     from maniguard.data.datagen.primitives import scene as scenemod
     from maniguard.visual.profile import resolve_profile_selection
 
@@ -50,7 +50,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     task_dir = Path(task_dir)
     out_base = Path(out_root) / dataset / task_dir.parent.parent.name / task_dir.parent.name
     validate_visual_resume(out_base, source_profile)
-    resolution = source_profile["resolution"][0] if source_profile is not None else 256
+    resolution = source_profile["resolution"][0]
     t0 = time.time()
     task_dir = Path(task_dir)
     skeleton = FAMILY[family]()                        # Initialize the family before reading its grasping-mode default.
@@ -71,9 +71,8 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         pre_build_hooks=[_patch_franka_longfinger])
     env, robot = bundle.env, bundle.robot
     cameras.place_and_resize_cameras(env, robot, og, bundle.diagnostics, resolution=resolution)
-    if source_profile is not None:
-        from maniguard.visual.capture import SourceCapture
-        env._maniguard_source_capture = SourceCapture(env, source_profile)
+    from maniguard.visual.capture import SourceCapture
+    env._maniguard_source_capture = SourceCapture(env, source_profile)
 
     # Horizon variant (e.g. cabinet firsthalf): substitute this task's goal + prompt before
     # anything reads them. `bundle.diagnostics` is the single source for BOTH -- build_gate
@@ -129,12 +128,9 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     engine = DemoEngine(env, robot, world, timeout=timeout, steps_per_waypoint=steps_per_waypoint,
                         max_steps=4500, plan_tries=4)   # Bound rollout length and retry failed plans up to four times.
                         # Each retry samples fresh planner seeds; successful plans return immediately.
-    if source_profile is None:
-        recorder = record.Recorder()
-    else:
-        from maniguard.data.recording.datagen import SourceRecorder
-        scene = {**bundle.diagnostics, "scene_file": str(task_dir / "scene_ep1.json")}
-        recorder = SourceRecorder(source_profile, scene, gate.monitor, max_output_bytes=recording_max_bytes)
+    from maniguard.data.recording.datagen import SourceRecorder
+    scene = {**bundle.diagnostics, "scene_file": str(task_dir / "scene_ep1.json")}
+    recorder = SourceRecorder(source_profile, scene, gate.monitor, max_output_bytes=recording_max_bytes)
 
     cands = skeleton.grasp_candidates(ctx)
     if grasp_ids is not None:
@@ -187,15 +183,12 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
     else:
         variant_iter = sampler.variants(cands)
         print(f"[driver] {n_per_grasp}/grasp bounded variants, score={score}", flush=True)
-    # resume / top-up: every KEPT demo carries a traj.hdf5, so prior successes count TOWARD the target.
+    # Resume / top-up: completed accepted attempts count TOWARD the target.
     # A re-run then collects only the DEFICIT (target - existing) and stops the moment N is reached,
     # instead of collecting `target` MORE on top of what's already there.
-    n_existing = sum(1 for p in out_base.glob("traj_*") if (p / "traj.hdf5").exists())
-    if source_profile is not None:
-        n_existing = sum(bool(json.loads(p.read_text()).get("result", {}).get("success"))
-                         for p in out_base.glob("attempt_*/episode.json")
-                         if json.loads(p.read_text()).get("status") == "complete")
-    idx = n_existing
+    n_existing = sum(bool(json.loads(p.read_text()).get("result", {}).get("success"))
+                     for p in out_base.glob("attempt_*/episode.json")
+                     if json.loads(p.read_text()).get("status") == "complete")
     if n_existing:
         print(f"[driver] resume: {n_existing} existing demo(s) count toward target={target}", flush=True)
 
@@ -217,7 +210,7 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         robot.keep_still()
         for _ in range(3):
             og.sim.step()
-        traj = f"traj_{idx:03d}" if source_profile is None else source_attempt_name(g.id, params.draw_index)
+        traj = source_attempt_name(g.id, params.draw_index)
         out_dir = out_base / traj
         meta = {"family": fam_name, "source_task": src_task, "task": task_name, "traj": traj,
                 "target_key": target_key, "grasp_id": g.id, "approach": g.approach,
@@ -228,15 +221,13 @@ def run_task(task_dir, *, family: str = "clutter", dataset: str = "demos", grasp
         try:
             res = engine.run(ctx, skeleton, segs, gate, recorder, out_dir=out_dir, seed=params.seed, meta=meta)
         except Exception as exc:
-            if source_profile is not None and recorder.observer is not None:
+            if recorder.observer is not None:
                 recorder.observer.finish({"status":"failed", "error":f"{type(exc).__name__}: {exc}"})
             raise
         n_have2 = n_existing + sum(r.ok for r in results) + (1 if res.ok else 0)
         print(f"[driver] {traj} g{g.id} seed{params.seed}: ok={res.ok} fail={res.fail_stage} "
               f"{res.detail} [{n_have2}/{target or '∞'} att={n_att}]", flush=True)
         results.append(res)
-        if res.ok:
-            idx += 1                                                  # only kept demos consume a number (gap-free)
 
     n_this = sum(r.ok for r in results)                  # collected THIS run
     n_total = n_existing + n_this                        # total kept on disk (incl. prior runs)

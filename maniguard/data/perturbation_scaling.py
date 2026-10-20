@@ -3599,7 +3599,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     from maniguard.visual.profile import resolve_profile_selection
     resolve_profile_selection(args.source_profile)
-    if args.source_profile not in ("high_fidelity", "legacy"):
+    if args.source_profile != "high_fidelity":
         args.source_profile = str(Path(args.source_profile).resolve())
     summary = scale_base_task_set(
         source_profile=args.source_profile,

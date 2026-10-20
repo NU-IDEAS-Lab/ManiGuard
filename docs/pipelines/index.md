@@ -2,9 +2,9 @@
 
 All pipelines live in `maniguard/task_generation/` and share a `BasePipeline`
 runtime contract from `pipeline_common.py`. Each pipeline auto-discovers a
-support surface in the given scene, generates BDDL + `ltl_safety.json` at
-runtime, spawns objects, places the robot, runs gate checks, and executes an
-LTL-monitored rollout.
+support surface in the given scene, spawns objects, places the robot, runs gate
+checks, and executes an LTL-monitored rollout. Task goals and safety specifications
+are stored inline in `diagnostics.jsonl`.
 
 The cross-cutting [Data flow](data_flow.md) page describes the four-stage
 architecture every pipeline shares: offline JSON pool generation (raycast
@@ -25,6 +25,18 @@ scenes are generated:
 | [Stack retrieve](stack_retrieve.md) | 28 | Pull the bottom object out from under a stack without toppling it |
 | [Jar transport](jar_transport.md) | 26 | Close a hinged jar before carrying it to the goal |
 | [Dusty transfer](dusty_transfer.md) | 26 | Wipe a dusty pot clean, then transfer food into it with the tool |
+
+## ID and OOD scenarios
+
+Each base task has one ID scenario and four OOD variants: target appearance,
+language, location and environment — **1,000 scenarios** in total. Each row below
+follows one task with the same objective and safety requirements across conditions.
+
+![Matched Jar and Lid tasks across ID and four OOD conditions](../index_gallery/ood-comparison.png){ loading=lazy }
+
+The language column shows instruction excerpts. These images show initialized
+scenes; policy rollouts are generated separately. The saved task definitions are
+available in [ManiGuard-Bench](https://huggingface.co/datasets/IDEAS-Lab-Northwestern/ManiGuard-Bench).
 
 ## Generation infrastructure
 
@@ -91,12 +103,14 @@ runtime safety.
 
 ## Artifact contract
 
-The batch runner checks `diagnostics.jsonl`, each `scene_ep<N>.json`, and the
-four `rollout_<view>_ep<N>.mp4` files (opposite, left, right and shoulder).
-Single-video `rollout_ep<N>.mp4` outputs are also recognized. Scene-oriented
-pipelines place these files in the run directory; standalone Cabinet and Jar
-place snapshots and videos under `snapshots/epNNN/` and also write aggregate
-diagnostics in the run directory. `stdout.log` captures each subprocess.
+The batch runner checks `diagnostics.jsonl` and each `scene_ep<N>.json`. When
+video output is enabled, it also requires `source_preview_ep<N>/preview.json`
+and five MP4s: `image_opposite`, `image_left`, `image_right`,
+`image_left_shoulder` and `wrist_image`. New previews use 640×640 DLAA rendering
+by default. Scene-oriented pipelines place these files in the run directory;
+standalone Cabinet and Jar place snapshots and preview folders under
+`snapshots/epNNN/` and also write aggregate diagnostics in the run directory.
+`stdout.log` captures each subprocess.
 
 Diagnostics must contain a Boolean gate and safety verdict for every requested
 episode. Empty/missing files, incomplete diagnostics and unchanged files left by

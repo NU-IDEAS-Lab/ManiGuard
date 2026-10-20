@@ -32,8 +32,12 @@ dataset → SFT → eval are all joint-space (no end-effector / IK anywhere).
 ```
 state    (f32, 8)  [joint_0..6, gripper]          absolute joint config
 actions  (f32, 8)  [joint_0..6_target, gripper]   absolute joint target + binary gripper
-image_*  (video 256×256×3)                         overviews + wrist
+image_*  (video H×W×3)                          overviews + wrist
 ```
+
+Published demonstrations are 256×256; new simulation recordings default to
+640×640. The dataset retains its source resolution, and openpi's image transforms
+prepare the model input.
 
 **Output**: a LoRA-finetuned pi0.5 checkpoint ladder pushed to an HF model repo,
 ready for joint-controller eval.

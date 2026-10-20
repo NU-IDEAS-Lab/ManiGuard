@@ -1,7 +1,7 @@
 """Shared perturbation metadata and runtime appearance overrides.
 
 Task instances store a scene snapshot and diagnostics. Builder runs can also
-write four review videos. After loading a snapshot, consumers should call
+write five-view review videos. After loading a snapshot, consumers should call
 apply_perturbation(env, diagnostics) to apply material properties that are not
 serialized in the scene snapshot.
 
@@ -206,24 +206,31 @@ def apply_recolor(obj, tint_rgb, albedo_add: float = 0.0) -> int:
 
     For textured materials, the renderer combines diffuse_tint with the
     original albedo and albedo_add. The additive term brightens dark materials.
+    OmniGlass uses its glass color; its inherited diffuse setters are no-ops.
     Primitive materials can instead receive diffuse_color_constant.
     Return the number of materials whose color property was set successfully.
     """
     import torch as th
+
+    from maniguard.visual.materials import is_omniglass_shader
 
     tint = th.tensor(np.asarray(tint_rgb, dtype=np.float32).reshape(3), dtype=th.float32)
     n = 0
     for m in _iter_materials(obj):
         applied = False
         try:
-            if hasattr(m, "albedo_add"):
-                m.albedo_add = float(albedo_add)
-            if hasattr(m, "diffuse_tint"):
-                m.diffuse_tint = tint
+            if is_omniglass_shader(getattr(m, "mdl_name", None), getattr(m, "mtl_name", None)):
+                m.color = tint.tolist()
                 applied = True
-            elif hasattr(m, "diffuse_color_constant"):  # primitives (no texture/tint slot)
-                m.diffuse_color_constant = tint
-                applied = True
+            else:
+                if hasattr(m, "albedo_add"):
+                    m.albedo_add = float(albedo_add)
+                if hasattr(m, "diffuse_tint"):
+                    m.diffuse_tint = tint
+                    applied = True
+                elif hasattr(m, "diffuse_color_constant"):  # primitives (no texture/tint slot)
+                    m.diffuse_color_constant = tint
+                    applied = True
         except Exception:
             pass
         n += int(applied)

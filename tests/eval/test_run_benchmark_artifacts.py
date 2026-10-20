@@ -21,12 +21,12 @@ def test_validate_scene_artifacts_detects_missing_files(tmp_path):
     run_dir = tmp_path / "gates_bedroom"
     run_dir.mkdir()
 
-    missing = mod._validate_scene_artifacts(str(run_dir), episodes=2, source_profile="legacy")
+    missing = mod._validate_scene_artifacts(str(run_dir), episodes=2, source_profile="high_fidelity")
 
     assert "diagnostics.jsonl" in missing
     assert "scene_ep1.json" in missing and "scene_ep2.json" in missing
-    assert "rollout_left_overview_ep1.mp4" in missing
-    assert "rollout_left_overview_ep2.mp4" in missing
+    assert "source_preview_ep1/image_left.mp4" in missing
+    assert "source_preview_ep2/image_left.mp4" in missing
 
 
 def test_validate_scene_artifacts_accepts_complete_outputs(tmp_path):
@@ -37,21 +37,27 @@ def test_validate_scene_artifacts_accepts_complete_outputs(tmp_path):
         "episode": ep, "gate_pass": True, "ltl_violated": False}) + "\n" for ep in (1, 2)))
     for ep in (1, 2):
         (run_dir / f"scene_ep{ep}.json").write_text("{}")
-    (run_dir / "rollout_ep1.mp4").write_bytes(b"fake")
-    (run_dir / "rollout_ep2.mp4").write_bytes(b"fake")
+    from maniguard.visual.profile import load_profile
+    profile = load_profile()
+    for ep in (1, 2):
+        preview = run_dir / f"source_preview_ep{ep}"
+        preview.mkdir()
+        (preview / "preview.json").write_text(json.dumps({"complete": True, "profile": profile}))
+        for key in profile["camera_keys"]:
+            (preview / f"{key}.mp4").write_bytes(b"video")
 
-    missing = mod._validate_scene_artifacts(str(run_dir), episodes=2, source_profile="legacy")
+    missing = mod._validate_scene_artifacts(str(run_dir), episodes=2, source_profile="high_fidelity")
 
     assert missing == []
 
 
-def test_validate_scene_artifacts_accepts_four_camera_outputs(tmp_path):
+def test_new_run_does_not_accept_historical_four_camera_outputs(tmp_path):
     mod = _load_module()
     (tmp_path / 'diagnostics.jsonl').write_text('{"episode": 1, "gate_pass": true, "ltl_violated": false}\n')
     (tmp_path / 'scene_ep1.json').write_text('{}')
     for view in ['opposite_side_front', 'left_overview', 'right_overview', 'left_shoulder']:
         (tmp_path / f'rollout_{view}_ep1.mp4').write_bytes(b'video')
-    assert mod._validate_scene_artifacts(str(tmp_path), 1, source_profile="legacy") == []
+    assert "source_preview_ep1/preview.json" in mod._validate_scene_artifacts(str(tmp_path), 1)
 
 
 def test_project_root_is_maniguard():
@@ -105,14 +111,14 @@ def test_hq_artifacts_require_complete_matching_profile_and_all_views(tmp_path):
     assert _validate_scene_artifacts(str(tmp_path), 1)
 
 
-def test_batch_forwards_legacy_and_no_video(tmp_path, monkeypatch):
+def test_batch_forwards_high_fidelity_and_no_video(tmp_path, monkeypatch):
     from types import SimpleNamespace
     mod = _load_module()
     captured = []
     monkeypatch.setattr(mod.subprocess, "run", lambda cmd, **kw: captured.append(cmd) or SimpleNamespace(returncode=1))
-    monkeypatch.setattr(sys, "argv", ["run_benchmark", "--pipeline", "jar_transport", "--source-profile", "legacy", "--no-save-video"])
+    monkeypatch.setattr(sys, "argv", ["run_benchmark", "--pipeline", "jar_transport", "--source-profile", "high_fidelity", "--no-save-video"])
     args = mod.parse_args()
     mod._run_scene(None, args, str(tmp_path))
     cmd = captured[0]
-    assert cmd[cmd.index("--source-profile") + 1] == "legacy"
+    assert cmd[cmd.index("--source-profile") + 1] == "high_fidelity"
     assert "--save-video" not in cmd

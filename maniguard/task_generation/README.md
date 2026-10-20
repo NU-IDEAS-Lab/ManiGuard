@@ -17,7 +17,8 @@ goals and prompts are also carried in diagnostics. The generation path does not
 require writing a per-task BDDL problem or `ltl_safety.json` file.
 
 Typical generation outputs include `scene_ep<episode>.json`, diagnostics, and
-optional `rollout_<view>_ep<episode>.mp4` review videos. Use the saved object
+optional `source_preview_ep<episode>/` directories containing `preview.json`
+and five camera MP4s, rendered at 640×640 with DLAA by default. Use the saved object
 inventory and validation results when assessing a layout; requested object counts
 can differ from the number successfully placed.
 

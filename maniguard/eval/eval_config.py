@@ -130,10 +130,7 @@ class EvalConfig:
     serve_config_name: str = ""
 
     def to_dict(self) -> dict:
-        data = asdict(self)
-        if self.source_profile is None:
-            data["source_profile"] = "legacy"
-        return data
+        return asdict(self)
 
     def to_yaml(self) -> str:
         d = self.to_dict()
@@ -160,8 +157,6 @@ def resolve_source_config(cfg) -> None:
 
     cfg.source_profile = resolve_profile_selection(cfg.source_profile)
     cfg.camera_resolution = resolve_source_resolution(cfg.source_profile, cfg.camera_resolution)
-    if cfg.source_profile is None:
-        return
     # HQ particle surfaces require the 60 Hz internal render interval.
     cfg.rendering_frequency = 60
     from maniguard.visual.capture import time_contract

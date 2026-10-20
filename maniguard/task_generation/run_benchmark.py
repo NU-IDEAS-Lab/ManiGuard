@@ -125,15 +125,9 @@ def _artifact_paths(run_dir, episodes, pipeline=None, *, source_profile="high_fi
         paths.append(os.path.join(root, f"scene_ep{ep}.json"))
         if not save_video:
             continue
-        if profile is not None:
-            preview = os.path.join(root, f"source_preview_ep{ep}")
-            paths.extend([os.path.join(preview, "preview.json"),
-                          *(os.path.join(preview, f"{key}.mp4") for key in profile["camera_keys"])])
-            continue
-        views = [os.path.join(root, f"rollout_{view}_ep{ep}.mp4") for view in
-                 ("opposite_side_front", "left_overview", "right_overview", "left_shoulder")]
-        legacy = os.path.join(root, f"rollout_ep{ep}.mp4")
-        paths.extend(views if any(os.path.isfile(v) for v in views) or not os.path.isfile(legacy) else [legacy])
+        preview = os.path.join(root, f"source_preview_ep{ep}")
+        paths.extend([os.path.join(preview, "preview.json"),
+                      *(os.path.join(preview, f"{key}.mp4") for key in profile["camera_keys"])])
     return paths
 
 
@@ -399,7 +393,7 @@ def parse_args():
     args = p.parse_args()
     from maniguard.visual.profile import resolve_profile_selection
     resolve_profile_selection(args.source_profile)
-    if args.source_profile not in ("high_fidelity", "legacy"):
+    if args.source_profile != "high_fidelity":
         args.source_profile = str(Path(args.source_profile).resolve())
     if args.pipeline in ("cabinet_pickup", "jar_transport") and args.scenes:
         p.error("This pipeline constructs empty-scene tasks; use --num-trials instead of --scenes")

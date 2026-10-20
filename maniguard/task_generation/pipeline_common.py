@@ -74,13 +74,10 @@ def make_base_arg_parser(description="Task generation pipeline"):
     p.add_argument("--run-dir", default=None)
     p.add_argument("--save-video", action="store_true")
     p.add_argument("--video-fps", type=int, default=30)
-    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or profile YAML")
+    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity or a high-fidelity YAML profile")
     p.add_argument("--camera-resolution", type=int, default=None,
-                   help="Override the external-camera resolution (single int "
-                        "= square pixels). Defaults to "
-                        "maniguard.utils.camera_setup.CAMERA_RESOLUTION (256). "
-                        "Bump to e.g. 1280 for higher-fidelity preview / "
-                        "review videos.")
+                   help="Square source resolution; defaults to the high-fidelity "
+                        "profile (640). An explicit value must match the profile.")
     p.add_argument("--zone-edge-margin-m", type=float, default=None)
     p.add_argument("--obstacle-keepout-margin-m", type=float, default=None)
     p.add_argument("--obstacle-side-clearance-m", type=float, default=None)
