@@ -626,7 +626,7 @@ def main() -> int:
     args = ap.parse_args()
     from maniguard.visual.profile import resolve_profile_selection
     resolve_profile_selection(args.source_profile)
-    if args.source_profile not in ("high_fidelity", "legacy"):
+    if args.source_profile != "high_fidelity":
         args.source_profile = str(Path(args.source_profile).resolve())
 
     rw = None

@@ -3,12 +3,12 @@ import json
 import pytest
 
 
-@pytest.mark.parametrize("selection", [None, "legacy", "custom.yaml"])
+@pytest.mark.parametrize("selection", [None, "high_fidelity", "custom.yaml"])
 def test_sweep_forwards_profile_and_budget(tmp_path, monkeypatch, selection):
     from maniguard.data.datagen import sweep
 
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "custom.yaml").write_text("resolution: [512, 512]\n")
+    (tmp_path / "custom.yaml").write_text("resolution: [768, 768]\n")
     monkeypatch.setattr(sweep, "OUT_ROOT", tmp_path / "outputs")
     argv = ["sweep", "--dataset", "sample", "--family", "jar", "--tasks", "task_0000"]
     if selection is not None:
@@ -38,7 +38,7 @@ def test_resume_rejects_cross_profile_and_checks_source_attempts(tmp_path):
     meta.write_text(json.dumps({"source_profile": load_profile()}))
     validate_visual_resume(tmp_path, load_profile())
     with pytest.raises(ValueError, match="output directory"):
-        validate_visual_resume(tmp_path, load_profile({"resolution": [512, 512]}))
+        validate_visual_resume(tmp_path, load_profile({"resolution": [768, 768]}))
     with pytest.raises(ValueError, match="output directory"):
         validate_visual_resume(tmp_path, None)
 

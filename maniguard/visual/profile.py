@@ -78,18 +78,22 @@ def load_profile(source=None) -> dict:
     return profile
 
 
-def resolve_profile_selection(selection="high_fidelity") -> dict | None:
-    """Resolve a public profile selector; explicit null preserves legacy RGB."""
-    if selection is None or selection == "legacy":
-        return None
-    return load_profile(None if selection == "high_fidelity" else selection)
+def resolve_profile_selection(selection="high_fidelity") -> dict:
+    """Resolve new rendering runs to high fidelity, including omitted/null settings.
+
+    Historical recordings can still be read without invoking this runtime selector.
+    """
+    if selection == "legacy":
+        raise ValueError("The legacy profile has been removed; use high_fidelity for new rendering runs")
+    profile = load_profile(None if selection == "high_fidelity" else selection)
+    if profile["resolution"][0] < 640:
+        raise ValueError("High-fidelity source resolution must be at least 640 x 640; resize policy inputs downstream")
+    return profile
 
 
 def resolve_source_resolution(profile: dict | None, configured_resolution: int | None) -> int:
     """Keep source size independent of policy preprocessing; reject conflicts."""
-    if profile is None:
-        return 256 if configured_resolution is None else configured_resolution
-    resolution = load_profile(profile)["resolution"][0]
+    resolution = resolve_profile_selection(profile)["resolution"][0]
     if configured_resolution is not None and configured_resolution != resolution:
         raise ValueError(f"camera_resolution={configured_resolution} conflicts with source resolution={resolution}")
     return resolution

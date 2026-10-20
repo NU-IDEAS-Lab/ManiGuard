@@ -343,7 +343,7 @@ def main():
                    help="Path to a teleop HDF5 recorded by so101_franka_teleop.py")
     p.add_argument("--output", required=True,
                    help="Path to write the rendered HDF5 (will be overwritten)")
-    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity (default), legacy, or YAML profile")
+    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity (default) or a high-fidelity YAML profile")
     p.add_argument("--resolution", type=int, default=None,
                    help="Square side length for main and wrist cameras")
     p.add_argument("--n-render-iterations", type=int, default=3,

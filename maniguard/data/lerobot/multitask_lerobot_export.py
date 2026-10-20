@@ -170,18 +170,56 @@ def _read_stamp(path: Path) -> tuple[str, int]:
         return str(attrs["controller_mode"]), int(attrs["n_cams"])
 
 
-def _build_features(controller: str, n_cams: int, resolution: int) -> dict:
-    """LeRobot feature schema for a (controller, n_cams) combination."""
+def _build_features(controller: str, image_shapes: dict[str, tuple[int, ...]]) -> dict:
+    """LeRobot feature schema using the actual recorded camera dimensions."""
     feats = {
-        k: {"dtype": "video", "shape": (resolution, resolution, 3),
+        k: {"dtype": "video", "shape": shape,
             "names": ["height", "width", "channel"]}
-        for k in _IMAGE_KEYS[n_cams]
+        for k, shape in image_shapes.items()
     }
     feats["state"] = {"dtype": "float32", "shape": (8,),
                       "names": _STATE_NAMES[controller]}
     feats["actions"] = {"dtype": "float32", "shape": (len(_ACTION_NAMES[controller]),),
                         "names": _ACTION_NAMES[controller]}
     return feats
+
+
+def _infer_schema(
+    paths: list[Path], resolution: int | None = None
+) -> tuple[str, int, dict]:
+    """Validate every input's fingerprint and RGB shapes before creating output.
+
+    Dimensions come from the HDF5 arrays, without decoding or resizing frames.
+    An explicit resolution is an assertion about the source, not a resize request.
+    """
+    schema = None
+    for path in paths:
+        controller, n_cams = _read_stamp(path)
+        if controller not in _STATE_NAMES or n_cams not in _IMAGE_KEYS:
+            raise ValueError(f"{path}: unsupported controller/camera stamp: {controller}/{n_cams}")
+        with h5py.File(path, "r") as f:
+            demos = list(f["data"].keys())
+            if len(demos) != 1:
+                raise ValueError(f"{path}: expected 1 demo, got {demos}")
+            obs = f["data"][demos[0]]["obs"]
+            shapes = {}
+            for key in _IMAGE_KEYS[n_cams]:
+                image = obs[key]
+                if (image.ndim != 4 or image.shape[-1] != 3
+                        or min(image.shape) <= 0 or image.dtype != np.uint8):
+                    raise ValueError(f"{path}: {key} must contain nonempty uint8 RGB frames")
+                shape = tuple(image.shape[1:])
+                if resolution is not None and shape != (resolution, resolution, 3):
+                    raise ValueError(f"{path}: {key} shape {shape} conflicts with --resolution {resolution}")
+                shapes[key] = shape
+        current = (controller, n_cams, shapes)
+        if schema is not None and current != schema:
+            raise ValueError(f"{path}: controller, cameras or image shapes differ from {paths[0]}")
+        schema = current
+    if schema is None:
+        raise ValueError("No rendered episodes to export")
+    controller, n_cams, shapes = schema
+    return controller, n_cams, _build_features(controller, shapes)
 
 
 def _load_episode_from_hdf5(
@@ -229,7 +267,8 @@ def main():
     p.add_argument("--repo-id", required=True, help="Logical LeRobot repo id (metadata only)")
     p.add_argument("--root", type=Path, required=True, help="Local LeRobot dataset root")
     p.add_argument("--fps", type=int, default=30)
-    p.add_argument("--resolution", type=int, default=256)
+    p.add_argument("--resolution", type=int, default=None,
+                   help="Optional expected square source size; inferred from HDF5 by default. Does not resize.")
     p.add_argument("--push-to-hub", default=None,
                    help="HF repo id to push to (auto-creates v2.1 codebase tag).")
     p.add_argument("--hub-private", action="store_true")
@@ -253,15 +292,14 @@ def main():
     for tid, ep_path in episodes:
         by_task[tid].append(ep_path)
 
-    # Auto-detect the schema from the playback fingerprint (one run = one family,
-    # homogeneous controller/cams -- read it off the first episode).
-    controller, n_cams = _read_stamp(episodes[0][1])
+    if args.limit_per_task is not None:
+        by_task = {tid: files[:args.limit_per_task] for tid, files in by_task.items()}
+    selected = [path for tid in sorted(by_task) for path in by_task[tid]]
+    controller, n_cams, features = _infer_schema(selected, args.resolution)
     print(f"[Multitask] {len(episodes)} episodes across {len(by_task)} tasks "
           f"under {args.input_root}  (controller={controller}, n_cams={n_cams})")
 
     # ----- prepare LeRobot dataset -----
-    features = _build_features(controller, n_cams, args.resolution)
-
     dataset = LeRobotDataset.create(
         repo_id=args.repo_id,
         fps=args.fps,
@@ -295,9 +333,6 @@ def main():
             continue
 
         ep_files = by_task[tid]
-        if args.limit_per_task is not None:
-            ep_files = ep_files[: args.limit_per_task]
-
         prompts_seen.add(prompt)
         print(f"[{tid}] {len(ep_files)} eps  prompt='{prompt[:60]}...'")
 

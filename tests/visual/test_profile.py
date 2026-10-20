@@ -23,7 +23,8 @@ def test_profile_keeps_source_resolution_independent_of_policy():
     assert resolve_source_resolution(profile, None) == 640
     with pytest.raises(ValueError, match="resolution"):
         resolve_source_resolution(profile, 256)
-    assert resolve_source_resolution(None, 256) == 256
+    with pytest.raises(ValueError, match="resolution"):
+        resolve_source_resolution(None, 256)
 
 
 def test_duplicate_cameras_and_unknown_options_fail():
@@ -91,10 +92,26 @@ def test_omniglass_detection_uses_shader_identity_not_material_name():
     assert not is_omniglass_shader("OmniGlass.mdl", "water")
 
 
-@pytest.mark.parametrize("selection,size", [("high_fidelity", 640), ("legacy", 256), (None, 256), ({}, 640)])
+@pytest.mark.parametrize("selection,size", [("high_fidelity", 640), (None, 640), ({}, 640)])
 def test_visual_selection(selection, size, monkeypatch, tmp_path):
     from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
 
     monkeypatch.chdir(tmp_path)
     profile = resolve_profile_selection(selection)
     assert resolve_source_resolution(profile, None) == size
+
+
+@pytest.mark.parametrize("selection", ["legacy", {"resolution": [256, 256]}])
+def test_runtime_selection_cannot_disable_high_fidelity(selection):
+    from maniguard.visual.profile import resolve_profile_selection
+
+    with pytest.raises(ValueError, match="high.fidelity|640"):
+        resolve_profile_selection(selection)
+
+
+def test_null_yaml_selects_high_fidelity(tmp_path):
+    from maniguard.visual.profile import resolve_profile_selection
+
+    path = tmp_path / "empty.yaml"
+    path.write_text("null\n")
+    assert resolve_profile_selection(path)["resolution"] == [640, 640]

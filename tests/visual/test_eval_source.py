@@ -1,12 +1,12 @@
 import pytest
 
 
-def test_eval_source_configuration_is_explicit_and_legacy_stays_unchanged():
+def test_eval_source_configuration_rejects_legacy_and_resolution_conflicts():
     from maniguard.eval.eval_config import EvalConfig, resolve_source_config
 
     cfg = EvalConfig(source_profile="legacy")
-    resolve_source_config(cfg)
-    assert cfg.camera_resolution == 256 and cfg.rendering_frequency == 20
+    with pytest.raises(ValueError, match="legacy"):
+        resolve_source_config(cfg)
     cfg = EvalConfig(source_profile={"resolution": [640, 640]}, camera_resolution=640, save_video=False)
     resolve_source_config(cfg)
     assert cfg.rendering_frequency == 60 and cfg.action_frequency == 20
@@ -37,8 +37,8 @@ def test_default_resolves_without_repository_cwd(monkeypatch, tmp_path):
     assert cfg.source_profile["renderer"] == "RaytracedLighting"
 
 
-@pytest.mark.parametrize("selection", ["legacy", None])
-def test_legacy_round_trip(tmp_path, selection):
+@pytest.mark.parametrize("selection", ["high_fidelity", None])
+def test_high_fidelity_round_trip(tmp_path, selection):
     from maniguard.eval.eval_config import EvalConfig, load_eval_config, resolve_source_config
 
     cfg = EvalConfig(source_profile=selection)
@@ -47,10 +47,9 @@ def test_legacy_round_trip(tmp_path, selection):
     cfg.save(path)
     restored = load_eval_config(path)
     resolve_source_config(restored)
-    assert restored.source_profile is None
-    assert restored.camera_resolution == 256
-    assert restored.rendering_frequency == 20
-    assert restored.to_dict()["source_profile"] == "legacy"
+    assert restored.source_profile["name"] == "high_fidelity"
+    assert restored.camera_resolution == 640
+    assert restored.rendering_frequency == 60
 
 
 @pytest.mark.parametrize("flag,expected", [(None, False), ("--save-video", True), ("--no-save-video", False)])
@@ -58,13 +57,13 @@ def test_cli_preserves_or_overrides_yaml_video(tmp_path, monkeypatch, flag, expe
     from maniguard.eval.eval_config import config_from_cli, resolve_source_config
 
     path = tmp_path / "old.yaml"
-    path.write_text("camera_resolution: 256\nsave_video: false\n")
-    argv = ["benchmark", "--config", str(path), "--source-profile", "legacy"]
+    path.write_text("camera_resolution: 640\nsave_video: false\n")
+    argv = ["benchmark", "--config", str(path), "--source-profile", "high_fidelity"]
     monkeypatch.setattr("sys.argv", argv + ([flag] if flag else []))
     cfg = config_from_cli()
     resolve_source_config(cfg)
-    assert cfg.source_profile is None
-    assert cfg.camera_resolution == 256
+    assert cfg.source_profile["name"] == "high_fidelity"
+    assert cfg.camera_resolution == 640
     assert cfg.save_video is expected
 
 

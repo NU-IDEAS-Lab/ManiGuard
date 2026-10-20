@@ -221,7 +221,7 @@ def main():
                              "pair is loaded, the lid auto-attaches when "
                              "the lid is touching the container and the "
                              "gripper has released it.")
-    parser.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or YAML profile")
+    parser.add_argument("--source-profile", default="high_fidelity", help="high_fidelity or a high-fidelity YAML profile")
     args = parser.parse_args()
     from maniguard.visual.capture import SourceCapture, prepare_source_environment, prepare_source_launch
     from maniguard.visual.profile import resolve_profile_selection

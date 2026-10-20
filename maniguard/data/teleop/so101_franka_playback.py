@@ -44,7 +44,7 @@ def main():
                         "Slower but closer to a live re-simulation. Off by default: "
                         "objects become visual-only and states are just 'scrubbed' "
                         "frame by frame, which is ~30x faster.")
-    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity, legacy, or YAML profile")
+    p.add_argument("--source-profile", default="high_fidelity", help="high_fidelity or a high-fidelity YAML profile")
     p.add_argument("--diagnostics", default=None)
     args = p.parse_args()
     from maniguard.visual.capture import SourceCapture, prepare_source_launch

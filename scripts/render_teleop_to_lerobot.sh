@@ -5,7 +5,7 @@
 #
 #   Stage 1  re-render each raw teleop trajectory through OmniGibson, recording
 #            joint-8d state/action + 3 cameras (image_left, image_right,
-#            wrist_image) at 256x256. One process per trajectory (Isaac Sim
+#            wrist_image) at 640x640 by default. One process per trajectory (Isaac Sim
 #            scene-teardown is flaky across episodes in a single process; it
 #            also segfaults at og.clear() AFTER the HDF5 is fully written, so
 #            success is judged by a non-empty action dataset, not the exit code).
@@ -112,9 +112,9 @@ if [ "$DO_STAGE2" -eq 1 ]; then
     --diag-root "$DIAG_ROOT" \
     --repo-id "$REPO_ID" \
     --root "$LEROBOT_ROOT" \
-    --fps 30 --resolution 256
+    --fps 30
   echo "[stage2] DONE -> $LEROBOT_ROOT"
   echo
-  echo "[hint] to push to HF later, re-run Stage 2 adding --push-to-hub $REPO_ID"
-  echo "       (and --hub-private for a private repo), or call the exporter directly."
+  echo "[hint] to push to HF later, load the built LeRobot dataset and call push_to_hub."
+  echo "       See docs/data_collection/index.md (Sim teleop → LeRobot); do not recreate it."
 fi

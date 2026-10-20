@@ -36,8 +36,6 @@ def resolve_playback_profile(metadata, selection=None):
     """Recorded settings are authoritative unless explicitly rerendering."""
     from maniguard.visual.profile import resolve_profile_selection
     profile = resolve_profile_selection(metadata["source_profile"] if selection is None else selection)
-    if profile is None:
-        raise ValueError("Source snapshot playback requires a source profile; legacy RGB remains readable via EpisodeReader")
     return profile
 
 def render_recorded_states(env, reader, output, *, profile=None, indices=None):

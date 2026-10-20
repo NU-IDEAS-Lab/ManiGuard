@@ -1,7 +1,6 @@
 """Record review videos and camera metadata for benchmark construction.
 
-Legacy rendering positions four external cameras and returns endpoint stability
-statistics. A source profile records all five views, preserving saved cameras
+High-fidelity rendering records all five views, preserving saved cameras
 and robot pose and applying appearance overrides. Idle-step advances physics;
 frozen mode only renders. CLI previews write to a separate staging directory.
 """
@@ -14,7 +13,7 @@ from maniguard.visual.capture import prepare_source_environment as prepare_previ
 
 DEFAULT_FPS = 30
 DEFAULT_N_FRAMES = 60        # 60 frames @ 30 fps = a ~2 s idle-step stability clip
-DEFAULT_RESOLUTION = 256
+DEFAULT_RESOLUTION = 640
 
 
 def _build_og_config(scene_file: Path, diagnostics: dict, resolution: int) -> dict:
@@ -66,11 +65,11 @@ def review_videos_complete(directory, episode=1, source_profile="recorded"):
             source_profile = diag.get("source_visual", {}).get("profile")
         except (OSError, ValueError, IndexError):
             return False
+        if source_profile is None:
+            return all((directory / f"rollout_{label}_ep{episode}.mp4").is_file() for label in
+                       ("opposite_side_front", "left_overview", "right_overview", "left_shoulder"))
     profile = resolve_profile_selection(source_profile)
-    if profile is not None:
-        return preview_is_complete(directory / f"source_preview_ep{episode}", profile)
-    return all((directory / f"rollout_{label}_ep{episode}.mp4").is_file() for label in
-               ("opposite_side_front", "left_overview", "right_overview", "left_shoulder"))
+    return preview_is_complete(directory / f"source_preview_ep{episode}", profile)
 
 def _object_positions(env, robot, names=None):
     """World-XYZ of non-robot scene objects, keyed by name (for obj-displacement stats). ``names``
@@ -102,7 +101,7 @@ def render_views(
     track_object_names=None,
     source_profile="high_fidelity",
 ) -> tuple[dict, dict]:
-    """Render the 4 canonical review videos from a LIVE env + return (diagnostics, stats).
+    """Render the five source views from a LIVE env + return (diagnostics, stats).
 
     The caller is responsible for putting the env in its final state first (robot at the
     canonical pose, mount enforced, snapshot saved). This function only places the cameras,
@@ -112,8 +111,8 @@ def render_views(
     Args:
         env: a live ``og.Environment`` (already reset + robot posed).
         diagnostics: task diagnostics; a COPY is returned with ``cameras`` REPLACED by the
-            live-computed 4-view poses. All other fields are left untouched.
-        out_dir: directory to write ``rollout_<label>_ep{episode}.mp4`` into.
+            saved or computed external-view poses. All other fields are left untouched.
+        out_dir: parent directory of ``source_preview_ep{episode}``.
         n_frames: frames to record (60 @ 30fps ≈ 2 s).
         mode: ``"idle_step"`` advances physics each frame (``og.sim.step()``) while the arm is
             held at its set pose by the stiff Isaac position drive — so the clip shows physical
@@ -128,17 +127,13 @@ def render_views(
 
     Returns (diagnostics, stats). arm_drift is the largest absolute joint change
     between the first and last frame; obj_disp is the largest object displacement
-    between those frames. steps_executed currently records the frame count.
+    between those frames. steps_executed is the number of physics steps (zero
+    in frozen mode).
     """
-    import av
     import numpy as np
     import omnigibson as og
 
-    from maniguard.task_generation.utils.video import (
-        close_video_writer,
-        init_video_writer,
-        setup_cameras,
-    )
+    from maniguard.task_generation.utils.video import setup_cameras
     from maniguard.utils.camera_setup import compute_robot_frame_views
     from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
     source_profile = resolve_profile_selection(source_profile)
@@ -150,7 +145,7 @@ def render_views(
     # --- place the 4 canonical robot-frame cameras; setup_cameras applies AND returns
     #     the posed specs (eye/orientation/sensor_name) we stamp into diagnostics ---
     diagnostics = dict(diagnostics)
-    if source_profile is not None and diagnostics.get('cameras'):
+    if diagnostics.get('cameras'):
         from maniguard.utils.camera_setup import place_recorded_task_cameras
         place_recorded_task_cameras(env, diagnostics, set_viewer=False)
     else:
@@ -168,69 +163,17 @@ def render_views(
     q0 = robot.get_joint_positions().cpu().numpy()
     obj0 = _object_positions(env, robot, track_object_names)
 
-    if source_profile is not None:
-        from maniguard.visual.preview import render_preview
-        report = render_preview(env, out_dir / f"source_preview_ep{episode}", source_profile,
-                                frames=n_frames, fps=round(1 / og.sim.get_sim_step_dt()) if mode == "idle_step" else fps,
-                                mode=mode, monitor=ltl_monitor, overwrite=True)
-        q1 = robot.get_joint_positions().cpu().numpy()
-        obj1 = _object_positions(env, robot, track_object_names)
-        diagnostics["source_visual"] = {"profile": report["profile"], "cameras": report["cameras"]}
-        return diagnostics, {"arm_drift": float(np.max(np.abs(q1-q0))) if len(q0) else 0.,
-                             "obj_disp": max((float(np.linalg.norm(obj1[k]-v)) for k,v in obj0.items() if k in obj1), default=0.),
-                             "steps_executed": n_frames if mode == "idle_step" else 0}
-
-    # --- probe one frame to size the writers from the ACTUAL rgb (sensor-kwarg resolution
-    #     is unreliable in OmniGibson; sizing from the real frame avoids a swscale mismatch). ---
-    og.sim.render()
-    raw_obs, _ = env.get_obs()
-    external = raw_obs.get("external", {})
-
-    writers = []  # (writer_dict, sensor_name)
-    for v in posed:
-        rgb = external.get(v["sensor_name"], {}).get("rgb")
-        h, w = (int(rgb.shape[0]), int(rgb.shape[1])) if rgb is not None else (resolution, resolution)
-        wr = init_video_writer(
-            str(out_dir / f"rollout_{v['label']}"), episode - 1, fps,
-            robot=None, frame_hw=(h, w),
-        )
-        writers.append((wr, v["sensor_name"]))
-
-    # --- record loop. idle_step: og.sim.step() advances physics while the arm is held at its
-    #     set pose by the Isaac drive (NOT env.step(zero_action) — for an absolute JointController
-    #     a zero action commands all joints to 0 and flings the arm). frozen: render only. ---
-    for i in range(n_frames):
-        if mode == "idle_step":
-            og.sim.step()
-        else:
-            og.sim.render()
-        raw_obs, _ = env.get_obs()
-        external = raw_obs.get("external", {})
-        for wr, sensor_name in writers:
-            rgb = external.get(sensor_name, {}).get("rgb")
-            if rgb is None:
-                continue
-            frame = rgb[..., :3].cpu().numpy().astype(np.uint8)
-            vframe = av.VideoFrame.from_ndarray(frame, format="rgb24")
-            for packet in wr["stream"].encode(vframe):
-                wr["container"].mux(packet)
-        # step the LTL monitor over the SAME idle-step the video shows (caller reads it after)
-        if ltl_monitor is not None:
-            ltl_monitor.step(i + 1)
-
-    for wr, _sensor_name in writers:
-        close_video_writer(wr)
-
-    # --- stability/hold stats: max joint drift + max non-robot object displacement ---
+    from maniguard.visual.preview import render_preview
+    report = render_preview(env, out_dir / f"source_preview_ep{episode}", source_profile,
+                            frames=n_frames, fps=round(1 / og.sim.get_sim_step_dt()) if mode == "idle_step" else fps,
+                            mode=mode, monitor=ltl_monitor, overwrite=True)
     q1 = robot.get_joint_positions().cpu().numpy()
-    arm_drift = float(np.abs(q1 - q0).max()) if len(q0) else 0.0
     obj1 = _object_positions(env, robot, track_object_names)
-    obj_disp = 0.0
-    for name, p0 in obj0.items():
-        p1 = obj1.get(name)
-        if p1 is not None:
-            obj_disp = max(obj_disp, float(np.linalg.norm(p1 - p0)))
-    return diagnostics, {"arm_drift": arm_drift, "obj_disp": obj_disp, "steps_executed": int(n_frames)}
+    diagnostics["source_visual"] = {"profile": report["profile"], "cameras": report["cameras"]}
+    return diagnostics, {"arm_drift": float(np.max(np.abs(q1-q0))) if len(q0) else 0.,
+                         "obj_disp": max((float(np.linalg.norm(obj1[k]-v)) for k,v in obj0.items() if k in obj1), default=0.),
+                         "steps_executed": n_frames if mode == "idle_step" else 0}
+
 
 
 def render_task(
@@ -245,7 +188,7 @@ def render_task(
     mode: str = "idle_step",
     source_profile="high_fidelity",
 ) -> dict:
-    """Load a snapshot, set the canonical init pose, and render the selected views.
+    """Load a snapshot, apply its appearance overrides, and render all five views.
 
     Thin wrapper around ``render_views`` for ad-hoc rendering of an existing snapshot (it does
     NOT enforce the mount — that is the finalizer's job). Returns the updated diagnostics dict
@@ -254,42 +197,21 @@ def render_task(
     from maniguard.visual.profile import resolve_profile_selection, resolve_source_resolution
     source_profile = resolve_profile_selection(source_profile)
     resolution = resolve_source_resolution(source_profile, resolution)
-    if source_profile is not None:
-        from maniguard.visual.capture import prepare_source_launch
-        prepare_source_launch()
-
-    import omnigibson as og
-    import torch as th
-
-    from maniguard.utils.robot_pose import BENCH_INIT_QPOS
+    from maniguard.data.datagen.primitives.scene import init_omnigibson, task_needs_gpu_dynamics
+    from maniguard.data.bench_builder.perturbation import apply_perturbation
+    from maniguard.visual.capture import prepare_source_launch
 
     scene_file = Path(scene_file)
     out_dir = Path(out_dir)
-
-    if source_profile is not None:
-        from maniguard.data.datagen.primitives.scene import init_omnigibson, task_needs_gpu_dynamics
-        from maniguard.visual.capture import prepare_source_launch
-        source_profile = resolve_profile_selection(source_profile)
-        resolution = source_profile["resolution"][0]
-        prepare_source_launch()
-        init_omnigibson(needs_gpu_dynamics=task_needs_gpu_dynamics(scene_file.parent), source_profile=source_profile)
+    prepare_source_launch()
+    og = init_omnigibson(needs_gpu_dynamics=task_needs_gpu_dynamics(scene_file.parent), source_profile=source_profile)
     og_cfg = _build_og_config(scene_file, diagnostics, resolution)
-    if source_profile is not None:
-        og_cfg["env"].update(action_frequency=fps, rendering_frequency=60, physics_frequency=120)
-        prepare_preview_environment(og_cfg, source_profile, clear=True)
-    elif og.sim is not None:
-        og.sim.stop()
-        og.clear()
+    og_cfg["env"].update(action_frequency=fps, rendering_frequency=60, physics_frequency=120)
+    prepare_preview_environment(og_cfg, source_profile, clear=True)
     env = og.Environment(configs=og_cfg)
     env.reset()
-
-    robot = env.robots[0]
-    if source_profile is None:
-        robot.set_joint_positions(th.tensor(BENCH_INIT_QPOS, dtype=th.float32))
-        robot.keep_still()
-    else:
-        from maniguard.data.bench_builder.perturbation import apply_perturbation
-        apply_perturbation(env, diagnostics)
+    # Appearance is part of the task definition, independent of rendering settings.
+    apply_perturbation(env, diagnostics)
 
     diagnostics, _stats = render_views(
         env, diagnostics, out_dir,
